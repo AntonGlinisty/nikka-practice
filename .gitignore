@@ -1,0 +1,10 @@
+*.diff
+*.orig
+*.pdf
+*.rej
+*.swp
+.gdb_history
+.vscode
+serial.out
+target
+target/
