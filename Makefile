@@ -18,6 +18,8 @@ RUST_PATH = $(HOME)/.cargo/bin
 
 export PATH := $(RUST_PATH):$(PATH)
 
+CRATES = serial text kernel
+
 all: test run
 
 run: bootimage
@@ -67,7 +69,7 @@ gdb:
 
 FORCE:
 
-test: $(RUST_PATH)/cargo update
+test: $(RUST_PATH)/cargo
 	@( \
 		cd text; \
 		RUST_BACKTRACE=1 cargo test; \
@@ -78,11 +80,11 @@ fmt: $(RUST_PATH)/rustfmt
 
 clean: $(RUST_PATH)/cargo
 	@( \
-		cd kernel; \
-		cargo clean; \
-		cd ../text; \
-		cargo clean; \
-		cd ..; \
+		for crate in $(CRATES); do \
+			cd $$crate; \
+			cargo clean; \
+			cd - >/dev/null; \
+		done; \
 	)
 	@rm --force \
 		kernel/serial.out \
@@ -92,6 +94,13 @@ install: FORCE $(RUST_PATH)/rustup
 
 update: FORCE install
 	@rustup update
+	@( \
+		for crate in $(CRATES); do \
+			cd $$crate; \
+			cargo update; \
+			cd - >/dev/null; \
+		done; \
+	)
 
 $(RUST_PATH)/rustup:
 	@curl https://sh.rustup.rs -sSf | sh
