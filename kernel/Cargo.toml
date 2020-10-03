@@ -9,7 +9,10 @@ version = "0.1.0"
 
 [dependencies]
 bootloader = "*"
+lazy_static = { version = "*", features = ["spin_no_std"] }
 rlibc = "*"
 x86 = "*"
+x86_64 = "*"
 
+pic8259 = { path = "../pic8259" }
 text = { path = "../text" }

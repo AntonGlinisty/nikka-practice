@@ -2,16 +2,23 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
+#![feature(abi_x86_interrupt)]
 #![feature(format_args_capture)]
 #![feature(panic_info_message)]
 #![no_std]
 #![no_main]
 
 #[allow(unused_extern_crates)]
+extern crate lazy_static;
 extern crate rlibc;
 extern crate x86;
+extern crate x86_64;
 
+extern crate pic8259;
 extern crate text;
+
+mod memory;
+mod trap;
 
 use core::{
     fmt::Write,
@@ -20,8 +27,12 @@ use core::{
 
 use text::{
     Attribute,
+    print,
     println,
 };
+
+use memory::gdt;
+use trap::TRAP_STATS;
 
 #[cold]
 #[inline(never)]
@@ -31,7 +42,21 @@ extern "C" fn _start() {
 
     println!("Nikka booted");
 
-    halt();
+    gdt::init();
+    trap::init();
+
+    loop {
+        print!("\rINT stats:");
+        for stats in &TRAP_STATS {
+            let count = stats.count();
+            if count != 0 {
+                print!(" {}:{}", stats.mnemonic(), count);
+            }
+        }
+        unsafe {
+            x86::halt();
+        }
+    }
 }
 
 #[cold]
