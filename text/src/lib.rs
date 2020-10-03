@@ -3,6 +3,7 @@
 #![allow(unused_variables)]
 
 #![feature(format_args_capture)]
+#![feature(int_bits_const)]
 #![no_std]
 
 extern crate bitflags;

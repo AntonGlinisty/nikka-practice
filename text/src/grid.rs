@@ -1,6 +1,10 @@
 use core::{
     cmp,
-    ops::Range,
+    ops::{
+        Deref,
+        DerefMut,
+        Range,
+    },
 };
 
 use static_assertions::{
@@ -29,6 +33,20 @@ pub fn round_up(
 pub struct Glyph {
     pub character: u8,
     attribute: Attribute,
+}
+
+impl Deref for Glyph {
+    type Target = Self;
+
+    fn deref(&self) -> &Self {
+        self
+    }
+}
+
+impl DerefMut for Glyph {
+    fn deref_mut(&mut self) -> &mut Self {
+        self
+    }
 }
 
 pub const COLUMN_COUNT: usize = 80;
