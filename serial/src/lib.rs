@@ -2,14 +2,14 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
-#![allow(clippy::inconsistent_digit_grouping)]
+#![allow(clippy::unusual_byte_groupings)]
 #![no_std]
 
 extern crate x86;
 
 use core::{
     convert::TryInto,
-    sync::atomic,
+    hint,
 };
 
 use x86::io;
@@ -75,7 +75,7 @@ impl Serial for Com {
         const COM1_DATA: u16 = 0x03F8;
 
         while !transmitter_is_ready() {
-            atomic::spin_loop_hint();
+            hint::spin_loop();
         }
 
         unsafe {

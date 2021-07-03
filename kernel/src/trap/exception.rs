@@ -87,98 +87,98 @@ impl<'frame> Debug for StackFrame<'frame> {
     }
 }
 
-pub(super) extern "x86-interrupt" fn divide_error(stack_frame: &mut InterruptStackFrame) {
+pub(super) extern "x86-interrupt" fn divide_error(stack_frame: InterruptStackFrame) {
     TRAP_STATS[super::DIVIDE_ERROR].inc();
-    panic!("Divide error\n{:?}", StackFrame::new(stack_frame));
+    panic!("Divide error\n{:?}", StackFrame::new(&stack_frame));
 }
 
-pub(super) extern "x86-interrupt" fn debug(stack_frame: &mut InterruptStackFrame) {
+pub(super) extern "x86-interrupt" fn debug(stack_frame: InterruptStackFrame) {
     TRAP_STATS[super::DEBUG].inc();
-    panic!("Debug trap or fault\n{:?}", StackFrame::new(stack_frame));
+    panic!("Debug trap or fault\n{:?}", StackFrame::new(&stack_frame));
 }
 
-pub(super) extern "x86-interrupt" fn non_maskable_interrupt(stack_frame: &mut InterruptStackFrame) {
+pub(super) extern "x86-interrupt" fn non_maskable_interrupt(stack_frame: InterruptStackFrame) {
     TRAP_STATS[super::NON_MASKABLE_INTERRUPT].inc();
     panic!(
         "Non-maskable interrupt - probable hardware failure\n{:?}",
-        StackFrame::new(stack_frame),
+        StackFrame::new(&stack_frame),
     );
 }
 
-pub(super) extern "x86-interrupt" fn breakpoint(stack_frame: &mut InterruptStackFrame) {
+pub(super) extern "x86-interrupt" fn breakpoint(stack_frame: InterruptStackFrame) {
     TRAP_STATS[super::BREAKPOINT].inc();
     use core::fmt::Write;
     use text::println;
-    println!("breakpoint\n{:?}", StackFrame::new(stack_frame));
+    println!("breakpoint\n{:?}", StackFrame::new(&stack_frame));
 }
 
-pub(super) extern "x86-interrupt" fn overflow(_stack_frame: &mut InterruptStackFrame) {
+pub(super) extern "x86-interrupt" fn overflow(_stack_frame: InterruptStackFrame) {
     TRAP_STATS[super::OVERFLOW].inc();
 }
 
-pub(super) extern "x86-interrupt" fn bound_range_exceeded(stack_frame: &mut InterruptStackFrame) {
+pub(super) extern "x86-interrupt" fn bound_range_exceeded(stack_frame: InterruptStackFrame) {
     TRAP_STATS[super::BOUND_RANGE_EXCEEDED].inc();
-    panic!("Bound range exceeded\n{:?}", StackFrame::new(stack_frame));
+    panic!("Bound range exceeded\n{:?}", StackFrame::new(&stack_frame));
 }
 
-pub(super) extern "x86-interrupt" fn invalid_opcode(stack_frame: &mut InterruptStackFrame) {
+pub(super) extern "x86-interrupt" fn invalid_opcode(stack_frame: InterruptStackFrame) {
     TRAP_STATS[super::INVALID_OPCODE].inc();
     panic!(
         "Invalid opcode - the code is compiled for a different CPU model\n{:?}",
-        StackFrame::new(stack_frame),
+        StackFrame::new(&stack_frame),
     );
 }
 
-pub(super) extern "x86-interrupt" fn device_not_available(stack_frame: &mut InterruptStackFrame) {
+pub(super) extern "x86-interrupt" fn device_not_available(stack_frame: InterruptStackFrame) {
     TRAP_STATS[super::DEVICE_NOT_AVAILABLE].inc();
-    panic!("Device not available\n{:?}", StackFrame::new(stack_frame));
+    panic!("Device not available\n{:?}", StackFrame::new(&stack_frame));
 }
 
 pub(super) extern "x86-interrupt" fn double_fault(
-    stack_frame: &mut InterruptStackFrame,
+    stack_frame: InterruptStackFrame,
     _error_code: u64,
 ) -> ! {
     TRAP_STATS[super::DOUBLE_FAULT].inc();
-    panic!("Double fault\n{:?}", StackFrame::new(stack_frame))
+    panic!("Double fault\n{:?}", StackFrame::new(&stack_frame))
 }
 
 pub(super) extern "x86-interrupt" fn invalid_tss(
-    stack_frame: &mut InterruptStackFrame,
+    stack_frame: InterruptStackFrame,
     _error_code: u64,
 ) {
     TRAP_STATS[super::INVALID_TSS].inc();
-    panic!("Invalid TSS\n{:?}", StackFrame::new(stack_frame));
+    panic!("Invalid TSS\n{:?}", StackFrame::new(&stack_frame));
 }
 
 pub(super) extern "x86-interrupt" fn segment_not_present(
-    stack_frame: &mut InterruptStackFrame,
+    stack_frame: InterruptStackFrame,
     _error_code: u64,
 ) {
     TRAP_STATS[super::SEGMENT_NOT_PRESENT].inc();
-    panic!("Segment not present\n{:?}", StackFrame::new(stack_frame));
+    panic!("Segment not present\n{:?}", StackFrame::new(&stack_frame));
 }
 
 pub(super) extern "x86-interrupt" fn stack_segment_fault(
-    stack_frame: &mut InterruptStackFrame,
+    stack_frame: InterruptStackFrame,
     _error_code: u64,
 ) {
     TRAP_STATS[super::STACK_SEGMENT_FAULT].inc();
-    panic!("Stack segment fault\n{:?}", StackFrame::new(stack_frame));
+    panic!("Stack segment fault\n{:?}", StackFrame::new(&stack_frame));
 }
 
 pub(super) extern "x86-interrupt" fn general_protection_fault(
-    stack_frame: &mut InterruptStackFrame,
+    stack_frame: InterruptStackFrame,
     _error_code: u64,
 ) {
     TRAP_STATS[super::GENERAL_PROTECTION_FAULT].inc();
     panic!(
         "General protection fault\n{:?}",
-        StackFrame::new(stack_frame),
+        StackFrame::new(&stack_frame),
     );
 }
 
 pub(super) extern "x86-interrupt" fn page_fault(
-    stack_frame: &mut InterruptStackFrame,
+    stack_frame: InterruptStackFrame,
     error_code: PageFaultErrorCode,
 ) {
     use x86_64::registers::control::Cr2;
@@ -206,51 +206,51 @@ pub(super) extern "x86-interrupt" fn page_fault(
             "page is not present"
         },
         error_code,
-        StackFrame::new(stack_frame),
+        StackFrame::new(&stack_frame),
     );
 }
 
-pub(super) extern "x86-interrupt" fn x87_floating_point(stack_frame: &mut InterruptStackFrame) {
+pub(super) extern "x86-interrupt" fn x87_floating_point(stack_frame: InterruptStackFrame) {
     TRAP_STATS[super::X87_FLOATING_POINT].inc();
     panic!(
         "x87 floating point exception\n{:?}",
-        StackFrame::new(stack_frame),
+        StackFrame::new(&stack_frame),
     );
 }
 
 pub(super) extern "x86-interrupt" fn alignment_check(
-    stack_frame: &mut InterruptStackFrame,
+    stack_frame: InterruptStackFrame,
     _error_code: u64,
 ) {
     TRAP_STATS[super::ALIGNMENT_CHECK].inc();
-    panic!("Alignment check\n{:?}", StackFrame::new(stack_frame));
+    panic!("Alignment check\n{:?}", StackFrame::new(&stack_frame));
 }
 
-pub(super) extern "x86-interrupt" fn machine_check(stack_frame: &mut InterruptStackFrame) -> ! {
+pub(super) extern "x86-interrupt" fn machine_check(stack_frame: InterruptStackFrame) -> ! {
     TRAP_STATS[super::MACHINE_CHECK].inc();
-    panic!("Machine check\n{:?}", StackFrame::new(stack_frame))
+    panic!("Machine check\n{:?}", StackFrame::new(&stack_frame))
 }
 
-pub(super) extern "x86-interrupt" fn simd_floating_point(stack_frame: &mut InterruptStackFrame) {
+pub(super) extern "x86-interrupt" fn simd_floating_point(stack_frame: InterruptStackFrame) {
     TRAP_STATS[super::SIMD_FLOATING_POINT].inc();
     panic!(
         "SIMD floating point exception\n{:?}",
-        StackFrame::new(stack_frame),
+        StackFrame::new(&stack_frame),
     );
 }
 
-pub(super) extern "x86-interrupt" fn virtualization(stack_frame: &mut InterruptStackFrame) {
+pub(super) extern "x86-interrupt" fn virtualization(stack_frame: InterruptStackFrame) {
     TRAP_STATS[super::VIRTUALIZATION].inc();
     panic!(
         "Virtualization exception\n{:?}",
-        StackFrame::new(stack_frame),
+        StackFrame::new(&stack_frame),
     );
 }
 
 pub(super) extern "x86-interrupt" fn security_exception(
-    stack_frame: &mut InterruptStackFrame,
+    stack_frame: InterruptStackFrame,
     _error_code: u64,
 ) {
     TRAP_STATS[super::SECURITY_EXCEPTION].inc();
-    panic!("Security exception\n{:?}", StackFrame::new(stack_frame));
+    panic!("Security exception\n{:?}", StackFrame::new(&stack_frame));
 }
