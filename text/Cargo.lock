@@ -34,9 +34,9 @@ dependencies = [
 
 [[package]]
 name = "raw-cpuid"
-version = "9.0.1"
+version = "9.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f85c77b1c9c86e0dc17e702f296f7e0b21912c505b2d56b29c7c3d061f5b0e22"
+checksum = "1733f6f80c9c24268736a501cd00d41a9849b4faa7a9f9334c096e5d10553206"
 dependencies = [
  "bitflags",
 ]
@@ -62,9 +62,9 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
 name = "spin"
-version = "0.9.1"
+version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f5fdd7196b4ae35a111c6dc97f9cc152ca3ea8ad744f7cb46a9f27b3ef8f2f54"
+checksum = "511254be0c5bcf062b019a6c89c01a664aa359ded62f78aa72c6fc137c0590e5"
 dependencies = [
  "lock_api",
 ]
@@ -82,7 +82,7 @@ dependencies = [
  "bitflags",
  "lazy_static",
  "serial",
- "spin 0.9.1",
+ "spin 0.9.2",
  "static_assertions",
  "volatile",
  "x86",
