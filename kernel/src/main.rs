@@ -11,12 +11,15 @@
 #[allow(unused_extern_crates)]
 extern crate lazy_static;
 extern crate rlibc;
+extern crate tracing;
+extern crate tracing_core;
 extern crate x86;
 extern crate x86_64;
 
 extern crate pic8259;
 extern crate text;
 
+mod log;
 mod memory;
 mod trap;
 
@@ -27,10 +30,13 @@ use core::{
 
 use text::{
     Attribute,
-    print,
     println,
 };
 
+use log::{
+    debug,
+    info,
+};
 use memory::gdt;
 use trap::TRAP_STATS;
 
@@ -39,20 +45,22 @@ use trap::TRAP_STATS;
 #[no_mangle]
 extern "C" fn _start() {
     text::TEXT.lock().init();
+    log::init();
 
-    println!("Nikka booted");
+    info!("Nikka booted");
 
     gdt::init();
     trap::init();
 
     loop {
-        print!("\rINT stats:");
-        for stats in &TRAP_STATS {
+        for (number, stats) in TRAP_STATS.iter().enumerate() {
             let count = stats.count();
             if count != 0 {
-                print!(" {}:{}", stats.mnemonic(), count);
+                let mnemonic = stats.mnemonic();
+                debug!(number, %mnemonic, count, "trap stats");
             }
         }
+
         unsafe {
             x86::halt();
         }

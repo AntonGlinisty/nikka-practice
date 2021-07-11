@@ -27,6 +27,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a3c1ceed1cd9e61c7998100cc18c13d413aa40d018992b871ab8e7435ce6372"
 
 [[package]]
+name = "cfg-if"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
+
+[[package]]
 name = "kernel"
 version = "0.1.0"
 dependencies = [
@@ -35,6 +41,8 @@ dependencies = [
  "pic8259",
  "rlibc",
  "text",
+ "tracing",
+ "tracing-core",
  "x86",
  "x86_64",
 ]
@@ -63,6 +71,12 @@ version = "0.1.0"
 dependencies = [
  "x86",
 ]
+
+[[package]]
+name = "pin-project-lite"
+version = "0.2.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d31d11c69a6b52a174b42bdc0c30e5e11670f90788b2c471c31c1d17d449443"
 
 [[package]]
 name = "raw-cpuid"
@@ -125,6 +139,21 @@ dependencies = [
  "volatile",
  "x86",
 ]
+
+[[package]]
+name = "tracing"
+version = "0.2.0"
+source = "git+https://github.com/tokio-rs/tracing#a74a0479c1a868830d980b381e8f49df033fbd71"
+dependencies = [
+ "cfg-if",
+ "pin-project-lite",
+ "tracing-core",
+]
+
+[[package]]
+name = "tracing-core"
+version = "0.2.0"
+source = "git+https://github.com/tokio-rs/tracing#a74a0479c1a868830d980b381e8f49df033fbd71"
 
 [[package]]
 name = "volatile"

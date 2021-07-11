@@ -11,6 +11,8 @@ use x86_64::{
     },
 };
 
+use log::info;
+
 use super::tss::TSS;
 
 pub(crate) fn init() {
@@ -25,6 +27,8 @@ pub(crate) fn init() {
 
         tables::load_tss(GDT.tss_selector);
     }
+
+    info!("GDT init");
 }
 
 struct Gdt {

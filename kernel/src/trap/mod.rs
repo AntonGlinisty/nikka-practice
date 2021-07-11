@@ -5,6 +5,8 @@ mod stats;
 
 use x86_64::instructions::interrupts;
 
+use log::info;
+
 use self::idt::IDT;
 
 pub(crate) use self::stats::TRAP_STATS;
@@ -61,4 +63,6 @@ pub(super) fn init() {
     IDT.load();
 
     interrupts::enable();
+
+    info!("traps init");
 }

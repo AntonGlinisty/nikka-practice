@@ -11,6 +11,8 @@ version = "0.1.0"
 bootloader = "0.9.*"
 lazy_static = { version = "*", features = ["spin_no_std"] }
 rlibc = "*"
+tracing = { git = "https://github.com/tokio-rs/tracing", version = "*", default-features = false }
+tracing-core = { git = "https://github.com/tokio-rs/tracing", version = "*", default-features = false }
 x86 = "*"
 x86_64 = "*"
 
