@@ -9,8 +9,13 @@
 #![no_main]
 
 #[allow(unused_extern_crates)]
+extern crate chrono;
+extern crate derive_more;
 extern crate lazy_static;
+extern crate number_prefix;
 extern crate rlibc;
+extern crate scopeguard;
+extern crate static_assertions;
 extern crate tracing;
 extern crate tracing_core;
 extern crate x86;
@@ -21,6 +26,7 @@ extern crate text;
 
 mod log;
 mod memory;
+mod time;
 mod trap;
 
 use core::{
@@ -38,6 +44,10 @@ use log::{
     info,
 };
 use memory::gdt;
+use time::{
+    Pit,
+    Rtc,
+};
 use trap::TRAP_STATS;
 
 #[cold]
@@ -46,13 +56,27 @@ use trap::TRAP_STATS;
 extern "C" fn _start() {
     text::TEXT.lock().init();
     log::init();
+    time::init();
 
-    info!("Nikka booted");
+    info!(now = %time::now(), tsc = time::tsc(), "Nikka booted");
 
     gdt::init();
     trap::init();
 
     loop {
+        if let Some(frequency) = Pit::tsc_per_second() {
+            debug!(%frequency, "CPU frequency measured by PIT");
+        }
+
+        if let Some(frequency) = Rtc::tsc_per_second() {
+            debug!(%frequency, "CPU frequency measured by RTC");
+        }
+
+        let start = time::now();
+        let stop = time::now();
+        let time_precision = stop - start;
+        debug!(%time_precision);
+
         for (number, stats) in TRAP_STATS.iter().enumerate() {
             let count = stats.count();
             if count != 0 {

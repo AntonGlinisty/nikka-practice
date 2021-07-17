@@ -1,9 +1,15 @@
 use x86_64::structures::idt::InterruptStackFrame;
 
+use time::{
+    Pit,
+    Rtc,
+};
+
 use super::TRAP_STATS;
 
 pub(super) extern "x86-interrupt" fn pit(_stack_frame: InterruptStackFrame) {
     TRAP_STATS[super::PIT].inc();
+    Pit::interrupt();
 }
 
 pub(super) extern "x86-interrupt" fn keyboard(_stack_frame: InterruptStackFrame) {
@@ -36,6 +42,7 @@ pub(super) extern "x86-interrupt" fn lpt1(_stack_frame: InterruptStackFrame) {
 
 pub(super) extern "x86-interrupt" fn rtc(_stack_frame: InterruptStackFrame) {
     TRAP_STATS[super::RTC].inc();
+    Rtc::interrupt();
 }
 
 pub(super) extern "x86-interrupt" fn free_29(_stack_frame: InterruptStackFrame) {

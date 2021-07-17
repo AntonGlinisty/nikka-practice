@@ -9,8 +9,13 @@ version = "0.1.0"
 
 [dependencies]
 bootloader = "0.9.*"
+chrono = { version = "*", default-features = false }
+derive_more = "*"
 lazy_static = { version = "*", features = ["spin_no_std"] }
+number_prefix = { version = "*", default-features = false }
 rlibc = "*"
+scopeguard = { version = "*", default-features = false }
+static_assertions = "*"
 tracing = { git = "https://github.com/tokio-rs/tracing", version = "*", default-features = false }
 tracing-core = { git = "https://github.com/tokio-rs/tracing", version = "*", default-features = false }
 x86 = "*"

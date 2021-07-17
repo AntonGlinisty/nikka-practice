@@ -28,6 +28,8 @@ use text::{
     println,
 };
 
+use time;
+
 pub use tracing::{
     debug,
     error,
@@ -84,9 +86,12 @@ impl Collect for LogCollector {
         &self,
         event: &Event<'_>,
     ) {
+        let now = time::now_ms();
         let metadata = &event.metadata();
+
         print!(
-            "{} {} {}:{} ",
+            "{:?} {} {} {}:{} ",
+            now,
             metadata.level(),
             metadata.target(),
             metadata.file().unwrap_or("?"),
