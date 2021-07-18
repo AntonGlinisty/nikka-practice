@@ -102,6 +102,10 @@ impl<'a> Grid<'a> {
         position
     }
 
+    pub fn attribute(&mut self) -> Attribute {
+        self.attribute
+    }
+
     pub fn set_attribute(
         &mut self,
         attribute: Attribute,

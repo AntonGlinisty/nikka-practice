@@ -82,10 +82,16 @@ impl Attribute {
         foreground: Color,
         background: Color,
     ) -> Attribute {
-        const BACKGROUND_SHIFT: u8 = 4;
-
-        Attribute(background.bits << BACKGROUND_SHIFT | foreground.bits)
+        Attribute(background.bits << Self::BACKGROUND_SHIFT | foreground.bits)
     }
+
+    pub const fn background(&self) -> Color {
+        Color {
+            bits: self.0 >> Self::BACKGROUND_SHIFT,
+        }
+    }
+
+    const BACKGROUND_SHIFT: u8 = 4;
 }
 
 pub struct Text<'a, C: Cursor, S: Serial> {
@@ -117,6 +123,10 @@ impl<'a, C: Cursor, S: Serial> Text<'a, C, S> {
 
             writeln!(self).unwrap();
         }
+    }
+
+    pub fn attribute(&mut self) -> Attribute {
+        self.grid.attribute()
     }
 
     pub fn set_attribute(
@@ -163,12 +173,40 @@ lazy_static! {
 }
 
 #[macro_export]
+macro_rules! make_attribute {
+    ($foreground:expr, $background:expr) => {
+        $crate::Attribute::new($foreground, $background)
+    };
+    ($base:expr; $foreground:expr, $background:expr) => {
+        $crate::make_attribute!($foreground, $background)
+    };
+    ($base:expr; $foreground:expr) => {
+        $crate::make_attribute!($foreground, $base.background())
+    };
+}
+
+#[macro_export]
 macro_rules! print {
+    (color($($colors:tt)*), $($arg:tt)*) => ({
+        let mut text = $crate::TEXT.lock();
+        let old_attribute = text.attribute();
+        let new_attribute = $crate::make_attribute!(old_attribute; $($colors)*);
+        text.set_attribute(new_attribute);
+        text.write_fmt(format_args!($($arg)*)).unwrap();
+        text.set_attribute(old_attribute);
+    });
     ($($arg:tt)*) => ($crate::TEXT.lock().write_fmt(format_args!($($arg)*)).unwrap());
 }
 
 #[macro_export]
 macro_rules! println {
     () => ($crate::print!("\n"));
+    (color($($colors:tt)*), $($arg:tt)*) => (
+        $crate::print!(
+            color($($colors)*),
+            "{}\n",
+            format_args!($($arg)*),
+        )
+    );
     ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
 }
