@@ -16,11 +16,9 @@ use chrono::{
 
 use crate::log::info;
 
-pub use self::{
-    hz::Hz,
-    pit8254::Pit,
-    rtc::Rtc,
-};
+pub use hz::Hz;
+pub use pit8254::Pit;
+pub use rtc::Rtc;
 
 pub(super) fn init() {
     pit8254::init();

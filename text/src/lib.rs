@@ -5,15 +5,6 @@
 #![feature(format_args_capture)]
 #![no_std]
 
-extern crate bitflags;
-extern crate lazy_static;
-extern crate spin;
-extern crate static_assertions;
-extern crate volatile;
-extern crate x86;
-
-extern crate serial;
-
 mod cursor;
 mod grid;
 

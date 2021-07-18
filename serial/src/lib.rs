@@ -5,8 +5,6 @@
 #![allow(clippy::unusual_byte_groupings)]
 #![no_std]
 
-extern crate x86;
-
 use core::{
     convert::TryInto,
     hint,

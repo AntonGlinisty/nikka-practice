@@ -11,7 +11,7 @@ use x86_64::{
     },
 };
 
-use log::info;
+use crate::log::info;
 
 use super::tss::TSS;
 

@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use x86_64::structures::idt::InterruptDescriptorTable;
 
-use memory::{
+use crate::memory::{
     DOUBLE_FAULT_IST_INDEX,
     PAGE_FAULT_IST_INDEX,
 };

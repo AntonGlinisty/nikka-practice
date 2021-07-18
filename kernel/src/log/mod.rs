@@ -30,7 +30,7 @@ use text::{
     println,
 };
 
-use time;
+use crate::time;
 
 pub use tracing::{
     debug,

@@ -8,21 +8,7 @@
 #![no_std]
 #![no_main]
 
-#[allow(unused_extern_crates)]
-extern crate chrono;
-extern crate derive_more;
-extern crate lazy_static;
-extern crate number_prefix;
 extern crate rlibc;
-extern crate scopeguard;
-extern crate static_assertions;
-extern crate tracing;
-extern crate tracing_core;
-extern crate x86;
-extern crate x86_64;
-
-extern crate pic8259;
-extern crate text;
 
 mod log;
 mod memory;

@@ -1,6 +1,6 @@
 use x86_64::structures::idt::InterruptStackFrame;
 
-use time::{
+use crate::time::{
     Pit,
     Rtc,
 };

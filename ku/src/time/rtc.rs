@@ -10,7 +10,7 @@ use derive_more::Display;
 use scopeguard::defer;
 use x86::io;
 
-use log::{
+use crate::log::{
     error,
     info,
 };

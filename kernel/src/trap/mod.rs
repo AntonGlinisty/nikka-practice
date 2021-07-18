@@ -5,7 +5,7 @@ mod stats;
 
 use x86_64::instructions::interrupts;
 
-use log::info;
+use crate::log::info;
 
 use self::idt::IDT;
 
