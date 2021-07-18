@@ -7,6 +7,7 @@ use tracing::{
     Collect,
     Event,
     Id,
+    Level,
     Metadata,
     field::{
         Field,
@@ -24,6 +25,7 @@ use tracing_core::{
 };
 
 use text::{
+    Color,
     print,
     println,
 };
@@ -47,6 +49,9 @@ struct LogEvent {
 }
 
 impl LogEvent {
+    const MESSAGE: Color = Color::WHITE;
+    const VALUE: Color = Color::LIGHT_CYAN;
+
     fn new() -> Self {
         Self { separator: false }
     }
@@ -64,15 +69,30 @@ impl Visit for LogEvent {
             self.separator = true
         }
 
-        if field.name() != "message" {
+        if field.name() == "message" {
+            print!(color(Self::MESSAGE), "{:?}", value);
+        } else {
             print!("{} = ", field.name());
+            print!(color(Self::VALUE), "{:?}", value);
         }
-
-        print!("{:?}", value);
     }
 }
 
 struct LogCollector;
+
+impl LogCollector {
+    const LOCATION: Color = Color::DARK_GRAY;
+
+    const fn level_color(level: &Level) -> Color {
+        match *level {
+            Level::ERROR => Color::LIGHT_RED,
+            Level::WARN => Color::LIGHT_YELLOW,
+            Level::INFO => Color::WHITE,
+            Level::DEBUG => Color::LIGHT_BLUE,
+            Level::TRACE => Color::DARK_GRAY,
+        }
+    }
+}
 
 impl Collect for LogCollector {
     fn new_span(
@@ -89,10 +109,15 @@ impl Collect for LogCollector {
         let now = time::now_ms();
         let metadata = &event.metadata();
 
+        print!("{:?} ", now);
         print!(
-            "{:?} {} {} {}:{} ",
-            now,
+            color(Self::level_color(metadata.level())),
+            "{}",
             metadata.level(),
+        );
+        print!(
+            color(Self::LOCATION),
+            " {} {}:{} ",
             metadata.target(),
             metadata.file().unwrap_or("?"),
             metadata.line().unwrap_or(0),
