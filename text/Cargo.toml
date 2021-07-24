@@ -15,5 +15,6 @@ spin = "*"
 static_assertions = "*"
 volatile = "*"
 x86 = "*"
+x86_64 = "*"
 
 serial = { path = "../serial" }

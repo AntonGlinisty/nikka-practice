@@ -178,15 +178,21 @@ macro_rules! make_attribute {
 
 #[macro_export]
 macro_rules! print {
-    (color($($colors:tt)*), $($arg:tt)*) => ({
-        let mut text = $crate::TEXT.lock();
-        let old_attribute = text.attribute();
-        let new_attribute = $crate::make_attribute!(old_attribute; $($colors)*);
-        text.set_attribute(new_attribute);
-        text.write_fmt(format_args!($($arg)*)).unwrap();
-        text.set_attribute(old_attribute);
-    });
-    ($($arg:tt)*) => ($crate::TEXT.lock().write_fmt(format_args!($($arg)*)).unwrap());
+    (color($($colors:tt)*), $($arg:tt)*) => (
+        x86_64::instructions::interrupts::without_interrupts(|| {
+            let mut text = $crate::TEXT.lock();
+            let old_attribute = text.attribute();
+            let new_attribute = $crate::make_attribute!(old_attribute; $($colors)*);
+            text.set_attribute(new_attribute);
+            text.write_fmt(format_args!($($arg)*)).unwrap();
+            text.set_attribute(old_attribute);
+        })
+    );
+    ($($arg:tt)*) => (
+        x86_64::instructions::interrupts::without_interrupts(|| {
+            $crate::TEXT.lock().write_fmt(format_args!($($arg)*)).unwrap()
+        })
+    );
 }
 
 #[macro_export]
