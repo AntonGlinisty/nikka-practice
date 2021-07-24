@@ -56,9 +56,7 @@ extern "C" fn _start() {
             }
         }
 
-        unsafe {
-            x86::halt();
-        }
+        x86_64::instructions::hlt();
     }
 }
 

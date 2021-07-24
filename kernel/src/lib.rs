@@ -33,9 +33,6 @@ pub fn init() {
 #[inline(never)]
 pub fn halt() -> ! {
     loop {
-        unsafe {
-            x86::irq::disable();
-            x86::halt();
-        }
+        x86_64::instructions::interrupts::without_interrupts(x86_64::instructions::hlt)
     }
 }
