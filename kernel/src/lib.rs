@@ -2,9 +2,14 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
+#![cfg_attr(test, no_main)]
 #![feature(abi_x86_interrupt)]
+#![feature(custom_test_frameworks)]
 #![feature(format_args_capture)]
+#![feature(panic_info_message)]
 #![no_std]
+#![reexport_test_harness_main = "test_main"]
+#![test_runner(crate::test_runner)]
 
 extern crate rlibc;
 
@@ -13,8 +18,32 @@ pub mod memory;
 pub mod time;
 pub mod trap;
 
+use core::{
+    any,
+    fmt::Write,
+    panic::PanicInfo,
+};
+
+use bitflags::bitflags;
+use x86::io;
+
+use text::println;
+
 use log::info;
 use memory::gdt;
+
+#[allow(dead_code)]
+const PASS: text::Color = text::Color::LIGHT_GREEN;
+
+#[allow(dead_code)]
+const FAIL: text::Color = text::Color::LIGHT_RED;
+
+bitflags! {
+    pub struct ExitCode: u8 {
+        const SUCCESS = 1;
+        const FAILURE = 2;
+    }
+}
 
 #[cold]
 #[inline(never)]
@@ -35,4 +64,68 @@ pub fn halt() -> ! {
     loop {
         x86_64::instructions::interrupts::without_interrupts(x86_64::instructions::hlt)
     }
+}
+
+pub fn exit_qemu(exit_code: ExitCode) -> ! {
+    info!(?exit_code, "exit qemu");
+
+    const EXIT_PORT: u16 = 0xF4;
+
+    unsafe {
+        io::outb(EXIT_PORT, exit_code.bits);
+    }
+
+    halt()
+}
+
+pub trait Testable {
+    fn run(&self);
+}
+
+impl<T> Testable for T
+where
+    T: Fn(),
+{
+    fn run(&self) {
+        println!("\n{:-<60}", any::type_name::<T>());
+        self();
+        println!(color(PASS), "{:-<51} [passed]", any::type_name::<T>());
+    }
+}
+
+pub fn test_runner(tests: &[&dyn Testable]) {
+    println!("running {} tests", tests.len());
+
+    for test in tests {
+        test.run();
+    }
+
+    exit_qemu(ExitCode::SUCCESS);
+}
+
+pub fn fail_test(panic_info: &PanicInfo) -> ! {
+    println!(color(FAIL), "{}\n{:-<51} [failed]", panic_info, "");
+
+    exit_qemu(ExitCode::FAILURE)
+}
+
+pub fn pass_test() -> ! {
+    println!(color(PASS), "{:-<51} [passed]", "");
+
+    exit_qemu(ExitCode::SUCCESS)
+}
+
+#[cfg(test)]
+#[no_mangle]
+extern "C" fn _start() -> ! {
+    test_main();
+    exit_qemu(ExitCode::FAILURE)
+}
+
+#[cfg(test)]
+#[cold]
+#[inline(never)]
+#[panic_handler]
+fn panic(panic_info: &PanicInfo) -> ! {
+    fail_test(panic_info)
 }

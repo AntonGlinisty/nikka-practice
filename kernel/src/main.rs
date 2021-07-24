@@ -2,11 +2,18 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
+#![feature(custom_test_frameworks)]
+#![feature(format_args_capture)]
 #![feature(panic_info_message)]
 #![no_std]
 #![no_main]
+#![reexport_test_harness_main = "test_main"]
+#![test_runner(kernel::test_runner)]
 
 extern crate rlibc;
+
+#[cfg(test)]
+mod test;
 
 use core::{
     fmt::Write,
@@ -33,6 +40,9 @@ use kernel::{
 #[no_mangle]
 extern "C" fn _start() {
     kernel::init();
+
+    #[cfg(test)]
+    test_main();
 
     loop {
         if let Some(frequency) = Pit::tsc_per_second() {
@@ -64,9 +74,13 @@ extern "C" fn _start() {
 #[inline(never)]
 #[panic_handler]
 fn panic(panic_info: &PanicInfo) -> ! {
-    text::TEXT.lock().set_attribute(Attribute::PANIC);
+    if cfg!(test) {
+        kernel::fail_test(panic_info)
+    } else {
+        text::TEXT.lock().set_attribute(Attribute::PANIC);
 
-    println!("{}", panic_info);
+        println!("{panic_info}");
 
-    kernel::halt();
+        kernel::halt()
+    }
 }

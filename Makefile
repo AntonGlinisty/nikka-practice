@@ -1,4 +1,4 @@
-QEMU_OPTIONS = -cpu qemu64 -m size=5M
+QEMU_OPTIONS = -cpu qemu64 -m size=5M -device isa-debug-exit,iobase=0xF4,iosize=0x04
 QEMU_GTK = $(QEMU_OPTIONS) -display gtk -serial file:serial.out
 QEMU_NOX = $(QEMU_OPTIONS) -nographic -serial mon:stdio
 QEMU_CURSES = $(QEMU_OPTIONS) -display curses -serial file:serial.out
@@ -71,8 +71,11 @@ FORCE:
 
 test: $(RUST_PATH)/cargo
 	@( \
-		cd text; \
-		RUST_BACKTRACE=1 cargo test; \
+		for crate in $(CRATES); do \
+			cd $$crate; \
+			RUST_BACKTRACE=1 cargo test || exit 1; \
+			cd - >/dev/null; \
+		done; \
 	)
 
 fmt: $(RUST_PATH)/rustfmt
