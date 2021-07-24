@@ -1,7 +1,13 @@
 use lazy_static::lazy_static;
 use x86_64::{
     instructions::{
-        segmentation,
+        segmentation::{
+            CS,
+            DS,
+            ES,
+            SS,
+            Segment,
+        },
         tables,
     },
     structures::gdt::{
@@ -19,11 +25,11 @@ pub(crate) fn init() {
     GDT.gdt.load();
 
     unsafe {
-        segmentation::set_cs(GDT.kernel_code_selector);
+        CS::set_reg(GDT.kernel_code_selector);
 
-        segmentation::load_ds(GDT.kernel_data_selector);
-        segmentation::load_es(GDT.kernel_data_selector);
-        segmentation::load_ss(GDT.kernel_data_selector);
+        DS::set_reg(GDT.kernel_data_selector);
+        ES::set_reg(GDT.kernel_data_selector);
+        SS::set_reg(GDT.kernel_data_selector);
 
         tables::load_tss(GDT.tss_selector);
     }
