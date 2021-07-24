@@ -2,18 +2,11 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
-#![feature(abi_x86_interrupt)]
-#![feature(format_args_capture)]
 #![feature(panic_info_message)]
 #![no_std]
 #![no_main]
 
 extern crate rlibc;
-
-mod log;
-mod memory;
-mod time;
-mod trap;
 
 use core::{
     fmt::Write,
@@ -25,29 +18,21 @@ use text::{
     println,
 };
 
-use log::{
-    debug,
-    info,
+use kernel::{
+    log::debug,
+    time,
+    time::{
+        Pit,
+        Rtc,
+    },
+    trap::TRAP_STATS,
 };
-use memory::gdt;
-use time::{
-    Pit,
-    Rtc,
-};
-use trap::TRAP_STATS;
 
 #[cold]
 #[inline(never)]
 #[no_mangle]
 extern "C" fn _start() {
-    text::TEXT.lock().init();
-    log::init();
-    time::init();
-
-    info!(now = %time::now(), tsc = time::tsc(), "Nikka booted");
-
-    gdt::init();
-    trap::init();
+    kernel::init();
 
     loop {
         if let Some(frequency) = Pit::tsc_per_second() {
@@ -79,22 +64,11 @@ extern "C" fn _start() {
 
 #[cold]
 #[inline(never)]
-fn halt() -> ! {
-    loop {
-        unsafe {
-            x86::irq::disable();
-            x86::halt();
-        }
-    }
-}
-
-#[cold]
-#[inline(never)]
 #[panic_handler]
 fn panic(panic_info: &PanicInfo) -> ! {
     text::TEXT.lock().set_attribute(Attribute::PANIC);
 
-    println!("{panic_info}");
+    println!("{}", panic_info);
 
-    halt();
+    kernel::halt();
 }

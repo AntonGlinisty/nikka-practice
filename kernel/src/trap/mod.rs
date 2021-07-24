@@ -9,7 +9,7 @@ use crate::log::info;
 
 use self::idt::IDT;
 
-pub(crate) use self::stats::TRAP_STATS;
+pub use self::stats::TRAP_STATS;
 
 const DIVIDE_ERROR: usize = 0x00;
 const DEBUG: usize = 0x01;
