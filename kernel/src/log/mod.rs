@@ -78,10 +78,22 @@ impl Visit for LogEvent {
     }
 }
 
-struct LogCollector;
+#[allow(unused)]
+enum Format {
+    Compact,
+    Full,
+}
+
+struct LogCollector {
+    format: Format,
+}
 
 impl LogCollector {
     const LOCATION: Color = Color::DARK_GRAY;
+
+    const fn new(format: Format) -> Self {
+        Self { format }
+    }
 
     const fn level_color(level: &Level) -> Color {
         match *level {
@@ -90,6 +102,16 @@ impl LogCollector {
             Level::INFO => Color::WHITE,
             Level::DEBUG => Color::LIGHT_BLUE,
             Level::TRACE => Color::DARK_GRAY,
+        }
+    }
+
+    const fn level_symbol(level: &Level) -> char {
+        match *level {
+            Level::ERROR => 'E',
+            Level::WARN => 'W',
+            Level::INFO => 'I',
+            Level::DEBUG => 'D',
+            Level::TRACE => 'T',
         }
     }
 }
@@ -109,19 +131,32 @@ impl Collect for LogCollector {
         let now = time::now_ms();
         let metadata = &event.metadata();
 
-        print!("{:?} ", now);
-        print!(
-            color(Self::level_color(metadata.level())),
-            "{}",
-            metadata.level(),
-        );
-        print!(
-            color(Self::LOCATION),
-            " {} {}:{} ",
-            metadata.target(),
-            metadata.file().unwrap_or("?"),
-            metadata.line().unwrap_or(0),
-        );
+        match self.format {
+            Format::Compact => {
+                print!("{:?} ", now.time());
+                print!(
+                    color(Self::level_color(metadata.level())),
+                    "{} ",
+                    Self::level_symbol(metadata.level()),
+                );
+            },
+            Format::Full => {
+                print!("{:?} ", now);
+                print!(
+                    color(Self::level_color(metadata.level())),
+                    "{} ",
+                    metadata.level(),
+                );
+                print!(
+                    color(Self::LOCATION),
+                    "{} {}:{} ",
+                    metadata.target(),
+                    metadata.file().unwrap_or("?"),
+                    metadata.line().unwrap_or(0),
+                );
+            },
+        }
+
         event.record(&mut LogEvent::new());
         println!();
     }
@@ -164,4 +199,4 @@ impl Collect for LogCollector {
     }
 }
 
-static LOG_COLLECTOR: LogCollector = LogCollector;
+static LOG_COLLECTOR: LogCollector = LogCollector::new(Format::Compact);
