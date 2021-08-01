@@ -86,13 +86,17 @@ enum Format {
 
 struct LogCollector {
     format: Format,
+    level: Level,
 }
 
 impl LogCollector {
     const LOCATION: Color = Color::DARK_GRAY;
 
-    const fn new(format: Format) -> Self {
-        Self { format }
+    const fn new(
+        format: Format,
+        level: Level,
+    ) -> Self {
+        Self { format, level }
     }
 
     const fn level_color(level: &Level) -> Color {
@@ -177,9 +181,9 @@ impl Collect for LogCollector {
 
     fn enabled(
         &self,
-        _metadata: &Metadata<'_>,
+        metadata: &Metadata<'_>,
     ) -> bool {
-        true
+        metadata.level() <= &self.level
     }
 
     fn enter(
@@ -199,4 +203,4 @@ impl Collect for LogCollector {
     }
 }
 
-static LOG_COLLECTOR: LogCollector = LogCollector::new(Format::Compact);
+static LOG_COLLECTOR: LogCollector = LogCollector::new(Format::Compact, Level::DEBUG);
