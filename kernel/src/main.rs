@@ -20,6 +20,11 @@ use core::{
     panic::PanicInfo,
 };
 
+use bootloader::{
+    BootInfo,
+    entry_point,
+};
+
 use text::{
     Attribute,
     println,
@@ -35,10 +40,11 @@ use kernel::{
     trap::TRAP_STATS,
 };
 
+entry_point!(kernel_main);
+
 #[cold]
 #[inline(never)]
-#[no_mangle]
-extern "C" fn _start() {
+fn kernel_main(_: &'static BootInfo) -> ! {
     kernel::init();
 
     #[cfg(test)]

@@ -3,6 +3,11 @@ use core::{
     ptr::NonNull,
 };
 
+use bootloader::{
+    BootInfo,
+    entry_point,
+};
+
 use kernel::{
     log::info,
     trap::{
@@ -11,10 +16,12 @@ use kernel::{
     },
 };
 
-#[no_mangle]
-extern "C" fn _start() {
+entry_point!(test_entry);
+
+fn test_entry(_: &'static BootInfo) -> ! {
     kernel::init();
     test_main();
+    panic!("should not return to test_entry()")
 }
 
 #[panic_handler]
