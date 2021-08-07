@@ -13,7 +13,7 @@
 extern crate rlibc;
 
 #[cfg(test)]
-mod test;
+mod tests;
 
 use core::{
     fmt::Write,
