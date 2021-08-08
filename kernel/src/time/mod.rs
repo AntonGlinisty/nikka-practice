@@ -3,11 +3,7 @@ mod correlation_point;
 mod hz;
 mod pit8254;
 mod rtc;
-
-use core::{
-    arch::x86_64,
-    convert::TryInto,
-};
+mod tsc;
 
 use chrono::{
     DateTime,
@@ -19,6 +15,10 @@ use crate::log::info;
 pub use hz::Hz;
 pub use pit8254::Pit;
 pub use rtc::Rtc;
+pub use tsc::{
+    Tsc,
+    TscDuration,
+};
 
 pub(super) fn init() {
     pit8254::init();
@@ -36,11 +36,8 @@ pub fn now_ms() -> DateTime<Utc> {
 }
 
 #[inline(always)]
-pub fn tsc() -> i64 {
-    unsafe {
-        x86_64::_mm_lfence();
-        x86_64::_rdtsc().try_into().unwrap()
-    }
+pub fn timer() -> Tsc {
+    Tsc::now()
 }
 
 const MSECS_PER_SEC: i64 = 1_000;

@@ -52,7 +52,7 @@ pub fn init() {
     log::init();
     time::init();
 
-    info!(now = %time::now(), tsc = time::tsc(), "Nikka booted");
+    info!(now = %time::now(), tsc = ?time::timer(), "Nikka booted");
 
     gdt::init();
     trap::init();

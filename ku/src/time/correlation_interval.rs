@@ -9,6 +9,7 @@ use super::{
         AtomicCorrelationPoint,
         CorrelationPoint,
     },
+    tsc,
 };
 
 pub(super) struct CorrelationInterval<const TICKS_PER_SECOND: i64> {
@@ -23,7 +24,7 @@ impl<const TICKS_PER_SECOND: i64> CorrelationInterval<TICKS_PER_SECOND> {
         let correlation_interval = atomic_correlation_interval.load();
 
         if correlation_interval.elapsed_count() > 0 {
-            correlation_interval.datetime_with_resolution::<PARTS_PER_SECOND>(super::tsc())
+            correlation_interval.datetime_with_resolution::<PARTS_PER_SECOND>(tsc::tsc())
         } else {
             NaiveDateTime::from_timestamp(correlation_interval.prev.count() / TICKS_PER_SECOND, 0)
         }

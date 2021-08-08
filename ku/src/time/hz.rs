@@ -16,6 +16,10 @@ impl Hz {
     pub fn new(hz: u64) -> Option<Self> {
         NonZeroU64::new(hz).map(Hz)
     }
+
+    pub(super) fn get(&self) -> u64 {
+        self.0.get()
+    }
 }
 
 impl Display for Hz {
@@ -23,7 +27,7 @@ impl Display for Hz {
         &self,
         formatter: &mut Formatter,
     ) -> Result {
-        let hz = self.0.get();
+        let hz = self.get();
         match NumberPrefix::decimal(hz as f64) {
             NumberPrefix::Standalone(_) => {
                 write!(formatter, "{hz} Hz")

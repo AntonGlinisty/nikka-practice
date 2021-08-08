@@ -59,10 +59,8 @@ fn kernel_main(_: &'static BootInfo) -> ! {
             debug!(%frequency, "CPU frequency measured by RTC");
         }
 
-        let start = time::now();
-        let stop = time::now();
-        let time_precision = stop - start;
-        debug!(%time_precision);
+        let time_precision = time::timer().lap();
+        debug!(%time_precision, time_precision_in_tsc = ?time_precision);
 
         for (number, stats) in TRAP_STATS.iter().enumerate() {
             let count = stats.count();

@@ -9,13 +9,14 @@ use super::{
     Hz,
     correlation_interval::AtomicCorrelationInterval,
     correlation_point::CorrelationPoint,
+    tsc,
 };
 
 pub struct Pit(AtomicCorrelationInterval<{ TICKS_PER_SECOND as i64 }>);
 
 impl Pit {
     pub(crate) fn interrupt() {
-        PIT.0.inc_prev(super::tsc());
+        PIT.0.inc_prev(tsc::tsc());
     }
 
     pub fn tsc_per_second() -> Option<Hz> {

@@ -13,7 +13,9 @@ bitflags = "*"
 bootloader = "0.9.*"
 chrono = { version = "*", default-features = false }
 derive_more = "*"
+itertools = { version = "*", default-features = false }
 lazy_static = { version = "*", features = ["spin_no_std"] }
+num-traits = { version = "*", default-features = false }
 number_prefix = { version = "*", default-features = false }
 rlibc = "*"
 scopeguard = { version = "*", default-features = false }

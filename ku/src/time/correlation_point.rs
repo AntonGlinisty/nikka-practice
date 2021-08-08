@@ -6,6 +6,8 @@ use core::{
     },
 };
 
+use super::tsc;
+
 #[derive(Clone, Copy)]
 pub(super) struct CorrelationPoint {
     count: i64,
@@ -28,7 +30,7 @@ impl CorrelationPoint {
     }
 
     pub(super) fn now(count: i64) -> Self {
-        Self::new(count, super::tsc())
+        Self::new(count, tsc::tsc())
     }
 
     pub(super) fn is_valid(&self) -> bool {
