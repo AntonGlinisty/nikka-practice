@@ -4,6 +4,9 @@
 
 #![cfg_attr(test, no_main)]
 #![feature(abi_x86_interrupt)]
+#![feature(asm)]
+#![feature(const_fn_trait_bound)]
+#![feature(const_panic)]
 #![feature(custom_test_frameworks)]
 #![feature(format_args_capture)]
 #![feature(panic_info_message)]
@@ -13,6 +16,7 @@
 
 extern crate rlibc;
 
+pub mod error;
 pub mod log;
 pub mod memory;
 pub mod time;
@@ -25,6 +29,7 @@ use core::{
 };
 
 use bitflags::bitflags;
+use bootloader::BootInfo;
 use x86::io;
 
 use text::println;
@@ -47,7 +52,7 @@ bitflags! {
 
 #[cold]
 #[inline(never)]
-pub fn init() {
+pub fn init(boot_info: &'static BootInfo) {
     text::TEXT.lock().init();
     log::init();
     time::init();
@@ -56,6 +61,8 @@ pub fn init() {
 
     gdt::init();
     trap::init();
+
+    memory::init(boot_info);
 }
 
 #[cold]

@@ -97,6 +97,7 @@ dependencies = [
  "pic8259",
  "rlibc",
  "scopeguard",
+ "spin 0.5.2",
  "static_assertions",
  "text",
  "tracing",

@@ -10,7 +10,7 @@ version = "0.1.0"
 
 [dependencies]
 bitflags = "*"
-bootloader = "0.9.*"
+bootloader = { version = "0.9.*", features = ["map_physical_memory"] }
 chrono = { version = "*", default-features = false }
 derive_more = "*"
 itertools = { version = "*", default-features = false }
@@ -19,6 +19,7 @@ num-traits = { version = "*", default-features = false }
 number_prefix = { version = "*", default-features = false }
 rlibc = "*"
 scopeguard = { version = "*", default-features = false }
+spin = "*"
 static_assertions = "*"
 tracing = { git = "https://github.com/tokio-rs/tracing", version = "*", default-features = false }
 tracing-core = { git = "https://github.com/tokio-rs/tracing", version = "*", default-features = false }
@@ -29,9 +30,18 @@ pic8259 = { path = "../pic8259" }
 text = { path = "../text" }
 
 [package.metadata.bootimage]
-run-args = ["-device", "isa-debug-exit,iobase=0xF4,iosize=0x04", "-serial", "file:serial.out"]
+run-args = [
+    "-m",
+    "size=5M",
+    "-device",
+    "isa-debug-exit,iobase=0xF4,iosize=0x04",
+    "-serial",
+    "file:serial.out",
+]
 
 test-args = [
+    "-m",
+    "size=5M",
     "-device",
     "isa-debug-exit,iobase=0xF4,iosize=0x04",
     "-serial",

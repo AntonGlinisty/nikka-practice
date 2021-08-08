@@ -3,14 +3,17 @@ use x86_64::structures::tss::TaskStateSegment;
 
 use crate::make_static_stack;
 
-use super::stack::Stack;
+use super::{
+    size,
+    stack::Stack,
+};
 
 lazy_static! {
     pub(super) static ref TSS: TaskStateSegment = {
         let mut tss = TaskStateSegment::new();
 
-        tss.interrupt_stack_table[usize::from(DOUBLE_FAULT_IST_INDEX)] = make_static_stack!();
-        tss.interrupt_stack_table[usize::from(PAGE_FAULT_IST_INDEX)] = make_static_stack!();
+        tss.interrupt_stack_table[size::from(DOUBLE_FAULT_IST_INDEX)] = make_static_stack!().into();
+        tss.interrupt_stack_table[size::from(PAGE_FAULT_IST_INDEX)] = make_static_stack!().into();
 
         tss
     };

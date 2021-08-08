@@ -1,11 +1,8 @@
 use core::mem;
 
-use x86_64::{
-    VirtAddr,
-    structures::paging::{
-        PageSize,
-        page::Size4KiB,
-    },
+use super::{
+    Page,
+    Virt,
 };
 
 #[repr(C, align(4096))]
@@ -16,8 +13,8 @@ impl Stack {
         Self([0; mem::size_of::<Self>()])
     }
 
-    pub(super) fn pointer(&self) -> VirtAddr {
-        VirtAddr::from_ptr(self.0.as_ptr_range().end)
+    pub(super) fn pointer(&self) -> Virt {
+        Virt::from_ptr(self.0.as_ptr_range().end)
     }
 }
 
@@ -31,4 +28,4 @@ macro_rules! make_static_stack {
     }};
 }
 
-const STACK_SIZE: usize = 32 * Size4KiB::SIZE as usize;
+const STACK_SIZE: usize = 32 * Page::SIZE;

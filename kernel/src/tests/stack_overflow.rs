@@ -21,8 +21,8 @@ use kernel::{
 
 entry_point!(test_entry);
 
-fn test_entry(_: &'static BootInfo) -> ! {
-    kernel::init();
+fn test_entry(boot_info: &'static BootInfo) -> ! {
+    kernel::init(boot_info);
     test_main();
     panic!("should not return to test_entry()")
 }
