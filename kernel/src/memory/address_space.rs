@@ -1,30 +1,44 @@
-use core::fmt::{
-    Display,
-    Formatter,
-    Result,
-};
+use core::fmt;
 
 use lazy_static::lazy_static;
 use spin::Mutex;
 
-use crate::log::info;
+use crate::{
+    error::Result,
+    log::info,
+};
 
 use super::{
-    frage::Frame,
+    block::Block,
+    frage::{
+        Frame,
+        Page,
+    },
     mapping::Mapping,
+    page_allocator::PageAllocator,
 };
 
 #[derive(Debug)]
-pub(super) struct AddressSpace {
+pub struct AddressSpace {
     name: &'static str,
     mapping: Mapping,
+    page_allocator: PageAllocator,
 }
 
 impl AddressSpace {
-    pub(super) fn new(name: &'static str) -> Self {
+    pub(super) fn new(
+        name: &'static str,
+        phys2virt: Page,
+    ) -> Self {
+        let mapping = Mapping::new(Mapping::current_page_table_root(), phys2virt);
+        let page_allocator = PageAllocator::new(name, unsafe {
+            mapping.page_table_ref(mapping.page_table_root())
+        });
+
         let address_space = Self {
             name,
-            mapping: Mapping::new(Mapping::current_page_table_root()),
+            mapping,
+            page_allocator,
         };
 
         info!(%address_space, "init");
@@ -35,16 +49,24 @@ impl AddressSpace {
     fn zero(name: &'static str) -> Self {
         Self {
             name,
-            mapping: Mapping::new(Frame::zero()),
+            mapping: Mapping::new(Frame::zero(), Page::zero()),
+            page_allocator: PageAllocator::zero(name),
         }
+    }
+
+    pub fn allocate(
+        &mut self,
+        size: usize,
+    ) -> Result<Block<Page>> {
+        self.page_allocator.allocate(size)
     }
 }
 
-impl Display for AddressSpace {
+impl fmt::Display for AddressSpace {
     fn fmt(
         &self,
-        formatter: &mut Formatter,
-    ) -> Result {
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
         write!(
             formatter,
             "\"{}\" @ {}",
@@ -55,6 +77,6 @@ impl Display for AddressSpace {
 }
 
 lazy_static! {
-    pub(super) static ref BASE_ADDRESS_SPACE: Mutex<AddressSpace> =
+    pub static ref BASE_ADDRESS_SPACE: Mutex<AddressSpace> =
         Mutex::new(AddressSpace::zero("invalid"));
 }

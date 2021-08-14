@@ -1,6 +1,12 @@
-use bitflags::bitflags;
+use core::mem;
 
-use super::addr::Phys;
+use bitflags::bitflags;
+use static_assertions::const_assert_eq;
+
+use super::{
+    addr::Phys,
+    frage::Page,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(transparent)]
@@ -13,6 +19,10 @@ impl PageTableEntry {
 
     pub(super) fn phys(&self) -> Phys {
         Phys::new(self.0 & Self::ADDRESS_MASK).unwrap()
+    }
+
+    pub fn is_present(&self) -> bool {
+        self.flags().contains(PageTableFlags::PRESENT)
     }
 
     const ADDRESS_MASK: usize = ((1 << Phys::BITS) - 1) & !((1 << PAGE_OFFSET_BITS) - 1);
@@ -31,6 +41,8 @@ pub(super) fn page_table_root() -> PageTableEntry {
     PageTableEntry(pte)
 }
 
+pub type PageTable = [PageTableEntry; PAGE_TABLE_ENTRY_COUNT];
+
 bitflags! {
     pub struct PageTableFlags: usize {
         const PRESENT = 1 << 0;
@@ -48,5 +60,12 @@ bitflags! {
 }
 
 pub(super) const PAGE_OFFSET_BITS: u32 = 12;
+pub(super) const PAGE_TABLE_ENTRY_COUNT: usize = 1 << PAGE_TABLE_INDEX_BITS;
 pub(super) const PAGE_TABLE_INDEX_BITS: u32 = 9;
 pub(super) const PAGE_TABLE_ROOT_LEVEL: u32 = 3;
+
+const_assert_eq!(
+    mem::size_of::<PageTable>(),
+    PAGE_TABLE_ENTRY_COUNT * mem::size_of::<PageTableEntry>(),
+);
+const_assert_eq!(mem::size_of::<PageTable>(), Page::SIZE);

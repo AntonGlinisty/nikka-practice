@@ -10,6 +10,7 @@ mod boot_frame_allocator;
 mod frage;
 mod frame_allocator;
 mod mapping;
+mod page_allocator;
 mod phys2virt;
 mod stack;
 mod tss;
@@ -22,10 +23,7 @@ use x86_64::registers::model_specific::{
 
 use crate::log::info;
 
-use address_space::{
-    AddressSpace,
-    BASE_ADDRESS_SPACE,
-};
+use address_space::AddressSpace;
 use boot_frame_allocator::BootFrameAllocator;
 use frame_allocator::FrameAllocator;
 
@@ -33,6 +31,7 @@ pub use addr::{
     Phys,
     Virt,
 };
+pub use address_space::BASE_ADDRESS_SPACE;
 pub use frage::{
     Frame,
     Page,
@@ -54,5 +53,5 @@ pub(super) fn init(boot_info: &'static BootInfo) {
 
     *FRAME_ALLOCATOR.lock() = FrameAllocator::Boot(BootFrameAllocator::new(&boot_info.memory_map));
 
-    *BASE_ADDRESS_SPACE.lock() = AddressSpace::new("base");
+    *BASE_ADDRESS_SPACE.lock() = AddressSpace::new("base", phys2virt);
 }

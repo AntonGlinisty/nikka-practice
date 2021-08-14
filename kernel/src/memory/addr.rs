@@ -2,6 +2,12 @@ use core::{
     fmt,
     marker::PhantomData,
     mem,
+    ops::{
+        Add,
+        AddAssign,
+        Sub,
+        SubAssign,
+    },
 };
 
 use static_assertions::const_assert_eq;
@@ -155,9 +161,67 @@ impl Virt {
         Self::new(ptr as *const () as usize).expect("bad pointer")
     }
 
+    pub fn try_into_ptr<T>(self) -> Result<*const T> {
+        const_assert_eq!(mem::size_of::<*const ()>(), mem::size_of::<usize>());
+        if self.0 % mem::align_of::<T>() == 0 {
+            Ok(self.0 as *const T)
+        } else {
+            Err(InvalidArgument)
+        }
+    }
+
+    pub unsafe fn try_into_ref<'a, T>(self) -> Result<&'a T> {
+        let ptr = self.try_into_ptr::<T>()?;
+        if ptr.is_null() {
+            Err(InvalidArgument)
+        } else {
+            Ok(&*ptr)
+        }
+    }
+
     const BITS: u32 = PAGE_TABLE_INDEX_BITS * (PAGE_TABLE_ROOT_LEVEL + 1) + PAGE_OFFSET_BITS;
     const NEGATIVE_SIGN_EXTEND: usize = !0 << Self::BITS;
     const UNUSED_BITS: u32 = usize::BITS - Self::BITS;
+}
+
+impl Add<usize> for Virt {
+    type Output = Result<Self>;
+
+    fn add(
+        self,
+        rhs: usize,
+    ) -> Self::Output {
+        self.0.checked_add(rhs).ok_or(InvalidArgument).and_then(Self::new)
+    }
+}
+
+impl AddAssign<usize> for Virt {
+    fn add_assign(
+        &mut self,
+        rhs: usize,
+    ) {
+        *self = self.add(rhs).expect("invalid arguments for Virt::add_assign()");
+    }
+}
+
+impl Sub<usize> for Virt {
+    type Output = Result<Self>;
+
+    fn sub(
+        self,
+        rhs: usize,
+    ) -> Self::Output {
+        self.0.checked_sub(rhs).ok_or(InvalidArgument).and_then(Self::new)
+    }
+}
+
+impl SubAssign<usize> for Virt {
+    fn sub_assign(
+        &mut self,
+        rhs: usize,
+    ) {
+        *self = self.sub(rhs).expect("invalid arguments for Virt::sub_assign()");
+    }
 }
 
 impl From<Virt> for VirtAddr {

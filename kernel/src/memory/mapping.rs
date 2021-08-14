@@ -1,18 +1,32 @@
 use crate::log::warn;
 
 use super::{
-    frage::Frame,
-    mmu,
+    frage::{
+        Frame,
+        Page,
+    },
+    mmu::{
+        self,
+        PageTable,
+    },
+    phys2virt,
 };
 
 #[derive(Debug)]
 pub(super) struct Mapping {
     page_table_root: Frame,
+    phys2virt: Page,
 }
 
 impl Mapping {
-    pub(super) fn new(page_table_root: Frame) -> Self {
-        Self { page_table_root }
+    pub(super) fn new(
+        page_table_root: Frame,
+        phys2virt: Page,
+    ) -> Self {
+        Self {
+            page_table_root,
+            phys2virt,
+        }
     }
 
     pub(super) fn page_table_root(&self) -> Frame {
@@ -30,5 +44,14 @@ impl Mapping {
         }
 
         page_table_root
+    }
+
+    pub(super) unsafe fn page_table_ref(
+        &self,
+        frame: Frame,
+    ) -> &PageTable {
+        phys2virt::map(self.phys2virt, frame.address())
+            .try_into_ref()
+            .expect("bad phys2virt or frame")
     }
 }

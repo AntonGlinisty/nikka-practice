@@ -78,6 +78,15 @@ test: $(RUST_PATH)/cargo
 		done; \
 	)
 
+test-gdb: $(RUST_PATH)/cargo user
+	@( \
+		for crate in kernel; do \
+			cd $$crate; \
+			RUST_BACKTRACE=1 cargo test -- -gdb tcp::1234 -S; \
+			cd - >/dev/null; \
+		done; \
+	)
+
 fmt: $(RUST_PATH)/rustfmt
 	@find . -name \*.rs -a ! -path \*/target/\* -exec rustfmt \{\} \;
 
