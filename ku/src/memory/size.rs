@@ -1,5 +1,9 @@
-use core::mem;
+use core::{
+    fmt,
+    mem,
+};
 
+use number_prefix::NumberPrefix;
 use static_assertions::const_assert;
 
 #[allow(non_upper_case_globals)]
@@ -26,4 +30,45 @@ pub const fn into_usize(x: u64) -> usize {
 pub const fn into_u64(x: usize) -> u64 {
     const_assert!(mem::size_of::<u64>() == mem::size_of::<usize>());
     x as u64
+}
+
+pub trait SizeOf {
+    const SIZE_OF: usize;
+
+    fn count_up(size: usize) -> usize {
+        (size + Self::SIZE_OF - 1) / Self::SIZE_OF
+    }
+}
+
+#[repr(transparent)]
+pub struct Size(usize);
+
+impl Size {
+    pub const fn new<T: SizeOf>(count: usize) -> Self {
+        Self(count * T::SIZE_OF)
+    }
+
+    pub const fn new_u64<T: SizeOf>(count: u64) -> Self {
+        Self::new::<T>(into_usize(count))
+    }
+
+    pub const fn num_bytes(&self) -> usize {
+        self.0
+    }
+}
+
+impl fmt::Display for Size {
+    fn fmt(
+        &self,
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
+        match NumberPrefix::binary(self.num_bytes() as f64) {
+            NumberPrefix::Standalone(_) => {
+                write!(formatter, "{} B", self.num_bytes())
+            },
+            NumberPrefix::Prefixed(prefix, value) => {
+                write!(formatter, "{:.3} {}B", value, prefix.symbol())
+            },
+        }
+    }
 }

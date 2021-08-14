@@ -1,8 +1,8 @@
 use bootloader::BootInfo;
 
 use super::{
+    Page,
     Virt,
-    frage::Page,
 };
 
 pub(super) fn phys2virt(boot_info: &BootInfo) -> Page {
