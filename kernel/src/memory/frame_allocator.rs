@@ -23,6 +23,17 @@ impl FrameAllocator {
             FrameAllocator::Boot(boot_allocator) => boot_allocator.allocate(),
         }
     }
+
+    pub(super) fn is_used(
+        &self,
+        frame: Frame,
+    ) -> bool {
+        match self {
+            FrameAllocator::Void =>
+                panic!("no frames should be marked as used by void frame allocator"),
+            FrameAllocator::Boot(boot_allocator) => boot_allocator.is_used(frame),
+        }
+    }
 }
 
 lazy_static! {

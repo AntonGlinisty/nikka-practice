@@ -5,16 +5,21 @@ use spin::Mutex;
 
 use crate::{
     error::Result,
-    log::info,
+    log::{
+        info,
+        trace,
+    },
 };
 
 use super::{
+    FRAME_ALLOCATOR,
     block::Block,
     frage::{
         Frame,
         Page,
     },
     mapping::Mapping,
+    mmu::PageTableFlags,
     page_allocator::PageAllocator,
 };
 
@@ -59,6 +64,16 @@ impl AddressSpace {
         size: usize,
     ) -> Result<Block<Page>> {
         self.page_allocator.allocate(size)
+    }
+
+    pub unsafe fn map_page_to_frame(
+        &mut self,
+        page: Page,
+        frame: Frame,
+        flags: PageTableFlags,
+    ) -> Result<()> {
+        // TODO: your code here.
+        unimplemented!();
     }
 }
 

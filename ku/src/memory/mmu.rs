@@ -3,13 +3,20 @@ use core::mem;
 use bitflags::bitflags;
 use static_assertions::const_assert_eq;
 
-use super::{
-    addr::Phys,
-    frage::Page,
+use crate::error::{
+    Error::NoFrame,
+    Result,
 };
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[repr(transparent)]
+use super::{
+    addr::Phys,
+    frage::{
+        Frame,
+        Page,
+    },
+};
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct PageTableEntry(usize);
 
 impl PageTableEntry {
@@ -17,8 +24,39 @@ impl PageTableEntry {
         PageTableFlags::from_bits(self.0 & !Self::ADDRESS_MASK).unwrap()
     }
 
+    pub fn set_flags(
+        &mut self,
+        flags: PageTableFlags,
+    ) {
+        self.set_phys(self.phys(), flags);
+    }
+
+    pub fn frame(&self) -> Result<Frame> {
+        if self.is_present() {
+            Ok(Frame::new(self.phys()))
+        } else {
+            Err(NoFrame)
+        }
+    }
+
+    pub fn set_frame(
+        &mut self,
+        frame: Frame,
+        flags: PageTableFlags,
+    ) {
+        self.set_phys(frame.address(), flags | PageTableFlags::PRESENT);
+    }
+
     pub(super) fn phys(&self) -> Phys {
         Phys::new(self.0 & Self::ADDRESS_MASK).unwrap()
+    }
+
+    fn set_phys(
+        &mut self,
+        phys: Phys,
+        flags: PageTableFlags,
+    ) {
+        self.0 = phys.into_usize() | flags.bits();
     }
 
     pub fn is_present(&self) -> bool {
@@ -59,9 +97,24 @@ bitflags! {
     }
 }
 
+pub const KERNEL_R: PageTableFlags = PageTableFlags::from_bits_truncate(
+    PageTableFlags::PRESENT.bits() | PageTableFlags::NO_EXECUTE.bits(),
+);
+
+pub const KERNEL_RW: PageTableFlags =
+    PageTableFlags::from_bits_truncate(KERNEL_R.bits() | PageTableFlags::WRITABLE.bits());
+
+pub(super) const FULL_ACCESS: PageTableFlags = PageTableFlags::from_bits_truncate(
+    PageTableFlags::PRESENT.bits() |
+        PageTableFlags::WRITABLE.bits() |
+        PageTableFlags::USER_ACCESSIBLE.bits(),
+);
+
 pub(super) const PAGE_OFFSET_BITS: u32 = 12;
 pub(super) const PAGE_TABLE_ENTRY_COUNT: usize = 1 << PAGE_TABLE_INDEX_BITS;
 pub(super) const PAGE_TABLE_INDEX_BITS: u32 = 9;
+pub(super) const PAGE_TABLE_INDEX_MASK: usize = (1 << PAGE_TABLE_INDEX_BITS) - 1;
+pub(super) const PAGE_TABLE_LEAF_LEVEL: u32 = 0;
 pub(super) const PAGE_TABLE_ROOT_LEVEL: u32 = 3;
 
 const_assert_eq!(

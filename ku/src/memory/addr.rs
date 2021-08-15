@@ -170,12 +170,30 @@ impl Virt {
         }
     }
 
+    pub fn try_into_mut_ptr<T>(self) -> Result<*mut T> {
+        const_assert_eq!(mem::size_of::<*mut ()>(), mem::size_of::<usize>());
+        if self.0 % mem::align_of::<T>() == 0 {
+            Ok(self.0 as *mut T)
+        } else {
+            Err(InvalidArgument)
+        }
+    }
+
     pub unsafe fn try_into_ref<'a, T>(self) -> Result<&'a T> {
         let ptr = self.try_into_ptr::<T>()?;
         if ptr.is_null() {
             Err(InvalidArgument)
         } else {
             Ok(&*ptr)
+        }
+    }
+
+    pub unsafe fn try_into_mut<'a, T>(self) -> Result<&'a mut T> {
+        let ptr = self.try_into_mut_ptr::<T>()?;
+        if ptr.is_null() {
+            Err(InvalidArgument)
+        } else {
+            Ok(&mut *ptr)
         }
     }
 

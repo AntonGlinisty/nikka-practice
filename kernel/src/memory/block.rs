@@ -74,6 +74,13 @@ impl<T: SizeOf> Block<T> {
         self.count() * T::SIZE_OF
     }
 
+    pub fn contains(
+        &self,
+        element: usize,
+    ) -> bool {
+        (self.start .. self.end).contains(&element)
+    }
+
     pub fn tail(
         &mut self,
         count: usize,

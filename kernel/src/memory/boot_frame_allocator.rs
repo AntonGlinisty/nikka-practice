@@ -22,6 +22,7 @@ use super::{
 
 pub struct BootFrameAllocator {
     block: Block<Frame>,
+    initial_block: Block<Frame>,
 }
 
 impl BootFrameAllocator {
@@ -41,5 +42,19 @@ impl BootFrameAllocator {
     pub(super) fn allocate(&mut self) -> Result<Frame> {
         // TODO: your code here.
         unimplemented!();
+    }
+
+    pub(super) fn is_managed(
+        &self,
+        frame: Frame,
+    ) -> bool {
+        self.initial_block.contains(frame.index())
+    }
+
+    pub(super) fn is_used(
+        &self,
+        frame: Frame,
+    ) -> bool {
+        self.is_managed(frame) && !self.block.contains(frame.index())
     }
 }

@@ -37,6 +37,7 @@ pub use frage::{
     Page,
 };
 pub use frame_allocator::FRAME_ALLOCATOR;
+pub use mmu::KERNEL_RW;
 
 pub(crate) use tss::{
     DOUBLE_FAULT_IST_INDEX,
