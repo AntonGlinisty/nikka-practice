@@ -1,13 +1,22 @@
-use core::fmt;
+use core::{
+    any,
+    fmt,
+    mem,
+    mem::MaybeUninit,
+};
 
 use lazy_static::lazy_static;
 use spin::Mutex;
 
 use crate::{
-    error::Result,
+    error::{
+        Error::InvalidArgument,
+        Result,
+    },
     log::{
         info,
         trace,
+        warn,
     },
 };
 
@@ -74,6 +83,66 @@ impl AddressSpace {
     ) -> Result<()> {
         // TODO: your code here.
         unimplemented!();
+    }
+
+    unsafe fn map_page(
+        &mut self,
+        page: Page,
+        flags: PageTableFlags,
+    ) -> Result<()> {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    pub unsafe fn map_block(
+        &mut self,
+        pages: Block<Page>,
+        flags: PageTableFlags,
+    ) -> Result<()> {
+        for page in pages {
+            self.map_page(page, flags)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn map_slice<T: Clone>(
+        &mut self,
+        len: usize,
+        flags: PageTableFlags,
+        default: T,
+    ) -> Result<&'static mut [T]> {
+        if Page::SIZE % mem::align_of::<T>() != 0 {
+            warn!(
+                alignment = mem::align_of::<T>(),
+                page_size = Page::SIZE,
+                "can not handle alignments greater than the page size",
+            );
+            return Err(InvalidArgument);
+        }
+
+        let block = self.page_allocator.allocate(len * mem::size_of::<T>())?;
+
+        unsafe {
+            self.map_block(block, flags)?;
+        }
+
+        let addr = Page::address_by_index(block.start());
+        let len = block.size() / mem::size_of::<T>();
+        let slice = unsafe { addr.try_into_mut_slice::<MaybeUninit<T>>(len)? };
+
+        for element in slice.iter_mut() {
+            element.write(default.clone());
+        }
+
+        trace!(
+            %addr,
+            page_count = block.count(),
+            slice = format_args!("[{}; {}]", any::type_name::<T>(), len),
+            "mapped a slice",
+        );
+
+        Ok(unsafe { MaybeUninit::slice_assume_init_mut(slice) })
     }
 }
 

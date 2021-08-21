@@ -8,6 +8,7 @@ use core::{
         Sub,
         SubAssign,
     },
+    slice,
 };
 
 use static_assertions::const_assert_eq;
@@ -194,6 +195,18 @@ impl Virt {
             Err(InvalidArgument)
         } else {
             Ok(&mut *ptr)
+        }
+    }
+
+    pub unsafe fn try_into_mut_slice<'a, T>(
+        self,
+        len: usize,
+    ) -> Result<&'a mut [T]> {
+        let ptr = self.try_into_mut_ptr::<T>()?;
+        if ptr.is_null() {
+            Err(InvalidArgument)
+        } else {
+            Ok(slice::from_raw_parts_mut(ptr, len))
         }
     }
 

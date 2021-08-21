@@ -9,9 +9,11 @@ mod address_space;
 mod boot_frame_allocator;
 mod frage;
 mod frame_allocator;
+mod main_frame_allocator;
 mod mapping;
 mod page_allocator;
 mod phys2virt;
+mod range;
 mod stack;
 mod tss;
 
@@ -21,7 +23,10 @@ use x86_64::registers::model_specific::{
     EferFlags,
 };
 
-use crate::log::info;
+use crate::{
+    log::info,
+    time,
+};
 
 use address_space::AddressSpace;
 use boot_frame_allocator::BootFrameAllocator;
@@ -45,6 +50,8 @@ pub(crate) use tss::{
 };
 
 pub(super) fn init(boot_info: &'static BootInfo) {
+    let timer = time::timer();
+
     unsafe {
         Efer::write(EferFlags::NO_EXECUTE_ENABLE | Efer::read());
     }
@@ -55,4 +62,9 @@ pub(super) fn init(boot_info: &'static BootInfo) {
     *FRAME_ALLOCATOR.lock() = FrameAllocator::Boot(BootFrameAllocator::new(&boot_info.memory_map));
 
     *BASE_ADDRESS_SPACE.lock() = AddressSpace::new("base", phys2virt);
+
+    *FRAME_ALLOCATOR.lock() =
+        FrameAllocator::Main(main_frame_allocator::init(&boot_info.memory_map));
+
+    info!(duration = %timer.elapsed(), "memory init");
 }

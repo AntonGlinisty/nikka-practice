@@ -1,18 +1,84 @@
+use core::slice;
+
 use kernel::{
     log::debug,
     memory::{
         BASE_ADDRESS_SPACE,
         FRAME_ALLOCATOR,
+        Frame,
         KERNEL_RW,
         Page,
     },
 };
 
 #[test_case]
-fn allocate_frame() {
-    let frame = FRAME_ALLOCATOR.lock().allocate().expect("failed to allocate a memory frame");
+fn basic_frame_allocator_functions() {
+    let mut frame_allocator = FRAME_ALLOCATOR.lock();
+    let start_free_frames = frame_allocator.count();
+    debug!(start_free_frames);
 
-    debug!(?frame);
+    let frames = [
+        frame_allocator.allocate().unwrap(),
+        frame_allocator.allocate().unwrap(),
+    ];
+
+    debug!(?frames);
+    assert_ne!(frames[0], frames[1]);
+    assert_eq!(frame_allocator.count(), start_free_frames - 2);
+
+    frame_allocator.deallocate(frames[0]);
+    assert_eq!(frame_allocator.count(), start_free_frames - 1);
+
+    let reallocate_last_freed_frame = frame_allocator.allocate().unwrap();
+
+    debug!(?reallocate_last_freed_frame);
+    assert_eq!(reallocate_last_freed_frame, frames[0]);
+    assert_eq!(frame_allocator.count(), start_free_frames - 2);
+
+    frame_allocator.reference(frames[1]);
+    assert_eq!(frame_allocator.count(), start_free_frames - 2);
+
+    frame_allocator.deallocate(frames[1]);
+    assert_eq!(frame_allocator.count(), start_free_frames - 2);
+
+    frame_allocator.deallocate(frames[1]);
+    assert_eq!(frame_allocator.count(), start_free_frames - 1);
+
+    frame_allocator.deallocate(frames[0]);
+    assert_eq!(frame_allocator.count(), start_free_frames);
+}
+
+#[test_case]
+fn allocated_frames_are_unique() {
+    let start_free_frames = FRAME_ALLOCATOR.lock().count();
+    let frames = BASE_ADDRESS_SPACE
+        .lock()
+        .map_slice::<Frame>(start_free_frames, KERNEL_RW, Frame::zero())
+        .unwrap();
+
+    let mut frame_allocator = FRAME_ALLOCATOR.lock();
+    let free_frames = frame_allocator.count();
+    debug!(free_frames);
+
+    for frame in &mut frames[.. free_frames] {
+        *frame = frame_allocator.allocate().unwrap();
+    }
+
+    debug!(free_frames = frame_allocator.count());
+    assert_eq!(frame_allocator.count(), 0);
+    assert!(frame_allocator.allocate().is_err());
+
+    slice::heapsort(&mut frames[.. free_frames], |a, b| a < b);
+    for (a, b) in frames.iter().zip(&frames[1 .. free_frames]) {
+        assert_ne!(a, b, "allocated the same frame twice");
+    }
+
+    for &frame in &frames[.. free_frames] {
+        frame_allocator.deallocate(frame);
+    }
+
+    debug!(free_frames = frame_allocator.count());
+    assert_eq!(frame_allocator.count(), free_frames);
 }
 
 #[test_case]

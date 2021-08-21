@@ -12,6 +12,7 @@ use crate::{
         info,
         trace,
     },
+    time,
 };
 
 use super::{
@@ -36,6 +37,8 @@ impl PageAllocator {
         name: &'static str,
         page_table_root: &PageTable,
     ) -> Self {
+        let timer = time::timer();
+
         if let Some(block) = Self::find_unused_block(page_table_root) {
             let page_allocator = Self { name, block };
 
@@ -43,6 +46,7 @@ impl PageAllocator {
                 %page_allocator,
                 free_page_count = page_allocator.block.count(),
                 block = %page_allocator.block,
+                duration = %timer.elapsed(),
                 "init",
             );
 

@@ -9,6 +9,7 @@
 #![feature(const_panic)]
 #![feature(custom_test_frameworks)]
 #![feature(format_args_capture)]
+#![feature(maybe_uninit_slice)]
 #![feature(panic_info_message)]
 #![no_std]
 #![reexport_test_harness_main = "test_main"]

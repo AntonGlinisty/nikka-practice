@@ -31,7 +31,11 @@ impl BootFrameAllocator {
         unimplemented!();
     }
 
-    fn allocate_block(
+    pub(super) fn count(&self) -> usize {
+        self.block.count()
+    }
+
+    pub(super) fn allocate_block(
         &mut self,
         size: usize,
     ) -> Result<Block<Frame>> {
@@ -56,5 +60,13 @@ impl BootFrameAllocator {
         frame: Frame,
     ) -> bool {
         self.is_managed(frame) && !self.block.contains(frame.index())
+    }
+}
+
+impl Drop for BootFrameAllocator {
+    fn drop(&mut self) {
+        let leaked_frame_count = self.count();
+        info!(frame_allocator = "boot", block = %self.block, leaked_frame_count, "drop");
+        assert_eq!(leaked_frame_count, 0, "leaked some memory frames");
     }
 }
