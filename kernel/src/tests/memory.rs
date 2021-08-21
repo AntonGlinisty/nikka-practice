@@ -11,11 +11,14 @@ use kernel::{
     },
 };
 
+use crate::forbid_frame_leaks;
+
 #[test_case]
 fn basic_frame_allocator_functions() {
+    forbid_frame_leaks!();
+
     let mut frame_allocator = FRAME_ALLOCATOR.lock();
     let start_free_frames = frame_allocator.count();
-    debug!(start_free_frames);
 
     let frames = [
         frame_allocator.allocate().unwrap(),
@@ -50,6 +53,8 @@ fn basic_frame_allocator_functions() {
 
 #[test_case]
 fn allocated_frames_are_unique() {
+    forbid_frame_leaks!();
+
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
     let frames = BASE_ADDRESS_SPACE
         .lock()
@@ -79,6 +84,12 @@ fn allocated_frames_are_unique() {
 
     debug!(free_frames = frame_allocator.count());
     assert_eq!(frame_allocator.count(), free_frames);
+
+    drop(frame_allocator);
+
+    unsafe {
+        BASE_ADDRESS_SPACE.lock().unmap_slice(frames).unwrap();
+    }
 }
 
 #[test_case]
@@ -96,9 +107,13 @@ fn allocate_page() {
 
 #[test_case]
 fn shared_memory() {
+    forbid_frame_leaks!();
+
     let frame = FRAME_ALLOCATOR.lock().allocate().expect("failed to allocate a frame");
 
     debug!(?frame);
+
+    FRAME_ALLOCATOR.lock().reference(frame);
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
@@ -133,5 +148,11 @@ fn shared_memory() {
         };
         debug!(write_value, read_value);
         assert_eq!(read_value, write_value);
+    }
+
+    for page in pages {
+        unsafe {
+            address_space.unmap_page(page).unwrap();
+        }
     }
 }

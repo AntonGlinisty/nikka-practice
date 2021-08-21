@@ -3,6 +3,7 @@ use core::{
     fmt,
     mem,
     mem::MaybeUninit,
+    ptr,
 };
 
 use lazy_static::lazy_static;
@@ -22,12 +23,14 @@ use crate::{
 
 use super::{
     FRAME_ALLOCATOR,
+    Virt,
     block::Block,
     frage::{
         Frame,
         Page,
     },
     mapping::Mapping,
+    mmu,
     mmu::PageTableFlags,
     page_allocator::PageAllocator,
 };
@@ -94,6 +97,14 @@ impl AddressSpace {
         unimplemented!();
     }
 
+    pub unsafe fn unmap_page(
+        &mut self,
+        page: Page,
+    ) -> Result<()> {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
     pub unsafe fn map_block(
         &mut self,
         pages: Block<Page>,
@@ -101,6 +112,17 @@ impl AddressSpace {
     ) -> Result<()> {
         for page in pages {
             self.map_page(page, flags)?;
+        }
+
+        Ok(())
+    }
+
+    pub unsafe fn unmap_block(
+        &mut self,
+        pages: Block<Page>,
+    ) -> Result<()> {
+        for page in pages {
+            self.unmap_page(page)?;
         }
 
         Ok(())
@@ -143,6 +165,43 @@ impl AddressSpace {
         );
 
         Ok(unsafe { MaybeUninit::slice_assume_init_mut(slice) })
+    }
+
+    pub unsafe fn unmap_slice<T>(
+        &mut self,
+        slice: &mut [T],
+    ) -> Result<()> {
+        let ptr_range = slice.as_ptr_range();
+        let start = Virt::from_ptr(ptr_range.start).into_usize();
+        let end = Virt::from_ptr(ptr_range.end).into_usize();
+
+        if start % Page::SIZE != 0 || end % Page::SIZE != 0 {
+            warn!(
+                start,
+                end,
+                page_size = Page::SIZE,
+                "can not unmap slice that does not start and end on page boundary",
+            );
+            return Err(InvalidArgument);
+        }
+
+        let block = Block::<Page>::new(start / Page::SIZE, end / Page::SIZE);
+        let page_count = block.count();
+
+        for element in slice.iter_mut() {
+            ptr::drop_in_place(element as *mut T);
+        }
+
+        self.unmap_block(block)?;
+
+        trace!(
+            addr = %Virt::new(start)?,
+            page_count,
+            slice = format_args!("[{}; {}]", any::type_name::<T>(), slice.len()),
+            "unmapped a slice",
+        );
+
+        Ok(())
     }
 }
 

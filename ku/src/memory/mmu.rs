@@ -2,6 +2,7 @@ use core::mem;
 
 use bitflags::bitflags;
 use static_assertions::const_assert_eq;
+use x86::tlb;
 
 use crate::error::{
     Error::NoFrame,
@@ -63,7 +64,15 @@ impl PageTableEntry {
         self.flags().contains(PageTableFlags::PRESENT)
     }
 
+    pub fn clear(&mut self) {
+        self.0 = 0;
+    }
+
     const ADDRESS_MASK: usize = ((1 << Phys::BITS) - 1) & !((1 << PAGE_OFFSET_BITS) - 1);
+}
+
+pub(super) unsafe fn flush(page: Page) {
+    tlb::flush(page.address().into_usize());
 }
 
 pub(super) fn page_table_root() -> PageTableEntry {
