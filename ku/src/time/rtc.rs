@@ -1,5 +1,6 @@
 use core::convert::From;
 
+use bitflags::bitflags;
 use chrono::{
     DateTime,
     NaiveDate,
@@ -47,25 +48,21 @@ impl Rtc {
 pub(super) fn init() {
     const DISABLE_NMI: u8 = 1 << 7;
     const REGISTER_B: u8 = 0xB;
-    const ENABLE_DAYLIGHT_SAVING: u8 = 1 << 0;
-    const SET_24_HOUR_FORMAT: u8 = 1 << 1;
-    const DISABLE_BINARY_CODED_DECIMAL: u8 = 1 << 2;
-    const ENABLE_UPDATE_ENDED_INTERRUPT: u8 = 1 << 4;
 
     defer! {
         unsafe { rtc_read(!DISABLE_NMI); }
     }
 
-    let old_settings = unsafe { rtc_read(DISABLE_NMI | REGISTER_B) };
-    let new_settings = !ENABLE_DAYLIGHT_SAVING &
+    let old_settings =
+        unsafe { RegisterB::from_bits_unchecked(rtc_read(DISABLE_NMI | REGISTER_B)) };
+    let new_settings = !RegisterB::DAYLIGHT_SAVING &
         (old_settings |
-            ENABLE_UPDATE_ENDED_INTERRUPT |
-            DISABLE_BINARY_CODED_DECIMAL |
-            SET_24_HOUR_FORMAT);
-    unsafe {
-        rtc_write(DISABLE_NMI | REGISTER_B, new_settings);
-    }
-    let acknowledged_settings = unsafe { rtc_read(DISABLE_NMI | REGISTER_B) };
+            RegisterB::UPDATE_ENDED_INTERRUPT |
+            RegisterB::USE_BINARY_FORMAT |
+            RegisterB::USE_24_HOUR_FORMAT);
+    unsafe { rtc_write(DISABLE_NMI | REGISTER_B, new_settings.bits()) };
+    let acknowledged_settings =
+        unsafe { RegisterB::from_bits_unchecked(rtc_read(DISABLE_NMI | REGISTER_B)) };
 
     if acknowledged_settings == new_settings {
         RTC.0.store_prev(CorrelationPoint::invalid(
@@ -74,12 +71,28 @@ pub(super) fn init() {
 
         enable_next_interrupt();
 
-        info!(new_settings, "RTC init");
+        info!(?acknowledged_settings, "RTC init");
     } else {
         error!(
-            old_settings,
-            new_settings, acknowledged_settings, "RTC did not acknowledge new settings",
+            ?old_settings,
+            ?new_settings,
+            ?acknowledged_settings,
+            "RTC did not acknowledge new settings",
         );
+    }
+}
+
+bitflags! {
+    /// https://pdf1.alldatasheet.com/datasheet-pdf/view/122156/MOTOROLA/MC146818.html
+    struct RegisterB: u8 {
+        const DAYLIGHT_SAVING = 1 << 0;
+        const USE_24_HOUR_FORMAT = 1 << 1;
+        const USE_BINARY_FORMAT = 1 << 2;
+        const SQUARE_WAVE = 1 << 3;
+        const UPDATE_ENDED_INTERRUPT = 1 << 4;
+        const ALARM_INTERRUPT = 1 << 5;
+        const PERIODIC_INTERRUPT = 1 << 6;
+        const SET_CLOCK = 1 << 7;
     }
 }
 
