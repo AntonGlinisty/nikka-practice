@@ -24,6 +24,7 @@ use super::{
         PageTable,
     },
     size::SizeOf,
+    stack::GUARD_ZONE_SIZE,
 };
 
 #[derive(Debug)]
@@ -40,7 +41,7 @@ impl PageAllocator {
         let timer = time::timer();
 
         if let Some(block) = Self::find_unused_block(page_table_root) {
-            let page_allocator = Self { name, block };
+            let mut page_allocator = Self { name, block };
 
             info!(
                 %page_allocator,
@@ -49,6 +50,11 @@ impl PageAllocator {
                 duration = %timer.elapsed(),
                 "init",
             );
+
+            // Detect stack overruns that corrupt memory allocated by PageAllocator.
+            page_allocator
+                .allocate(GUARD_ZONE_SIZE)
+                .expect("failed to create guard zone for PageAllocator");
 
             page_allocator
         } else {

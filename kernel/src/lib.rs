@@ -2,6 +2,7 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
+#![allow(clippy::missing_safety_doc)]
 #![cfg_attr(test, no_main)]
 #![feature(abi_x86_interrupt)]
 #![feature(alloc_error_handler)]
@@ -38,8 +39,14 @@ use x86::io;
 
 use text::println;
 
-use log::info;
-use memory::gdt;
+use log::{
+    info,
+    warn,
+};
+use memory::{
+    EXCEPTION_STACKS,
+    gdt,
+};
 
 #[allow(dead_code)]
 const PASS: text::Color = text::Color::LIGHT_GREEN;
@@ -67,6 +74,10 @@ pub fn init(boot_info: &'static BootInfo) {
     trap::init();
 
     memory::init(boot_info);
+
+    if let Err(error) = EXCEPTION_STACKS.lock().make_guard_zones() {
+        warn!(?error, "failed to make guard zones in exception stacks")
+    }
 }
 
 #[cold]

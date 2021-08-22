@@ -28,7 +28,6 @@ use crate::{
     time,
 };
 
-use address_space::AddressSpace;
 use boot_frame_allocator::BootFrameAllocator;
 use frame_allocator::FrameAllocator;
 
@@ -36,7 +35,10 @@ pub use addr::{
     Phys,
     Virt,
 };
-pub use address_space::BASE_ADDRESS_SPACE;
+pub use address_space::{
+    AddressSpace,
+    BASE_ADDRESS_SPACE,
+};
 pub use block::Block;
 pub use frage::{
     Frame,
@@ -46,6 +48,7 @@ pub use frame_allocator::FRAME_ALLOCATOR;
 pub use mmu::KERNEL_RW;
 pub use size::SizeOf;
 
+pub(crate) use stack::EXCEPTION_STACKS;
 pub(crate) use tss::{
     DOUBLE_FAULT_IST_INDEX,
     PAGE_FAULT_IST_INDEX,
