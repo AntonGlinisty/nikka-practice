@@ -37,12 +37,14 @@ pub use addr::{
     Virt,
 };
 pub use address_space::BASE_ADDRESS_SPACE;
+pub use block::Block;
 pub use frage::{
     Frame,
     Page,
 };
 pub use frame_allocator::FRAME_ALLOCATOR;
 pub use mmu::KERNEL_RW;
+pub use size::SizeOf;
 
 pub(crate) use tss::{
     DOUBLE_FAULT_IST_INDEX,

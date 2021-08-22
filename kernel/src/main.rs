@@ -12,6 +12,7 @@
 #![reexport_test_harness_main = "test_main"]
 #![test_runner(kernel::test_runner)]
 
+extern crate alloc;
 extern crate rlibc;
 
 #[cfg(test)]

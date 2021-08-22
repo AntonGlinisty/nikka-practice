@@ -28,7 +28,10 @@ use super::{
         PAGE_TABLE_INDEX_BITS,
         PAGE_TABLE_ROOT_LEVEL,
     },
-    size,
+    size::{
+        self,
+        SizeOf,
+    },
 };
 
 #[derive(Clone, Copy, Default, Eq, Ord, PartialEq, PartialOrd)]
@@ -162,6 +165,18 @@ impl Virt {
         Self::new(ptr as *const () as usize).expect("bad pointer")
     }
 
+    pub fn into_ptr_u8(self) -> *const u8 {
+        const_assert_eq!(mem::align_of::<u8>(), 1);
+        const_assert_eq!(mem::size_of::<*const u8>(), mem::size_of::<usize>());
+        self.0 as *const u8
+    }
+
+    pub fn into_mut_ptr_u8(self) -> *mut u8 {
+        const_assert_eq!(mem::align_of::<u8>(), 1);
+        const_assert_eq!(mem::size_of::<*mut u8>(), mem::size_of::<usize>());
+        self.0 as *mut u8
+    }
+
     pub fn try_into_ptr<T>(self) -> Result<*const T> {
         const_assert_eq!(mem::size_of::<*const ()>(), mem::size_of::<usize>());
         if self.0 % mem::align_of::<T>() == 0 {
@@ -259,4 +274,8 @@ impl From<Virt> for VirtAddr {
     fn from(addr: Virt) -> Self {
         VirtAddr::new(addr.into_u64())
     }
+}
+
+impl<T: Tag> SizeOf for Addr<T> {
+    const SIZE_OF: usize = 1;
 }

@@ -4,6 +4,7 @@
 
 #![cfg_attr(test, no_main)]
 #![feature(abi_x86_interrupt)]
+#![feature(alloc_error_handler)]
 #![feature(asm)]
 #![feature(const_fn_trait_bound)]
 #![feature(const_panic)]
@@ -15,8 +16,10 @@
 #![reexport_test_harness_main = "test_main"]
 #![test_runner(crate::test_runner)]
 
+extern crate alloc;
 extern crate rlibc;
 
+pub mod allocator;
 pub mod error;
 pub mod log;
 pub mod memory;
@@ -84,6 +87,13 @@ pub fn exit_qemu(exit_code: ExitCode) -> ! {
     }
 
     halt()
+}
+
+#[alloc_error_handler]
+#[cold]
+#[inline(never)]
+fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
+    panic!("failed to allocate memory, layout = {:?}", layout)
 }
 
 pub trait Testable {

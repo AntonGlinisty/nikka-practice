@@ -5,4 +5,4 @@ target = "kernel.json"
 runner = "bootimage runner"
 
 [unstable]
-build-std = ["compiler_builtins", "core"]
+build-std = ["alloc", "compiler_builtins", "core"]

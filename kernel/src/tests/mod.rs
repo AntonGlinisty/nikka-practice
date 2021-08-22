@@ -1,3 +1,4 @@
+mod allocator;
 mod memory;
 mod trap;
 
