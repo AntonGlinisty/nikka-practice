@@ -91,4 +91,6 @@ pub static TRAP_STATS: InterruptStats = [
     Stats::new("Coprocessor", "#CP"),
     Stats::new("Primary ATA Hard Disk", "#PD"),
     Stats::new("Secondary ATA Hard Disk", "#SD"),
+    Stats::new("Timer", "#TI"),
+    Stats::new("Spurious", "#SP"),
 ];

@@ -165,6 +165,10 @@ impl Virt {
         Self::new(ptr as *const () as usize).expect("bad pointer")
     }
 
+    pub fn from_ref<T: ?Sized>(x: &T) -> Self {
+        Self::from_ptr(x as *const T)
+    }
+
     pub fn into_ptr_u8(self) -> *const u8 {
         const_assert_eq!(mem::align_of::<u8>(), 1);
         const_assert_eq!(mem::size_of::<*const u8>(), mem::size_of::<usize>());

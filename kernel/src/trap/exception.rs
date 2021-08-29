@@ -12,6 +12,8 @@ use x86_64::structures::idt::{
 
 use super::TRAP_STATS;
 
+use crate::smp::LocalApic;
+
 struct StackFrame<'frame> {
     frame: &'frame InterruptStackFrameValue,
 }
@@ -186,7 +188,7 @@ pub(super) extern "x86-interrupt" fn page_fault(
     TRAP_STATS[super::PAGE_FAULT].inc();
 
     panic!(
-        "Page fault in {} mode on {} {:?}: {}\n  error code: {:?}\n{:?}",
+        "Page fault in {} mode on {} {:?}: {}\n  cpu = {}\t\t\t\terror code: {:?}\n{:?}",
         if error_code.contains(PageFaultErrorCode::USER_MODE) {
             "user"
         } else {
@@ -205,6 +207,7 @@ pub(super) extern "x86-interrupt" fn page_fault(
         } else {
             "page is not present"
         },
+        LocalApic::id(),
         error_code,
         StackFrame::new(&stack_frame),
     );

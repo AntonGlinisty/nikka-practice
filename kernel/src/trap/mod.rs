@@ -1,3 +1,4 @@
+mod apic;
 mod handler;
 mod idt;
 mod pic;
@@ -33,7 +34,6 @@ pub const VIRTUALIZATION: usize = 0x14;
 pub const SECURITY_EXCEPTION: usize = 0x1E;
 
 const EXCEPTION_COUNT: u8 = 0x20;
-const COUNT: usize = (EXCEPTION_COUNT + pic8259::PIC_INTERRUPT_COUNT) as usize;
 
 const PIC_FIRST_INTERRUPT: u8 = EXCEPTION_COUNT;
 
@@ -54,6 +54,12 @@ pub const PS2_MOUSE: usize = PIC_BASE + 0xC;
 pub const COPROCESSOR: usize = PIC_BASE + 0xD;
 pub const ATA0: usize = PIC_BASE + 0xE;
 pub const ATA1: usize = PIC_BASE + 0xF;
+
+const APIC_BASE: usize = ATA1 + 1;
+pub const TIMER: usize = APIC_BASE;
+pub const SPURIOUS: usize = APIC_BASE + 0x1;
+
+const COUNT: usize = SPURIOUS + 1;
 
 pub(super) fn init() {
     unsafe {

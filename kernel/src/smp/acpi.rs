@@ -1,5 +1,6 @@
 use alloc::vec::Vec;
 use core::{
+    convert::TryInto,
     ptr::NonNull,
     result,
 };
@@ -37,11 +38,13 @@ use crate::{
     },
 };
 
+use super::CpuId;
+
 #[derive(Debug)]
 pub(super) struct Acpi {
     local_apic_address: Phys,
-    bsp_id: u32,
-    ap_ids: Vec<u32>,
+    bsp_id: CpuId,
+    ap_ids: Vec<CpuId>,
 }
 
 impl Acpi {
@@ -59,7 +62,7 @@ impl Acpi {
 
         let acpi = Self {
             local_apic_address: Phys::new_u64(apic.local_apic_address)?,
-            bsp_id: cpus.boot_processor.local_apic_id,
+            bsp_id: cpus.boot_processor.local_apic_id.try_into()?,
             ap_ids: usable_aps(&cpus),
         };
 
@@ -80,11 +83,11 @@ impl Acpi {
         self.local_apic_address
     }
 
-    pub(super) fn bsp_id(&self) -> u32 {
+    pub(super) fn bsp_id(&self) -> CpuId {
         self.bsp_id
     }
 
-    pub(super) fn ap_ids(&self) -> &[u32] {
+    pub(super) fn ap_ids(&self) -> &[CpuId] {
         &self.ap_ids
     }
 }
@@ -103,11 +106,12 @@ fn platform_info(phys2virt: Page) -> result::Result<PlatformInfo, AcpiError> {
     acpi_tables.platform_info()
 }
 
-fn usable_aps(cpus: &ProcessorInfo) -> Vec<u32> {
+fn usable_aps(cpus: &ProcessorInfo) -> Vec<CpuId> {
     cpus.application_processors
         .iter()
         .filter(|cpu| cpu.state == ProcessorState::WaitingForSipi)
-        .map(|cpu| cpu.local_apic_id)
+        .filter(|cpu| cpu.local_apic_id <= CpuId::MAX.into())
+        .map(|cpu| cpu.local_apic_id.try_into().unwrap())
         .collect()
 }
 

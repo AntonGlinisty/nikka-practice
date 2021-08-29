@@ -7,6 +7,7 @@ use crate::memory::{
 };
 
 use super::{
+    apic,
     handler,
     pic,
 };
@@ -64,6 +65,9 @@ lazy_static! {
         idt[super::COPROCESSOR].set_handler_fn(pic::coprocessor);
         idt[super::ATA0].set_handler_fn(pic::ata0);
         idt[super::ATA1].set_handler_fn(pic::ata1);
+
+        idt[super::TIMER].set_handler_fn(apic::timer);
+        idt[super::SPURIOUS].set_handler_fn(apic::spurious);
 
         idt
     };

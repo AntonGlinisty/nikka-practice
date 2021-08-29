@@ -1,4 +1,5 @@
 use core::{
+    convert::TryInto,
     fmt,
     mem,
 };
@@ -30,6 +31,10 @@ pub const fn into_usize(x: u64) -> usize {
 pub const fn into_u64(x: usize) -> u64 {
     const_assert!(mem::size_of::<u64>() == mem::size_of::<usize>());
     x as u64
+}
+
+pub fn try_into_u32(x: usize) -> Result<u32, <u64 as TryInto<u32>>::Error> {
+    into_u64(x).try_into()
 }
 
 pub trait SizeOf {
