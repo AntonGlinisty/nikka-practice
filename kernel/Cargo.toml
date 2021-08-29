@@ -9,6 +9,7 @@ repository = "https://gitlab.com/sergey-v-galtsev/nikka-public"
 version = "0.1.0"
 
 [dependencies]
+acpi = "*"
 bitflags = "*"
 bootloader = { version = "0.9.*", features = ["map_physical_memory"] }
 chrono = { version = "*", default-features = false }
@@ -32,7 +33,9 @@ text = { path = "../text" }
 [package.metadata.bootimage]
 run-args = [
     "-m",
-    "size=5M",
+    "size=50M",
+    "-smp",
+    "cpus=4",
     "-device",
     "isa-debug-exit,iobase=0xF4,iosize=0x04",
     "-serial",
@@ -41,7 +44,9 @@ run-args = [
 
 test-args = [
     "-m",
-    "size=5M",
+    "size=50M",
+    "-smp",
+    "cpus=4",
     "-device",
     "isa-debug-exit,iobase=0xF4,iosize=0x04",
     "-serial",

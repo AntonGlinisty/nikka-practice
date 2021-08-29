@@ -24,6 +24,7 @@ pub mod allocator;
 pub mod error;
 pub mod log;
 pub mod memory;
+pub mod smp;
 pub mod time;
 pub mod trap;
 
@@ -78,6 +79,8 @@ pub fn init(boot_info: &'static BootInfo) {
     if let Err(error) = EXCEPTION_STACKS.lock().make_guard_zones() {
         warn!(?error, "failed to make guard zones in exception stacks")
     }
+
+    smp::init(boot_info);
 }
 
 #[cold]

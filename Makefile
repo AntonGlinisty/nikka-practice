@@ -1,4 +1,4 @@
-QEMU_OPTIONS = -cpu qemu64 -m size=5M -device isa-debug-exit,iobase=0xF4,iosize=0x04
+QEMU_OPTIONS = -cpu qemu64 -m size=50M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04
 QEMU_GTK = $(QEMU_OPTIONS) -display gtk -serial file:serial.out
 QEMU_NOX = $(QEMU_OPTIONS) -nographic -serial mon:stdio
 QEMU_CURSES = $(QEMU_OPTIONS) -display curses -serial file:serial.out

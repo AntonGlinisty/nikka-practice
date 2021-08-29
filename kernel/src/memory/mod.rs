@@ -3,6 +3,7 @@ pub mod mmu;
 pub mod size;
 
 pub(crate) mod gdt;
+pub(crate) mod phys2virt;
 
 mod addr;
 mod address_space;
@@ -12,7 +13,6 @@ mod frame_allocator;
 mod main_frame_allocator;
 mod mapping;
 mod page_allocator;
-mod phys2virt;
 mod range;
 mod stack;
 mod tss;
