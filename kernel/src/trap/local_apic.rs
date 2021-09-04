@@ -1,5 +1,6 @@
 use core::{
     convert::TryInto,
+    hint,
     mem,
 };
 
@@ -7,7 +8,10 @@ use bitflags::bitflags;
 use static_assertions::const_assert;
 
 use crate::{
-    error::Result,
+    error::{
+        Error::InvalidArgument,
+        Result,
+    },
     memory::{
         BASE_ADDRESS_SPACE,
         Frame,
@@ -96,6 +100,43 @@ impl LocalApic {
     /// <https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.pdf>, Chapter 10.4.6 "Local APIC ID"
     pub(crate) fn id() -> CpuId {
         (Self::get().id.get() >> Self::ID_SHIFT).try_into().unwrap()
+    }
+
+    /// MultiProcessor Specification 4.1 part B.4 "Application Processor Startup"
+    pub(super) fn send_init(
+        id: CpuId,
+        boot_address: Phys,
+    ) -> Result<()> {
+        const MAX_BOOT_PAGE: u32 = 0xFF;
+        let boot_page = size::try_into_u32(Frame::index_by_address(boot_address))
+            .map_err(|_| InvalidArgument)?;
+        if boot_address.into_usize() % Page::SIZE != 0 || boot_page > MAX_BOOT_PAGE {
+            return Err(InvalidArgument);
+        }
+
+        let local_apic = Self::get();
+
+        let init_data = InterruptCommand::INIT | InterruptCommand::TRIGGER_MODE_LEVEL;
+        local_apic.send_ipi(id, (init_data | InterruptCommand::LEVEL_ASSERT).bits());
+        local_apic.send_ipi(id, (init_data | InterruptCommand::LEVEL_DEASSERT).bits());
+
+        local_apic.send_ipi(id, InterruptCommand::START_UP.bits() | boot_page);
+
+        Ok(())
+    }
+
+    /// 10.6 "ISSUING INTERPROCESSOR INTERRUPTS"
+    fn send_ipi(
+        &mut self,
+        id: CpuId,
+        data: u32,
+    ) {
+        self.interrupt_command_hi.set(u32::from(id) << Self::ID_SHIFT);
+        self.interrupt_command_lo.set(data);
+
+        while (self.interrupt_command_lo.get() & InterruptCommand::SEND_PENDING.bits()) != 0 {
+            hint::spin_loop();
+        }
     }
 
     fn get() -> &'static mut Self {

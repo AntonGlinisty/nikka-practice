@@ -1,4 +1,5 @@
 use core::{
+    convert::TryInto,
     fmt,
     marker::PhantomData,
     mem,
@@ -8,6 +9,7 @@ use core::{
         Sub,
         SubAssign,
     },
+    result,
     slice,
 };
 
@@ -60,6 +62,10 @@ impl<T: Tag> Addr<T> {
 
     pub fn into_u64(self) -> u64 {
         size::into_u64(self.0)
+    }
+
+    pub fn try_into_u32(self) -> result::Result<u32, <u64 as TryInto<u32>>::Error> {
+        size::try_into_u32(self.0)
     }
 }
 
@@ -234,7 +240,7 @@ impl Virt {
     const UNUSED_BITS: u32 = usize::BITS - Self::BITS;
 }
 
-impl Add<usize> for Virt {
+impl<T: Tag> Add<usize> for Addr<T> {
     type Output = Result<Self>;
 
     fn add(

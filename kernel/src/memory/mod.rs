@@ -48,7 +48,14 @@ pub use frame_allocator::FRAME_ALLOCATOR;
 pub use mmu::KERNEL_RW;
 pub use size::SizeOf;
 
-pub(crate) use stack::EXCEPTION_STACKS;
+pub(crate) use gdt::{
+    Gdt,
+    RealModePseudoDescriptor,
+};
+pub(crate) use stack::{
+    EXCEPTION_STACKS,
+    Stack,
+};
 pub(crate) use tss::{
     DOUBLE_FAULT_IST_INDEX,
     PAGE_FAULT_IST_INDEX,

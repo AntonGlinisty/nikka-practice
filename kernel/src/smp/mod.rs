@@ -1,4 +1,5 @@
 mod acpi;
+mod ap_init;
 mod local_apic;
 
 use bootloader::BootInfo;
@@ -16,6 +17,7 @@ use crate::{
         Page,
         phys2virt,
     },
+    time,
 };
 
 use self::acpi::Acpi;
@@ -26,12 +28,13 @@ pub(crate) use local_apic::{
 };
 
 pub(super) fn init(boot_info: &'static BootInfo) {
+    let timer = time::timer();
     let phys2virt = phys2virt::phys2virt(boot_info);
 
     if let Err(error) = init_smp(phys2virt) {
-        warn!(?error, "SMP init");
+        warn!(?error, duration = %timer.elapsed(), "SMP init");
     } else {
-        info!("SMP init");
+        info!(duration = %timer.elapsed(), "SMP init");
     }
 }
 
@@ -57,7 +60,8 @@ fn init_smp(phys2virt: Page) -> Result<()> {
     info!(cpu = current_cpu, "Bootstrap Processor");
 
     for id in acpi.ap_ids() {
-        info!(cpu = id, "Application Processor");
+        ap_init::boot_ap(phys2virt, *id)
+            .unwrap_or_else(|_| panic!("failed to boot the Application Processor #{}", id));
     }
 
     Ok(())

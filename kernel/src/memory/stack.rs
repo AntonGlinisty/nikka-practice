@@ -8,19 +8,32 @@ use crate::error::Result;
 use super::{
     AddressSpace,
     BASE_ADDRESS_SPACE,
+    KERNEL_RW,
     Page,
     Virt,
 };
 
 #[repr(C, align(4096))]
-pub(super) struct Stack([u8; STACK_SIZE]);
+pub(crate) struct Stack([u8; STACK_SIZE]);
 
 impl Stack {
-    const fn new() -> Self {
+    const fn new_static() -> Self {
         Self([0; mem::size_of::<Self>()])
     }
 
-    pub(super) fn pointer(&self) -> Virt {
+    pub(crate) fn new() -> Result<&'static mut Self> {
+        let address_space = &mut *BASE_ADDRESS_SPACE.lock();
+        let stack = address_space.map_slice::<u8>(STACK_SIZE, KERNEL_RW, 0)?;
+        let stack = unsafe { &mut *(stack as *mut [u8] as *mut Stack) };
+
+        unsafe {
+            stack.make_guard_zone(address_space)?;
+        }
+
+        Ok(stack)
+    }
+
+    pub(crate) fn pointer(&self) -> Virt {
         Virt::from_ptr(self.0.as_ptr_range().end)
     }
 
@@ -35,7 +48,7 @@ impl Stack {
 macro_rules! make_static_stack {
     () => {{
         #[link_section = ".stack"]
-        static mut STACK: Stack = Stack::new();
+        static mut STACK: Stack = Stack::new_static();
 
         unsafe { &mut STACK }
     }};

@@ -16,6 +16,7 @@ chrono = { version = "*", default-features = false }
 derive_more = "*"
 itertools = { version = "*", default-features = false }
 lazy_static = { version = "*", features = ["spin_no_std"] }
+memoffset = { version = "*", features = ["unstable_const"] }
 num-traits = { version = "*", default-features = false }
 number_prefix = { version = "*", default-features = false }
 rlibc = "*"

@@ -48,6 +48,10 @@ impl<T: Tag> Frage<T> {
     pub fn index(&self) -> usize {
         self.address().into_usize() / Self::SIZE
     }
+
+    pub fn index_by_address(address: Addr<T>) -> usize {
+        address.into_usize() / Self::SIZE
+    }
 }
 
 impl<T: Tag> Debug for Frage<T> {

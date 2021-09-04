@@ -71,6 +71,10 @@ impl AddressSpace {
         }
     }
 
+    pub fn page_table_root(&self) -> Frame {
+        self.mapping.page_table_root()
+    }
+
     pub fn allocate(
         &mut self,
         size: usize,
@@ -214,7 +218,7 @@ impl fmt::Display for AddressSpace {
             formatter,
             "\"{}\" @ {}",
             self.name,
-            self.mapping.page_table_root().address()
+            self.page_table_root().address()
         )
     }
 }
