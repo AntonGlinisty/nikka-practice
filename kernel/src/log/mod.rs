@@ -3,6 +3,11 @@ use core::fmt::{
     Write,
 };
 
+use chrono::{
+    DateTime,
+    Utc,
+};
+use spin::Mutex;
 use tracing::{
     Collect,
     Event,
@@ -84,19 +89,15 @@ enum Format {
     Full,
 }
 
-struct LogCollector {
+struct Log {
     format: Format,
-    level: Level,
 }
 
-impl LogCollector {
+impl Log {
     const LOCATION: Color = Color::DARK_GRAY;
 
-    const fn new(
-        format: Format,
-        level: Level,
-    ) -> Self {
-        Self { format, level }
+    const fn new(format: Format) -> Self {
+        Self { format }
     }
 
     const fn level_color(level: &Level) -> Color {
@@ -118,6 +119,65 @@ impl LogCollector {
             Level::TRACE => 'T',
         }
     }
+
+    fn log_event(
+        &self,
+        event: &Event<'_>,
+        timestamp: DateTime<Utc>,
+    ) {
+        self.log_metadata(event.metadata(), timestamp);
+        event.record(&mut LogEvent::new());
+        println!();
+    }
+
+    fn log_metadata(
+        &self,
+        metadata: &Metadata<'_>,
+        timestamp: DateTime<Utc>,
+    ) {
+        match self.format {
+            Format::Compact => {
+                print!("{:?} ", timestamp.time());
+                print!(
+                    color(Self::level_color(metadata.level())),
+                    "{} ",
+                    Self::level_symbol(metadata.level()),
+                );
+            },
+            Format::Full => {
+                print!("{:?} ", timestamp);
+                print!(
+                    color(Self::level_color(metadata.level())),
+                    "{} ",
+                    metadata.level(),
+                );
+                print!(
+                    color(Self::LOCATION),
+                    "{} {}:{} ",
+                    metadata.target(),
+                    metadata.file().unwrap_or("?"),
+                    metadata.line().unwrap_or(0),
+                );
+            },
+        }
+    }
+}
+
+struct LogCollector {
+    level: Level,
+    log: Mutex<Log>,
+}
+
+impl LogCollector {
+    const fn new(
+        format: Format,
+        level: Level,
+    ) -> Self {
+        Self {
+            level,
+            log: Mutex::new(Log::new(format)),
+        }
+    }
 }
 
 impl Collect for LogCollector {
@@ -133,36 +193,7 @@ impl Collect for LogCollector {
         event: &Event<'_>,
     ) {
         let now = time::now_ms();
-        let metadata = &event.metadata();
-
-        match self.format {
-            Format::Compact => {
-                print!("{:?} ", now.time());
-                print!(
-                    color(Self::level_color(metadata.level())),
-                    "{} ",
-                    Self::level_symbol(metadata.level()),
-                );
-            },
-            Format::Full => {
-                print!("{:?} ", now);
-                print!(
-                    color(Self::level_color(metadata.level())),
-                    "{} ",
-                    metadata.level(),
-                );
-                print!(
-                    color(Self::LOCATION),
-                    "{} {}:{} ",
-                    metadata.target(),
-                    metadata.file().unwrap_or("?"),
-                    metadata.line().unwrap_or(0),
-                );
-            },
-        }
-
-        event.record(&mut LogEvent::new());
-        println!();
+        self.log.lock().log_event(event, now);
     }
 
     fn record(
