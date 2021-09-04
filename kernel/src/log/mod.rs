@@ -35,7 +35,10 @@ use text::{
     println,
 };
 
-use crate::time;
+use crate::{
+    smp::LocalApic,
+    time,
+};
 
 pub use tracing::{
     debug,
@@ -94,6 +97,7 @@ struct Log {
 }
 
 impl Log {
+    const CPU: Color = Color::DARK_GRAY;
     const LOCATION: Color = Color::DARK_GRAY;
 
     const fn new(format: Format) -> Self {
@@ -138,6 +142,7 @@ impl Log {
         match self.format {
             Format::Compact => {
                 print!("{:?} ", timestamp.time());
+                print!(color(Self::CPU), "{} ", LocalApic::id());
                 print!(
                     color(Self::level_color(metadata.level())),
                     "{} ",
@@ -146,6 +151,7 @@ impl Log {
             },
             Format::Full => {
                 print!("{:?} ", timestamp);
+                print!(color(Self::CPU), "cpu={} ", LocalApic::id());
                 print!(
                     color(Self::level_color(metadata.level())),
                     "{} ",
