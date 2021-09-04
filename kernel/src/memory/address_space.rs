@@ -132,12 +132,11 @@ impl AddressSpace {
         Ok(())
     }
 
-    pub fn map_slice<T: Clone>(
+    fn map_slice_uninit<T>(
         &mut self,
         len: usize,
         flags: PageTableFlags,
-        default: T,
-    ) -> Result<&'static mut [T]> {
+    ) -> Result<&'static mut [MaybeUninit<T>]> {
         if Page::SIZE % mem::align_of::<T>() != 0 {
             warn!(
                 alignment = mem::align_of::<T>(),
@@ -155,11 +154,7 @@ impl AddressSpace {
 
         let addr = Page::address_by_index(block.start());
         let len = block.size() / mem::size_of::<T>();
-        let slice = unsafe { addr.try_into_mut_slice::<MaybeUninit<T>>(len)? };
-
-        for element in slice.iter_mut() {
-            element.write(default.clone());
-        }
+        let slice = unsafe { addr.try_into_mut_slice(len)? };
 
         trace!(
             %addr,
@@ -168,7 +163,36 @@ impl AddressSpace {
             "mapped a slice",
         );
 
+        Ok(slice)
+    }
+
+    pub fn map_slice<T, F: Fn() -> T>(
+        &mut self,
+        len: usize,
+        flags: PageTableFlags,
+        default: F,
+    ) -> Result<&'static mut [T]> {
+        let slice = self.map_slice_uninit(len, flags)?;
+
+        for element in slice.iter_mut() {
+            element.write(default());
+        }
+
         Ok(unsafe { MaybeUninit::slice_assume_init_mut(slice) })
+    }
+
+    pub unsafe fn map_slice_zeroed<T>(
+        &mut self,
+        len: usize,
+        flags: PageTableFlags,
+    ) -> Result<&'static mut [T]> {
+        let slice = self.map_slice_uninit(len, flags)?;
+
+        for element in slice.iter_mut() {
+            *element = MaybeUninit::zeroed();
+        }
+
+        Ok(MaybeUninit::slice_assume_init_mut(slice))
     }
 
     pub unsafe fn unmap_slice<T>(

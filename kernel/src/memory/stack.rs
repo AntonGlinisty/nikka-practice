@@ -23,8 +23,7 @@ impl Stack {
 
     pub(crate) fn new() -> Result<&'static mut Self> {
         let address_space = &mut *BASE_ADDRESS_SPACE.lock();
-        let stack = address_space.map_slice::<u8>(STACK_SIZE, KERNEL_RW, 0)?;
-        let stack = unsafe { &mut *(stack as *mut [u8] as *mut Stack) };
+        let stack = unsafe { &mut address_space.map_slice_zeroed::<Self>(1, KERNEL_RW)?[0] };
 
         unsafe {
             stack.make_guard_zone(address_space)?;

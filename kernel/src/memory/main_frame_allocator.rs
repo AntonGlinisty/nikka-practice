@@ -68,7 +68,7 @@ impl MainFrameAllocator {
         let frame_count = range::physical(memory_map).count();
         let frame_info = BASE_ADDRESS_SPACE
             .lock()
-            .map_slice(frame_count, KERNEL_RW, FrameInfo::Absent)
+            .map_slice(frame_count, KERNEL_RW, || FrameInfo::Absent)
             .expect("failed to allocate memory for MainFrameAllocator metadata");
 
         debug!(frame_allocator = "main", duration = %timer.lap(), "frame info mapped");
