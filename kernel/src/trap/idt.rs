@@ -13,7 +13,7 @@ use super::{
 };
 
 lazy_static! {
-    pub(super) static ref IDT: InterruptDescriptorTable = {
+    pub(crate) static ref IDT: InterruptDescriptorTable = {
         let mut idt = InterruptDescriptorTable::new();
 
         idt.divide_error.set_handler_fn(handler::divide_error);

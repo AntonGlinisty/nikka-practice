@@ -13,6 +13,7 @@ use core::{
 use memoffset::offset_of;
 use x86::msr::IA32_EFER;
 use x86_64::{
+    instructions::interrupts,
     registers::{
         control::{
             Cr0,
@@ -32,32 +33,35 @@ use crate::{
     memory::{
         BASE_ADDRESS_SPACE,
         Frame,
-        Gdt,
+        GDT,
         Page,
         Phys,
         RealModePseudoDescriptor,
-        Stack,
+        SmallGdt,
         Virt,
         phys2virt,
         size,
     },
     time,
+    trap::IDT,
 };
 
 use super::{
     CpuId,
     LocalApic,
+    cpu::Cpu,
 };
 
 /// MultiProcessor Specification 4.1 part B.4 "Application Processor Startup"
 pub(super) fn boot_ap(
     phys2virt: Page,
     id: CpuId,
+    cpu: &mut Cpu,
 ) -> Result<()> {
     let timer = time::timer();
     let initialized = AtomicBool::new(false);
 
-    let boot_code = prepare_boot_code(phys2virt, &initialized)?;
+    let boot_code = prepare_boot_code(phys2virt, cpu, &initialized)?;
 
     LocalApic::send_init(id, boot_code)?;
     wait_initialized(&initialized);
@@ -69,6 +73,7 @@ pub(super) fn boot_ap(
 
 fn prepare_boot_code(
     phys2virt: Page,
+    cpu: &mut Cpu,
     initialized: &AtomicBool,
 ) -> Result<Frame> {
     let boot_code = real_mode_address(BOOT_CODE, "boot code");
@@ -76,7 +81,7 @@ fn prepare_boot_code(
     copy_switch_mode_code(phys2virt::map(phys2virt, boot_code))?;
 
     let boot_stack_phys = real_mode_address(BOOT_STACK, "boot stack");
-    let boot_stack = BootStack::new(boot_stack_phys, initialized)?;
+    let boot_stack = BootStack::new(boot_stack_phys, cpu, initialized)?;
 
     debug!(?boot_stack);
 
@@ -111,14 +116,16 @@ struct BootStack {
     set_cs_rip_to_64bit: u16,
     kernel_code: SegmentSelector,
     _padding: u32,
+    cpu: Virt,
     initialized: Virt,
     kernel_stack: Virt,
-    gdt: Gdt,
+    gdt: SmallGdt,
 }
 
 impl BootStack {
     fn new(
         boot_stack_phys: Phys,
+        cpu: &mut Cpu,
         initialized: &AtomicBool,
     ) -> Result<Self> {
         let switch_mode_start: usize;
@@ -138,9 +145,9 @@ impl BootStack {
         let cr4 = Cr4::read_raw().try_into()?;
         let cr3 = BASE_ADDRESS_SPACE.lock().page_table_root().address().try_into_u32()?;
         let cr0 = Cr0::read_raw().try_into()?;
-        let gdt = Gdt::new();
+        let gdt = SmallGdt::new();
         let gdt_pseudo_descriptor =
-            Gdt::real_mode_pseudo_descriptor((boot_stack_phys + offset_of!(BootStack, gdt))?)?;
+            SmallGdt::real_mode_pseudo_descriptor((boot_stack_phys + offset_of!(BootStack, gdt))?)?;
         let set_cs_rip_to_64bit: u16 =
             size::into_u64(BOOT_CODE + (set_cs_rip_to_64bit - switch_mode_start))
                 .try_into()
@@ -149,7 +156,7 @@ impl BootStack {
                      Processors to be able to ret to it",
                 );
 
-        let kernel_stack = Stack::new()?.pointer();
+        let kernel_stack = cpu.kernel_stack().pointer();
 
         Ok(Self {
             efer,
@@ -157,10 +164,11 @@ impl BootStack {
             cr3,
             cr0,
             gdt_pseudo_descriptor,
-            kernel_data: gdt.kernel_data(),
+            kernel_data: SmallGdt::kernel_data(),
             set_cs_rip_to_64bit,
-            kernel_code: gdt.kernel_code(),
+            kernel_code: SmallGdt::kernel_code(),
             _padding: 0,
+            cpu: Virt::from_ref(cpu),
             initialized: Virt::from_ref(initialized),
             kernel_stack,
             gdt,
@@ -179,7 +187,7 @@ impl fmt::Debug for BootStack {
                 "{{ ",
                 "efer: {:#X}, cr4: {:#X}, cr3: {:#X}, cr0: {:#X}, ",
                 "gdt: {:?}, kernel_code: {:?}, kernel_data: {:?}, set_cs_rip_to_64bit: 0p{:04X}, ",
-                "kernel_stack: {}, initialized: {} ",
+                "kernel_stack: {}, cpu: {}, initialized: {} ",
                 "}}",
             ),
             self.efer,
@@ -191,6 +199,7 @@ impl fmt::Debug for BootStack {
             self.kernel_data,
             self.set_cs_rip_to_64bit,
             self.kernel_stack,
+            self.cpu,
             self.initialized,
         )
     }
@@ -236,13 +245,22 @@ extern "C" fn switch_from_real_mode_to_long_mode() -> ! {
 
 #[cold]
 #[inline(never)]
-extern "C" fn ap_kernel_main(initialized: &AtomicBool, // rdi
+extern "C" fn ap_kernel_main(
+    cpu: &mut Cpu,            // rdi
+    initialized: &AtomicBool, // rsi
 ) -> ! {
-    let cpu = LocalApic::id();
+    GDT.lock().load();
+
+    LocalApic::init();
+
+    cpu.set_tss();
+
+    IDT.load();
+    interrupts::enable();
 
     signal_initialized(initialized);
 
-    info!(cpu, "report for duty");
+    info!(cpu = LocalApic::id(), "report for duty");
 
     crate::halt();
 }

@@ -49,8 +49,10 @@ pub use mmu::KERNEL_RW;
 pub use size::SizeOf;
 
 pub(crate) use gdt::{
+    GDT,
     Gdt,
     RealModePseudoDescriptor,
+    SmallGdt,
 };
 pub(crate) use stack::{
     EXCEPTION_STACKS,

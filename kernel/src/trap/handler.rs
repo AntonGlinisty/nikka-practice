@@ -4,6 +4,8 @@ use core::fmt::{
     Result,
 };
 
+use lazy_static::lazy_static;
+use spin::Mutex;
 use x86_64::structures::idt::{
     InterruptStackFrame,
     InterruptStackFrameValue,
@@ -140,6 +142,12 @@ pub(super) extern "x86-interrupt" fn double_fault(
     stack_frame: InterruptStackFrame,
     _error_code: u64,
 ) -> ! {
+    lazy_static! {
+        static ref STOP_ALL_CPUS: Mutex<()> = Mutex::new(());
+    }
+
+    let _ = STOP_ALL_CPUS.lock();
+
     TRAP_STATS[super::DOUBLE_FAULT].inc();
     panic!("Double fault\n{:?}", StackFrame::new(&stack_frame))
 }

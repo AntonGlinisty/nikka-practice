@@ -8,7 +8,7 @@ use x86_64::instructions::interrupts;
 
 use crate::log::info;
 
-use self::idt::IDT;
+pub(crate) use self::idt::IDT;
 
 pub use self::stats::TRAP_STATS;
 

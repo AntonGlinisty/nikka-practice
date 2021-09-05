@@ -21,15 +21,19 @@ impl Stack {
         Self([0; mem::size_of::<Self>()])
     }
 
-    pub(crate) fn new() -> Result<&'static mut Self> {
-        let address_space = &mut *BASE_ADDRESS_SPACE.lock();
-        let stack = unsafe { &mut address_space.map_slice_zeroed::<Self>(1, KERNEL_RW)?[0] };
+    pub(crate) fn new_slice(
+        address_space: &mut AddressSpace,
+        len: usize,
+    ) -> Result<&'static mut [Self]> {
+        let stacks = unsafe { address_space.map_slice_zeroed::<Self>(len, KERNEL_RW)? };
 
-        unsafe {
-            stack.make_guard_zone(address_space)?;
+        for stack in stacks.iter_mut() {
+            unsafe {
+                stack.make_guard_zone(address_space)?;
+            }
         }
 
-        Ok(stack)
+        Ok(stacks)
     }
 
     pub(crate) fn pointer(&self) -> Virt {
@@ -74,7 +78,7 @@ impl ExceptionStacks {
         }
     }
 
-    pub(super) fn double_fault_rsp(&self) -> Virt {
+    pub(crate) fn double_fault_rsp(&self) -> Virt {
         self.double_fault_stack.pointer()
     }
 
