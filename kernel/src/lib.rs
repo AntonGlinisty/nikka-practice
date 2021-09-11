@@ -4,6 +4,7 @@
 
 #![allow(clippy::missing_safety_doc)]
 #![cfg_attr(test, no_main)]
+#![deny(warnings)]
 #![feature(abi_x86_interrupt)]
 #![feature(alloc_error_handler)]
 #![feature(asm)]
