@@ -63,6 +63,27 @@ impl AddressSpace {
         address_space
     }
 
+    pub(crate) fn duplicate(
+        &self,
+        name: &'static str,
+    ) -> Result<Self> {
+        let mapping = self.mapping.duplicate()?;
+
+        let page_allocator = PageAllocator::new(name, unsafe {
+            mapping.page_table_ref(mapping.page_table_root())
+        });
+
+        let address_space = Self {
+            name,
+            mapping,
+            page_allocator,
+        };
+
+        info!(%address_space, "duplicate");
+
+        Ok(address_space)
+    }
+
     fn zero(name: &'static str) -> Self {
         Self {
             name,
@@ -71,8 +92,21 @@ impl AddressSpace {
         }
     }
 
+    pub fn mapping(&mut self) -> &mut Mapping {
+        &mut self.mapping
+    }
+
     pub fn page_table_root(&self) -> Frame {
         self.mapping.page_table_root()
+    }
+
+    pub(crate) fn switch_to(&self) {
+        info!(address_space = %self, "switch to");
+
+        unsafe {
+            assert_ne!(self.page_table_root(), Frame::zero());
+            mmu::set_page_table_root(self.page_table_root());
+        }
     }
 
     pub fn allocate(

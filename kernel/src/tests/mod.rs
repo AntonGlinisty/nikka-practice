@@ -1,5 +1,6 @@
 mod allocator;
 mod memory;
+mod process;
 mod trap;
 
 #[macro_export]

@@ -5,6 +5,7 @@ use core::{
 
 #[derive(Debug)]
 pub enum Error {
+    Elf(&'static str),
     Int(TryFromIntError),
     InvalidArgument,
     NoFrame,

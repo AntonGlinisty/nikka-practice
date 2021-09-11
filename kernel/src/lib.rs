@@ -9,6 +9,7 @@
 #![feature(asm)]
 #![feature(const_fn_trait_bound)]
 #![feature(const_panic)]
+#![feature(const_size_of_val)]
 #![feature(custom_test_frameworks)]
 #![feature(format_args_capture)]
 #![feature(maybe_uninit_slice)]
@@ -25,6 +26,7 @@ pub mod allocator;
 pub mod error;
 pub mod log;
 pub mod memory;
+pub mod process;
 pub mod smp;
 pub mod time;
 pub mod trap;

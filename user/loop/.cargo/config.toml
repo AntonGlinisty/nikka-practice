@@ -1,0 +1,6 @@
+[build]
+rustflags = ["--codegen", "link-args=-Tloop.lds"]
+target = "../../kernel/kernel.json"
+
+[unstable]
+build-std = ["core"]

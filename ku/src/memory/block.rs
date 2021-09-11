@@ -1,20 +1,26 @@
 use core::{
-    fmt::{
-        Debug,
-        Display,
-        Formatter,
-        Result,
-    },
+    fmt,
     iter::IntoIterator,
     marker::PhantomData,
+    mem,
     ops::Range,
     option::Option,
 };
 
-use crate::log::debug;
+use crate::{
+    error::{
+        Error::InvalidArgument,
+        Result,
+    },
+    log::debug,
+};
 
 use super::{
-    addr::Tag,
+    addr::{
+        Addr,
+        Tag,
+        Virt,
+    },
     frage::Frage,
     size,
     size::{
@@ -90,11 +96,46 @@ impl<T: SizeOf> Block<T> {
     }
 }
 
-impl<T: SizeOf> Debug for Block<T> {
+impl<T: Tag> Block<Addr<T>> {
+    pub fn enclosing(&self) -> Result<Block<Frage<T>>> {
+        Ok(Block::new(
+            Frage::<T>::index_by_address(Addr::new(self.start())?),
+            if self.end() == 0 {
+                Frage::<T>::index_by_address(Addr::new(self.end())?)
+            } else {
+                Frage::<T>::index_by_address(Addr::new(self.end() - 1)?) + 1
+            },
+        ))
+    }
+}
+
+impl Block<Virt> {
+    pub fn from_slice<T>(x: &[T]) -> Self {
+        let range = x.as_ptr_range();
+        return Self::new(
+            pointer_to_address(range.start),
+            pointer_to_address(range.end),
+        );
+
+        fn pointer_to_address<U>(ptr: *const U) -> usize {
+            Virt::from_ptr(ptr).into_usize()
+        }
+    }
+
+    pub unsafe fn into_mut_slice<T>(self) -> Result<&'static mut [T]> {
+        if self.size() % mem::size_of::<T>() == 0 {
+            Virt::new(self.start())?.try_into_mut_slice::<T>(self.size() / mem::size_of::<T>())
+        } else {
+            Err(InvalidArgument)
+        }
+    }
+}
+
+impl<T: SizeOf> fmt::Debug for Block<T> {
     fn fmt(
         &self,
-        formatter: &mut Formatter,
-    ) -> Result {
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
         write!(
             formatter,
             "[{:#x}, {:#x}), size {}",
@@ -105,11 +146,11 @@ impl<T: SizeOf> Debug for Block<T> {
     }
 }
 
-impl<T: SizeOf> Display for Block<T> {
+impl<T: SizeOf> fmt::Display for Block<T> {
     fn fmt(
         &self,
-        formatter: &mut Formatter,
-    ) -> Result {
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
         write!(
             formatter,
             "[{}, {}), size {}",

@@ -10,6 +10,7 @@ use crate::{
 };
 
 use super::{
+    FRAME_ALLOCATOR,
     FrameAllocator,
     Virt,
     frage::{
@@ -32,7 +33,7 @@ use super::{
 };
 
 #[derive(Debug)]
-pub(super) struct Mapping {
+pub struct Mapping {
     page_table_root: Frame,
     phys2virt: Page,
 }
@@ -48,16 +49,33 @@ impl Mapping {
         }
     }
 
+    pub(super) fn duplicate(&self) -> Result<Self> {
+        let mut result = Self::new(Frame::zero(), self.phys2virt);
+        result.page_table_root =
+            self.duplicate_subtree(&mut result, self.page_table_root(), PAGE_TABLE_ROOT_LEVEL)?;
+        Ok(result)
+    }
+
     pub(super) fn page_table_root(&self) -> Frame {
         self.page_table_root
     }
 
-    pub(crate) fn translate(
+    pub fn translate(
         &mut self,
         virt: Virt,
         mut frame_allocator: Option<&mut FrameAllocator>,
         flags: PageTableFlags,
     ) -> Result<&mut PageTableEntry> {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    fn duplicate_subtree(
+        &self,
+        dst: &mut Mapping,
+        src_frame: Frame,
+        level: u32,
+    ) -> Result<Frame> {
         // TODO: your code here.
         unimplemented!();
     }

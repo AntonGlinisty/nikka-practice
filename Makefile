@@ -22,14 +22,14 @@ CRATES = serial text kernel
 
 all: test run
 
-run: bootimage
+run: bootimage user/loop/target/debug/loop
 	@( \
 		cd kernel; \
 		rm --force serial.out; \
 		cargo run $(BUILD_MODE_FLAG) -- $(QEMU_GTK); \
 	)
 
-run-gdb: bootimage
+run-gdb: bootimage user/loop/target/debug/loop
 	@echo $(WAIT_MESSAGE)
 	@( \
 		cd kernel; \
@@ -37,7 +37,7 @@ run-gdb: bootimage
 		cargo run $(BUILD_MODE_FLAG) -- $(QEMU_GTK) -gdb tcp::1234 -S; \
 	)
 
-nox: bootimage
+nox: bootimage user/loop/target/debug/loop
 	@echo $(QUIT_MESSAGE)
 	@( \
 		cd kernel; \
@@ -45,7 +45,7 @@ nox: bootimage
 		cargo run $(BUILD_MODE_FLAG) -- $(QEMU_NOX); \
 	)
 
-nox-gdb: bootimage
+nox-gdb: bootimage user/loop/target/debug/loop
 	@echo $(QUIT_MESSAGE)
 	@echo $(WAIT_MESSAGE)
 	@( \
@@ -54,7 +54,7 @@ nox-gdb: bootimage
 		cargo run $(BUILD_MODE_FLAG) -- $(QEMU_NOX) -gdb tcp::1234 -S; \
 	)
 
-curses: bootimage
+curses: bootimage user/loop/target/debug/loop
 	@( \
 		cd kernel; \
 		rm --force serial.out; \
@@ -67,9 +67,17 @@ kill:
 gdb:
 	gdb -command=gdbinit
 
+user/loop/target/debug/loop: $(RUST_PATH)/cargo-strip
+	@( \
+		cd user/loop; \
+		cargo build; \
+		cargo strip; \
+		cd - >/dev/null; \
+	)
+
 FORCE:
 
-test: $(RUST_PATH)/cargo
+test: $(RUST_PATH)/cargo user/loop/target/debug/loop
 	@( \
 		for crate in $(CRATES); do \
 			cd $$crate; \
@@ -92,7 +100,7 @@ fmt: $(RUST_PATH)/rustfmt
 
 clean: $(RUST_PATH)/cargo
 	@( \
-		for crate in $(CRATES); do \
+		for crate in $(CRATES) user/loop; do \
 			cd $$crate; \
 			cargo clean; \
 			cd - >/dev/null; \
@@ -102,12 +110,12 @@ clean: $(RUST_PATH)/cargo
 		kernel/serial.out \
 		$(find . -name \*.rs.bk)
 
-install: FORCE $(RUST_PATH)/rustup
+install: FORCE $(RUST_PATH)/rustup $(RUST_PATH)/rustfilt
 
 update: FORCE install
 	@rustup update
 	@( \
-		for crate in $(CRATES); do \
+		for crate in $(CRATES) user/loop; do \
 			cd $$crate; \
 			cargo update; \
 			cd - >/dev/null; \
@@ -120,6 +128,12 @@ $(RUST_PATH)/rustup:
 	@rustup component add rust-src
 
 $(RUST_PATH)/cargo: $(RUST_PATH)/rustup
+
+$(RUST_PATH)/rustfilt: $(RUST_PATH)/cargo
+	@cargo install rustfilt
+
+$(RUST_PATH)/cargo-strip: $(RUST_PATH)/cargo
+	@cargo install --force cargo-strip
 
 $(RUST_PATH)/cargo-xbuild: $(RUST_PATH)/cargo
 	@cargo install --force cargo-xbuild

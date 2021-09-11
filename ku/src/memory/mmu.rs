@@ -88,6 +88,13 @@ pub(super) fn page_table_root() -> PageTableEntry {
     PageTableEntry(pte)
 }
 
+pub(super) unsafe fn set_page_table_root(page_table_root: Frame) {
+    asm!(
+        "mov cr3, {pte}",
+        pte = in(reg) page_table_root.address().into_usize(),
+    );
+}
+
 pub type PageTable = [PageTableEntry; PAGE_TABLE_ENTRY_COUNT];
 
 bitflags! {

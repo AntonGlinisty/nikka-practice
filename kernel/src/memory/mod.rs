@@ -46,7 +46,10 @@ pub use frage::{
 };
 pub use frame_allocator::FRAME_ALLOCATOR;
 pub use mmu::KERNEL_RW;
-pub use size::SizeOf;
+pub use size::{
+    Size,
+    SizeOf,
+};
 
 pub(crate) use gdt::{
     GDT,
