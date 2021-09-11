@@ -792,7 +792,9 @@ mod format {
 
     #[derive(Debug)]
     pub struct Character {
+        #[allow(unused)]
         value: char,
+        #[allow(unused)]
         code: u8,
     }
 
@@ -807,6 +809,7 @@ mod format {
     pub struct Position {
         row: usize,
         column: usize,
+        #[allow(unused)]
         index: usize,
     }
 
