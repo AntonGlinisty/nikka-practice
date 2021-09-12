@@ -267,6 +267,19 @@ impl AddressSpace {
     }
 }
 
+impl Drop for AddressSpace {
+    fn drop(&mut self) {
+        if Mapping::current_page_table_root() == self.page_table_root() {
+            let base_address_space = BASE_ADDRESS_SPACE.lock();
+            assert_ne!(self.page_table_root(), base_address_space.page_table_root());
+            base_address_space.switch_to();
+            info!(address_space = %self, "drop the current address space");
+        } else {
+            info!(address_space = %self, "drop");
+        }
+    }
+}
+
 impl fmt::Display for AddressSpace {
     fn fmt(
         &self,

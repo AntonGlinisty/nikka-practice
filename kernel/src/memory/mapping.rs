@@ -21,6 +21,7 @@ use super::{
         self,
         FULL_ACCESS,
         PAGE_OFFSET_BITS,
+        PAGE_TABLE_ENTRY_COUNT,
         PAGE_TABLE_INDEX_BITS,
         PAGE_TABLE_INDEX_MASK,
         PAGE_TABLE_LEAF_LEVEL,
@@ -80,6 +81,15 @@ impl Mapping {
         unimplemented!();
     }
 
+    fn drop_subtree(
+        &mut self,
+        node: Frame,
+        level: u32,
+    ) {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
     pub(super) fn current_page_table_root() -> Frame {
         let pte = mmu::page_table_root();
 
@@ -132,5 +142,15 @@ impl Mapping {
     ) -> Result<()> {
         // TODO: your code here.
         unimplemented!();
+    }
+}
+
+impl Drop for Mapping {
+    fn drop(&mut self) {
+        if self.page_table_root() != Frame::zero() {
+            assert_ne!(Self::current_page_table_root(), self.page_table_root());
+
+            self.drop_subtree(self.page_table_root(), PAGE_TABLE_ROOT_LEVEL);
+        }
     }
 }
