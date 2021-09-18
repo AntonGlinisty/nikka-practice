@@ -25,6 +25,10 @@ use crate::{
 
 use self::acpi::Acpi;
 
+pub(crate) use cpu::{
+    Cpu,
+    KERNEL_RSP_OFFSET_IN_CPU,
+};
 pub(crate) use local_apic::{
     CpuId,
     LocalApic,

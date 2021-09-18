@@ -19,17 +19,20 @@ RUST_PATH = $(HOME)/.cargo/bin
 export PATH := $(RUST_PATH):$(PATH)
 
 CRATES = serial text kernel
+USER_CRATES = \
+    user/loop \
+    user/page_fault
 
 all: test run
 
-run: bootimage user/loop/target/debug/loop
+run: bootimage user
 	@( \
 		cd kernel; \
 		rm --force serial.out; \
 		cargo run $(BUILD_MODE_FLAG) -- $(QEMU_GTK); \
 	)
 
-run-gdb: bootimage user/loop/target/debug/loop
+run-gdb: bootimage user
 	@echo $(WAIT_MESSAGE)
 	@( \
 		cd kernel; \
@@ -37,7 +40,7 @@ run-gdb: bootimage user/loop/target/debug/loop
 		cargo run $(BUILD_MODE_FLAG) -- $(QEMU_GTK) -gdb tcp::1234 -S; \
 	)
 
-nox: bootimage user/loop/target/debug/loop
+nox: bootimage user
 	@echo $(QUIT_MESSAGE)
 	@( \
 		cd kernel; \
@@ -45,7 +48,7 @@ nox: bootimage user/loop/target/debug/loop
 		cargo run $(BUILD_MODE_FLAG) -- $(QEMU_NOX); \
 	)
 
-nox-gdb: bootimage user/loop/target/debug/loop
+nox-gdb: bootimage user
 	@echo $(QUIT_MESSAGE)
 	@echo $(WAIT_MESSAGE)
 	@( \
@@ -54,7 +57,7 @@ nox-gdb: bootimage user/loop/target/debug/loop
 		cargo run $(BUILD_MODE_FLAG) -- $(QEMU_NOX) -gdb tcp::1234 -S; \
 	)
 
-curses: bootimage user/loop/target/debug/loop
+curses: bootimage user
 	@( \
 		cd kernel; \
 		rm --force serial.out; \
@@ -67,17 +70,19 @@ kill:
 gdb:
 	gdb -command=gdbinit
 
-user/loop/target/debug/loop: $(RUST_PATH)/cargo-strip
+user: FORCE $(RUST_PATH)/cargo-strip
 	@( \
-		cd user/loop; \
-		cargo build; \
-		cargo strip; \
-		cd - >/dev/null; \
+		for crate in $(USER_CRATES); do \
+			cd $$crate; \
+			cargo build || exit 1; \
+			cargo strip; \
+			cd - >/dev/null; \
+		done; \
 	)
 
 FORCE:
 
-test: $(RUST_PATH)/cargo user/loop/target/debug/loop
+test: $(RUST_PATH)/cargo user
 	@( \
 		for crate in $(CRATES); do \
 			cd $$crate; \
@@ -100,7 +105,7 @@ fmt: $(RUST_PATH)/rustfmt
 
 clean: $(RUST_PATH)/cargo
 	@( \
-		for crate in $(CRATES) user/loop; do \
+		for crate in $(CRATES) $(USER_CRATES); do \
 			cd $$crate; \
 			cargo clean; \
 			cd - >/dev/null; \
@@ -115,7 +120,7 @@ install: FORCE $(RUST_PATH)/rustup $(RUST_PATH)/rustfilt
 update: FORCE install
 	@rustup update
 	@( \
-		for crate in $(CRATES) user/loop; do \
+		for crate in $(CRATES) $(USER_CRATES); do \
 			cd $$crate; \
 			cargo update; \
 			cd - >/dev/null; \

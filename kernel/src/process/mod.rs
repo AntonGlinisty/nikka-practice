@@ -1,28 +1,38 @@
 mod elf;
+#[allow(clippy::module_inception)]
+mod process;
+mod registers;
 
 use crate::{
     error::Result,
     log::info,
     memory::{
-        AddressSpace,
         BASE_ADDRESS_SPACE,
         Size,
+        Stack,
+        USER_RW,
     },
 };
+
+pub use process::Process;
 
 pub fn create(
     name: &'static str,
     elf_file: &[u8],
-) -> Result<AddressSpace> {
+) -> Result<Process> {
     let mut address_space = BASE_ADDRESS_SPACE.lock().duplicate(name)?;
 
     address_space.switch_to();
 
     let entry = elf::load(&mut address_space, elf_file)?;
 
+    let stack = Stack::new(&mut address_space, USER_RW)?;
+
     BASE_ADDRESS_SPACE.lock().switch_to();
 
-    info!(%entry, file_size = %Size::from_slice(elf_file), "loaded ELF file");
+    let process = Process::new(address_space, entry, stack.pointer());
 
-    Ok(address_space)
+    info!(%entry, file_size = %Size::from_slice(elf_file), %process, "loaded ELF file");
+
+    Ok(process)
 }

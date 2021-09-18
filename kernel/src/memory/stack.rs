@@ -8,9 +8,9 @@ use crate::error::Result;
 use super::{
     AddressSpace,
     BASE_ADDRESS_SPACE,
-    KERNEL_RW,
     Page,
     Virt,
+    mmu::PageTableFlags,
 };
 
 #[repr(C, align(4096))]
@@ -21,11 +21,19 @@ impl Stack {
         Self([0; mem::size_of::<Self>()])
     }
 
+    pub(crate) fn new(
+        address_space: &mut AddressSpace,
+        flags: PageTableFlags,
+    ) -> Result<&'static mut Self> {
+        Ok(&mut Self::new_slice(address_space, flags, 1)?[0])
+    }
+
     pub(crate) fn new_slice(
         address_space: &mut AddressSpace,
+        flags: PageTableFlags,
         len: usize,
     ) -> Result<&'static mut [Self]> {
-        let stacks = unsafe { address_space.map_slice_zeroed::<Self>(len, KERNEL_RW)? };
+        let stacks = unsafe { address_space.map_slice_zeroed::<Self>(len, flags)? };
 
         for stack in stacks.iter_mut() {
             unsafe {

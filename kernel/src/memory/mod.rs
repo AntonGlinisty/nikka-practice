@@ -45,7 +45,10 @@ pub use frage::{
     Page,
 };
 pub use frame_allocator::FRAME_ALLOCATOR;
-pub use mmu::KERNEL_RW;
+pub use mmu::{
+    KERNEL_RW,
+    USER_RW,
+};
 pub use size::{
     Size,
     SizeOf,

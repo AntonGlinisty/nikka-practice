@@ -112,7 +112,12 @@ impl<const TSS_COUNT: usize> SmpGdt<TSS_COUNT> {
             tss: [TssEntry::default(); TSS_COUNT],
         };
 
-        for descriptor in [DescriptorFlags::KERNEL_CODE64, DescriptorFlags::KERNEL_DATA] {
+        for descriptor in [
+            DescriptorFlags::KERNEL_CODE64,
+            DescriptorFlags::KERNEL_DATA,
+            DescriptorFlags::USER_CODE64,
+            DescriptorFlags::USER_DATA,
+        ] {
             gdt.basic[size::from(Self::basic_selector(descriptor).index())] = descriptor;
         }
 
@@ -155,6 +160,14 @@ impl<const TSS_COUNT: usize> SmpGdt<TSS_COUNT> {
         Self::basic_selector(DescriptorFlags::KERNEL_DATA)
     }
 
+    pub(crate) fn user_code() -> SegmentSelector {
+        Self::basic_selector(DescriptorFlags::USER_CODE64)
+    }
+
+    pub(crate) fn user_data() -> SegmentSelector {
+        Self::basic_selector(DescriptorFlags::USER_DATA)
+    }
+
     pub(crate) fn load(&self) {
         unsafe {
             let pseudo_descriptor = DescriptorTablePointer {
@@ -170,18 +183,26 @@ impl<const TSS_COUNT: usize> SmpGdt<TSS_COUNT> {
         let index: u16 =
             // For the mandatory null descriptor.
             1 +
+            if flags.contains(DescriptorFlags::DPL_RING_3) { 2 } else { 0 } +
             if flags.contains(DescriptorFlags::EXECUTABLE) { 1 } else { 0 };
 
         assert!(size::from(index) < BASIC_COUNT);
 
-        SegmentSelector::new(index, PrivilegeLevel::Ring0)
+        SegmentSelector::new(
+            index,
+            if flags.contains(DescriptorFlags::DPL_RING_3) {
+                PrivilegeLevel::Ring3
+            } else {
+                PrivilegeLevel::Ring0
+            },
+        )
     }
 }
 
 pub(crate) type Gdt = SmpGdt<MAX_CPUS>;
 pub(crate) type SmallGdt = SmpGdt<0>;
 
-const BASIC_COUNT: usize = 3;
+const BASIC_COUNT: usize = 5;
 const MAX_CPUS: usize = CpuId::MAX as usize + 1;
 
 #[derive(Clone, Copy, Eq, PartialEq)]

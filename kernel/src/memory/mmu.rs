@@ -120,6 +120,9 @@ pub const KERNEL_R: PageTableFlags = PageTableFlags::from_bits_truncate(
 pub const KERNEL_RW: PageTableFlags =
     PageTableFlags::from_bits_truncate(KERNEL_R.bits() | PageTableFlags::WRITABLE.bits());
 
+pub const USER_RW: PageTableFlags =
+    PageTableFlags::from_bits_truncate(KERNEL_RW.bits() | PageTableFlags::USER_ACCESSIBLE.bits());
+
 pub(super) const FULL_ACCESS: PageTableFlags = PageTableFlags::from_bits_truncate(
     PageTableFlags::PRESENT.bits() |
         PageTableFlags::WRITABLE.bits() |

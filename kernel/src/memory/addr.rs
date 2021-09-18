@@ -280,6 +280,12 @@ impl SubAssign<usize> for Virt {
     }
 }
 
+impl From<VirtAddr> for Virt {
+    fn from(addr: VirtAddr) -> Self {
+        Self::new_u64(addr.as_u64()).expect("bad VirtAddr")
+    }
+}
+
 impl From<Virt> for VirtAddr {
     fn from(addr: Virt) -> Self {
         VirtAddr::new(addr.into_u64())

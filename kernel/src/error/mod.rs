@@ -10,6 +10,7 @@ pub enum Error {
     InvalidArgument,
     NoFrame,
     NoPage,
+    NoProcess,
     Unimplemented,
 }
 

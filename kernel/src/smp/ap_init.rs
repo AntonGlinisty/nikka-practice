@@ -253,6 +253,7 @@ extern "C" fn ap_kernel_main(
 
     LocalApic::init();
 
+    cpu.set_fs();
     cpu.set_tss();
 
     IDT.load();

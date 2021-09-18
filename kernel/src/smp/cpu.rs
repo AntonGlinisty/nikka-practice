@@ -1,21 +1,33 @@
 use alloc::vec::Vec;
+use core::mem;
 
+use memoffset::offset_of;
 use x86_64::{
+    PrivilegeLevel,
+    VirtAddr,
     instructions::tables,
+    registers::model_specific::FsBase,
     structures::tss::TaskStateSegment,
 };
 
 use crate::{
-    error::Result,
+    error::{
+        Error::NoProcess,
+        Result,
+    },
+    log::debug,
     memory::{
         BASE_ADDRESS_SPACE,
         DOUBLE_FAULT_IST_INDEX,
         EXCEPTION_STACKS,
         GDT,
         Gdt,
+        KERNEL_RW,
         PAGE_FAULT_IST_INDEX,
         Stack,
+        Virt,
     },
+    process::Process,
 };
 
 use super::{
@@ -27,9 +39,11 @@ pub(super) fn init(
     cpu_count: usize,
     current_cpu: CpuId,
 ) -> Result<Vec<Cpu>> {
-    let cpus = init_cpu_vec(cpu_count)?;
+    let mut cpus = init_cpu_vec(cpu_count)?;
 
-    cpus[usize::from(current_cpu)].set_tss();
+    let cpu = &mut cpus[usize::from(current_cpu)];
+    cpu.set_fs();
+    cpu.set_tss();
 
     Ok(cpus)
 }
@@ -39,9 +53,19 @@ fn init_cpu_vec(cpu_count: usize) -> Result<Vec<Cpu>> {
     unimplemented!();
 }
 
-pub(super) struct Cpu {
+pub(crate) const KERNEL_RSP_OFFSET_IN_CPU: usize = offset_of!(Cpu, tss) +
+    offset_of!(TaskStateSegment, privilege_stack_table) +
+    PrivilegeLevel::Ring0 as usize * mem::size_of::<VirtAddr>();
+
+/// CPU-local storage.
+/// Aligned on the cache line size to avoid false sharing.
+/// [Why align on 128 bytes instead of 64?](https://docs.rs/crossbeam/latest/crossbeam/utils/struct.CachePadded.html#size-and-alignment)
+#[repr(align(128))]
+pub(crate) struct Cpu {
+    current_process: Virt,
     kernel_stack: &'static Stack,
     launch_escape_stack: &'static Stack,
+    this: Virt,
     tss: TaskStateSegment,
 }
 
@@ -50,8 +74,10 @@ impl Cpu {
         assert_eq!(stacks.len(), Self::STACKS_PER_CPU);
 
         let mut result = Self {
+            current_process: Virt::zero(),
             kernel_stack: &stacks[0],
             launch_escape_stack: &stacks[1],
+            this: Virt::zero(),
             tss: TaskStateSegment::new(),
         };
 
@@ -66,11 +92,35 @@ impl Cpu {
         result
     }
 
+    pub(crate) fn current_process() -> Result<&'static mut Process> {
+        let cpu = unsafe { Self::get() };
+        if cpu.current_process == Virt::zero() {
+            Err(NoProcess)
+        } else {
+            unsafe { cpu.current_process.try_into_mut() }
+        }
+    }
+
+    pub(crate) fn set_current_process(process: Virt) {
+        let cpu = unsafe { Self::get() };
+        cpu.current_process = process;
+    }
+
     pub(super) fn kernel_stack(&self) -> &'static Stack {
         self.kernel_stack
     }
 
+    pub(super) fn set_fs(&mut self) {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
     pub(super) fn set_tss(&self) {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    unsafe fn get() -> &'static mut Cpu {
         // TODO: your code here.
         unimplemented!();
     }

@@ -273,7 +273,11 @@ impl Drop for AddressSpace {
             let base_address_space = BASE_ADDRESS_SPACE.lock();
             assert_ne!(self.page_table_root(), base_address_space.page_table_root());
             base_address_space.switch_to();
-            info!(address_space = %self, "drop the current address space");
+            info!(
+                address_space = %self,
+                switch_to = %base_address_space,
+                "drop the current address space",
+            );
         } else {
             info!(address_space = %self, "drop");
         }
