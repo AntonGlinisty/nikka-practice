@@ -5,7 +5,10 @@ use x86_64::registers::model_specific::{
     Star,
 };
 
-use ku::process::Syscall;
+use ku::process::{
+    ExitCode,
+    Syscall,
+};
 
 use crate::{
     gdt::Gdt,

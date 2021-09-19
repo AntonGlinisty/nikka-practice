@@ -1,3 +1,6 @@
 pub mod syscall;
 
-pub use syscall::Syscall;
+pub use syscall::{
+    ExitCode,
+    Syscall,
+};

@@ -13,6 +13,7 @@ name = "exit"
 version = "0.1.0"
 dependencies = [
  "ku",
+ "lib",
 ]
 
 [[package]]
@@ -20,4 +21,11 @@ name = "ku"
 version = "0.1.0"
 dependencies = [
  "bitflags",
+]
+
+[[package]]
+name = "lib"
+version = "0.1.0"
+dependencies = [
+ "ku",
 ]

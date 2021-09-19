@@ -7,3 +7,6 @@ license = "AGPL-3.0-or-later"
 name = "loop"
 repository = "https://gitlab.com/sergey-v-galtsev/nikka-public"
 version = "0.1.0"
+
+[dependencies]
+lib = { path = "../lib" }

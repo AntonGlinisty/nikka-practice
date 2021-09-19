@@ -5,21 +5,16 @@
 #![no_main]
 #![no_std]
 
-use core::{
-    panic::PanicInfo,
-    ptr::NonNull,
-};
+use core::ptr::NonNull;
 
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
+use lib::entry;
+
+entry!(main);
+
+fn main() {
     unsafe {
         NonNull::<u8>::dangling().as_ptr().read_volatile();
     }
 
     unreachable!();
-}
-
-#[panic_handler]
-fn panic(_: &PanicInfo) -> ! {
-    loop {}
 }

@@ -10,3 +10,4 @@ version = "0.1.0"
 
 [dependencies]
 ku = { path = "../../ku" }
+lib = { path = "../lib" }

@@ -5,14 +5,10 @@
 #![no_main]
 #![no_std]
 
-use core::panic::PanicInfo;
+use lib::entry;
 
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
-    loop {}
-}
+entry!(main);
 
-#[panic_handler]
-fn panic(_: &PanicInfo) -> ! {
+fn main() {
     loop {}
 }

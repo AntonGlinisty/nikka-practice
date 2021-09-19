@@ -6,12 +6,13 @@
 #![no_main]
 #![no_std]
 
-use core::panic::PanicInfo;
-
 use ku::process::Syscall;
 
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
+use lib::entry;
+
+entry!(main);
+
+fn main() {
     exit(3141592653589793238);
 }
 
@@ -31,9 +32,4 @@ fn exit(code: usize) -> ! {
             options(noreturn),
         );
     }
-}
-
-#[panic_handler]
-fn panic(_: &PanicInfo) -> ! {
-    loop {}
 }
