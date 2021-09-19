@@ -15,6 +15,7 @@ use kernel::{
         Process,
     },
     trap::{
+        INVALID_OPCODE,
         PAGE_FAULT,
         TRAP_STATS,
     },
@@ -78,6 +79,29 @@ fn create_process_failure() {
         .expect_err("created a process from a bad ELF file");
 
     info!(?error, "expected a process creation failure");
+}
+
+#[test_case]
+fn syscall_exit() {
+    forbid_frame_leaks!();
+
+    let mut process = make_process(
+        "exit",
+        include_bytes!("../../../user/exit/target/kernel/debug/exit"),
+    );
+
+    process.enter_user_mode();
+
+    assert_eq!(
+        TRAP_STATS[INVALID_OPCODE].count(),
+        0,
+        "probably the `syscall` instruction is not initialized",
+    );
+    assert_eq!(
+        TRAP_STATS[PAGE_FAULT].count(),
+        0,
+        "probably the kernel has not switched to its own stack",
+    );
 }
 
 #[test_case]

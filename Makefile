@@ -20,6 +20,7 @@ export PATH := $(RUST_PATH):$(PATH)
 
 CRATES = serial text kernel
 USER_CRATES = \
+    user/exit \
     user/loop \
     user/page_fault
 

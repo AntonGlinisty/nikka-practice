@@ -2,6 +2,7 @@ mod elf;
 #[allow(clippy::module_inception)]
 mod process;
 mod registers;
+mod syscall;
 
 use crate::{
     error::Result,
@@ -15,6 +16,10 @@ use crate::{
 };
 
 pub use process::Process;
+
+pub fn init() {
+    syscall::init();
+}
 
 pub fn create(
     name: &'static str,

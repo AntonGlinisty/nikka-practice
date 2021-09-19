@@ -180,11 +180,14 @@ impl<const TSS_COUNT: usize> SmpGdt<TSS_COUNT> {
     }
 
     fn basic_selector(flags: DescriptorFlags) -> SegmentSelector {
+        let is_executable_equal_user = flags.contains(DescriptorFlags::EXECUTABLE) ==
+            flags.contains(DescriptorFlags::DPL_RING_3);
         let index: u16 =
             // For the mandatory null descriptor.
             1 +
             if flags.contains(DescriptorFlags::DPL_RING_3) { 2 } else { 0 } +
-            if flags.contains(DescriptorFlags::EXECUTABLE) { 1 } else { 0 };
+            // This strange order is for the Star register.
+            if is_executable_equal_user { 1 } else { 0 };
 
         assert!(size::from(index) < BASIC_COUNT);
 

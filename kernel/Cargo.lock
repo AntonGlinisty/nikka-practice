@@ -103,6 +103,7 @@ dependencies = [
  "chrono",
  "derive_more",
  "itertools",
+ "ku",
  "lazy_static",
  "memoffset",
  "num-traits",
@@ -118,6 +119,13 @@ dependencies = [
  "x86",
  "x86_64",
  "xmas-elf",
+]
+
+[[package]]
+name = "ku"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
 ]
 
 [[package]]

@@ -89,6 +89,8 @@ pub fn init(boot_info: &'static BootInfo) {
     }
 
     smp::init(boot_info);
+
+    process::init();
 }
 
 #[cold]
