@@ -11,6 +11,7 @@ pub enum Error {
     NoFrame,
     NoPage,
     NoProcess,
+    NoProcessSlot,
     Unimplemented,
 }
 

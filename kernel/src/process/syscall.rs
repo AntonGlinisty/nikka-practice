@@ -1,3 +1,4 @@
+use spin::MutexGuard;
 use x86_64::registers::model_specific::{
     Efer,
     EferFlags,
@@ -25,7 +26,10 @@ use crate::{
     },
 };
 
-use super::Process;
+use super::{
+    Process,
+    Table,
+};
 
 pub(crate) fn init() {
     // TODO: your code here.
@@ -63,7 +67,10 @@ extern "C" fn syscall(
     unimplemented!();
 }
 
-fn exit(code: usize) -> ! {
+fn exit(
+    process: MutexGuard<Process>,
+    code: usize,
+) -> ! {
     // TODO: your code here.
     unimplemented!();
 }

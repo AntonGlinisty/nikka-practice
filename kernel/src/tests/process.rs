@@ -1,3 +1,4 @@
+use spin::MutexGuard;
 use xmas_elf::ElfFile;
 
 use kernel::{
@@ -12,7 +13,9 @@ use kernel::{
     },
     process::{
         self,
+        Pid,
         Process,
+        Table,
     },
     trap::{
         INVALID_OPCODE,
@@ -26,10 +29,11 @@ use crate::forbid_frame_leaks;
 fn make_process(
     name: &'static str,
     file: &[u8],
-) -> Process {
+) -> MutexGuard<'static, Process> {
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
 
-    let mut process = process::create(name, file).expect("failed to create the test process");
+    let pid = process::create(name, file).expect("failed to create the test process");
+    let mut process = Table::get(pid).expect("failed to find the new process in the process table");
 
     let entry_point = Virt::new_u64(ElfFile::new(file).unwrap().header.pt2.entry_point()).unwrap();
 
@@ -60,14 +64,22 @@ fn make_process(
     process
 }
 
+fn free_process(pid: Pid) {
+    let process = Table::get(pid).expect("failed to find the new process in the process table");
+    Table::free(process);
+}
+
 #[test_case]
 fn create_process() {
     forbid_frame_leaks!();
 
-    make_process(
+    let pid = make_process(
         "loop",
         include_bytes!("../../../user/loop/target/kernel/debug/loop"),
-    );
+    )
+    .pid();
+
+    free_process(pid);
 }
 
 #[test_case]
@@ -85,12 +97,13 @@ fn create_process_failure() {
 fn syscall_exit() {
     forbid_frame_leaks!();
 
-    let mut process = make_process(
+    let process = make_process(
         "exit",
         include_bytes!("../../../user/exit/target/kernel/debug/exit"),
     );
+    let pid = process.pid();
 
-    process.enter_user_mode();
+    Process::enter_user_mode(process);
 
     assert_eq!(
         TRAP_STATS[INVALID_OPCODE].count(),
@@ -102,24 +115,29 @@ fn syscall_exit() {
         0,
         "probably the kernel has not switched to its own stack",
     );
+
+    Table::get(pid).expect_err("the exit() syscall has not freed the process slot");
 }
 
 #[test_case]
 fn user_mode_page_fault() {
     forbid_frame_leaks!();
 
-    let mut process = make_process(
+    let process = make_process(
         "page_fault",
         include_bytes!("../../../user/page_fault/target/kernel/debug/page_fault"),
     );
+    let pid = process.pid();
 
     assert_eq!(TRAP_STATS[PAGE_FAULT].count(), 0);
 
-    process.enter_user_mode();
+    Process::enter_user_mode(process);
 
     assert_eq!(
         TRAP_STATS[PAGE_FAULT].count(),
         1,
         "probably the user mode page faults are not handled or counted",
     );
+
+    Table::get(pid).expect_err("the page fault handler has not freed the process slot");
 }

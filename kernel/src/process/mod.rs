@@ -1,8 +1,10 @@
 mod elf;
+mod pid;
 #[allow(clippy::module_inception)]
 mod process;
 mod registers;
 mod syscall;
+mod table;
 
 use crate::{
     error::Result,
@@ -15,16 +17,23 @@ use crate::{
     },
 };
 
+use table::TABLE;
+
+pub use pid::Pid;
 pub use process::Process;
+pub use table::Table;
 
 pub fn init() {
     syscall::init();
+
+    const PROCESS_SLOT_COUNT: usize = 1 << 10;
+    *TABLE.lock() = Table::new(PROCESS_SLOT_COUNT);
 }
 
 pub fn create(
     name: &'static str,
     elf_file: &[u8],
-) -> Result<Process> {
+) -> Result<Pid> {
     let mut address_space = BASE_ADDRESS_SPACE.lock().duplicate(name)?;
 
     address_space.switch_to();
@@ -39,5 +48,5 @@ pub fn create(
 
     info!(%entry, file_size = %Size::from_slice(elf_file), %process, "loaded ELF file");
 
-    Ok(process)
+    Table::allocate(process)
 }

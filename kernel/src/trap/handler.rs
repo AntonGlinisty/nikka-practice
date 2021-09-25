@@ -27,7 +27,10 @@ use crate::{
         info,
     },
     memory::Virt,
-    process::Process,
+    process::{
+        Process,
+        Table,
+    },
     smp::Cpu,
 };
 
@@ -146,9 +149,9 @@ fn generic_trap(
 ) {
     TRAP_STATS[exception_number].inc();
 
-    if stack_frame.code_segment & CPL_MASK != RING_0 {
+    if let Ok(pid) = Cpu::current_process() {
         let process =
-            Cpu::current_process().expect("running in the user mode without a current process");
+            Table::get(pid).expect("failed to find the current process in the process table");
 
         info!(
             trap = TRAP_STATS[exception_number].name(),
@@ -160,10 +163,16 @@ fn generic_trap(
             rsp = %Virt::from(stack_frame.stack_pointer),
             rflags = ?RFlags::from_bits_truncate(stack_frame.cpu_flags),
             %process,
-            "user mode trap",
+            "{}",
+            if stack_frame.code_segment & CPL_MASK == RING_0 {
+                "kernel mode trap on behalf of the user mode"
+            } else {
+                "user mode trap"
+            }
         );
 
         if fatal == Fatal::Yes {
+            Table::free(process);
             Process::leave_user_mode();
         }
     } else {

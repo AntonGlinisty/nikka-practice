@@ -27,7 +27,7 @@ use crate::{
         Stack,
         Virt,
     },
-    process::Process,
+    process::Pid,
 };
 
 use super::{
@@ -62,7 +62,7 @@ pub(crate) const KERNEL_RSP_OFFSET_IN_CPU: usize = offset_of!(Cpu, tss) +
 /// [Why align on 128 bytes instead of 64?](https://docs.rs/crossbeam/latest/crossbeam/utils/struct.CachePadded.html#size-and-alignment)
 #[repr(align(128))]
 pub(crate) struct Cpu {
-    current_process: Virt,
+    current_process: Option<Pid>,
     kernel_stack: &'static Stack,
     launch_escape_stack: &'static Stack,
     this: Virt,
@@ -74,7 +74,7 @@ impl Cpu {
         assert_eq!(stacks.len(), Self::STACKS_PER_CPU);
 
         let mut result = Self {
-            current_process: Virt::zero(),
+            current_process: None,
             kernel_stack: &stacks[0],
             launch_escape_stack: &stacks[1],
             this: Virt::zero(),
@@ -92,16 +92,12 @@ impl Cpu {
         result
     }
 
-    pub(crate) fn current_process() -> Result<&'static mut Process> {
+    pub(crate) fn current_process() -> Result<Pid> {
         let cpu = unsafe { Self::get() };
-        if cpu.current_process == Virt::zero() {
-            Err(NoProcess)
-        } else {
-            unsafe { cpu.current_process.try_into_mut() }
-        }
+        cpu.current_process.ok_or(NoProcess)
     }
 
-    pub(crate) fn set_current_process(process: Virt) {
+    pub(crate) fn set_current_process(process: Option<Pid>) {
         let cpu = unsafe { Self::get() };
         cpu.current_process = process;
     }
