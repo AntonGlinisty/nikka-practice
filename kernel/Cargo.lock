@@ -126,6 +126,9 @@ name = "ku"
 version = "0.1.0"
 dependencies = [
  "bitflags",
+ "number_prefix",
+ "static_assertions",
+ "x86_64",
 ]
 
 [[package]]

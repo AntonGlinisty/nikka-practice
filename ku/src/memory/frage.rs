@@ -41,6 +41,10 @@ impl<T: Tag> Frage<T> {
         Addr::new(index * Self::SIZE).expect("bad Frage index")
     }
 
+    pub fn containing(addr: Addr<T>) -> Self {
+        Self(Addr::new(addr.into_usize() & !(Self::SIZE - 1)).unwrap())
+    }
+
     pub fn from_index(index: usize) -> Self {
         Self(Self::address_by_index(index))
     }

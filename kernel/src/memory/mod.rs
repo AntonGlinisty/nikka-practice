@@ -1,14 +1,10 @@
-pub mod block;
 pub mod mmu;
-pub mod size;
 
 pub(crate) mod gdt;
 pub(crate) mod phys2virt;
 
-mod addr;
 mod address_space;
 mod boot_frame_allocator;
-mod frage;
 mod frame_allocator;
 mod main_frame_allocator;
 mod mapping;
@@ -21,6 +17,13 @@ use bootloader::BootInfo;
 use x86_64::registers::model_specific::{
     Efer,
     EferFlags,
+};
+
+pub use ku::memory::{
+    addr,
+    block,
+    frage,
+    size,
 };
 
 use crate::{

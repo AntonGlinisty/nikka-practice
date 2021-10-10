@@ -16,12 +16,9 @@ use core::{
 use static_assertions::const_assert_eq;
 use x86_64::addr::VirtAddr;
 
-use crate::{
-    error::{
-        Error::InvalidArgument,
-        Result,
-    },
-    log::warn,
+use crate::error::{
+    Error::InvalidArgument,
+    Result,
 };
 
 use super::{
@@ -131,12 +128,6 @@ impl Phys {
         if zeros >= Self::UNUSED_BITS {
             Ok(Self(addr, PhantomData))
         } else {
-            warn!(
-                addr,
-                zeros,
-                unused_bits = Self::UNUSED_BITS,
-                "invalid address casted to Phys",
-            );
             Err(InvalidArgument)
         }
     }
@@ -156,12 +147,6 @@ impl Virt {
         } else if zeros == 0 && addr & Self::NEGATIVE_SIGN_EXTEND == Self::NEGATIVE_SIGN_EXTEND {
             Ok(Self(addr, PhantomData))
         } else {
-            warn!(
-                addr,
-                zeros,
-                unused_bits = Self::UNUSED_BITS,
-                "invalid address casted to Virt",
-            );
             Err(InvalidArgument)
         }
     }

@@ -1,12 +1,9 @@
-use crate::{
-    error::{
-        Error::{
-            NoPage,
-            Unimplemented,
-        },
-        Result,
+use crate::error::{
+    Error::{
+        NoPage,
+        Unimplemented,
     },
-    log::warn,
+    Result,
 };
 
 use super::{
@@ -91,16 +88,7 @@ impl Mapping {
     }
 
     pub(super) fn current_page_table_root() -> Frame {
-        let pte = mmu::page_table_root();
-
-        let page_table_root = Frame::new(pte.phys());
-        let flags = pte.flags();
-
-        if !flags.is_empty() {
-            warn!(%page_table_root, ?flags, "non empty flags for the page table root are wrong");
-        }
-
-        page_table_root
+        mmu::page_table_root()
     }
 
     pub(super) unsafe fn page_table_ref(

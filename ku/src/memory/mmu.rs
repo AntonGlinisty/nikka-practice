@@ -2,7 +2,6 @@ use core::mem;
 
 use bitflags::bitflags;
 use static_assertions::const_assert_eq;
-use x86::tlb;
 
 use crate::error::{
     Error::NoFrame,
@@ -18,6 +17,7 @@ use super::{
 };
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[repr(transparent)]
 pub struct PageTableEntry(usize);
 
 impl PageTableEntry {
@@ -48,7 +48,7 @@ impl PageTableEntry {
         self.set_phys(frame.address(), flags | PageTableFlags::PRESENT);
     }
 
-    pub(super) fn phys(&self) -> Phys {
+    fn phys(&self) -> Phys {
         Phys::new(self.0 & Self::ADDRESS_MASK).unwrap()
     }
 
@@ -71,24 +71,22 @@ impl PageTableEntry {
     const ADDRESS_MASK: usize = ((1 << Phys::BITS) - 1) & !((1 << PAGE_OFFSET_BITS) - 1);
 }
 
-pub(super) unsafe fn flush(page: Page) {
-    tlb::flush(page.address().into_usize());
-}
-
-pub(super) fn page_table_root() -> PageTableEntry {
-    let pte: usize;
+pub fn page_table_root() -> Frame {
+    let page_table_root: usize;
 
     unsafe {
         asm!(
-            "mov {pte}, cr3",
-            pte = out(reg) pte,
+            "mov {page_table_root}, cr3",
+            page_table_root = out(reg) page_table_root,
         );
     }
 
-    PageTableEntry(pte)
+    PageTableFlags::from_bits(page_table_root & !PageTableEntry::ADDRESS_MASK).unwrap();
+
+    Frame::containing(Phys::new(page_table_root).expect("invalid physical address in CR3"))
 }
 
-pub(super) unsafe fn set_page_table_root(page_table_root: Frame) {
+pub unsafe fn set_page_table_root(page_table_root: Frame) {
     asm!(
         "mov cr3, {pte}",
         pte = in(reg) page_table_root.address().into_usize(),
@@ -123,18 +121,18 @@ pub const KERNEL_RW: PageTableFlags =
 pub const USER_RW: PageTableFlags =
     PageTableFlags::from_bits_truncate(KERNEL_RW.bits() | PageTableFlags::USER_ACCESSIBLE.bits());
 
-pub(super) const FULL_ACCESS: PageTableFlags = PageTableFlags::from_bits_truncate(
+pub const FULL_ACCESS: PageTableFlags = PageTableFlags::from_bits_truncate(
     PageTableFlags::PRESENT.bits() |
         PageTableFlags::WRITABLE.bits() |
         PageTableFlags::USER_ACCESSIBLE.bits(),
 );
 
-pub(super) const PAGE_OFFSET_BITS: u32 = 12;
-pub(super) const PAGE_TABLE_ENTRY_COUNT: usize = 1 << PAGE_TABLE_INDEX_BITS;
-pub(super) const PAGE_TABLE_INDEX_BITS: u32 = 9;
-pub(super) const PAGE_TABLE_INDEX_MASK: usize = (1 << PAGE_TABLE_INDEX_BITS) - 1;
-pub(super) const PAGE_TABLE_LEAF_LEVEL: u32 = 0;
-pub(super) const PAGE_TABLE_ROOT_LEVEL: u32 = 3;
+pub const PAGE_OFFSET_BITS: u32 = 12;
+pub const PAGE_TABLE_ENTRY_COUNT: usize = 1 << PAGE_TABLE_INDEX_BITS;
+pub const PAGE_TABLE_INDEX_BITS: u32 = 9;
+pub const PAGE_TABLE_INDEX_MASK: usize = (1 << PAGE_TABLE_INDEX_BITS) - 1;
+pub const PAGE_TABLE_LEAF_LEVEL: u32 = 0;
+pub const PAGE_TABLE_ROOT_LEVEL: u32 = 3;
 
 const_assert_eq!(
     mem::size_of::<PageTable>(),

@@ -10,3 +10,6 @@ version = "0.1.0"
 
 [dependencies]
 bitflags = "*"
+number_prefix = { version = "*", default-features = false }
+static_assertions = "*"
+x86_64 = "*"

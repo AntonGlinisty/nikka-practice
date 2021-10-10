@@ -7,12 +7,9 @@ use core::{
     option::Option,
 };
 
-use crate::{
-    error::{
-        Error::InvalidArgument,
-        Result,
-    },
-    log::debug,
+use crate::error::{
+    Error::InvalidArgument,
+    Result,
 };
 
 use super::{
@@ -189,7 +186,7 @@ mod test {
         Block,
     };
 
-    #[test_case]
+    #[test]
     fn block() {
         for start in 0 .. 100 {
             for count in 0 .. 100 {
