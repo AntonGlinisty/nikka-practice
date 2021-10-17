@@ -10,6 +10,8 @@
 #![feature(const_size_of_val)]
 #![no_std]
 
+extern crate rlibc;
+
 pub mod error;
 pub mod memory;
 pub mod process;

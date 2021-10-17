@@ -22,7 +22,6 @@
 #![test_runner(crate::test_runner)]
 
 extern crate alloc;
-extern crate rlibc;
 
 pub mod allocator;
 pub mod error;

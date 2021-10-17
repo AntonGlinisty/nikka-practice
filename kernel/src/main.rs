@@ -13,7 +13,6 @@
 #![test_runner(kernel::test_runner)]
 
 extern crate alloc;
-extern crate rlibc;
 
 #[cfg(test)]
 mod tests;
