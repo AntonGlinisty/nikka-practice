@@ -1,5 +1,4 @@
 use core::{
-    convert::TryInto,
     fmt,
     marker::PhantomData,
     mem,
@@ -9,7 +8,6 @@ use core::{
         Sub,
         SubAssign,
     },
-    result,
     slice,
 };
 
@@ -61,7 +59,7 @@ impl<T: Tag> Addr<T> {
         size::into_u64(self.0)
     }
 
-    pub fn try_into_u32(self) -> result::Result<u32, <u64 as TryInto<u32>>::Error> {
+    pub fn try_into_u32(self) -> Result<u32> {
         size::try_into_u32(self.0)
     }
 }
