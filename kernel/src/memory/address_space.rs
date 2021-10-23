@@ -265,6 +265,23 @@ impl AddressSpace {
 
         Ok(())
     }
+
+    pub fn map_one<T, F: FnOnce() -> T>(
+        &mut self,
+        flags: PageTableFlags,
+        default: F,
+    ) -> Result<&'static mut T> {
+        let slice = self.map_slice_uninit(1, flags)?;
+        slice[0].write(default());
+        Ok(unsafe { MaybeUninit::assume_init_mut(&mut slice[0]) })
+    }
+
+    pub unsafe fn unmap_one<T>(
+        &mut self,
+        element: &'static mut T,
+    ) -> Result<()> {
+        self.unmap_slice(Virt::from_ref(element).try_into_mut_slice::<T>(1)?)
+    }
 }
 
 impl Drop for AddressSpace {

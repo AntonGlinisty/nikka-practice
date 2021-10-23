@@ -9,10 +9,27 @@ pub mod syscall;
 
 use core::panic::PanicInfo;
 
-use ku::process::ExitCode;
+use tracing_core::{
+    dispatch,
+    dispatch::Dispatch,
+};
+
+use ku::{
+    info,
+    info::ProcessInfo,
+    log::{
+        LOG_COLLECTOR,
+        error,
+    },
+    process::ExitCode,
+};
 
 #[no_mangle]
-pub extern "C" fn _start() -> ! {
+pub extern "C" fn _start(process_info: &'static mut ProcessInfo) -> ! {
+    info::set_process_info(process_info);
+
+    dispatch::set_global_default(Dispatch::from_static(&LOG_COLLECTOR)).unwrap();
+
     extern "Rust" {
         fn main();
     }
@@ -27,7 +44,8 @@ pub extern "C" fn _start() -> ! {
 #[cold]
 #[inline(never)]
 #[panic_handler]
-fn panic(_: &PanicInfo) -> ! {
+fn panic(panic_info: &PanicInfo) -> ! {
+    error!(message = %panic_info);
     syscall::exit(ExitCode::PANIC.bits());
 }
 

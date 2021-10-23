@@ -1,6 +1,3 @@
-use core::mem;
-
-use static_assertions::const_assert;
 use x86_64::{
     registers::rflags::RFlags,
     structures::gdt::SegmentSelector,
@@ -14,6 +11,8 @@ use crate::{
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub(crate) struct Registers {
+    rdi: usize,
+
     // The following layout is dictated by the 'iret' instruction which is used to jump into the user space.
     rip: Virt,
     cs: usize,
@@ -22,16 +21,19 @@ pub(crate) struct Registers {
     ss: usize,
 }
 
-const_assert!(mem::size_of::<Registers>() == 5 * mem::size_of::<usize>());
-
 impl Registers {
     pub(super) fn new(
         code: SegmentSelector,
         data: SegmentSelector,
         rip: Virt,
         rsp: Virt,
+        arg0: usize,
     ) -> Self {
         Self {
+            // https://wiki.osdev.org/System_V_ABI#x86-64:
+            // Parameters to functions are passed in the registers rdi, rsi, rdx, rcx, r8, r9, and further values are passed on the stack in reverse order.
+            rdi: arg0,
+
             rip,
             cs: code.0.into(),
             rflags: RFlags::INTERRUPT_FLAG,
@@ -56,6 +58,7 @@ impl Registers {
             // TODO: your code here.
 
             // Load the user space context and switch into the user space.
+            pop rdi
             iretq
 
         switch_to_kernel_mode:

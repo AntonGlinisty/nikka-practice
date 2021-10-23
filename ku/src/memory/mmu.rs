@@ -3,9 +3,12 @@ use core::mem;
 use bitflags::bitflags;
 use static_assertions::const_assert_eq;
 
-use crate::error::{
-    Error::NoFrame,
-    Result,
+use crate::{
+    error::{
+        Error::NoFrame,
+        Result,
+    },
+    log::warn,
 };
 
 use super::{
@@ -81,9 +84,19 @@ pub fn page_table_root() -> Frame {
         );
     }
 
-    PageTableFlags::from_bits(page_table_root & !PageTableEntry::ADDRESS_MASK).unwrap();
+    let flags = PageTableFlags::from_bits(page_table_root & !PageTableEntry::ADDRESS_MASK).unwrap();
+    let page_table_root =
+        Frame::containing(Phys::new(page_table_root).expect("invalid physical address in CR3"));
 
-    Frame::containing(Phys::new(page_table_root).expect("invalid physical address in CR3"))
+    if !flags.is_empty() {
+        warn!(
+            ?page_table_root,
+            ?flags,
+            "non empty flags for the page table root are wrong",
+        );
+    }
+
+    page_table_root
 }
 
 pub unsafe fn set_page_table_root(page_table_root: Frame) {

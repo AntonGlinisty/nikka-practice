@@ -7,6 +7,7 @@ use chrono::{
     DateTime,
     Utc,
 };
+use serde::Deserialize;
 use spin::Mutex;
 use tracing::{
     Collect,
@@ -29,6 +30,15 @@ use tracing_core::{
     span::Current,
 };
 
+use ku::{
+    RingBuffer,
+    log::{
+        LogField,
+        LogFieldValue,
+        LogMetadata,
+        level_into_symbol,
+    },
+};
 use text::{
     Color,
     print,
@@ -36,6 +46,11 @@ use text::{
 };
 
 use crate::{
+    error::{
+        Error::Unimplemented,
+        Result,
+    },
+    process::Pid,
     smp::LocalApic,
     time,
 };
@@ -52,8 +67,16 @@ pub(super) fn init() {
     dispatch::set_global_default(Dispatch::from_static(&LOG_COLLECTOR)).unwrap();
 }
 
+pub(super) fn user_events(
+    pid: Pid,
+    log_buffer: &mut RingBuffer,
+) {
+    LOG_COLLECTOR.log.lock().user_events(pid, log_buffer);
+}
+
 struct LogEvent {
     separator: bool,
+    color: Color,
 }
 
 impl LogEvent {
@@ -61,7 +84,44 @@ impl LogEvent {
     const VALUE: Color = Color::LIGHT_CYAN;
 
     fn new() -> Self {
-        Self { separator: false }
+        Self {
+            separator: false,
+            color: Self::VALUE,
+        }
+    }
+
+    fn field(
+        &mut self,
+        name: &str,
+    ) {
+        if self.separator {
+            print!("; ");
+        } else {
+            self.separator = true
+        }
+
+        if name == "message" {
+            self.color = Self::MESSAGE;
+        } else {
+            print!("{} = ", name);
+            self.color = Self::VALUE;
+        }
+    }
+
+    fn str_value_part(
+        &mut self,
+        value_part: &str,
+    ) {
+        print!(color(self.color), "{}", value_part);
+    }
+
+    fn debug(
+        &mut self,
+        name: &str,
+        value: &dyn Debug,
+    ) {
+        self.field(name);
+        print!(color(self.color), "{:?}", value);
     }
 }
 
@@ -71,18 +131,7 @@ impl Visit for LogEvent {
         field: &Field,
         value: &dyn Debug,
     ) {
-        if self.separator {
-            print!("; ");
-        } else {
-            self.separator = true
-        }
-
-        if field.name() == "message" {
-            print!(color(Self::MESSAGE), "{:?}", value);
-        } else {
-            print!("{} = ", field.name());
-            print!(color(Self::VALUE), "{:?}", value);
-        }
+        self.debug(field.name(), value);
     }
 }
 
@@ -114,29 +163,24 @@ impl Log {
         }
     }
 
-    const fn level_symbol(level: &Level) -> char {
-        match *level {
-            Level::ERROR => 'E',
-            Level::WARN => 'W',
-            Level::INFO => 'I',
-            Level::DEBUG => 'D',
-            Level::TRACE => 'T',
-        }
-    }
-
     fn log_event(
         &self,
         event: &Event<'_>,
         timestamp: DateTime<Utc>,
     ) {
-        self.log_metadata(event.metadata(), timestamp);
+        self.log_metadata(
+            event.metadata().level(),
+            LogMetadata::new(event.metadata()),
+            timestamp,
+        );
         event.record(&mut LogEvent::new());
         println!();
     }
 
     fn log_metadata(
         &self,
-        metadata: &Metadata<'_>,
+        level: &Level,
+        metadata: LogMetadata,
         timestamp: DateTime<Utc>,
     ) {
         match self.format {
@@ -144,19 +188,15 @@ impl Log {
                 print!("{:?} ", timestamp.time());
                 print!(color(Self::CPU), "{} ", LocalApic::id());
                 print!(
-                    color(Self::level_color(metadata.level())),
+                    color(Self::level_color(level)),
                     "{} ",
-                    Self::level_symbol(metadata.level()),
+                    level_into_symbol(level),
                 );
             },
             Format::Full => {
                 print!("{:?} ", timestamp);
                 print!(color(Self::CPU), "cpu={} ", LocalApic::id());
-                print!(
-                    color(Self::level_color(metadata.level())),
-                    "{} ",
-                    metadata.level(),
-                );
+                print!(color(Self::level_color(level)), "{} ", level);
                 print!(
                     color(Self::LOCATION),
                     "{} {}:{} ",
@@ -166,6 +206,53 @@ impl Log {
                 );
             },
         }
+    }
+
+    fn user_events(
+        &self,
+        pid: Pid,
+        log_buffer: &mut RingBuffer,
+    ) {
+        let mut tx = log_buffer.read_tx();
+        let mut deserializer = postcard::Deserializer::from_bytes(tx.read());
+
+        while self.user_event(pid, &mut deserializer).is_ok() {}
+
+        tx.commit();
+    }
+
+    fn user_event<'a>(
+        &self,
+        pid: Pid,
+        deserializer: &mut postcard::Deserializer<'a>,
+    ) -> Result<()> {
+        let now = time::now_ms();
+        let metadata = LogMetadata::deserialize(&mut *deserializer)?;
+        let level = metadata.level().map_err(|_| Unimplemented)?;
+        self.log_metadata(&level, metadata, now);
+
+        let count = u8::deserialize(&mut *deserializer)?;
+        let mut event = LogEvent::new();
+        for _ in 0 .. count {
+            let field = LogField::deserialize(&mut *deserializer)?;
+            match field.value() {
+                LogFieldValue::VecStr => {
+                    event.field(field.name());
+                    while let Some(value) = Option::<&str>::deserialize(&mut *deserializer)? {
+                        event.str_value_part(value);
+                    }
+                },
+                LogFieldValue::I64(value) => event.debug(field.name(), &value as &dyn Debug),
+                LogFieldValue::U64(value) => event.debug(field.name(), &value as &dyn Debug),
+                LogFieldValue::Bool(value) => event.debug(field.name(), &value as &dyn Debug),
+                LogFieldValue::Str(value) => event.debug(field.name(), &value as &dyn Debug),
+            }
+        }
+        event.debug("pid", &pid as &dyn Debug);
+
+        println!();
+
+        Ok(())
     }
 }
 

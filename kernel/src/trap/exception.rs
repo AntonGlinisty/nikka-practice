@@ -22,9 +22,11 @@ use x86_64::{
 use super::TRAP_STATS;
 
 use crate::{
+    log,
     log::{
         error,
         info,
+        trace,
     },
     memory::Virt,
     process::{
@@ -150,8 +152,12 @@ fn generic_trap(
     TRAP_STATS[exception_number].inc();
 
     if let Ok(pid) = Cpu::current_process() {
-        let process =
+        let mut process =
             Table::get(pid).expect("failed to find the current process in the process table");
+
+        let log = process.info().log();
+        log::user_events(pid, log);
+        trace!(read_stats = ?log.read_stats(), write_stats = ?log.write_stats());
 
         info!(
             trap = TRAP_STATS[exception_number].name(),

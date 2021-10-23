@@ -13,6 +13,7 @@ use ku::process::{
 
 use crate::{
     gdt::Gdt,
+    log,
     log::{
         debug,
         error,

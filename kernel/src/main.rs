@@ -2,6 +2,7 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
+#![deny(warnings)]
 #![feature(custom_test_frameworks)]
 #![feature(format_args_capture)]
 #![feature(maybe_uninit_slice)]

@@ -10,7 +10,13 @@ version = "0.1.0"
 
 [dependencies]
 bitflags = "*"
+heapless = "*"
 number_prefix = { version = "*", default-features = false }
+postcard = "*"
 rlibc = "*"
+scopeguard = { version = "*", default-features = false }
+serde = { version = "*", default-features = false }
 static_assertions = "*"
+tracing = { git = "https://github.com/tokio-rs/tracing", version = "*", default-features = false }
+tracing-core = { git = "https://github.com/tokio-rs/tracing", version = "*", default-features = false }
 x86_64 = "*"

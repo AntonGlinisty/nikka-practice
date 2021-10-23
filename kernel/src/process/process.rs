@@ -2,6 +2,8 @@ use core::fmt;
 
 use spin::MutexGuard;
 
+use ku::ProcessInfo;
+
 use crate::{
     gdt::Gdt,
     memory::{
@@ -19,6 +21,7 @@ use super::{
 #[derive(Debug)]
 pub struct Process {
     address_space: AddressSpace,
+    info: Virt,
     pid: Pid,
     registers: Registers,
 }
@@ -28,16 +31,30 @@ impl Process {
         address_space: AddressSpace,
         rip: Virt,
         rsp: Virt,
+        info: &'static mut ProcessInfo,
     ) -> Self {
+        let info = Virt::from_ref(info);
+
         Self {
             address_space,
+            info,
             pid: Pid::Current,
-            registers: Registers::new(Gdt::user_code(), Gdt::user_data(), rip, rsp),
+            registers: Registers::new(
+                Gdt::user_code(),
+                Gdt::user_data(),
+                rip,
+                rsp,
+                info.into_usize(),
+            ),
         }
     }
 
     pub fn address_space(&mut self) -> &mut AddressSpace {
         &mut self.address_space
+    }
+
+    pub fn info(&mut self) -> &mut ProcessInfo {
+        unsafe { self.info.try_into_mut().unwrap() }
     }
 
     pub fn pid(&self) -> Pid {

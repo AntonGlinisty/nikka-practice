@@ -5,18 +5,35 @@
 #![allow(clippy::missing_safety_doc)]
 #![deny(warnings)]
 #![feature(asm)]
+#![feature(cell_update)]
 #![feature(const_fn_trait_bound)]
 #![feature(const_panic)]
 #![feature(const_size_of_val)]
+#![feature(format_args_capture)]
 #![no_std]
 
 extern crate rlibc;
 
 pub mod error;
+pub mod info;
+pub mod ipc;
+pub mod log;
 pub mod memory;
 pub mod process;
 
 pub use error::{
     Error,
     Result,
+};
+pub use info::{
+    ProcessInfo,
+    process_info,
+    set_process_info,
+};
+pub use ipc::pipe::{
+    self,
+    RingBuffer,
+    RingBufferMemory,
+    RingBufferReadTx,
+    RingBufferWriteTx,
 };

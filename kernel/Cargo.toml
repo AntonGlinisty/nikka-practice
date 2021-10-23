@@ -19,7 +19,9 @@ lazy_static = { version = "*", features = ["spin_no_std"] }
 memoffset = { version = "*", features = ["unstable_const"] }
 num-traits = { version = "*", default-features = false }
 number_prefix = { version = "*", default-features = false }
+postcard = "*"
 scopeguard = { version = "*", default-features = false }
+serde = { version = "*", default-features = false, features = ["alloc"] }
 spin = "*"
 static_assertions = "*"
 tracing = { git = "https://github.com/tokio-rs/tracing", version = "*", default-features = false }
