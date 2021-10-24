@@ -5,11 +5,11 @@ use chrono::NaiveDateTime;
 use super::{
     Hz,
     NSECS_PER_SEC,
+    Tsc,
     correlation_point::{
         AtomicCorrelationPoint,
         CorrelationPoint,
     },
-    tsc,
 };
 
 pub struct CorrelationInterval<const TICKS_PER_SECOND: i64> {
@@ -18,13 +18,14 @@ pub struct CorrelationInterval<const TICKS_PER_SECOND: i64> {
 }
 
 impl<const TICKS_PER_SECOND: i64> CorrelationInterval<TICKS_PER_SECOND> {
-    pub fn now<const PARTS_PER_SECOND: i64>(
-        atomic_correlation_interval: &AtomicCorrelationInterval<TICKS_PER_SECOND>
+    pub fn datetime<const PARTS_PER_SECOND: i64>(
+        atomic_correlation_interval: &AtomicCorrelationInterval<TICKS_PER_SECOND>,
+        tsc: Tsc,
     ) -> NaiveDateTime {
         let correlation_interval = atomic_correlation_interval.load();
 
         if correlation_interval.elapsed_count() > 0 {
-            correlation_interval.datetime_with_resolution::<PARTS_PER_SECOND>(tsc::tsc())
+            correlation_interval.datetime_with_resolution::<PARTS_PER_SECOND>(tsc)
         } else {
             NaiveDateTime::from_timestamp(correlation_interval.prev.count() / TICKS_PER_SECOND, 0)
         }
@@ -32,7 +33,7 @@ impl<const TICKS_PER_SECOND: i64> CorrelationInterval<TICKS_PER_SECOND> {
 
     fn datetime_with_resolution<const PARTS_PER_SECOND: i64>(
         &self,
-        tsc: i64,
+        tsc: Tsc,
     ) -> NaiveDateTime {
         // TODO: your code here.
         unimplemented!();

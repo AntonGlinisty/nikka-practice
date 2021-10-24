@@ -4,6 +4,7 @@ use crate::system_info;
 
 use super::{
     Hz,
+    Tsc,
     correlation_interval::CorrelationInterval,
 };
 
@@ -12,9 +13,9 @@ pub const TICKS_PER_SECOND: i64 = 1;
 pub struct Rtc;
 
 impl Rtc {
-    pub fn now<const PARTS_PER_SECOND: i64>() -> NaiveDateTime {
+    pub fn datetime<const PARTS_PER_SECOND: i64>(tsc: Tsc) -> NaiveDateTime {
         let rtc = system_info().rtc();
-        CorrelationInterval::now::<PARTS_PER_SECOND>(rtc)
+        CorrelationInterval::datetime::<PARTS_PER_SECOND>(rtc, tsc)
     }
 
     pub fn tsc_per_second() -> Option<Hz> {

@@ -3,10 +3,6 @@ use core::fmt::{
     Write,
 };
 
-use chrono::{
-    DateTime,
-    Utc,
-};
 use serde::Deserialize;
 use spin::Mutex;
 use tracing::{
@@ -38,6 +34,10 @@ use ku::{
         LogMetadata,
         level_into_symbol,
     },
+    time::{
+        Tsc,
+        datetime_ms,
+    },
 };
 use text::{
     Color,
@@ -52,7 +52,6 @@ use crate::{
     },
     process::Pid,
     smp::LocalApic,
-    time,
 };
 
 pub use tracing::{
@@ -166,12 +165,11 @@ impl Log {
     fn log_event(
         &self,
         event: &Event<'_>,
-        timestamp: DateTime<Utc>,
+        tsc: Tsc,
     ) {
         self.log_metadata(
             event.metadata().level(),
-            LogMetadata::new(event.metadata()),
-            timestamp,
+            LogMetadata::new(event.metadata(), tsc),
         );
         event.record(&mut LogEvent::new());
         println!();
@@ -181,8 +179,9 @@ impl Log {
         &self,
         level: &Level,
         metadata: LogMetadata,
-        timestamp: DateTime<Utc>,
     ) {
+        let timestamp = datetime_ms(metadata.timestamp());
+
         match self.format {
             Format::Compact => {
                 print!("{:?} ", timestamp.time());
@@ -226,10 +225,9 @@ impl Log {
         pid: Pid,
         deserializer: &mut postcard::Deserializer<'a>,
     ) -> Result<()> {
-        let now = time::now_ms();
         let metadata = LogMetadata::deserialize(&mut *deserializer)?;
         let level = metadata.level().map_err(|_| Unimplemented)?;
-        self.log_metadata(&level, metadata, now);
+        self.log_metadata(&level, metadata);
 
         let count = u8::deserialize(&mut *deserializer)?;
         let mut event = LogEvent::new();
@@ -285,7 +283,7 @@ impl Collect for LogCollector {
         &self,
         event: &Event<'_>,
     ) {
-        let now = time::now_ms();
+        let now = Tsc::now();
         self.log.lock().log_event(event, now);
     }
 

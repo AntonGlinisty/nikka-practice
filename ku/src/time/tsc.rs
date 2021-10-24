@@ -19,11 +19,18 @@ use num_traits::cast;
 #[allow(unused_imports)]
 use num_traits::float::FloatCore;
 use number_prefix::NumberPrefix;
+use serde::{
+    Deserialize,
+    Serialize,
+};
 
 use super::rtc::Rtc;
 
 /// Modelled after [`std::time::Instant`](https://doc.rust-lang.org/std/time/struct.Instant.html).
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+/// Note: `Tsc` is valid only on the current computer and between reboots.
+/// Do not store it in a file or send it over a network.
+/// `Serialize` and `Deserialize` traits are for sending `Tsc` between the kernel and the user space.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Tsc(i64);
 /// Modelled after [`std::time::Duration`](https://doc.rust-lang.org/std/time/struct.Duration.html).
 #[derive(Clone, Copy, Default, Eq, PartialEq)]
@@ -44,6 +51,10 @@ impl Tsc {
     pub fn lap(&mut self) -> TscDuration {
         let lap_end = tsc();
         TscDuration(lap_end - mem::replace(&mut self.0, lap_end))
+    }
+
+    pub(super) fn get(&self) -> i64 {
+        self.0
     }
 }
 

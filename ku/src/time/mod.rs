@@ -20,12 +20,20 @@ pub use tsc::{
 
 use rtc::Rtc;
 
+pub fn datetime(tsc: Tsc) -> DateTime<Utc> {
+    datetime_with_precision::<NSECS_PER_SEC>(tsc)
+}
+
+pub fn datetime_ms(tsc: Tsc) -> DateTime<Utc> {
+    datetime_with_precision::<MSECS_PER_SEC>(tsc)
+}
+
 pub fn now() -> DateTime<Utc> {
-    now_with_precision::<NSECS_PER_SEC>()
+    datetime_with_precision::<NSECS_PER_SEC>(Tsc::now())
 }
 
 pub fn now_ms() -> DateTime<Utc> {
-    now_with_precision::<MSECS_PER_SEC>()
+    datetime_with_precision::<MSECS_PER_SEC>(Tsc::now())
 }
 
 #[inline(always)]
@@ -36,6 +44,6 @@ pub fn timer() -> Tsc {
 const MSECS_PER_SEC: i64 = 1_000;
 const NSECS_PER_SEC: i64 = 1_000_000_000;
 
-fn now_with_precision<const PARTS_PER_SECOND: i64>() -> DateTime<Utc> {
-    DateTime::from_utc(Rtc::now::<PARTS_PER_SECOND>(), Utc)
+fn datetime_with_precision<const PARTS_PER_SECOND: i64>(tsc: Tsc) -> DateTime<Utc> {
+    DateTime::from_utc(Rtc::datetime::<PARTS_PER_SECOND>(tsc), Utc)
 }

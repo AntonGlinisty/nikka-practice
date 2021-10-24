@@ -39,6 +39,10 @@ use super::{
         Result,
     },
     pipe,
+    time::{
+        Tsc,
+        datetime,
+    },
 };
 
 pub use tracing::{
@@ -55,15 +59,20 @@ pub struct LogMetadata<'a> {
     line: Option<u32>,
     level: char,
     target: &'a str,
+    timestamp: Tsc,
 }
 
 impl<'a> LogMetadata<'a> {
-    pub fn new(metadata: &Metadata<'a>) -> Self {
+    pub fn new(
+        metadata: &Metadata<'a>,
+        timestamp: Tsc,
+    ) -> Self {
         Self {
             file: metadata.file(),
             line: metadata.line(),
             level: level_into_symbol(metadata.level()),
             target: metadata.target(),
+            timestamp,
         }
     }
 
@@ -81,6 +90,10 @@ impl<'a> LogMetadata<'a> {
 
     pub fn target(&self) -> &'a str {
         self.target
+    }
+
+    pub fn timestamp(&self) -> Tsc {
+        self.timestamp
     }
 }
 
@@ -112,7 +125,10 @@ struct LogEvent<'a> {
 }
 
 impl LogEvent<'_> {
-    fn record_event(event: &Event<'_>) -> Result<()> {
+    fn record_event(
+        event: &Event<'_>,
+        timestamp: Tsc,
+    ) -> Result<()> {
         let mut log_event = Self {
             serializer: postcard::Serializer {
                 output: LogBuffer::new(),
@@ -120,7 +136,7 @@ impl LogEvent<'_> {
             result: Ok(()),
         };
 
-        log_event.result = log_event.record_header(event);
+        log_event.result = log_event.record_header(event, timestamp);
         log_event.is_ok_so_far()?;
 
         event.record(&mut log_event);
@@ -134,8 +150,9 @@ impl LogEvent<'_> {
     fn record_header(
         &mut self,
         event: &Event<'_>,
+        timestamp: Tsc,
     ) -> Result<()> {
-        let metadata = LogMetadata::new(event.metadata());
+        let metadata = LogMetadata::new(event.metadata(), timestamp);
         metadata.serialize(&mut self.serializer)?;
 
         let field_count = u8::try_from(event.fields().count())?;
@@ -362,6 +379,8 @@ impl Collect for LogCollector {
         &self,
         event: &Event<'_>,
     ) {
+        let timestamp = Tsc::now();
+
         let recursion = self.recursion.update(|x| x + 1);
         defer! {
             self.recursion.update(|x| x - 1);
@@ -371,9 +390,9 @@ impl Collect for LogCollector {
             return;
         }
 
-        if let Err(error) = LogEvent::record_event(event) {
+        if let Err(error) = LogEvent::record_event(event, timestamp) {
             let message_prefix = PlanB::<PLAN_B_MAX_MESSAGE_SIZE>::record_event(event);
-            error!(?error, metadata = ?event.metadata(), ?message_prefix, "failed to log an event");
+            error!(?error, timestamp = %datetime(timestamp), metadata = ?event.metadata(), ?message_prefix, "failed to log an event");
         }
     }
 
