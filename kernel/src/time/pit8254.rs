@@ -5,18 +5,20 @@ use core::convert::TryFrom;
 use static_assertions::const_assert;
 use x86::io;
 
-use super::{
+use ku::{
+    self,
     Hz,
-    correlation_interval::AtomicCorrelationInterval,
-    correlation_point::CorrelationPoint,
-    tsc,
+    time::{
+        AtomicCorrelationInterval,
+        CorrelationPoint,
+    },
 };
 
 pub struct Pit(AtomicCorrelationInterval<{ TICKS_PER_SECOND as i64 }>);
 
 impl Pit {
     pub(crate) fn interrupt() {
-        PIT.0.inc_prev(tsc::tsc());
+        PIT.0.inc_prev(ku::tsc());
     }
 
     pub fn tsc_per_second() -> Option<Hz> {

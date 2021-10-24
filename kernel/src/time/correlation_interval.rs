@@ -12,13 +12,13 @@ use super::{
     tsc,
 };
 
-pub(super) struct CorrelationInterval<const TICKS_PER_SECOND: i64> {
+pub struct CorrelationInterval<const TICKS_PER_SECOND: i64> {
     base: CorrelationPoint,
     prev: CorrelationPoint,
 }
 
 impl<const TICKS_PER_SECOND: i64> CorrelationInterval<TICKS_PER_SECOND> {
-    pub(super) fn now<const PARTS_PER_SECOND: i64>(
+    pub fn now<const PARTS_PER_SECOND: i64>(
         atomic_correlation_interval: &AtomicCorrelationInterval<TICKS_PER_SECOND>
     ) -> NaiveDateTime {
         let correlation_interval = atomic_correlation_interval.load();
@@ -63,27 +63,27 @@ impl<const TICKS_PER_SECOND: i64> CorrelationInterval<TICKS_PER_SECOND> {
     }
 }
 
-pub(super) struct AtomicCorrelationInterval<const TICKS_PER_SECOND: i64> {
+pub struct AtomicCorrelationInterval<const TICKS_PER_SECOND: i64> {
     base: AtomicCorrelationPoint,
     prev: AtomicCorrelationPoint,
 }
 
 impl<const TICKS_PER_SECOND: i64> AtomicCorrelationInterval<TICKS_PER_SECOND> {
-    pub(super) const fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             base: AtomicCorrelationPoint::new(),
             prev: AtomicCorrelationPoint::new(),
         }
     }
 
-    pub(super) fn load(&self) -> CorrelationInterval<TICKS_PER_SECOND> {
+    pub fn load(&self) -> CorrelationInterval<TICKS_PER_SECOND> {
         CorrelationInterval {
             base: self.base.load(),
             prev: self.prev.load(),
         }
     }
 
-    pub(super) fn init_base(
+    pub fn init_base(
         &self,
         base: CorrelationPoint,
     ) {
@@ -92,21 +92,21 @@ impl<const TICKS_PER_SECOND: i64> AtomicCorrelationInterval<TICKS_PER_SECOND> {
         }
     }
 
-    pub(super) fn store_prev(
+    pub fn store_prev(
         &self,
         prev: CorrelationPoint,
     ) {
         self.prev.store(prev);
     }
 
-    pub(super) fn inc_prev(
+    pub fn inc_prev(
         &self,
         tsc: i64,
     ) {
         self.prev.inc(tsc);
     }
 
-    pub(super) fn tsc_per_second(&self) -> Option<Hz> {
+    pub fn tsc_per_second(&self) -> Option<Hz> {
         self.load().tsc_per_second().try_into().ok().and_then(Hz::new)
     }
 }

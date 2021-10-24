@@ -11,37 +11,29 @@ use derive_more::Display;
 use scopeguard::defer;
 use x86::io;
 
-use crate::log::{
-    error,
-    info,
+use ku::time::{
+    CorrelationPoint,
+    rtc::TICKS_PER_SECOND,
 };
 
-use super::{
-    Hz,
-    correlation_interval::{
-        AtomicCorrelationInterval,
-        CorrelationInterval,
+use crate::{
+    SYSTEM_INFO,
+    log::{
+        error,
+        info,
     },
-    correlation_point::CorrelationPoint,
 };
 
-pub struct Rtc(AtomicCorrelationInterval<TICKS_PER_SECOND>);
+pub struct Rtc;
 
 impl Rtc {
     pub(crate) fn interrupt() {
         if interrupt_status() & UPDATE_ENDED_INTERRUPT != 0 {
             let now = CorrelationPoint::now(rtc_timestamp() * TICKS_PER_SECOND);
-            RTC.0.init_base(now);
-            RTC.0.store_prev(now);
+            let rtc = SYSTEM_INFO.rtc();
+            rtc.init_base(now);
+            rtc.store_prev(now);
         }
-    }
-
-    pub fn now<const PARTS_PER_SECOND: i64>() -> NaiveDateTime {
-        CorrelationInterval::now::<PARTS_PER_SECOND>(&RTC.0)
-    }
-
-    pub fn tsc_per_second() -> Option<Hz> {
-        RTC.0.tsc_per_second()
     }
 }
 
@@ -65,7 +57,8 @@ pub(super) fn init() {
         unsafe { RegisterB::from_bits_unchecked(rtc_read(DISABLE_NMI | REGISTER_B)) };
 
     if acknowledged_settings == new_settings {
-        RTC.0.store_prev(CorrelationPoint::invalid(
+        let rtc = SYSTEM_INFO.rtc();
+        rtc.store_prev(CorrelationPoint::invalid(
             rtc_timestamp() * TICKS_PER_SECOND,
         ));
 
@@ -145,8 +138,6 @@ impl From<Date> for NaiveDateTime {
 const ADDRESS_PORT: u16 = 0x70;
 const DATA_PORT: u16 = 0x71;
 
-const TICKS_PER_SECOND: i64 = 1;
-
 const UPDATE_ENDED_INTERRUPT: u8 = 1 << 4;
 
 unsafe fn rtc_read(address: u8) -> u8 {
@@ -179,5 +170,3 @@ fn rtc_timestamp() -> i64 {
         0
     }
 }
-
-static RTC: Rtc = Rtc(AtomicCorrelationInterval::<TICKS_PER_SECOND>::new());

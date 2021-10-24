@@ -20,6 +20,7 @@ pub mod ipc;
 pub mod log;
 pub mod memory;
 pub mod process;
+pub mod time;
 
 pub use error::{
     Error,
@@ -27,8 +28,11 @@ pub use error::{
 };
 pub use info::{
     ProcessInfo,
+    SystemInfo,
     process_info,
     set_process_info,
+    set_system_info,
+    system_info,
 };
 pub use ipc::pipe::{
     self,
@@ -36,4 +40,13 @@ pub use ipc::pipe::{
     RingBufferMemory,
     RingBufferReadTx,
     RingBufferWriteTx,
+};
+pub use time::{
+    Hz,
+    Tsc,
+    TscDuration,
+    now,
+    now_ms,
+    timer,
+    tsc,
 };

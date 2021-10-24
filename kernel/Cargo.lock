@@ -208,8 +208,6 @@ dependencies = [
  "ku",
  "lazy_static",
  "memoffset",
- "num-traits",
- "number_prefix",
  "pic8259",
  "postcard",
  "scopeguard",
@@ -229,7 +227,10 @@ name = "ku"
 version = "0.1.0"
 dependencies = [
  "bitflags",
+ "chrono",
  "heapless",
+ "itertools",
+ "num-traits",
  "number_prefix",
  "postcard",
  "rlibc",

@@ -42,6 +42,10 @@ use bitflags::bitflags;
 use bootloader::BootInfo;
 use x86::io;
 
+use ku::{
+    SystemInfo,
+    set_system_info,
+};
 use text::println;
 
 use log::{
@@ -69,6 +73,8 @@ bitflags! {
 #[cold]
 #[inline(never)]
 pub fn init(boot_info: &'static BootInfo) {
+    set_system_info(&SYSTEM_INFO);
+
     text::TEXT.lock().init();
     log::init();
     time::init();
@@ -167,3 +173,5 @@ extern "C" fn _start() -> ! {
 fn panic(panic_info: &PanicInfo) -> ! {
     fail_test(panic_info)
 }
+
+static SYSTEM_INFO: SystemInfo = SystemInfo::new();

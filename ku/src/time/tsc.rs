@@ -12,13 +12,15 @@ use core::{
 };
 
 use itertools::Itertools;
-use num_traits::{
-    cast,
-    float::FloatCore,
-};
+use num_traits::cast;
+// FloatCore is used for a substitute of `f64::abs()`. `f64::abs()` is declared in `std` whilst this is a `#[no_std]` library.
+// Moreover, `f64::abs()` from `std` uses FPU but this library is used in the kernel which is compiled with `+soft-float`.
+// However, rustc fails to recognize that FloatCore is really used.
+#[allow(unused_imports)]
+use num_traits::float::FloatCore;
 use number_prefix::NumberPrefix;
 
-use super::Rtc;
+use super::rtc::Rtc;
 
 /// Modelled after [`std::time::Instant`](https://doc.rust-lang.org/std/time/struct.Instant.html).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -93,7 +95,7 @@ impl Display for TscDuration {
 }
 
 #[inline(always)]
-pub(super) fn tsc() -> i64 {
+pub fn tsc() -> i64 {
     // Do not use `x86::fence::lfence()` and `x86::time::rdtsc()` because they are not marked as `#[inline]`.
     unsafe {
         x86_64::_mm_lfence();
@@ -116,11 +118,9 @@ const U64_AS_F64_SHOULD_NOT_FAIL: &str =
 
 #[cfg(test)]
 mod test {
-    use num_traits::float::FloatCore;
-
     use super::fractional_prefix as fp;
 
-    #[test_case]
+    #[test]
     fn fractional_prefix() {
         assert!(check(1.0, 1.0, ""));
         assert!(check(100.0, 100.0, ""));

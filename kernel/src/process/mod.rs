@@ -6,14 +6,18 @@ mod registers;
 mod syscall;
 mod table;
 
+use core::mem;
+
 use static_assertions::const_assert;
 
 use ku::{
     ProcessInfo,
     RingBuffer,
+    SystemInfo,
 };
 
 use crate::{
+    SYSTEM_INFO,
     error::Result,
     log::info,
     memory::{
@@ -23,7 +27,10 @@ use crate::{
         Page,
         Size,
         Stack,
+        USER_R,
         USER_RW,
+        Virt,
+        mmu::PageTableFlags,
     },
 };
 
@@ -52,8 +59,7 @@ pub fn create(
 
     let stack = Stack::new(&mut address_space, USER_RW)?;
 
-    let log = map_log(&mut address_space)?;
-    let process_info = address_space.map_one(USER_RW, || ProcessInfo::new(log))?;
+    let process_info = map_process_info(&mut address_space)?;
 
     BASE_ADDRESS_SPACE.lock().switch_to();
 
@@ -64,6 +70,29 @@ pub fn create(
     Table::allocate(process)
 }
 
+fn map_process_info(address_space: &mut AddressSpace) -> Result<&'static mut ProcessInfo> {
+    let log = map_log(address_space)?;
+    let system_info = map_system_info(address_space)?;
+    address_space.map_one(USER_RW, || ProcessInfo::new(log, system_info))
+}
+
 fn map_log(address_space: &mut AddressSpace) -> Result<RingBuffer> {
     // TODO: your code here.
+}
+
+fn map_system_info(address_space: &mut AddressSpace) -> Result<*const SystemInfo> {
+    let system_info_frame = address_space
+        .mapping()
+        .translate(Virt::from_ref(&SYSTEM_INFO), None, PageTableFlags::empty())?
+        .frame()?;
+    let system_info_page =
+        Page::from_index(address_space.allocate(mem::size_of_val(&SYSTEM_INFO))?.start());
+
+    FRAME_ALLOCATOR.lock().reference(system_info_frame);
+
+    unsafe {
+        address_space.map_page_to_frame(system_info_page, system_info_frame, USER_R)?;
+    }
+
+    system_info_page.address().try_into_ptr()
 }
