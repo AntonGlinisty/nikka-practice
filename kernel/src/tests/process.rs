@@ -120,6 +120,22 @@ fn syscall_exit() {
 }
 
 #[test_case]
+fn syscall_sched_yield() {
+    forbid_frame_leaks!();
+
+    let process = make_process(
+        "sched_yield",
+        include_bytes!("../../../user/sched_yield/target/kernel/debug/sched_yield"),
+    );
+    let pid = process.pid();
+
+    Process::enter_user_mode(process);
+
+    let process = Table::get(pid).expect("failed to find the new process in the process table");
+    Table::free(process);
+}
+
+#[test_case]
 fn user_mode_page_fault() {
     forbid_frame_leaks!();
 

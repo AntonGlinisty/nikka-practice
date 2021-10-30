@@ -53,6 +53,14 @@ impl Process {
         &mut self.address_space
     }
 
+    pub(super) fn set_context(
+        &mut self,
+        rip: Virt,
+        rsp: Virt,
+    ) {
+        self.registers.set_context(rip, rsp);
+    }
+
     pub fn info(&mut self) -> &mut ProcessInfo {
         unsafe { self.info.try_into_mut().unwrap() }
     }

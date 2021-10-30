@@ -22,7 +22,8 @@ CRATES = ku serial text kernel
 USER_CRATES = \
     user/exit \
     user/loop \
-    user/page_fault
+    user/page_fault \
+    user/sched_yield
 
 all: test run
 

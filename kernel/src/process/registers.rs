@@ -50,6 +50,15 @@ impl Registers {
         self.rsp
     }
 
+    pub(super) fn set_context(
+        &mut self,
+        rip: Virt,
+        rsp: Virt,
+    ) {
+        self.rip = rip;
+        self.rsp = rsp;
+    }
+
     #[allow(named_asm_labels)]
     #[inline(never)] // For the named label to be a unique link symbol.
     pub(super) unsafe fn switch_to(registers: *const Registers) {

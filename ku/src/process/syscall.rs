@@ -11,5 +11,6 @@ bitflags! {
 bitflags! {
     pub struct Syscall: usize {
         const EXIT = 0;
+        const SCHED_YIELD = 1;
     }
 }

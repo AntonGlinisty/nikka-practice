@@ -75,3 +75,8 @@ fn exit(
     // TODO: your code here.
     unimplemented!();
 }
+
+fn sched_yield(process: MutexGuard<Process>) -> ! {
+    // TODO: your code here.
+    unimplemented!();
+}
