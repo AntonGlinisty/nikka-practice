@@ -6,6 +6,7 @@
 #![deny(warnings)]
 #![feature(asm)]
 #![feature(cell_update)]
+#![feature(const_fn_fn_ptr_basics)]
 #![feature(const_fn_trait_bound)]
 #![feature(const_panic)]
 #![feature(const_size_of_val)]

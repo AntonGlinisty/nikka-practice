@@ -28,6 +28,8 @@ use ku::{
 pub extern "C" fn _start(process_info: &'static mut ProcessInfo) -> ! {
     info::set_process_info(process_info);
 
+    LOG_COLLECTOR.set_flush(syscall::sched_yield);
+
     dispatch::set_global_default(Dispatch::from_static(&LOG_COLLECTOR)).unwrap();
 
     extern "Rust" {

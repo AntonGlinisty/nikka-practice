@@ -35,6 +35,7 @@ use tracing_core::span::Current;
 use super::{
     RingBufferWriteTx,
     error::{
+        Error,
         Error::InvalidArgument,
         Result,
     },
@@ -350,15 +351,104 @@ impl<const N: usize> Write for PlanB<N> {
 }
 
 pub struct LogCollector {
+    flush: Cell<Option<fn()>>,
     level: Level,
+    lost_recently: Cell<usize>,
+    lost_totally: Cell<usize>,
+    plan_b_failures: Cell<usize>,
+    plan_c_failures: Cell<usize>,
     recursion: Cell<usize>,
+    recursive_failure: Cell<usize>,
 }
 
 impl LogCollector {
     const fn new(level: Level) -> Self {
         LogCollector {
+            flush: Cell::new(None),
             level,
+            lost_recently: Cell::new(0),
+            lost_totally: Cell::new(0),
+            plan_b_failures: Cell::new(0),
+            plan_c_failures: Cell::new(0),
             recursion: Cell::new(0),
+            recursive_failure: Cell::new(0),
+        }
+    }
+
+    pub fn set_flush(
+        &self,
+        flush: fn(),
+    ) {
+        self.flush.set(Some(flush));
+    }
+
+    fn flush(&self) -> bool {
+        if let Some(flush) = self.flush.get() {
+            (flush)();
+            true
+        } else {
+            false
+        }
+    }
+
+    fn report_lost_messages_statistics(&self) {
+        let recent = self.lost_recently.get();
+        let recursive_failure = self.recursive_failure.get();
+
+        if recent > 0 {
+            let plan_b_failures = self.plan_b_failures.get();
+            let plan_c_failures = self.plan_c_failures.get();
+
+            let total = self.lost_totally.update(|x| x + recent);
+            self.lost_recently.update(|x| x - recent);
+
+            error!(
+                recent,
+                total, plan_b_failures, plan_c_failures, "lost some log messages",
+            );
+
+            if self.recursive_failure.get() > recursive_failure {
+                // The error message about lost log messages seem to be lost also.
+                // Rollback the statistics to trigger the same error message next time.
+                self.lost_recently.update(|x| x + recent);
+                self.lost_totally.update(|x| x - recent);
+            }
+        }
+    }
+
+    fn report_lost_message(
+        &self,
+        event: &Event<'_>,
+        timestamp: Tsc,
+        error: &Error,
+    ) {
+        self.lost_recently.update(|x| x + 1);
+        let recursive_failure = self.recursive_failure.get();
+
+        let error_message = "failed to log an event";
+        let message_prefix = PlanB::<PLAN_B_MAX_MESSAGE_SIZE>::record_event(event);
+        error!(
+            ?error,
+            timestamp = %datetime(timestamp),
+            metadata = ?event.metadata(),
+            ?message_prefix,
+            "{}",
+            error_message,
+        );
+
+        if self.recursive_failure.get() > recursive_failure {
+            self.plan_b_failures.update(|x| x + 1);
+            error!(
+                ?error,
+                timestamp = %datetime(timestamp),
+                metadata = ?event.metadata(),
+                "{}",
+                error_message,
+            );
+        }
+
+        if self.recursive_failure.get() > recursive_failure + 1 {
+            self.plan_c_failures.update(|x| x + 1);
         }
     }
 }
@@ -382,6 +472,7 @@ impl Collect for LogCollector {
         let timestamp = Tsc::now();
 
         let recursion = self.recursion.update(|x| x + 1);
+        let is_recursive = recursion > 1;
         defer! {
             self.recursion.update(|x| x - 1);
         }
@@ -390,9 +481,24 @@ impl Collect for LogCollector {
             return;
         }
 
-        if let Err(error) = LogEvent::record_event(event, timestamp) {
-            let message_prefix = PlanB::<PLAN_B_MAX_MESSAGE_SIZE>::record_event(event);
-            error!(?error, timestamp = %datetime(timestamp), metadata = ?event.metadata(), ?message_prefix, "failed to log an event");
+        const TRY_COUNT: i32 = 2;
+
+        for tries_left in (0 .. TRY_COUNT).rev() {
+            if let Err(error) = LogEvent::record_event(event, timestamp) {
+                if !self.flush() || tries_left == 0 {
+                    if is_recursive {
+                        self.recursive_failure.update(|x| x + 1);
+                    } else {
+                        self.report_lost_message(event, timestamp, &error);
+                    }
+                }
+            } else {
+                if !is_recursive {
+                    self.recursive_failure.set(0);
+                    self.report_lost_messages_statistics();
+                }
+                return;
+            }
         }
     }
 

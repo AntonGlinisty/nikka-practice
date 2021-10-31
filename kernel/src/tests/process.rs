@@ -131,8 +131,12 @@ fn syscall_sched_yield() {
 
     Process::enter_user_mode(process);
 
-    let process = Table::get(pid).expect("failed to find the new process in the process table");
-    Table::free(process);
+    for _ in 0 .. 2 {
+        let process = Table::get(pid).expect("failed to find the new process in the process table");
+        Process::enter_user_mode(process);
+    }
+
+    free_process(pid);
 }
 
 #[test_case]
