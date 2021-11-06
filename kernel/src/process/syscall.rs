@@ -8,6 +8,7 @@ use x86_64::registers::model_specific::{
 
 use ku::process::{
     ExitCode,
+    MiniContext,
     Syscall,
 };
 

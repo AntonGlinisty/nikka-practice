@@ -2,7 +2,10 @@ use core::fmt;
 
 use spin::MutexGuard;
 
-use ku::ProcessInfo;
+use ku::{
+    ProcessInfo,
+    process::MiniContext,
+};
 
 use crate::{
     memory::{
@@ -28,8 +31,7 @@ pub struct Process {
 impl Process {
     pub(super) fn new(
         address_space: AddressSpace,
-        rip: Virt,
-        rsp: Virt,
+        context: MiniContext,
         info: &'static mut ProcessInfo,
     ) -> Self {
         let info = Virt::from_ref(info);
@@ -38,7 +40,7 @@ impl Process {
             address_space,
             info,
             pid: Pid::Current,
-            registers: Registers::new(rip, rsp, info.into_usize()),
+            registers: Registers::new(context, info.into_usize()),
         }
     }
 
@@ -48,10 +50,9 @@ impl Process {
 
     pub(super) fn set_context(
         &mut self,
-        rip: Virt,
-        rsp: Virt,
+        context: MiniContext,
     ) {
-        self.registers.set_context(rip, rsp);
+        self.registers.set_mini_context(context);
     }
 
     pub fn info(&mut self) -> &mut ProcessInfo {
@@ -112,11 +113,10 @@ impl fmt::Display for Process {
     ) -> fmt::Result {
         write!(
             formatter,
-            "{{ pid: {}, address_space: {}, rip: {}, rsp: {} }}",
+            "{{ pid: {}, address_space: {}, {} }}",
             self.pid,
             self.address_space,
-            self.registers.rip(),
-            self.registers.rsp(),
+            self.registers.mini_context(),
         )
     }
 }

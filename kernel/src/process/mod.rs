@@ -14,6 +14,7 @@ use ku::{
     ProcessInfo,
     RingBuffer,
     SystemInfo,
+    process::MiniContext,
 };
 
 use crate::{
@@ -65,9 +66,10 @@ pub fn create(
 
     BASE_ADDRESS_SPACE.lock().switch_to();
 
-    let process = Process::new(address_space, entry, stack.pointer(), process_info);
+    let context = MiniContext::new(entry, stack.pointer());
+    let process = Process::new(address_space, context, process_info);
 
-    info!(%entry, file_size = %Size::from_slice(elf_file), %process, "loaded ELF file");
+    info!(%context, file_size = %Size::from_slice(elf_file), %process, "loaded ELF file");
 
     Table::allocate(process)
 }

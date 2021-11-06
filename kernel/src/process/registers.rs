@@ -2,6 +2,8 @@ use core::fmt;
 
 use x86_64::structures::gdt::SegmentSelector;
 
+use ku::process::MiniContext;
+
 use crate::{
     gdt::Gdt,
     memory::Virt,
@@ -17,33 +19,26 @@ pub(crate) struct Registers {
 
 impl Registers {
     pub(super) fn new(
-        rip: Virt,
-        rsp: Virt,
+        context: MiniContext,
         arg0: usize,
     ) -> Self {
         Self {
             // https://wiki.osdev.org/System_V_ABI#x86-64:
             // Parameters to functions are passed in the registers rdi, rsi, rdx, rcx, r8, r9, and further values are passed on the stack in reverse order.
             rdi: arg0,
-            user_context: ModeContext::user_context(rip, rsp),
+            user_context: ModeContext::user_context(context),
         }
     }
 
-    pub(super) fn rip(&self) -> Virt {
-        self.user_context.rip
+    pub(super) fn mini_context(&self) -> MiniContext {
+        self.user_context.mini_context()
     }
 
-    pub(super) fn rsp(&self) -> Virt {
-        self.user_context.rsp
-    }
-
-    pub(super) fn set_context(
+    pub(super) fn set_mini_context(
         &mut self,
-        rip: Virt,
-        rsp: Virt,
+        context: MiniContext,
     ) {
-        self.user_context.rip = rip;
-        self.user_context.rsp = rsp;
+        self.user_context.set_mini_context(context);
     }
 
     #[allow(named_asm_labels)]
@@ -88,30 +83,37 @@ impl ModeContext {
     fn new(
         code: SegmentSelector,
         data: SegmentSelector,
-        rip: Virt,
-        rsp: Virt,
+        context: MiniContext,
         rflags: RFlags,
     ) -> Self {
         Self {
-            rip,
+            rip: context.rip(),
             cs: code.0.into(),
             rflags,
-            rsp,
+            rsp: context.rsp(),
             ss: data.0.into(),
         }
     }
 
-    fn user_context(
-        rip: Virt,
-        rsp: Virt,
-    ) -> Self {
+    fn user_context(context: MiniContext) -> Self {
         Self::new(
             Gdt::user_code(),
             Gdt::user_data(),
-            rip,
-            rsp,
+            context,
             RFlags::INTERRUPT_FLAG,
         )
+    }
+
+    fn mini_context(&self) -> MiniContext {
+        MiniContext::new(self.rip, self.rsp)
+    }
+
+    fn set_mini_context(
+        &mut self,
+        context: MiniContext,
+    ) {
+        self.rip = context.rip();
+        self.rsp = context.rsp();
     }
 
     pub(crate) fn is_user_mode(&self) -> bool {
