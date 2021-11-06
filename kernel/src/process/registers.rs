@@ -1,9 +1,9 @@
-use x86_64::{
-    registers::rflags::RFlags,
-    structures::gdt::SegmentSelector,
-};
+use core::fmt;
+
+use x86_64::structures::gdt::SegmentSelector;
 
 use crate::{
+    gdt::Gdt,
     memory::Virt,
     smp::KERNEL_RSP_OFFSET_IN_CPU,
 };
@@ -12,19 +12,11 @@ use crate::{
 #[repr(C)]
 pub(crate) struct Registers {
     rdi: usize,
-
-    // The following layout is dictated by the 'iret' instruction which is used to jump into the user space.
-    rip: Virt,
-    cs: usize,
-    rflags: RFlags,
-    rsp: Virt,
-    ss: usize,
+    user_context: ModeContext,
 }
 
 impl Registers {
     pub(super) fn new(
-        code: SegmentSelector,
-        data: SegmentSelector,
         rip: Virt,
         rsp: Virt,
         arg0: usize,
@@ -33,21 +25,16 @@ impl Registers {
             // https://wiki.osdev.org/System_V_ABI#x86-64:
             // Parameters to functions are passed in the registers rdi, rsi, rdx, rcx, r8, r9, and further values are passed on the stack in reverse order.
             rdi: arg0,
-
-            rip,
-            cs: code.0.into(),
-            rflags: RFlags::INTERRUPT_FLAG,
-            rsp,
-            ss: data.0.into(),
+            user_context: ModeContext::user_context(rip, rsp),
         }
     }
 
     pub(super) fn rip(&self) -> Virt {
-        self.rip
+        self.user_context.rip
     }
 
     pub(super) fn rsp(&self) -> Virt {
-        self.rsp
+        self.user_context.rsp
     }
 
     pub(super) fn set_context(
@@ -55,8 +42,8 @@ impl Registers {
         rip: Virt,
         rsp: Virt,
     ) {
-        self.rip = rip;
-        self.rsp = rsp;
+        self.user_context.rip = rip;
+        self.user_context.rsp = rsp;
     }
 
     #[allow(named_asm_labels)]
@@ -82,5 +69,141 @@ impl Registers {
     #[naked]
     pub(super) unsafe extern "C" fn switch_from() -> ! {
         asm!("jmp switch_to_kernel_mode", options(noreturn));
+    }
+}
+
+/// `iret` instruction layout.
+/// It is the minimal register context that is necessary for switching between the kernel mode and the user mode.
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub(crate) struct ModeContext {
+    rip: Virt,
+    cs: usize,
+    rflags: RFlags,
+    rsp: Virt,
+    ss: usize,
+}
+
+impl ModeContext {
+    fn new(
+        code: SegmentSelector,
+        data: SegmentSelector,
+        rip: Virt,
+        rsp: Virt,
+        rflags: RFlags,
+    ) -> Self {
+        Self {
+            rip,
+            cs: code.0.into(),
+            rflags,
+            rsp,
+            ss: data.0.into(),
+        }
+    }
+
+    fn user_context(
+        rip: Virt,
+        rsp: Virt,
+    ) -> Self {
+        Self::new(
+            Gdt::user_code(),
+            Gdt::user_data(),
+            rip,
+            rsp,
+            RFlags::INTERRUPT_FLAG,
+        )
+    }
+
+    pub(crate) fn is_user_mode(&self) -> bool {
+        assert_eq!(
+            Self::is_user_mode_segment(self.cs),
+            Self::is_user_mode_segment(self.ss),
+        );
+
+        Self::is_user_mode_segment(self.cs)
+    }
+
+    fn is_user_mode_segment(segment_register: usize) -> bool {
+        segment_register & Self::CPL_MASK != Self::RING_0
+    }
+
+    fn mode(&self) -> &'static str {
+        if self.is_user_mode() {
+            "user"
+        } else {
+            "kernel"
+        }
+    }
+
+    const CPL_MASK: usize = 0x3;
+    const RING_0: usize = 0x0;
+}
+
+impl fmt::Display for ModeContext {
+    fn fmt(
+        &self,
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
+        write!(
+            formatter,
+            "{{ mode: {}, cs:rip: {:#06X}:{}, ss:rsp: {:#06X}:{}, rflags: {} }}",
+            self.mode(),
+            self.cs,
+            self.rip,
+            self.ss,
+            self.rsp,
+            self.rflags,
+        )
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(transparent)]
+struct RFlags(usize);
+
+impl RFlags {
+    const INTERRUPT_FLAG: RFlags = RFlags(1 << 9);
+}
+
+impl fmt::Display for RFlags {
+    fn fmt(
+        &self,
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
+        static FLAGS: [&str; 22] = [
+            "CF",
+            "",
+            "PF",
+            "",
+            "AF",
+            "",
+            "ZF",
+            "SF",
+            "TF",
+            "IF",
+            "DF",
+            "OF",
+            "",
+            "",
+            "NT",
+            "",
+            "RF",
+            "VM",
+            "AC",
+            "VF",
+            "VP",
+            "ID",
+        ];
+
+        let mut separator = "";
+
+        for i in (0 .. FLAGS.len()).rev() {
+            if (self.0 >> i) & 1 != 0 && !FLAGS[i].is_empty() {
+                write!(formatter, "{}{}", separator, FLAGS[i])?;
+                separator = " ";
+            }
+        }
+
+        Ok(())
     }
 }

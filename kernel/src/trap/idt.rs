@@ -1,74 +1,134 @@
-use lazy_static::lazy_static;
-use x86_64::structures::idt::InterruptDescriptorTable;
+use core::{
+    convert::TryInto,
+    mem,
+};
 
-use crate::memory::{
-    DOUBLE_FAULT_IST_INDEX,
-    PAGE_FAULT_IST_INDEX,
+use lazy_static::lazy_static;
+use x86_64::{
+    VirtAddr,
+    instructions::tables,
+    structures::{
+        DescriptorTablePointer,
+        idt::{
+            Entry,
+            EntryOptions,
+        },
+    },
+};
+
+use crate::{
+    memory::{
+        DOUBLE_FAULT_IST_INDEX,
+        PAGE_FAULT_IST_INDEX,
+        Virt,
+    },
+    process::ModeContext,
 };
 
 use super::{
+    COUNT,
     apic,
     handler,
     pic,
 };
 
-lazy_static! {
-    pub(crate) static ref IDT: InterruptDescriptorTable = {
-        let mut idt = InterruptDescriptorTable::new();
+pub(crate) struct Idt([IdtEntry; COUNT]);
 
-        idt.divide_error.set_handler_fn(handler::divide_error);
-        idt.debug.set_handler_fn(handler::debug);
-        idt.non_maskable_interrupt.set_handler_fn(handler::non_maskable_interrupt);
-        idt.breakpoint.set_handler_fn(handler::breakpoint);
-        idt.overflow.set_handler_fn(handler::overflow);
-        idt.bound_range_exceeded.set_handler_fn(handler::bound_range_exceeded);
-        idt.invalid_opcode.set_handler_fn(handler::invalid_opcode);
-        idt.device_not_available.set_handler_fn(handler::device_not_available);
+impl Idt {
+    fn new() -> Self {
+        let mut idt = [IdtEntry::missing(); COUNT];
 
         unsafe {
-            idt.double_fault
-                .set_handler_fn(handler::double_fault)
+            idt[super::DOUBLE_FAULT]
+                .set_handler_with_error(handler::double_fault)
                 .set_stack_index(DOUBLE_FAULT_IST_INDEX);
-        }
 
-        idt.invalid_tss.set_handler_fn(handler::invalid_tss);
-        idt.segment_not_present.set_handler_fn(handler::segment_not_present);
-        idt.stack_segment_fault.set_handler_fn(handler::stack_segment_fault);
-        idt.general_protection_fault.set_handler_fn(handler::general_protection_fault);
-
-        unsafe {
-            idt.page_fault
-                .set_handler_fn(handler::page_fault)
+            idt[super::PAGE_FAULT]
+                .set_handler_with_error(handler::page_fault)
                 .set_stack_index(PAGE_FAULT_IST_INDEX);
         }
 
-        idt.x87_floating_point.set_handler_fn(handler::x87_floating_point);
-        idt.alignment_check.set_handler_fn(handler::alignment_check);
-        idt.machine_check.set_handler_fn(handler::machine_check);
-        idt.simd_floating_point.set_handler_fn(handler::simd_floating_point);
-        idt.virtualization.set_handler_fn(handler::virtualization);
-        idt.security_exception.set_handler_fn(handler::security_exception);
+        idt[super::DIVIDE_ERROR].set_handler(handler::divide_error);
+        idt[super::DEBUG].set_handler(handler::debug);
+        idt[super::NON_MASKABLE_INTERRUPT].set_handler(handler::non_maskable_interrupt);
+        idt[super::BREAKPOINT].set_handler(handler::breakpoint);
+        idt[super::OVERFLOW].set_handler(handler::overflow);
+        idt[super::BOUND_RANGE_EXCEEDED].set_handler(handler::bound_range_exceeded);
+        idt[super::INVALID_OPCODE].set_handler(handler::invalid_opcode);
+        idt[super::DEVICE_NOT_AVAILABLE].set_handler(handler::device_not_available);
+        idt[super::INVALID_TSS].set_handler_with_error(handler::invalid_tss);
+        idt[super::SEGMENT_NOT_PRESENT].set_handler_with_error(handler::segment_not_present);
+        idt[super::STACK_SEGMENT_FAULT].set_handler_with_error(handler::stack_segment_fault);
+        idt[super::GENERAL_PROTECTION_FAULT]
+            .set_handler_with_error(handler::general_protection_fault);
+        idt[super::X87_FLOATING_POINT].set_handler(handler::x87_floating_point);
+        idt[super::ALIGNMENT_CHECK].set_handler_with_error(handler::alignment_check);
+        idt[super::MACHINE_CHECK].set_handler(handler::machine_check);
+        idt[super::SIMD_FLOATING_POINT].set_handler(handler::simd_floating_point);
+        idt[super::VIRTUALIZATION].set_handler(handler::virtualization);
+        idt[super::SECURITY_EXCEPTION].set_handler_with_error(handler::security_exception);
 
-        idt[super::PIT].set_handler_fn(pic::pit);
-        idt[super::KEYBOARD].set_handler_fn(pic::keyboard);
-        idt[super::CASCADE].set_handler_fn(pic::cascade);
-        idt[super::COM2].set_handler_fn(pic::com2);
-        idt[super::COM1].set_handler_fn(pic::com1);
-        idt[super::LPT2].set_handler_fn(pic::lpt2);
-        idt[super::FLOPPY_DISK].set_handler_fn(pic::floppy_disk);
-        idt[super::LPT1].set_handler_fn(pic::lpt1);
-        idt[super::RTC].set_handler_fn(pic::rtc);
-        idt[super::FREE_29].set_handler_fn(pic::free_29);
-        idt[super::FREE_2A].set_handler_fn(pic::free_2a);
-        idt[super::FREE_2B].set_handler_fn(pic::free_2b);
-        idt[super::PS2_MOUSE].set_handler_fn(pic::ps2_mouse);
-        idt[super::COPROCESSOR].set_handler_fn(pic::coprocessor);
-        idt[super::ATA0].set_handler_fn(pic::ata0);
-        idt[super::ATA1].set_handler_fn(pic::ata1);
+        idt[super::PIT].set_handler(pic::pit);
+        idt[super::KEYBOARD].set_handler(pic::keyboard);
+        idt[super::CASCADE].set_handler(pic::cascade);
+        idt[super::COM2].set_handler(pic::com2);
+        idt[super::COM1].set_handler(pic::com1);
+        idt[super::LPT2].set_handler(pic::lpt2);
+        idt[super::FLOPPY_DISK].set_handler(pic::floppy_disk);
+        idt[super::LPT1].set_handler(pic::lpt1);
+        idt[super::RTC].set_handler(pic::rtc);
+        idt[super::FREE_29].set_handler(pic::free_29);
+        idt[super::FREE_2A].set_handler(pic::free_2a);
+        idt[super::FREE_2B].set_handler(pic::free_2b);
+        idt[super::PS2_MOUSE].set_handler(pic::ps2_mouse);
+        idt[super::COPROCESSOR].set_handler(pic::coprocessor);
+        idt[super::ATA0].set_handler(pic::ata0);
+        idt[super::ATA1].set_handler(pic::ata1);
 
-        idt[super::TIMER].set_handler_fn(apic::timer);
-        idt[super::SPURIOUS].set_handler_fn(apic::spurious);
+        idt[super::TIMER].set_handler(apic::timer);
+        idt[super::SPURIOUS].set_handler(apic::spurious);
 
-        idt
-    };
+        Self(idt)
+    }
+
+    pub(crate) fn load(&self) {
+        unsafe {
+            let pseudo_descriptor = DescriptorTablePointer {
+                base: Virt::from_ref(&self.0).into(),
+                limit: (mem::size_of_val(&self.0) - 1).try_into().expect("the IDT is too large"),
+            };
+            tables::lidt(&pseudo_descriptor);
+        }
+    }
+}
+
+lazy_static! {
+    pub(crate) static ref IDT: Idt = Idt::new();
+}
+
+pub(super) type TrapContext = ModeContext;
+
+type InterruptHandler = fn(TrapContext);
+
+#[derive(Clone, Copy)]
+struct IdtEntry(Entry<InterruptHandler>);
+
+impl IdtEntry {
+    const fn missing() -> Self {
+        Self(Entry::missing())
+    }
+
+    fn set_handler(
+        &mut self,
+        handler: extern "x86-interrupt" fn(TrapContext),
+    ) -> &mut EntryOptions {
+        unsafe { self.0.set_handler_addr(VirtAddr::from_ptr(handler as *const ())) }
+    }
+
+    fn set_handler_with_error(
+        &mut self,
+        handler: extern "x86-interrupt" fn(TrapContext, u64),
+    ) -> &mut EntryOptions {
+        unsafe { self.0.set_handler_addr(VirtAddr::from_ptr(handler as *const ())) }
+    }
 }

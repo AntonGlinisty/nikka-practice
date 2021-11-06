@@ -1,14 +1,15 @@
-use x86_64::structures::idt::InterruptStackFrame;
-
 use crate::smp::LocalApic;
 
-use super::TRAP_STATS;
+use super::{
+    TRAP_STATS,
+    TrapContext,
+};
 
-pub(super) extern "x86-interrupt" fn timer(_stack_frame: InterruptStackFrame) {
+pub(super) extern "x86-interrupt" fn timer(_context: TrapContext) {
     generic_apic_interrupt(super::TIMER);
 }
 
-pub(super) extern "x86-interrupt" fn spurious(_stack_frame: InterruptStackFrame) {
+pub(super) extern "x86-interrupt" fn spurious(_context: TrapContext) {
     generic_apic_interrupt(super::SPURIOUS);
 }
 

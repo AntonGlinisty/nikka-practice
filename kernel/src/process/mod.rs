@@ -40,6 +40,8 @@ pub use pid::Pid;
 pub use process::Process;
 pub use table::Table;
 
+pub(crate) use registers::ModeContext;
+
 pub fn init() {
     syscall::init();
 

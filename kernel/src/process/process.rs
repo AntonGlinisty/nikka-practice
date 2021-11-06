@@ -5,7 +5,6 @@ use spin::MutexGuard;
 use ku::ProcessInfo;
 
 use crate::{
-    gdt::Gdt,
     memory::{
         AddressSpace,
         Virt,
@@ -39,13 +38,7 @@ impl Process {
             address_space,
             info,
             pid: Pid::Current,
-            registers: Registers::new(
-                Gdt::user_code(),
-                Gdt::user_data(),
-                rip,
-                rsp,
-                info.into_usize(),
-            ),
+            registers: Registers::new(rip, rsp, info.into_usize()),
         }
     }
 
