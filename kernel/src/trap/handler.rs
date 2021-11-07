@@ -66,6 +66,8 @@ fn generic_trap(
     info: Info,
     fatal: Fatal,
 ) {
+    let context = context.get();
+
     TRAP_STATS[exception_number].inc();
 
     if let Ok(pid) = Cpu::current_process() {

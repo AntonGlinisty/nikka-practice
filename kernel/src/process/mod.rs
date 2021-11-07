@@ -100,3 +100,7 @@ fn map_system_info(address_space: &mut AddressSpace) -> Result<*const SystemInfo
 
     system_info_page.address().try_into_ptr()
 }
+
+pub mod test_scaffolding {
+    pub use super::process::test_scaffolding::*;
+}

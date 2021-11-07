@@ -217,6 +217,7 @@ dependencies = [
  "text",
  "tracing",
  "tracing-core",
+ "volatile",
  "x86",
  "x86_64",
  "xmas-elf",

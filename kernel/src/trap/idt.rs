@@ -16,17 +16,15 @@ use x86_64::{
     },
 };
 
-use crate::{
-    memory::{
-        DOUBLE_FAULT_IST_INDEX,
-        PAGE_FAULT_IST_INDEX,
-        Virt,
-    },
-    process::ModeContext,
+use crate::memory::{
+    DOUBLE_FAULT_IST_INDEX,
+    PAGE_FAULT_IST_INDEX,
+    Virt,
 };
 
 use super::{
     COUNT,
+    TrapContext,
     apic,
     handler,
     pic,
@@ -105,8 +103,6 @@ impl Idt {
 lazy_static! {
     pub(crate) static ref IDT: Idt = Idt::new();
 }
-
-pub(super) type TrapContext = ModeContext;
 
 type InterruptHandler = fn(TrapContext);
 

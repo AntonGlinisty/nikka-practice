@@ -27,7 +27,10 @@ use crate::{
         Stack,
         Virt,
     },
-    process::Pid,
+    process::{
+        ModeContext,
+        Pid,
+    },
 };
 
 use super::{
@@ -67,6 +70,7 @@ pub(crate) struct Cpu {
     launch_escape_stack: &'static Stack,
     this: Virt,
     tss: TaskStateSegment,
+    user_context: Option<ModeContext>,
 }
 
 impl Cpu {
@@ -79,6 +83,7 @@ impl Cpu {
             launch_escape_stack: &stacks[1],
             this: Virt::zero(),
             tss: TaskStateSegment::new(),
+            user_context: None,
         };
 
         // A double fault means there is an error in the kernel.
@@ -100,6 +105,23 @@ impl Cpu {
     pub(crate) fn set_current_process(process: Option<Pid>) {
         let cpu = unsafe { Self::get() };
         cpu.current_process = process;
+    }
+
+    pub(crate) fn kernel_context() -> ModeContext {
+        let cpu = unsafe { Self::get() };
+        ModeContext::kernel_context(
+            cpu.tss.privilege_stack_table[PrivilegeLevel::Ring0 as usize].into(),
+        )
+    }
+
+    pub(crate) fn set_user_context(user_context: ModeContext) {
+        let cpu = unsafe { Self::get() };
+        cpu.user_context = Some(user_context);
+    }
+
+    pub(crate) fn take_user_context() -> Option<ModeContext> {
+        let cpu = unsafe { Self::get() };
+        cpu.user_context.take()
     }
 
     pub(super) fn kernel_stack(&self) -> &'static Stack {

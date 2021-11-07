@@ -3,12 +3,13 @@ mod handler;
 mod idt;
 mod pic;
 mod stats;
+mod trap_context;
 
 use x86_64::instructions::interrupts;
 
 use crate::log::info;
 
-use self::idt::TrapContext;
+use self::trap_context::TrapContext;
 
 pub(crate) use self::idt::IDT;
 

@@ -8,6 +8,7 @@ use ku::{
 };
 
 use crate::{
+    log::info,
     memory::{
         AddressSpace,
         Virt,
@@ -17,6 +18,7 @@ use crate::{
 
 use super::{
     Pid,
+    Table,
     registers::Registers,
 };
 
@@ -79,12 +81,14 @@ impl Process {
         }
     }
 
-    pub fn enter_user_mode(process: MutexGuard<Process>) {
+    pub fn enter_user_mode(mut process: MutexGuard<Process>) {
+        let pid = process.pid;
+
         process.address_space.switch_to();
 
-        Cpu::set_current_process(Some(process.pid));
+        Cpu::set_current_process(Some(pid));
 
-        let registers = &process.registers as *const Registers;
+        let registers = &mut process.registers as *mut Registers;
 
         drop(process);
 
@@ -93,6 +97,8 @@ impl Process {
         }
 
         Cpu::set_current_process(None);
+
+        // TODO: your code here.
     }
 
     /// Switches into the kernel context in which `enter_user_mode()` was called.
@@ -102,6 +108,14 @@ impl Process {
             assert!(Cpu::current_process().is_ok());
 
             Registers::switch_from();
+        }
+    }
+
+    pub(crate) extern "C" fn sched_yield() -> ! {
+        unsafe {
+            assert!(Cpu::current_process().is_ok());
+
+            Registers::sched_yield();
         }
     }
 }
@@ -118,5 +132,20 @@ impl fmt::Display for Process {
             self.address_space,
             self.registers.mini_context(),
         )
+    }
+}
+
+pub(super) mod test_scaffolding {
+    use super::{
+        super::registers::test_scaffolding,
+        Process,
+    };
+
+    pub fn disable_interrupts(process: &mut Process) {
+        test_scaffolding::disable_interrupts(&mut process.registers);
+    }
+
+    pub fn registers(process: &Process) -> [usize; 15] {
+        test_scaffolding::registers(&process.registers)
     }
 }

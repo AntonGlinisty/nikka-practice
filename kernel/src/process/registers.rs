@@ -1,4 +1,7 @@
-use core::fmt;
+use core::{
+    fmt,
+    mem,
+};
 
 use x86_64::structures::gdt::SegmentSelector;
 
@@ -13,7 +16,10 @@ use crate::{
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub(crate) struct Registers {
+    rax: usize,
+    gpr1: [usize; 3],
     rdi: usize,
+    gpr2: [usize; 10],
     user_context: ModeContext,
 }
 
@@ -25,7 +31,10 @@ impl Registers {
         Self {
             // https://wiki.osdev.org/System_V_ABI#x86-64:
             // Parameters to functions are passed in the registers rdi, rsi, rdx, rcx, r8, r9, and further values are passed on the stack in reverse order.
+            rax: 0,
+            gpr1: [0; 3],
             rdi: arg0,
+            gpr2: [0; 10],
             user_context: ModeContext::user_context(context),
         }
     }
@@ -41,16 +50,25 @@ impl Registers {
         self.user_context.set_mini_context(context);
     }
 
+    pub(super) fn set_mode_context(
+        &mut self,
+        context: ModeContext,
+    ) {
+        self.user_context = context;
+    }
+
     #[allow(named_asm_labels)]
     #[inline(never)] // For the named label to be a unique link symbol.
-    pub(super) unsafe fn switch_to(registers: *const Registers) {
+    pub(super) unsafe fn switch_to(registers: *mut Registers) {
         asm!(
             "
             // TODO: your code here.
 
-            // Load the user space context and switch into the user space.
-            pop rdi
             iretq
+
+        store_user_mode_context:
+
+            // TODO: your code here.
 
         switch_to_kernel_mode:
 
@@ -62,8 +80,13 @@ impl Registers {
     }
 
     #[naked]
-    pub(super) unsafe extern "C" fn switch_from() -> ! {
+    pub(super) unsafe extern "C" fn sched_yield() -> ! {
         asm!("jmp switch_to_kernel_mode", options(noreturn));
+    }
+
+    #[naked]
+    pub(super) unsafe extern "C" fn switch_from() -> ! {
+        asm!("jmp store_user_mode_context", options(noreturn));
     }
 }
 
@@ -100,6 +123,15 @@ impl ModeContext {
             Gdt::user_code(),
             Gdt::user_data(),
             context,
+            RFlags::INTERRUPT_FLAG,
+        )
+    }
+
+    pub(crate) fn kernel_context(rsp: Virt) -> Self {
+        Self::new(
+            Gdt::kernel_code(),
+            Gdt::kernel_data(),
+            MiniContext::new(Virt::from_ptr(Registers::switch_from as *const ()), rsp),
             RFlags::INTERRUPT_FLAG,
         )
     }
@@ -207,5 +239,26 @@ impl fmt::Display for RFlags {
         }
 
         Ok(())
+    }
+}
+
+pub(super) mod test_scaffolding {
+    use super::{
+        RFlags,
+        Registers,
+    };
+
+    pub(in super::super) fn disable_interrupts(registers: &mut Registers) {
+        registers.user_context.rflags =
+            RFlags(registers.user_context.rflags.0 & !RFlags::INTERRUPT_FLAG.0);
+    }
+
+    pub(in super::super) fn registers(registers: &Registers) -> [usize; 15] {
+        let mut result = [0; 15];
+        result[0] = registers.rax;
+        result[1 .. 4].copy_from_slice(&registers.gpr1);
+        result[4] = registers.rdi;
+        result[5 .. 15].copy_from_slice(&registers.gpr2);
+        result
     }
 }

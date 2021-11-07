@@ -16,6 +16,7 @@ use kernel::{
         Pid,
         Process,
         Table,
+        test_scaffolding,
     },
     trap::{
         INVALID_OPCODE,
@@ -25,6 +26,13 @@ use kernel::{
 };
 
 use crate::forbid_frame_leaks;
+
+const EXIT_ELF: &[u8] = include_bytes!("../../../user/exit/target/kernel/debug/exit");
+const LOOP_ELF: &[u8] = include_bytes!("../../../user/loop/target/kernel/debug/loop");
+const PAGE_FAULT_ELF: &[u8] =
+    include_bytes!("../../../user/page_fault/target/kernel/debug/page_fault");
+const SCHED_YIELD_ELF: &[u8] =
+    include_bytes!("../../../user/sched_yield/target/kernel/debug/sched_yield");
 
 fn make_process(
     name: &'static str,
@@ -73,11 +81,7 @@ fn free_process(pid: Pid) {
 fn create_process() {
     forbid_frame_leaks!();
 
-    let pid = make_process(
-        "loop",
-        include_bytes!("../../../user/loop/target/kernel/debug/loop"),
-    )
-    .pid();
+    let pid = make_process("loop", LOOP_ELF).pid();
 
     free_process(pid);
 }
@@ -97,11 +101,10 @@ fn create_process_failure() {
 fn syscall_exit() {
     forbid_frame_leaks!();
 
-    let process = make_process(
-        "exit",
-        include_bytes!("../../../user/exit/target/kernel/debug/exit"),
-    );
+    let mut process = make_process("exit", EXIT_ELF);
     let pid = process.pid();
+
+    test_scaffolding::disable_interrupts(&mut process);
 
     Process::enter_user_mode(process);
 
@@ -123,16 +126,19 @@ fn syscall_exit() {
 fn syscall_sched_yield() {
     forbid_frame_leaks!();
 
-    let process = make_process(
-        "sched_yield",
-        include_bytes!("../../../user/sched_yield/target/kernel/debug/sched_yield"),
-    );
+    let mut process = make_process("sched_yield", SCHED_YIELD_ELF);
     let pid = process.pid();
+
+    test_scaffolding::disable_interrupts(&mut process);
 
     Process::enter_user_mode(process);
 
     for _ in 0 .. 2 {
         let process = Table::get(pid).expect("failed to find the new process in the process table");
+
+        let user_registers = test_scaffolding::registers(&process);
+        debug!(?user_registers, "returned from the user space");
+
         Process::enter_user_mode(process);
     }
 
@@ -143,11 +149,10 @@ fn syscall_sched_yield() {
 fn user_mode_page_fault() {
     forbid_frame_leaks!();
 
-    let process = make_process(
-        "page_fault",
-        include_bytes!("../../../user/page_fault/target/kernel/debug/page_fault"),
-    );
+    let mut process = make_process("page_fault", PAGE_FAULT_ELF);
     let pid = process.pid();
+
+    test_scaffolding::disable_interrupts(&mut process);
 
     assert_eq!(TRAP_STATS[PAGE_FAULT].count(), 0);
 
@@ -160,4 +165,33 @@ fn user_mode_page_fault() {
     );
 
     Table::get(pid).expect_err("the page fault handler has not freed the process slot");
+}
+
+#[test_case]
+fn preemption() {
+    forbid_frame_leaks!();
+
+    let pid = make_process("loop", LOOP_ELF).pid();
+
+    for _ in 0 .. 2 {
+        let process = Table::get(pid).expect("failed to find the new process in the process table");
+        Process::enter_user_mode(process);
+    }
+
+    // If this does not happen and the test times out, the preemption is not working properly.
+    debug!("returned from the user space");
+
+    {
+        let process = Table::get(pid).expect("failed to find the new process in the process table");
+
+        let user_registers = test_scaffolding::registers(&process);
+
+        debug!(?user_registers);
+
+        for i in 0 .. user_registers.len() {
+            assert_eq!(user_registers[i], 77701 + i);
+        }
+    }
+
+    free_process(pid);
 }

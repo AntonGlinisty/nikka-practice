@@ -24,6 +24,7 @@ spin = "*"
 static_assertions = "*"
 tracing = { git = "https://github.com/tokio-rs/tracing", version = "*", default-features = false }
 tracing-core = { git = "https://github.com/tokio-rs/tracing", version = "*", default-features = false }
+volatile = "*"
 x86 = "*"
 x86_64 = "*"
 xmas-elf = "*"

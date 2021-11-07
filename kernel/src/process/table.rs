@@ -30,6 +30,7 @@ use super::{
     Process,
 };
 
+#[allow(clippy::large_enum_variant)]
 enum Slot {
     Free {
         pid: Pid,
