@@ -3,6 +3,7 @@ mod pid;
 #[allow(clippy::module_inception)]
 mod process;
 mod registers;
+mod scheduler;
 mod syscall;
 mod table;
 
@@ -39,6 +40,7 @@ use table::TABLE;
 
 pub use pid::Pid;
 pub use process::Process;
+pub use scheduler::Scheduler;
 pub use table::Table;
 
 pub(crate) use registers::ModeContext;
@@ -48,6 +50,8 @@ pub fn init() {
 
     const PROCESS_SLOT_COUNT: usize = 1 << 10;
     *TABLE.lock() = Table::new(PROCESS_SLOT_COUNT);
+
+    Scheduler::init(PROCESS_SLOT_COUNT);
 }
 
 pub fn create(
@@ -102,5 +106,8 @@ fn map_system_info(address_space: &mut AddressSpace) -> Result<*const SystemInfo
 }
 
 pub mod test_scaffolding {
-    pub use super::process::test_scaffolding::*;
+    pub use super::{
+        process::test_scaffolding::*,
+        scheduler::test_scaffolding::*,
+    };
 }

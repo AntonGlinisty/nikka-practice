@@ -15,6 +15,7 @@ use kernel::{
         self,
         Pid,
         Process,
+        Scheduler,
         Table,
         test_scaffolding,
     },
@@ -194,4 +195,19 @@ fn preemption() {
     }
 
     free_process(pid);
+}
+
+#[test_case]
+fn scheduler() {
+    let exit_pid = make_process("exit", EXIT_ELF).pid();
+    let page_fault_pid = make_process("page_fault", PAGE_FAULT_ELF).pid();
+
+    Scheduler::enqueue(exit_pid);
+    Scheduler::enqueue(page_fault_pid);
+
+    while Scheduler::run_one() {}
+
+    Table::get(exit_pid).expect_err("the 'exit' process was not run up to its completion");
+    Table::get(page_fault_pid)
+        .expect_err("the 'page_fault' process was not run up to its completion");
 }

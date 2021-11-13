@@ -22,12 +22,19 @@ use super::{
     registers::Registers,
 };
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum State {
+    Runnable,
+    Running,
+}
+
 #[derive(Debug)]
 pub struct Process {
     address_space: AddressSpace,
     info: Virt,
     pid: Pid,
     registers: Registers,
+    state: State,
 }
 
 impl Process {
@@ -43,6 +50,7 @@ impl Process {
             info,
             pid: Pid::Current,
             registers: Registers::new(context, info.into_usize()),
+            state: State::Runnable,
         }
     }
 
@@ -81,7 +89,7 @@ impl Process {
         }
     }
 
-    pub fn enter_user_mode(mut process: MutexGuard<Process>) {
+    pub fn enter_user_mode(mut process: MutexGuard<Process>) -> bool {
         let pid = process.pid;
 
         process.address_space.switch_to();
@@ -89,6 +97,8 @@ impl Process {
         Cpu::set_current_process(Some(pid));
 
         let registers = &mut process.registers as *mut Registers;
+
+        process.state = State::Running;
 
         drop(process);
 
@@ -99,6 +109,7 @@ impl Process {
         Cpu::set_current_process(None);
 
         // TODO: your code here.
+        false // TODO: remove before flight.
     }
 
     /// Switches into the kernel context in which `enter_user_mode()` was called.

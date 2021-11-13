@@ -42,6 +42,7 @@ use crate::{
         phys2virt,
         size,
     },
+    process::Scheduler,
     time,
     trap::IDT,
 };
@@ -263,7 +264,7 @@ extern "C" fn ap_kernel_main(
 
     info!(cpu = LocalApic::id(), "report for duty");
 
-    crate::halt();
+    Scheduler::run();
 }
 
 fn copy_switch_mode_code(boot_code_address: Virt) -> Result<()> {
