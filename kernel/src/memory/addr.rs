@@ -15,7 +15,12 @@ use static_assertions::const_assert_eq;
 use x86_64::addr::VirtAddr;
 
 use crate::error::{
-    Error::InvalidArgument,
+    Error::{
+        InvalidAlignment,
+        InvalidArgument,
+        Null,
+        Overflow,
+    },
     Result,
 };
 
@@ -71,7 +76,7 @@ impl<T: Tag> Add<usize> for Addr<T> {
         self,
         rhs: usize,
     ) -> Self::Output {
-        self.0.checked_add(rhs).ok_or(InvalidArgument).and_then(Self::new)
+        self.0.checked_add(rhs).ok_or(Overflow).and_then(Self::new)
     }
 }
 
@@ -82,7 +87,7 @@ impl<T: Tag> Sub<usize> for Addr<T> {
         self,
         rhs: usize,
     ) -> Self::Output {
-        self.0.checked_sub(rhs).ok_or(InvalidArgument).and_then(Self::new)
+        self.0.checked_sub(rhs).ok_or(Overflow).and_then(Self::new)
     }
 }
 
@@ -215,7 +220,7 @@ impl Virt {
         if self.0 % mem::align_of::<T>() == 0 {
             Ok(self.0 as *const T)
         } else {
-            Err(InvalidArgument)
+            Err(InvalidAlignment)
         }
     }
 
@@ -224,14 +229,14 @@ impl Virt {
         if self.0 % mem::align_of::<T>() == 0 {
             Ok(self.0 as *mut T)
         } else {
-            Err(InvalidArgument)
+            Err(InvalidAlignment)
         }
     }
 
     pub unsafe fn try_into_ref<'a, T>(self) -> Result<&'a T> {
         let ptr = self.try_into_ptr::<T>()?;
         if ptr.is_null() {
-            Err(InvalidArgument)
+            Err(Null)
         } else {
             Ok(&*ptr)
         }
@@ -240,7 +245,7 @@ impl Virt {
     pub unsafe fn try_into_mut<'a, T>(self) -> Result<&'a mut T> {
         let ptr = self.try_into_mut_ptr::<T>()?;
         if ptr.is_null() {
-            Err(InvalidArgument)
+            Err(Null)
         } else {
             Ok(&mut *ptr)
         }
@@ -252,7 +257,7 @@ impl Virt {
     ) -> Result<&'a mut [T]> {
         let ptr = self.try_into_mut_ptr::<T>()?;
         if ptr.is_null() {
-            Err(InvalidArgument)
+            Err(Null)
         } else {
             Ok(slice::from_raw_parts_mut(ptr, len))
         }
