@@ -76,7 +76,13 @@ impl<T: Tag> Add<usize> for Addr<T> {
         self,
         rhs: usize,
     ) -> Self::Output {
-        self.0.checked_add(rhs).ok_or(Overflow).and_then(Self::new)
+        self.0.checked_add(rhs).ok_or(Overflow).and_then(Self::new).and_then(|addr| {
+            if T::is_same_half(self, addr) {
+                Ok(addr)
+            } else {
+                Err(Overflow)
+            }
+        })
     }
 }
 
@@ -87,7 +93,13 @@ impl<T: Tag> Sub<usize> for Addr<T> {
         self,
         rhs: usize,
     ) -> Self::Output {
-        self.0.checked_sub(rhs).ok_or(Overflow).and_then(Self::new)
+        self.0.checked_sub(rhs).ok_or(Overflow).and_then(Self::new).and_then(|addr| {
+            if T::is_same_half(self, addr) {
+                Ok(addr)
+            } else {
+                Err(Overflow)
+            }
+        })
     }
 }
 
@@ -130,6 +142,11 @@ impl<T: Tag> fmt::Display for Addr<T> {
 pub trait Tag: Clone + Copy + Eq + Ord {
     fn new(addr: usize) -> Result<Addr<Self>>;
 
+    fn is_same_half(
+        x: Addr<Self>,
+        y: Addr<Self>,
+    ) -> bool;
+
     const ADDR_NAME: &'static str;
     const FRAGE_NAME: &'static str;
     const HEX_PREFIX: &'static str;
@@ -143,6 +160,13 @@ impl Tag for PhysTag {
         Phys::new_impl(addr)
     }
 
+    fn is_same_half(
+        _x: Phys,
+        _y: Phys,
+    ) -> bool {
+        true
+    }
+
     const ADDR_NAME: &'static str = "Phys";
     const FRAGE_NAME: &'static str = "Frame";
     const HEX_PREFIX: &'static str = "0p";
@@ -154,6 +178,13 @@ pub struct VirtTag;
 impl Tag for VirtTag {
     fn new(addr: usize) -> Result<Virt> {
         Virt::new_impl(addr)
+    }
+
+    fn is_same_half(
+        x: Virt,
+        y: Virt,
+    ) -> bool {
+        x.is_higher_half() == y.is_higher_half()
     }
 
     const ADDR_NAME: &'static str = "Virt";
@@ -182,16 +213,15 @@ impl Phys {
 
 impl Virt {
     fn new_impl(addr: usize) -> Result<Self> {
-        let zeros = addr.leading_zeros();
-        if zeros > Self::UNUSED_BITS {
-            Ok(Self(addr, PhantomData))
-        } else if zeros == Self::UNUSED_BITS {
-            Ok(Self(addr | Self::NEGATIVE_SIGN_EXTEND, PhantomData))
-        } else if zeros == 0 && addr & Self::NEGATIVE_SIGN_EXTEND == Self::NEGATIVE_SIGN_EXTEND {
+        if addr.leading_zeros() > Self::UNUSED_BITS || addr.leading_ones() > Self::UNUSED_BITS {
             Ok(Self(addr, PhantomData))
         } else {
             Err(InvalidArgument)
         }
+    }
+
+    pub fn is_higher_half(&self) -> bool {
+        self.into_usize() >> Self::BITS != 0
     }
 
     pub fn from_ptr<T: ?Sized>(ptr: *const T) -> Self {
@@ -264,7 +294,6 @@ impl Virt {
     }
 
     const BITS: u32 = PAGE_TABLE_INDEX_BITS * (PAGE_TABLE_ROOT_LEVEL + 1) + PAGE_OFFSET_BITS;
-    const NEGATIVE_SIGN_EXTEND: usize = !0 << Self::BITS;
     const UNUSED_BITS: u32 = usize::BITS - Self::BITS;
 }
 
@@ -282,4 +311,46 @@ impl From<Virt> for VirtAddr {
 
 impl<T: Tag> SizeOf for Addr<T> {
     const SIZE_OF: usize = 1;
+}
+
+#[cfg(test)]
+mod test {
+    use super::{
+        Tag,
+        Virt,
+        VirtTag,
+    };
+
+    #[test]
+    fn two_separate_halves_of_virt() {
+        let lower_half_first = Virt::new(0).unwrap();
+        let lower_half_last = Virt::new(0x0000_7FFF_FFFF_FFFF).unwrap();
+        let higher_half_first = Virt::new(0xFFFF_8000_0000_0000).unwrap();
+        let higher_half_last = Virt::new(0xFFFF_FFFF_FFFF_FFFF).unwrap();
+
+        assert!(VirtTag::is_same_half(lower_half_first, lower_half_last));
+        assert!(VirtTag::is_same_half(higher_half_first, higher_half_last));
+        assert!(!VirtTag::is_same_half(lower_half_first, higher_half_first));
+        assert!(!VirtTag::is_same_half(lower_half_first, higher_half_last));
+        assert!(!VirtTag::is_same_half(lower_half_last, higher_half_first));
+        assert!(!VirtTag::is_same_half(lower_half_last, higher_half_last));
+
+        assert!(
+            (lower_half_last + (higher_half_first.into_usize() - lower_half_last.into_usize()))
+                .is_err()
+        );
+
+        for shift in [0, 1, 2, 10, 20, 30, 40, 50, 63] {
+            let mut delta = (1usize << shift).wrapping_sub(0x10);
+            for _ in 0 ..= 0x20 {
+                if delta != 0 {
+                    assert!((lower_half_first - delta).is_err());
+                    assert!((lower_half_last + delta).is_err());
+                    assert!((higher_half_first - delta).is_err());
+                    assert!((higher_half_last + delta).is_err());
+                }
+                delta = delta.wrapping_add(1);
+            }
+        }
+    }
 }
