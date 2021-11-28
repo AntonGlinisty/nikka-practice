@@ -108,8 +108,8 @@ impl LocalApic {
         boot_address: Phys,
     ) -> Result<()> {
         const MAX_BOOT_PAGE: u32 = 0xFF;
-        let boot_page = size::try_into_u32(Frame::index_by_address(boot_address))?;
-        if boot_address.into_usize() % Page::SIZE != 0 || boot_page > MAX_BOOT_PAGE {
+        let boot_page = size::try_into_u32(Frame::new(boot_address)?.index())?;
+        if boot_page > MAX_BOOT_PAGE {
             return Err(InvalidArgument);
         }
 

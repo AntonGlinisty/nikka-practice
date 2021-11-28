@@ -11,7 +11,7 @@ use spin::Mutex;
 
 use crate::{
     error::{
-        Error::InvalidArgument,
+        Error::InvalidAlignment,
         Result,
     },
     log::{
@@ -177,7 +177,7 @@ impl AddressSpace {
                 page_size = Page::SIZE,
                 "can not handle alignments greater than the page size",
             );
-            return Err(InvalidArgument);
+            return Err(InvalidAlignment);
         }
 
         let block = self.page_allocator.allocate(len * mem::size_of::<T>())?;
@@ -186,7 +186,7 @@ impl AddressSpace {
             self.map_block(block, flags)?;
         }
 
-        let addr = Page::address_by_index(block.start());
+        let addr = Page::address_by_index(block.start())?;
         let len = block.size() / mem::size_of::<T>();
         let slice = unsafe { addr.try_into_mut_slice(len)? };
 
@@ -234,20 +234,10 @@ impl AddressSpace {
         slice: &mut [T],
     ) -> Result<()> {
         let ptr_range = slice.as_ptr_range();
-        let start = Virt::from_ptr(ptr_range.start).into_usize();
-        let end = Virt::from_ptr(ptr_range.end).into_usize();
+        let start = Page::new(Virt::from_ptr(ptr_range.start))?;
+        let end = Page::new(Virt::from_ptr(ptr_range.end))?;
 
-        if start % Page::SIZE != 0 || end % Page::SIZE != 0 {
-            warn!(
-                start,
-                end,
-                page_size = Page::SIZE,
-                "can not unmap slice that does not start and end on page boundary",
-            );
-            return Err(InvalidArgument);
-        }
-
-        let block = Block::<Page>::new(start / Page::SIZE, end / Page::SIZE);
+        let block = Block::<Page>::new(start.index(), end.index());
         let page_count = block.count();
 
         for element in slice.iter_mut() {
@@ -257,7 +247,7 @@ impl AddressSpace {
         self.unmap_block(block)?;
 
         trace!(
-            addr = %Virt::new(start)?,
+            addr = %start.address(),
             page_count,
             slice = format_args!("[{}; {}]", any::type_name::<T>(), slice.len()),
             "unmapped a slice",

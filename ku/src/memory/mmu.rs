@@ -37,7 +37,7 @@ impl PageTableEntry {
 
     pub fn frame(&self) -> Result<Frame> {
         if self.is_present() {
-            Ok(Frame::new(self.phys()))
+            Ok(Frame::new(self.phys()).unwrap())
         } else {
             Err(NoFrame)
         }

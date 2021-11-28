@@ -94,7 +94,7 @@ fn prepare_boot_code(
         arch::x86_64::_mm_mfence();
     }
 
-    Ok(Frame::new(boot_code))
+    Ok(Frame::new(boot_code).expect("boot code should be aligned on frame boundary"))
 }
 
 const BOOT_CODE: usize = 7 * Page::SIZE;

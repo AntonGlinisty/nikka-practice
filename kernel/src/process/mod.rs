@@ -94,7 +94,7 @@ fn map_system_info(address_space: &mut AddressSpace) -> Result<*const SystemInfo
         .translate(Virt::from_ref(&SYSTEM_INFO), None, PageTableFlags::empty())?
         .frame()?;
     let system_info_page =
-        Page::from_index(address_space.allocate(mem::size_of_val(&SYSTEM_INFO))?.start());
+        Page::from_index(address_space.allocate(mem::size_of_val(&SYSTEM_INFO))?.start())?;
 
     FRAME_ALLOCATOR.lock().reference(system_info_frame);
 

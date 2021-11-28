@@ -2,19 +2,17 @@ use core::alloc::Layout;
 
 use crate::{
     error::{
-        Error::InvalidArgument,
+        Error::InvalidAlignment,
         Result,
     },
-    log::{
-        error,
-        warn,
-    },
+    log::warn,
     memory::{
         BASE_ADDRESS_SPACE,
         Block,
         KERNEL_RW,
         Page,
         SizeOf,
+        Virt,
     },
 };
 

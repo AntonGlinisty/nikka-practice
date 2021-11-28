@@ -175,7 +175,7 @@ impl<T: Tag> Iterator for IntoIter<Frage<T>> {
     type Item = Frage<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(Frage::from_index)
+        self.0.next().and_then(|index| Frage::from_index(index).ok())
     }
 }
 
