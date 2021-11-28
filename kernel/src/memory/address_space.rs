@@ -186,7 +186,7 @@ impl AddressSpace {
             self.map_block(block, flags)?;
         }
 
-        let addr = Page::address_by_index(block.start())?;
+        let addr = block.start_address();
         let len = block.size() / mem::size_of::<T>();
         let slice = unsafe { addr.try_into_mut_slice(len)? };
 
@@ -237,7 +237,7 @@ impl AddressSpace {
         let start = Page::new(Virt::from_ptr(ptr_range.start))?;
         let end = Page::new(Virt::from_ptr(ptr_range.end))?;
 
-        let block = Block::<Page>::new(start.index(), end.index());
+        let block = Block::new(start, end)?;
         let page_count = block.count();
 
         for element in slice.iter_mut() {

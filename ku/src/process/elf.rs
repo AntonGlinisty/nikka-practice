@@ -21,7 +21,6 @@ use crate::{
     memory::{
         AddressSpace,
         Block,
-        Page,
         Virt,
         mmu::PageTableFlags,
         size,

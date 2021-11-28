@@ -52,14 +52,14 @@ impl BootFrameAllocator {
         &self,
         frame: Frame,
     ) -> bool {
-        self.initial_block.contains(frame.index())
+        self.initial_block.contains(frame)
     }
 
     pub(super) fn is_used(
         &self,
         frame: Frame,
     ) -> bool {
-        self.is_managed(frame) && !self.block.contains(frame.index())
+        self.is_managed(frame) && !self.block.contains(frame)
     }
 }
 

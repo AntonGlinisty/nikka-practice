@@ -20,11 +20,15 @@ use ku::{
 
 use crate::{
     SYSTEM_INFO,
-    error::Result,
+    error::{
+        Error::NoPage,
+        Result,
+    },
     log::info,
     memory::{
         AddressSpace,
         BASE_ADDRESS_SPACE,
+        Block,
         FRAME_ALLOCATOR,
         Page,
         Size,
@@ -93,8 +97,11 @@ fn map_system_info(address_space: &mut AddressSpace) -> Result<*const SystemInfo
         .mapping()
         .translate(Virt::from_ref(&SYSTEM_INFO), None, PageTableFlags::empty())?
         .frame()?;
-    let system_info_page =
-        Page::from_index(address_space.allocate(mem::size_of_val(&SYSTEM_INFO))?.start())?;
+    let system_info_page = address_space
+        .allocate(mem::size_of_val(&SYSTEM_INFO))?
+        .into_iter()
+        .next()
+        .ok_or(NoPage)?;
 
     FRAME_ALLOCATOR.lock().reference(system_info_frame);
 

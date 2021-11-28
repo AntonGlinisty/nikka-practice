@@ -36,5 +36,5 @@ pub(super) fn physical(memory_map: &MemoryMap) -> Block<Frame> {
         "available memory",
     );
 
-    Block::new_u64(0, total_frame_count)
+    Block::from_index_u64(0, total_frame_count).expect("invalid memory map from bootloader")
 }

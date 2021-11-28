@@ -38,7 +38,7 @@ impl MiniContext {
         let old_rsp = self.rsp;
         self.rsp = (old_rsp - mem::size_of::<T>())?;
 
-        Ok(Block::new(self.rsp.into_usize(), old_rsp.into_usize()))
+        Block::new(self.rsp, old_rsp)
     }
 }
 

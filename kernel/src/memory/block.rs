@@ -26,31 +26,50 @@ use super::{
     },
 };
 
-#[derive(Clone, Copy)]
-pub struct Block<T: SizeOf> {
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub struct Block<T: Memory> {
     start: usize,
     end: usize,
     tag: PhantomData<T>,
 }
 
-impl<T: SizeOf> Block<T> {
-    pub const fn new(
+impl<T: Memory> Block<T> {
+    pub fn new(
+        start: T,
+        end: T,
+    ) -> Result<Self> {
+        Self::from_index(T::index(start), T::index(end))
+    }
+
+    pub fn from_index(
         start: usize,
         end: usize,
-    ) -> Self {
-        assert!(start <= end);
-        Self {
-            start,
-            end,
-            tag: PhantomData,
+    ) -> Result<Self> {
+        let start_address = T::address_by_index(start)?;
+        let last_address = T::address_by_index(
+            if start < end {
+                end - 1
+            } else {
+                end
+            },
+        )?;
+
+        if start <= end && T::is_same_half(start_address, last_address) {
+            Ok(Self {
+                start,
+                end,
+                tag: PhantomData,
+            })
+        } else {
+            Err(InvalidArgument)
         }
     }
 
-    pub const fn new_u64(
+    pub fn from_index_u64(
         start: u64,
         end: u64,
-    ) -> Self {
-        Self::new(size::into_usize(start), size::into_usize(end))
+    ) -> Result<Self> {
+        Self::from_index(size::from(start), size::from(end))
     }
 
     pub const fn zero() -> Self {
@@ -61,14 +80,6 @@ impl<T: SizeOf> Block<T> {
         }
     }
 
-    pub const fn start(&self) -> usize {
-        self.start
-    }
-
-    pub const fn end(&self) -> usize {
-        self.end
-    }
-
     pub const fn count(&self) -> usize {
         self.end - self.start
     }
@@ -77,11 +88,32 @@ impl<T: SizeOf> Block<T> {
         self.count() * T::SIZE_OF
     }
 
+    pub fn start_address(&self) -> T::Address {
+        T::address_by_index(self.start).unwrap()
+    }
+
+    pub fn end_address(&self) -> Result<T::Address> {
+        T::address_by_index(self.end)
+    }
+
     pub fn contains(
         &self,
-        element: usize,
+        element: T,
     ) -> bool {
-        (self.start .. self.end).contains(&element)
+        self.contains_address(T::address(element))
+    }
+
+    pub fn contains_address(
+        &self,
+        addr: T::Address,
+    ) -> bool {
+        if addr < self.start_address() {
+            false
+        } else if let Ok(end_address) = self.end_address() {
+            addr < end_address
+        } else {
+            true
+        }
     }
 
     pub fn tail(
@@ -94,41 +126,49 @@ impl<T: SizeOf> Block<T> {
 }
 
 impl<T: Tag> Block<Addr<T>> {
-    pub fn enclosing(&self) -> Result<Block<Frage<T>>> {
-        Ok(Block::new(
-            Frage::<T>::index_by_address(Addr::new(self.start())?),
-            if self.end() == 0 {
-                Frage::<T>::index_by_address(Addr::new(self.end())?)
-            } else {
-                Frage::<T>::index_by_address(Addr::new(self.end() - 1)?) + 1
-            },
-        ))
+    pub fn enclosing(&self) -> Block<Frage<T>> {
+        let start_frage = Frage::<T>::index_by_address(self.start_address());
+        let end_frage = if self.start == self.end {
+            start_frage
+        } else {
+            Frage::<T>::index_by_address((self.end_address().unwrap() - 1).unwrap()) + 1
+        };
+
+        Block::from_index(start_frage, end_frage).unwrap()
     }
 }
 
 impl Block<Virt> {
     pub fn from_slice<T>(x: &[T]) -> Self {
         let range = x.as_ptr_range();
-        return Self::new(
-            pointer_to_address(range.start),
-            pointer_to_address(range.end),
-        );
 
-        fn pointer_to_address<U>(ptr: *const U) -> usize {
-            Virt::from_ptr(ptr).into_usize()
+        Self::new(Virt::from_ptr(range.start), Virt::from_ptr(range.end)).unwrap()
+    }
+
+    pub unsafe fn try_into_mut<T>(self) -> Result<&'static mut T> {
+        if self.size() == mem::size_of::<T>() {
+            Virt::new(self.start)?.try_into_mut::<T>()
+        } else {
+            Err(InvalidArgument)
         }
     }
 
-    pub unsafe fn into_mut_slice<T>(self) -> Result<&'static mut [T]> {
+    pub unsafe fn try_into_mut_slice<T>(self) -> Result<&'static mut [T]> {
         if self.size() % mem::size_of::<T>() == 0 {
-            Virt::new(self.start())?.try_into_mut_slice::<T>(self.size() / mem::size_of::<T>())
+            Virt::new(self.start)?.try_into_mut_slice::<T>(self.size() / mem::size_of::<T>())
         } else {
             Err(InvalidArgument)
         }
     }
 }
 
-impl<T: SizeOf> fmt::Debug for Block<T> {
+impl<T: Tag> From<Block<Frage<T>>> for Block<Addr<T>> {
+    fn from(block: Block<Frage<T>>) -> Self {
+        Self::new(block.start_address(), block.end_address().unwrap()).unwrap()
+    }
+}
+
+impl<T: Memory> fmt::Debug for Block<T> {
     fn fmt(
         &self,
         formatter: &mut fmt::Formatter,
@@ -143,7 +183,7 @@ impl<T: SizeOf> fmt::Debug for Block<T> {
     }
 }
 
-impl<T: SizeOf> fmt::Display for Block<T> {
+impl<T: Memory> fmt::Display for Block<T> {
     fn fmt(
         &self,
         formatter: &mut fmt::Formatter,
@@ -179,19 +219,184 @@ impl<T: Tag> Iterator for IntoIter<Frage<T>> {
     }
 }
 
+pub trait Memory: Clone + Copy + SizeOf {
+    type Address: Ord;
+
+    fn address(element: Self) -> Self::Address;
+    fn address_by_index(index: usize) -> Result<Self::Address>;
+    fn index(element: Self) -> usize;
+    fn is_same_half(
+        x: Self::Address,
+        y: Self::Address,
+    ) -> bool;
+}
+
+impl<T: Tag> Memory for Addr<T> {
+    type Address = Addr<T>;
+
+    fn address(element: Self) -> Self::Address {
+        element
+    }
+
+    fn address_by_index(index: usize) -> Result<Self::Address> {
+        Self::new(index)
+    }
+
+    fn index(element: Self) -> usize {
+        element.into_usize()
+    }
+
+    fn is_same_half(
+        x: Self::Address,
+        y: Self::Address,
+    ) -> bool {
+        T::is_same_half(x, y)
+    }
+}
+
+impl<T: Tag> Memory for Frage<T> {
+    type Address = Addr<T>;
+
+    fn address(element: Self) -> Self::Address {
+        element.address()
+    }
+
+    fn address_by_index(index: usize) -> Result<Self::Address> {
+        Self::address_by_index(index)
+    }
+
+    fn index(element: Self) -> usize {
+        element.index()
+    }
+
+    fn is_same_half(
+        x: Self::Address,
+        y: Self::Address,
+    ) -> bool {
+        T::is_same_half(x, y)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::{
-        super::Frame,
+        super::{
+            Frame,
+            Page,
+            Phys,
+            Virt,
+        },
         Block,
     };
 
     #[test]
-    fn block() {
+    fn grow_forward() {
+        assert!(Block::<Phys>::from_index(0, 1).is_ok());
+        assert!(Block::<Phys>::from_index(1, 1).is_ok());
+        assert!(Block::<Phys>::from_index(1, 0).is_err());
+    }
+
+    #[test]
+    fn enforce_same_virt_half() {
+        let lower_half_last = 0x0000_7FFF_FFFF_FFFF;
+        assert!(Block::<Virt>::from_index(0, lower_half_last).is_ok());
+        assert!(Block::<Virt>::from_index(0, lower_half_last + 1).is_ok());
+
+        let inside_lower_half = Virt::new(lower_half_last / 2).unwrap();
+        let inside_higher_half = Virt::new(0xFFFF_FFFF_0000_0000).unwrap();
+        assert!(Block::new(inside_lower_half, inside_higher_half).is_err());
+
+        let lower_half_last =
+            Page::new(Virt::new(lower_half_last - (Page::SIZE - 1)).unwrap()).unwrap();
+        let inside_lower_half = Page::new(
+            Virt::new((lower_half_last.address().into_usize() + Page::SIZE) / 2).unwrap(),
+        )
+        .unwrap();
+        let inside_higher_half = Page::new(inside_higher_half).unwrap();
+        assert!(Block::<Page>::from_index(0, lower_half_last.index()).is_ok());
+        assert!(Block::<Page>::from_index(0, lower_half_last.index() + 1).is_ok());
+        assert!(Block::<Page>::from_index(0, lower_half_last.index() + 2).is_err());
+        assert!(Block::new(inside_lower_half, inside_higher_half).is_err());
+    }
+
+    #[test]
+    fn enclosing() {
+        let lower_half_first = 0x0;
+        let lower_half_last = 0x0000_7FFF_FFFF_FFFF;
+        let higher_half_first = 0xFFFF_8000_0000_0000;
+        let higher_half_last = 0xFFFF_FFFF_FFFF_FFFF;
+        let inside_lower_half = (lower_half_last / (2 * Page::SIZE)) * Page::SIZE;
+        let inside_higher_half = 0xFFFF_FFFF_0000_0000;
+
+        for base in [
+            lower_half_first,
+            higher_half_first,
+            inside_lower_half,
+            inside_higher_half,
+        ] {
+            for shift in [0, 1] {
+                let start_virt = base + shift;
+                let start_page = start_virt / Page::SIZE;
+                for (end_virt, end_page) in [
+                    (start_virt, start_page),
+                    (start_virt + 1, start_page + 1),
+                    (start_virt + (Page::SIZE - shift) - 1, start_page + 1),
+                    (start_virt + (Page::SIZE - shift), start_page + 1),
+                    (start_virt + (Page::SIZE - shift) + 1, start_page + 2),
+                ] {
+                    assert!(
+                        Block::<Virt>::from_index(start_virt, end_virt).unwrap().enclosing() ==
+                            Block::<Page>::from_index(start_page, end_page).unwrap(),
+                    );
+                }
+            }
+        }
+
+        for base in [
+            lower_half_first + 2 * Page::SIZE - 1,
+            lower_half_last,
+            higher_half_first + 2 * Page::SIZE - 1,
+            higher_half_last,
+        ] {
+            for shift in [0, 1] {
+                let end_virt = base - shift;
+                let end_page = end_virt / Page::SIZE + 1;
+                for (start_virt, start_page) in [
+                    (end_virt - 1, end_page - 1),
+                    (end_virt - (Page::SIZE - shift) + 1, end_page - 1),
+                    (end_virt - (Page::SIZE - shift), end_page - 2),
+                    (end_virt - (Page::SIZE - shift) - 1, end_page - 2),
+                ] {
+                    assert!(
+                        Block::<Virt>::from_index(start_virt, end_virt).unwrap().enclosing() ==
+                            Block::<Page>::from_index(start_page, end_page).unwrap(),
+                    );
+                }
+                assert!(
+                    Block::<Virt>::from_index(end_virt, end_virt).unwrap().enclosing() ==
+                        Block::<Page>::from_index(end_page - 1, end_page - 1).unwrap(),
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn bad_address() {
+        let phys_end = 1 << 52;
+        assert!(Block::<Phys>::from_index(phys_end - 1, phys_end).is_ok());
+        assert!(Block::<Phys>::from_index(phys_end, phys_end).is_err());
+        assert!(Block::<Phys>::from_index(phys_end - 1, phys_end + 1).is_err());
+
+        let bad_virt = 1 << 49;
+        assert!(Block::<Virt>::from_index(bad_virt, bad_virt).is_err());
+    }
+
+    #[test]
+    fn basic_operations() {
         for start in 0 .. 100 {
             for count in 0 .. 100 {
                 let end = start + count;
-                let mut a = Block::<Frame>::new(start, end);
+                let mut a = Block::<Frame>::from_index(start, end).unwrap();
                 assert_eq!(a.count(), count);
 
                 for requested_count in count + 1 .. count + 3 {
@@ -202,7 +407,7 @@ mod test {
 
                 while requested_count < a.count() {
                     let old_count = a.count();
-                    let old_end = a.end();
+                    let old_end = a.end;
 
                     a.tail(0).unwrap();
                     assert_eq!(a.count(), old_count);
@@ -212,14 +417,14 @@ mod test {
                     assert_eq!(a.count(), old_count - requested_count);
                     assert_eq!(b.count(), requested_count);
 
-                    assert_eq!(a.start(), start);
-                    assert!(a.start() < a.end());
-                    assert_eq!(a.start() + old_count - requested_count, a.end());
-                    assert_eq!(a.end(), b.start());
-                    assert!(b.start() <= b.end());
-                    assert_eq!(b.start() + requested_count, b.end());
-                    assert!(b.end() <= end);
-                    assert_eq!(b.end(), old_end);
+                    assert_eq!(a.start, start);
+                    assert!(a.start < a.end);
+                    assert_eq!(a.start + old_count - requested_count, a.end);
+                    assert_eq!(a.end, b.start);
+                    assert!(b.start <= b.end);
+                    assert_eq!(b.start + requested_count, b.end);
+                    assert!(b.end <= end);
+                    assert_eq!(b.end, old_end);
 
                     requested_count += 1;
                 }
@@ -233,12 +438,12 @@ mod test {
                     assert_eq!(a.count(), 0);
                     assert_eq!(c.count(), remaining_count);
 
-                    assert_eq!(a.start(), start);
-                    assert_eq!(a.start(), a.end());
-                    assert_eq!(a.end(), c.start());
-                    assert!(c.start() < c.end());
-                    assert_eq!(c.start() + remaining_count, c.end());
-                    assert!(c.end() <= end);
+                    assert_eq!(a.start, start);
+                    assert_eq!(a.start, a.end);
+                    assert_eq!(a.end, c.start);
+                    assert!(c.start < c.end);
+                    assert_eq!(c.start + remaining_count, c.end);
+                    assert!(c.end <= end);
                 }
 
                 a.tail(0).unwrap();
