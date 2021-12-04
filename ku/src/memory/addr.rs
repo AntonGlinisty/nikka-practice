@@ -4,9 +4,7 @@ use core::{
     mem,
     ops::{
         Add,
-        AddAssign,
         Sub,
-        SubAssign,
     },
     slice,
 };
@@ -100,24 +98,6 @@ impl<T: Tag> Sub<usize> for Addr<T> {
                 Err(Overflow)
             }
         })
-    }
-}
-
-impl<T: Tag> AddAssign<usize> for Addr<T> {
-    fn add_assign(
-        &mut self,
-        rhs: usize,
-    ) {
-        *self = self.add(rhs).expect("invalid arguments for Addr::add_assign()");
-    }
-}
-
-impl<T: Tag> SubAssign<usize> for Addr<T> {
-    fn sub_assign(
-        &mut self,
-        rhs: usize,
-    ) {
-        *self = self.sub(rhs).expect("invalid arguments for Addr::sub_assign()");
     }
 }
 
