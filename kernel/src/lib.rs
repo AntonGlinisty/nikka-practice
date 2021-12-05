@@ -14,6 +14,7 @@
 #![feature(const_raw_ptr_deref)]
 #![feature(const_refs_to_cell)]
 #![feature(custom_test_frameworks)]
+#![feature(derive_default_enum)]
 #![feature(format_args_capture)]
 #![feature(maybe_uninit_slice)]
 #![feature(naked_functions)]

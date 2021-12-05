@@ -50,10 +50,6 @@ impl<T: Tag> Addr<T> {
         Self::new(size::from(addr))
     }
 
-    pub fn zero() -> Self {
-        Self(0, PhantomData)
-    }
-
     pub fn into_usize(self) -> usize {
         self.0
     }
@@ -119,7 +115,7 @@ impl<T: Tag> fmt::Display for Addr<T> {
     }
 }
 
-pub trait Tag: Clone + Copy + Eq + Ord {
+pub trait Tag: Clone + Copy + Default + Eq + Ord {
     fn new(addr: usize) -> Result<Addr<Self>>;
 
     fn is_same_half(
@@ -132,7 +128,7 @@ pub trait Tag: Clone + Copy + Eq + Ord {
     const HEX_PREFIX: &'static str;
 }
 
-#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PhysTag;
 
 impl Tag for PhysTag {
@@ -152,7 +148,7 @@ impl Tag for PhysTag {
     const HEX_PREFIX: &'static str = "0p";
 }
 
-#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct VirtTag;
 
 impl Tag for VirtTag {

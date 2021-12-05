@@ -84,6 +84,7 @@ impl Process {
     ) {
         if let Pid::Id { .. } = pid {
             self.pid = pid;
+            self.address_space.set_pid(pid);
         } else {
             panic!("assignment of a wrong pid to a process");
         }

@@ -21,7 +21,7 @@ use super::{
     },
 };
 
-#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Default, Eq, Ord, PartialEq, PartialOrd)]
 #[repr(transparent)]
 pub struct Frage<T: Tag>(Addr<T>);
 
@@ -34,10 +34,6 @@ impl<T: Tag> Frage<T> {
         } else {
             Err(InvalidAlignment)
         }
-    }
-
-    pub fn zero() -> Self {
-        Self(Addr::zero())
     }
 
     pub fn address(&self) -> Addr<T> {

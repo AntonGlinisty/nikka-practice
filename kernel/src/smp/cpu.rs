@@ -81,7 +81,7 @@ impl Cpu {
             current_process: None,
             kernel_stack: &stacks[0],
             launch_escape_stack: &stacks[1],
-            this: Virt::zero(),
+            this: Virt::default(),
             tss: TaskStateSegment::new(),
             user_context: None,
         };

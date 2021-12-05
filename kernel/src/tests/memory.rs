@@ -58,7 +58,7 @@ fn allocated_frames_are_unique() {
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
     let frames = BASE_ADDRESS_SPACE
         .lock()
-        .map_slice(start_free_frames, KERNEL_RW, || Frame::zero())
+        .map_slice(start_free_frames, KERNEL_RW, Frame::default)
         .unwrap();
 
     let mut frame_allocator = FRAME_ALLOCATOR.lock();

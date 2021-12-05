@@ -1,7 +1,4 @@
-use alloc::{
-    vec,
-    vec::Vec,
-};
+use alloc::vec::Vec;
 use core::{
     fmt,
     mem,
@@ -53,6 +50,7 @@ impl fmt::Display for Slot {
     }
 }
 
+#[derive(Default)]
 pub struct Table {
     free: Option<Pid>,
     process_count: usize,
@@ -95,9 +93,5 @@ unsafe fn forge_static_lifetime<T>(x: &T) -> &'static T {
 }
 
 lazy_static! {
-    pub(super) static ref TABLE: Mutex<Table> = Mutex::new(Table {
-        table: vec![],
-        process_count: 0,
-        free: None
-    });
+    pub(super) static ref TABLE: Mutex<Table> = Mutex::new(Table::default());
 }

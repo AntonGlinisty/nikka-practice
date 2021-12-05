@@ -26,7 +26,7 @@ use super::{
     },
 };
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Default, Eq, PartialEq)]
 pub struct Block<T: Memory> {
     start: usize,
     end: usize,
@@ -70,14 +70,6 @@ impl<T: Memory> Block<T> {
         end: u64,
     ) -> Result<Self> {
         Self::from_index(size::from(start), size::from(end))
-    }
-
-    pub const fn zero() -> Self {
-        Self {
-            start: 0,
-            end: 0,
-            tag: PhantomData,
-        }
     }
 
     pub const fn count(&self) -> usize {

@@ -85,7 +85,7 @@ pub(super) fn init(boot_info: &'static BootInfo) {
 
     *FRAME_ALLOCATOR.lock() = FrameAllocator::Boot(BootFrameAllocator::new(&boot_info.memory_map));
 
-    *BASE_ADDRESS_SPACE.lock() = AddressSpace::new("base", phys2virt);
+    *BASE_ADDRESS_SPACE.lock() = AddressSpace::new(phys2virt);
 
     *FRAME_ALLOCATOR.lock() =
         FrameAllocator::Main(main_frame_allocator::init(&boot_info.memory_map));

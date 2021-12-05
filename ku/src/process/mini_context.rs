@@ -11,7 +11,7 @@ use crate::{
     },
 };
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[repr(C)]
 pub struct MiniContext {
     rip: Virt,

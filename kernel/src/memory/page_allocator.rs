@@ -1,5 +1,3 @@
-use core::fmt;
-
 use itertools::Itertools;
 
 use crate::{
@@ -27,28 +25,23 @@ use super::{
     stack::GUARD_ZONE_SIZE,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(super) struct PageAllocator {
-    name: &'static str,
     block: Block<Page>,
 }
 
 impl PageAllocator {
-    pub(super) fn new(
-        name: &'static str,
-        page_table_root: &PageTable,
-    ) -> Self {
+    pub(super) fn new(page_table_root: &PageTable) -> Self {
         let timer = time::timer();
 
         if let Some(block) = Self::find_unused_block(page_table_root) {
-            let mut page_allocator = Self { name, block };
+            let mut page_allocator = Self { block };
 
             info!(
-                %page_allocator,
                 free_page_count = page_allocator.block.count(),
                 block = %page_allocator.block,
                 duration = %timer.elapsed(),
-                "init",
+                "page allocator init",
             );
 
             // Detect stack overruns that corrupt memory allocated by PageAllocator.
@@ -65,13 +58,6 @@ impl PageAllocator {
         }
     }
 
-    pub(super) fn zero(name: &'static str) -> Self {
-        Self {
-            name,
-            block: Block::zero(),
-        }
-    }
-
     pub(super) fn allocate(
         &mut self,
         size: usize,
@@ -83,14 +69,5 @@ impl PageAllocator {
     fn find_unused_block(page_table_root: &PageTable) -> Option<Block<Page>> {
         // TODO: your code here.
         unimplemented!();
-    }
-}
-
-impl fmt::Display for PageAllocator {
-    fn fmt(
-        &self,
-        formatter: &mut fmt::Formatter,
-    ) -> fmt::Result {
-        write!(formatter, "\"{}\"", self.name)
     }
 }

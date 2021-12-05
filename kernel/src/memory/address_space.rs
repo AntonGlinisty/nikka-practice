@@ -19,6 +19,7 @@ use crate::{
         trace,
         warn,
     },
+    process::Pid,
 };
 
 use super::{
@@ -35,27 +36,25 @@ use super::{
     page_allocator::PageAllocator,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct AddressSpace {
-    name: &'static str,
+    kind: Kind,
     mapping: Mapping,
     page_allocator: PageAllocator,
+    pid: Option<Pid>,
 }
 
 impl AddressSpace {
-    pub(super) fn new(
-        name: &'static str,
-        phys2virt: Page,
-    ) -> Self {
+    pub(super) fn new(phys2virt: Page) -> Self {
         let mapping = Mapping::new(Mapping::current_page_table_root(), phys2virt);
-        let page_allocator = PageAllocator::new(name, unsafe {
-            mapping.page_table_ref(mapping.page_table_root())
-        });
+        let page_allocator =
+            PageAllocator::new(unsafe { mapping.page_table_ref(mapping.page_table_root()) });
 
         let address_space = Self {
-            name,
+            kind: Kind::Base,
             mapping,
             page_allocator,
+            pid: None,
         };
 
         info!(%address_space, "init");
@@ -63,33 +62,22 @@ impl AddressSpace {
         address_space
     }
 
-    pub(crate) fn duplicate(
-        &self,
-        name: &'static str,
-    ) -> Result<Self> {
+    pub(crate) fn duplicate(&self) -> Result<Self> {
         let mapping = self.mapping.duplicate()?;
 
-        let page_allocator = PageAllocator::new(name, unsafe {
-            mapping.page_table_ref(mapping.page_table_root())
-        });
+        let page_allocator =
+            PageAllocator::new(unsafe { mapping.page_table_ref(mapping.page_table_root()) });
 
         let address_space = Self {
-            name,
+            kind: Kind::Process,
             mapping,
             page_allocator,
+            pid: None,
         };
 
         info!(%address_space, "duplicate");
 
         Ok(address_space)
-    }
-
-    fn zero(name: &'static str) -> Self {
-        Self {
-            name,
-            mapping: Mapping::new(Frame::zero(), Page::zero()),
-            page_allocator: PageAllocator::zero(name),
-        }
     }
 
     pub fn mapping(&mut self) -> &mut Mapping {
@@ -100,11 +88,18 @@ impl AddressSpace {
         self.mapping.page_table_root()
     }
 
+    pub(crate) fn set_pid(
+        &mut self,
+        pid: Pid,
+    ) {
+        self.pid = Some(pid)
+    }
+
     pub(crate) fn switch_to(&self) {
         info!(address_space = %self, "switch to");
 
         unsafe {
-            assert_ne!(self.page_table_root(), Frame::zero());
+            assert_ne!(self.page_table_root(), Frame::default());
             mmu::set_page_table_root(self.page_table_root());
         }
     }
@@ -296,16 +291,26 @@ impl fmt::Display for AddressSpace {
         &self,
         formatter: &mut fmt::Formatter,
     ) -> fmt::Result {
-        write!(
-            formatter,
-            "\"{}\" @ {}",
-            self.name,
-            self.page_table_root().address()
-        )
+        let page_table_root = self.page_table_root().address();
+        match self.kind {
+            Kind::Invalid => write!(formatter, "\"invalid\" @ {page_table_root}"),
+            Kind::Base => write!(formatter, "\"base\" @ {page_table_root}"),
+            Kind::Process => match self.pid {
+                Some(pid) => write!(formatter, "\"{pid}\" @ {page_table_root}"),
+                None => write!(formatter, "\"process\" @ {page_table_root}"),
+            },
+        }
     }
 }
 
+#[derive(Debug, Default)]
+enum Kind {
+    #[default]
+    Invalid,
+    Base,
+    Process,
+}
+
 lazy_static! {
-    pub static ref BASE_ADDRESS_SPACE: Mutex<AddressSpace> =
-        Mutex::new(AddressSpace::zero("invalid"));
+    pub static ref BASE_ADDRESS_SPACE: Mutex<AddressSpace> = Mutex::new(AddressSpace::default());
 }

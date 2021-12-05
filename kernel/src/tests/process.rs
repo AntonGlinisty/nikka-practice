@@ -35,13 +35,10 @@ const PAGE_FAULT_ELF: &[u8] =
 const SCHED_YIELD_ELF: &[u8] =
     include_bytes!("../../../user/sched_yield/target/kernel/debug/sched_yield");
 
-fn make_process(
-    name: &'static str,
-    file: &[u8],
-) -> MutexGuard<'static, Process> {
+fn make_process(file: &[u8]) -> MutexGuard<'static, Process> {
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
 
-    let pid = process::create(name, file).expect("failed to create the test process");
+    let pid = process::create(file).expect("failed to create the test process");
     let mut process = Table::get(pid).expect("failed to find the new process in the process table");
 
     let entry_point = Virt::new_u64(ElfFile::new(file).unwrap().header.pt2.entry_point()).unwrap();
@@ -82,7 +79,7 @@ fn free_process(pid: Pid) {
 fn create_process() {
     forbid_frame_leaks!();
 
-    let pid = make_process("loop", LOOP_ELF).pid();
+    let pid = make_process(LOOP_ELF).pid();
 
     free_process(pid);
 }
@@ -92,8 +89,7 @@ fn create_process_failure() {
     forbid_frame_leaks!();
 
     let bad_elf_file: &[u8] = &[];
-    let error = process::create("bad ELF process", bad_elf_file)
-        .expect_err("created a process from a bad ELF file");
+    let error = process::create(bad_elf_file).expect_err("created a process from a bad ELF file");
 
     info!(?error, "expected a process creation failure");
 }
@@ -102,7 +98,7 @@ fn create_process_failure() {
 fn syscall_exit() {
     forbid_frame_leaks!();
 
-    let mut process = make_process("exit", EXIT_ELF);
+    let mut process = make_process(EXIT_ELF);
     let pid = process.pid();
 
     test_scaffolding::disable_interrupts(&mut process);
@@ -127,7 +123,7 @@ fn syscall_exit() {
 fn syscall_sched_yield() {
     forbid_frame_leaks!();
 
-    let mut process = make_process("sched_yield", SCHED_YIELD_ELF);
+    let mut process = make_process(SCHED_YIELD_ELF);
     let pid = process.pid();
 
     test_scaffolding::disable_interrupts(&mut process);
@@ -150,7 +146,7 @@ fn syscall_sched_yield() {
 fn user_mode_page_fault() {
     forbid_frame_leaks!();
 
-    let mut process = make_process("page_fault", PAGE_FAULT_ELF);
+    let mut process = make_process(PAGE_FAULT_ELF);
     let pid = process.pid();
 
     test_scaffolding::disable_interrupts(&mut process);
@@ -172,7 +168,7 @@ fn user_mode_page_fault() {
 fn preemption() {
     forbid_frame_leaks!();
 
-    let pid = make_process("loop", LOOP_ELF).pid();
+    let pid = make_process(LOOP_ELF).pid();
 
     for _ in 0 .. 2 {
         let process = Table::get(pid).expect("failed to find the new process in the process table");
@@ -199,8 +195,8 @@ fn preemption() {
 
 #[test_case]
 fn scheduler() {
-    let exit_pid = make_process("exit", EXIT_ELF).pid();
-    let page_fault_pid = make_process("page_fault", PAGE_FAULT_ELF).pid();
+    let exit_pid = make_process(EXIT_ELF).pid();
+    let page_fault_pid = make_process(PAGE_FAULT_ELF).pid();
 
     Scheduler::enqueue(exit_pid);
     Scheduler::enqueue(page_fault_pid);

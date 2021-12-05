@@ -58,11 +58,8 @@ pub fn init() {
     Scheduler::init(PROCESS_SLOT_COUNT);
 }
 
-pub fn create(
-    name: &'static str,
-    elf_file: &[u8],
-) -> Result<Pid> {
-    let mut address_space = BASE_ADDRESS_SPACE.lock().duplicate(name)?;
+pub fn create(elf_file: &[u8]) -> Result<Pid> {
+    let mut address_space = BASE_ADDRESS_SPACE.lock().duplicate()?;
 
     address_space.switch_to();
 

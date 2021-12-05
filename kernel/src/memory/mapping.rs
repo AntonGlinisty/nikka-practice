@@ -30,7 +30,7 @@ use super::{
     phys2virt,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Mapping {
     page_table_root: Frame,
     phys2virt: Page,
@@ -48,10 +48,14 @@ impl Mapping {
     }
 
     pub(super) fn duplicate(&self) -> Result<Self> {
-        let mut result = Self::new(Frame::zero(), self.phys2virt);
+        let mut result = Self::new(Frame::default(), self.phys2virt);
         result.page_table_root =
             self.duplicate_subtree(&mut result, self.page_table_root(), PAGE_TABLE_ROOT_LEVEL)?;
         Ok(result)
+    }
+
+    pub(super) fn is_valid(&self) -> bool {
+        self.page_table_root() != Frame::default()
     }
 
     pub(super) fn page_table_root(&self) -> Frame {
@@ -135,7 +139,7 @@ impl Mapping {
 
 impl Drop for Mapping {
     fn drop(&mut self) {
-        if self.page_table_root() != Frame::zero() {
+        if self.is_valid() {
             assert_ne!(Self::current_page_table_root(), self.page_table_root());
 
             self.drop_subtree(self.page_table_root(), PAGE_TABLE_ROOT_LEVEL);
