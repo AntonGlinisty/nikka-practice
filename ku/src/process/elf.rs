@@ -1,7 +1,4 @@
-use core::{
-    cmp,
-    mem,
-};
+use core::cmp;
 
 use xmas_elf::{
     ElfFile,

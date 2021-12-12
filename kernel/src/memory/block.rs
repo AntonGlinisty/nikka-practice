@@ -15,6 +15,7 @@ use crate::error::{
 use super::{
     addr::{
         Addr,
+        IsVirt,
         Tag,
         Virt,
     },
@@ -130,27 +131,82 @@ impl<T: Tag> Block<Addr<T>> {
     }
 }
 
+impl<T: Memory> Block<T>
+where
+    T::Address: IsVirt,
+{
+    pub fn into_ptr_u8(self) -> *const u8 {
+        self.start_address().into_ptr_u8()
+    }
+
+    pub fn into_mut_ptr_u8(self) -> *mut u8 {
+        self.start_address().into_mut_ptr_u8()
+    }
+
+    pub fn try_into_ptr<Q>(self) -> Result<*const Q> {
+        if self.size() == mem::size_of::<Q>() {
+            self.start_address().try_into_ptr::<Q>()
+        } else {
+            Err(InvalidArgument)
+        }
+    }
+
+    pub fn try_into_mut_ptr<Q>(self) -> Result<*mut Q> {
+        if self.size() == mem::size_of::<Q>() {
+            self.start_address().try_into_mut_ptr::<Q>()
+        } else {
+            Err(InvalidArgument)
+        }
+    }
+
+    pub unsafe fn try_into_ref<'a, Q>(self) -> Result<&'a Q> {
+        if self.size() == mem::size_of::<Q>() {
+            self.start_address().try_into_ref::<Q>()
+        } else {
+            Err(InvalidArgument)
+        }
+    }
+
+    pub unsafe fn try_into_mut<'a, Q>(self) -> Result<&'a mut Q> {
+        if self.size() == mem::size_of::<Q>() {
+            self.start_address().try_into_mut::<Q>()
+        } else {
+            Err(InvalidArgument)
+        }
+    }
+
+    pub unsafe fn try_into_slice<'a, Q>(self) -> Result<&'a [Q]> {
+        if self.size() % mem::size_of::<Q>() == 0 {
+            self.start_address().try_into_slice::<Q>(self.size() / mem::size_of::<Q>())
+        } else {
+            Err(InvalidArgument)
+        }
+    }
+
+    pub unsafe fn try_into_mut_slice<'a, Q>(self) -> Result<&'a mut [Q]> {
+        if self.size() % mem::size_of::<Q>() == 0 {
+            self.start_address().try_into_mut_slice::<Q>(self.size() / mem::size_of::<Q>())
+        } else {
+            Err(InvalidArgument)
+        }
+    }
+}
+
 impl Block<Virt> {
+    pub fn from_ptr<T>(x: *const T) -> Self {
+        let start = Virt::from_ptr(x);
+        let end = (start + mem::size_of::<T>()).unwrap();
+        Self::new(start, end).unwrap()
+    }
+
+    pub fn from_ref<T>(x: &T) -> Self {
+        Self::from_ptr(x)
+    }
+
     pub fn from_slice<T>(x: &[T]) -> Self {
         let range = x.as_ptr_range();
 
         Self::new(Virt::from_ptr(range.start), Virt::from_ptr(range.end)).unwrap()
-    }
-
-    pub unsafe fn try_into_mut<T>(self) -> Result<&'static mut T> {
-        if self.size() == mem::size_of::<T>() {
-            Virt::new(self.start)?.try_into_mut::<T>()
-        } else {
-            Err(InvalidArgument)
-        }
-    }
-
-    pub unsafe fn try_into_mut_slice<T>(self) -> Result<&'static mut [T]> {
-        if self.size() % mem::size_of::<T>() == 0 {
-            Virt::new(self.start)?.try_into_mut_slice::<T>(self.size() / mem::size_of::<T>())
-        } else {
-            Err(InvalidArgument)
-        }
     }
 }
 

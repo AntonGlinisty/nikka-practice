@@ -168,6 +168,25 @@ impl Tag for VirtTag {
     const HEX_PREFIX: &'static str = "0v";
 }
 
+pub trait IsVirt {
+    fn from_ptr<T: ?Sized>(ptr: *const T) -> Self;
+    fn from_ref<T: ?Sized>(x: &T) -> Self;
+    fn into_ptr_u8(self) -> *const u8;
+    fn into_mut_ptr_u8(self) -> *mut u8;
+    fn try_into_ptr<T>(self) -> Result<*const T>;
+    fn try_into_mut_ptr<T>(self) -> Result<*mut T>;
+    unsafe fn try_into_ref<'a, T>(self) -> Result<&'a T>;
+    unsafe fn try_into_mut<'a, T>(self) -> Result<&'a mut T>;
+    unsafe fn try_into_slice<'a, T>(
+        self,
+        len: usize,
+    ) -> Result<&'a [T]>;
+    unsafe fn try_into_mut_slice<'a, T>(
+        self,
+        len: usize,
+    ) -> Result<&'a mut [T]>;
+}
+
 pub type Phys = Addr<PhysTag>;
 
 pub type Virt = Addr<VirtTag>;
@@ -257,6 +276,18 @@ impl Virt {
         }
     }
 
+    pub unsafe fn try_into_slice<'a, T>(
+        self,
+        len: usize,
+    ) -> Result<&'a [T]> {
+        let ptr = self.try_into_ptr::<T>()?;
+        if ptr.is_null() {
+            Err(Null)
+        } else {
+            Ok(slice::from_raw_parts(ptr, len))
+        }
+    }
+
     pub unsafe fn try_into_mut_slice<'a, T>(
         self,
         len: usize,
@@ -271,6 +302,54 @@ impl Virt {
 
     const BITS: u32 = PAGE_TABLE_INDEX_BITS * (PAGE_TABLE_ROOT_LEVEL + 1) + PAGE_OFFSET_BITS;
     const UNUSED_BITS: u32 = usize::BITS - Self::BITS;
+}
+
+impl IsVirt for Virt {
+    fn from_ptr<T: ?Sized>(ptr: *const T) -> Self {
+        Virt::from_ptr::<T>(ptr)
+    }
+
+    fn from_ref<T: ?Sized>(x: &T) -> Self {
+        Virt::from_ref::<T>(x)
+    }
+
+    fn into_ptr_u8(self) -> *const u8 {
+        Virt::into_ptr_u8(self)
+    }
+
+    fn into_mut_ptr_u8(self) -> *mut u8 {
+        Virt::into_mut_ptr_u8(self)
+    }
+
+    fn try_into_ptr<T>(self) -> Result<*const T> {
+        Virt::try_into_ptr::<T>(self)
+    }
+
+    fn try_into_mut_ptr<T>(self) -> Result<*mut T> {
+        Virt::try_into_mut_ptr::<T>(self)
+    }
+
+    unsafe fn try_into_ref<'a, T>(self) -> Result<&'a T> {
+        Virt::try_into_ref::<'a, T>(self)
+    }
+
+    unsafe fn try_into_mut<'a, T>(self) -> Result<&'a mut T> {
+        Virt::try_into_mut::<'a, T>(self)
+    }
+
+    unsafe fn try_into_slice<'a, T>(
+        self,
+        len: usize,
+    ) -> Result<&'a [T]> {
+        Virt::try_into_slice::<T>(self, len)
+    }
+
+    unsafe fn try_into_mut_slice<'a, T>(
+        self,
+        len: usize,
+    ) -> Result<&'a mut [T]> {
+        Virt::try_into_mut_slice::<T>(self, len)
+    }
 }
 
 impl From<VirtAddr> for Virt {

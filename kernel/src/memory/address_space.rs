@@ -181,14 +181,12 @@ impl AddressSpace {
             self.map_block(block, flags)?;
         }
 
-        let addr = block.start_address();
-        let len = block.size() / mem::size_of::<T>();
-        let slice = unsafe { addr.try_into_mut_slice(len)? };
+        let slice = unsafe { block.try_into_mut_slice()? };
 
         trace!(
-            %addr,
+            %block,
             page_count = block.count(),
-            slice = format_args!("[{}; {}]", any::type_name::<T>(), len),
+            slice = format_args!("[{}; {}]", any::type_name::<T>(), slice.len()),
             "mapped a slice",
         );
 
@@ -265,7 +263,7 @@ impl AddressSpace {
         &mut self,
         element: &'static mut T,
     ) -> Result<()> {
-        self.unmap_slice(Virt::from_ref(element).try_into_mut_slice::<T>(1)?)
+        self.unmap_slice(Block::<Virt>::from_ref(element).try_into_mut_slice::<T>()?)
     }
 }
 

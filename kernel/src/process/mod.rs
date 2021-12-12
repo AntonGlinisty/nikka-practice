@@ -28,7 +28,6 @@ use crate::{
     memory::{
         AddressSpace,
         BASE_ADDRESS_SPACE,
-        Block,
         FRAME_ALLOCATOR,
         Page,
         Size,
