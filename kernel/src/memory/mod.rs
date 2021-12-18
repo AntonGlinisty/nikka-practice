@@ -50,6 +50,7 @@ pub use frage::{
 pub use frame_allocator::FRAME_ALLOCATOR;
 pub use mmu::{
     KERNEL_RW,
+    USER,
     USER_R,
     USER_RW,
 };

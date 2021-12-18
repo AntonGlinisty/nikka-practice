@@ -16,9 +16,9 @@ use crate::{
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub(crate) struct Registers {
-    rax: usize,
+    pub(super) rax: usize,
     gpr1: [usize; 3],
-    rdi: usize,
+    pub(super) rdi: usize,
     gpr2: [usize; 10],
     user_context: ModeContext,
 }
@@ -193,10 +193,10 @@ impl fmt::Display for ModeContext {
 
 #[derive(Clone, Copy, Debug)]
 #[repr(transparent)]
-struct RFlags(usize);
+pub(super) struct RFlags(pub(super) usize);
 
 impl RFlags {
-    const INTERRUPT_FLAG: RFlags = RFlags(1 << 9);
+    pub(super) const INTERRUPT_FLAG: RFlags = RFlags(1 << 9);
 }
 
 impl fmt::Display for RFlags {

@@ -1,5 +1,4 @@
 mod elf;
-mod pid;
 #[allow(clippy::module_inception)]
 mod process;
 mod registers;
@@ -39,9 +38,11 @@ use crate::{
     },
 };
 
+use registers::RFlags;
 use table::TABLE;
 
-pub use pid::Pid;
+pub use ku::process::Pid;
+
 pub use process::Process;
 pub use scheduler::Scheduler;
 pub use table::Table;

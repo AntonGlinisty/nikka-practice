@@ -13,6 +13,7 @@ pub use ku::memory::mmu::{
     PageTable,
     PageTableEntry,
     PageTableFlags,
+    USER,
     USER_R,
     USER_RW,
     page_table_root,

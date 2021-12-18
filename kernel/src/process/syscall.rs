@@ -1,3 +1,4 @@
+use bitflags::bitflags;
 use spin::MutexGuard;
 use x86_64::registers::model_specific::{
     Efer,
@@ -13,6 +14,17 @@ use ku::process::{
 };
 
 use crate::{
+    error::{
+        Error,
+        Error::{
+            InvalidAlignment,
+            InvalidArgument,
+            NoPage,
+            NoProcess,
+            PermissionDenied,
+        },
+        Result,
+    },
     gdt::Gdt,
     log,
     log::{
@@ -20,8 +32,17 @@ use crate::{
         error,
         info,
         trace,
+        warn,
     },
-    memory::Virt,
+    memory::{
+        Block,
+        FRAME_ALLOCATOR,
+        Frame,
+        Page,
+        USER,
+        Virt,
+        mmu::PageTableFlags,
+    },
     smp::{
         Cpu,
         KERNEL_RSP_OFFSET_IN_CPU,
@@ -29,7 +50,9 @@ use crate::{
 };
 
 use super::{
+    Pid,
     Process,
+    RFlags,
     Scheduler,
     Table,
 };
@@ -39,6 +62,51 @@ pub(crate) fn init() {
     unimplemented!();
 }
 
+#[derive(Clone, Copy, Debug)]
+struct SyscallResult(usize);
+
+bitflags! {
+    pub struct ResultCode: usize {
+        const OK = 0;
+        const INVALID_ARGUMENT = 1;
+        const NO_FRAME = 2;
+        const NO_PAGE = 3;
+        const NO_PROCESS = 4;
+        const NO_PROCESS_SLOT = 5;
+        const NULL = 6;
+        const OVERFLOW = 7;
+        const PERMISSION_DENIED = 8;
+        const UNEXPECTED = 9;
+        const UNIMPLEMENTED = 10;
+        const INVALID_ALIGNMENT = 11;
+    }
+}
+
+impl<T> From<Result<T>> for ResultCode {
+    fn from(result: Result<T>) -> ResultCode {
+        match result {
+            Ok(_) => ResultCode::OK,
+            Err(error) => match error {
+                Error::Elf(_) => ResultCode::UNEXPECTED,
+                Error::Fmt(_) => ResultCode::UNEXPECTED,
+                Error::Int(_) => ResultCode::UNEXPECTED,
+                Error::InvalidArgument => ResultCode::INVALID_ARGUMENT,
+                Error::NoFrame => ResultCode::NO_FRAME,
+                Error::NoPage => ResultCode::NO_PAGE,
+                Error::NoProcess => ResultCode::NO_PROCESS,
+                Error::NoProcessSlot => ResultCode::NO_PROCESS_SLOT,
+                Error::Null => ResultCode::NULL,
+                Error::Overflow => ResultCode::OVERFLOW,
+                Error::PermissionDenied => ResultCode::PERMISSION_DENIED,
+                Error::Postcard(_) => ResultCode::UNEXPECTED,
+                Error::Pipe(_) => ResultCode::UNEXPECTED,
+                Error::Unimplemented => ResultCode::UNIMPLEMENTED,
+                Error::InvalidAlignment => ResultCode::INVALID_ALIGNMENT,
+            },
+        }
+    }
+}
+
 #[naked]
 extern "C" fn syscall_trampoline() -> ! {
     unsafe {
@@ -46,7 +114,7 @@ extern "C" fn syscall_trampoline() -> ! {
             "
             // TODO: your code here.
 
-            jmp {syscall}
+            call {syscall}
             ",
 
             // TODO: your code here.
@@ -65,9 +133,33 @@ extern "C" fn syscall(
     rip: Virt,     // rcx
     rsp: Virt,     // r8
     arg2: usize,   // r9
+    // Stack, push in reverse order.
+    arg3: usize,
+    arg4: usize,
 ) -> ! {
     // TODO: your code here.
     unimplemented!();
+}
+
+fn sysret(
+    context: MiniContext,
+    result: Result<SyscallResult>,
+) -> ! {
+    // TODO: your code here.
+
+    unsafe {
+        asm!(
+            "
+            // TODO: your code here.
+
+            sysretq
+            ",
+
+            // TODO: your code here.
+
+            options(noreturn),
+        );
+    }
 }
 
 fn exit(
@@ -79,6 +171,69 @@ fn exit(
 }
 
 fn sched_yield(process: MutexGuard<Process>) -> ! {
+    // TODO: your code here.
+    unimplemented!();
+}
+
+fn map(
+    process: MutexGuard<Process>,
+    dst_pid: usize,
+    dst_address: usize,
+    dst_size: usize,
+    flags: usize,
+) -> Result<SyscallResult> {
+    // TODO: your code here.
+    unimplemented!();
+}
+
+fn unmap(
+    process: MutexGuard<Process>,
+    dst_pid: usize,
+    dst_address: usize,
+    dst_size: usize,
+) -> Result<SyscallResult> {
+    // TODO: your code here.
+    unimplemented!();
+}
+
+fn copy_mapping(
+    process: MutexGuard<Process>,
+    dst_pid: usize,
+    src_address: usize,
+    dst_address: usize,
+    dst_size: usize,
+    flags: usize,
+) -> Result<SyscallResult> {
+    // TODO: your code here.
+    unimplemented!();
+}
+
+fn check_block(
+    address: usize,
+    size: usize,
+) -> Result<Block<Page>> {
+    // TODO: your code here.
+    unimplemented!();
+}
+
+fn check_frame(
+    process: &mut MutexGuard<Process>,
+    page: Page,
+    flags: PageTableFlags,
+) -> Result<Frame> {
+    // TODO: your code here.
+    unimplemented!();
+}
+
+fn check_page_flags(flags: usize) -> Result<PageTableFlags> {
+    // TODO: your code here.
+    unimplemented!();
+}
+
+fn check_process_permissions(
+    process: MutexGuard<Process>,
+    dst_pid: usize,
+) -> Result<MutexGuard<Process>> {
     // TODO: your code here.
     unimplemented!();
 }

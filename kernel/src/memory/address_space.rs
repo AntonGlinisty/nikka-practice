@@ -11,7 +11,10 @@ use spin::Mutex;
 
 use crate::{
     error::{
-        Error::InvalidAlignment,
+        Error::{
+            InvalidAlignment,
+            PermissionDenied,
+        },
         Result,
     },
     log::{
@@ -32,7 +35,10 @@ use super::{
     },
     mapping::Mapping,
     mmu,
-    mmu::PageTableFlags,
+    mmu::{
+        PageTableEntry,
+        PageTableFlags,
+    },
     page_allocator::PageAllocator,
 };
 
@@ -121,7 +127,7 @@ impl AddressSpace {
         unimplemented!();
     }
 
-    unsafe fn map_page(
+    pub(crate) unsafe fn map_page(
         &mut self,
         page: Page,
         flags: PageTableFlags,
@@ -133,6 +139,14 @@ impl AddressSpace {
     pub unsafe fn unmap_page(
         &mut self,
         page: Page,
+    ) -> Result<()> {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    unsafe fn unmap_pte(
+        page: Page,
+        pte: &mut PageTableEntry,
     ) -> Result<()> {
         // TODO: your code here.
         unimplemented!();
@@ -264,6 +278,16 @@ impl AddressSpace {
         element: &'static mut T,
     ) -> Result<()> {
         self.unmap_slice(Block::<Virt>::from_ref(element).try_into_mut_slice::<T>()?)
+    }
+
+    pub(crate) fn check_permission<T>(
+        &mut self,
+        block: Block<Virt>,
+        flags: PageTableFlags,
+    ) -> Result<&'static [T]> {
+        // TODO: your code here.
+
+        Ok(unsafe { block.try_into_slice()? })
     }
 }
 
