@@ -8,6 +8,7 @@ use ku::{
 };
 
 use crate::{
+    error::Result,
     log::info,
     memory::{
         AddressSpace,
@@ -24,6 +25,7 @@ use super::{
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum State {
+    Exofork,
     Runnable,
     Running,
 }
@@ -32,6 +34,7 @@ pub(super) enum State {
 pub struct Process {
     address_space: AddressSpace,
     info: Virt,
+    parent: Option<Pid>,
     pid: Pid,
     registers: Registers,
     state: State,
@@ -48,10 +51,32 @@ impl Process {
         Self {
             address_space,
             info,
+            parent: None,
             pid: Pid::Current,
             registers: Registers::new(context, info.into_usize()),
             state: State::Runnable,
         }
+    }
+
+    pub(super) fn duplicate(
+        &self,
+        rax: usize,
+        rdi: usize,
+    ) -> Result<Self> {
+        let mut address_space = self.address_space.duplicate()?;
+
+        address_space.switch_to();
+        let info = Virt::from_ref(super::map_process_info(&mut address_space)?);
+        self.address_space.switch_to();
+
+        Ok(Self {
+            address_space,
+            info,
+            parent: Some(self.pid),
+            pid: Pid::Current,
+            registers: self.registers.duplicate(rax, rdi, info.into_usize()),
+            state: State::Exofork,
+        })
     }
 
     pub fn address_space(&mut self) -> &mut AddressSpace {
@@ -67,6 +92,10 @@ impl Process {
 
     pub fn info(&mut self) -> &mut ProcessInfo {
         unsafe { self.info.try_into_mut().unwrap() }
+    }
+
+    pub fn parent(&self) -> Option<Pid> {
+        self.parent
     }
 
     pub fn pid(&self) -> Pid {
@@ -88,6 +117,17 @@ impl Process {
         } else {
             panic!("assignment of a wrong pid to a process");
         }
+    }
+
+    pub(super) fn state(&self) -> State {
+        self.state
+    }
+
+    pub(super) fn set_state(
+        &mut self,
+        state: State,
+    ) {
+        self.state = state
     }
 
     pub fn enter_user_mode(mut process: MutexGuard<Process>) -> bool {

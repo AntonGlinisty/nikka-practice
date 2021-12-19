@@ -16,26 +16,44 @@ use crate::{
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub(crate) struct Registers {
-    pub(super) rax: usize,
+    rax: usize,
     gpr1: [usize; 3],
-    pub(super) rdi: usize,
-    gpr2: [usize; 10],
+    rdi: usize,
+    rsi: usize,
+    gpr2: [usize; 9],
     user_context: ModeContext,
 }
 
 impl Registers {
     pub(super) fn new(
         context: MiniContext,
-        arg0: usize,
+        rdi: usize,
     ) -> Self {
         Self {
             // https://wiki.osdev.org/System_V_ABI#x86-64:
             // Parameters to functions are passed in the registers rdi, rsi, rdx, rcx, r8, r9, and further values are passed on the stack in reverse order.
             rax: 0,
             gpr1: [0; 3],
-            rdi: arg0,
-            gpr2: [0; 10],
+            rdi,
+            rsi: 0,
+            gpr2: [0; 9],
             user_context: ModeContext::user_context(context),
+        }
+    }
+
+    pub(super) fn duplicate(
+        &self,
+        rax: usize,
+        rdi: usize,
+        rsi: usize,
+    ) -> Self {
+        Self {
+            rax,
+            gpr1: self.gpr1,
+            rdi,
+            rsi,
+            gpr2: self.gpr2,
+            user_context: self.user_context,
         }
     }
 
@@ -258,7 +276,8 @@ pub(super) mod test_scaffolding {
         result[0] = registers.rax;
         result[1 .. 4].copy_from_slice(&registers.gpr1);
         result[4] = registers.rdi;
-        result[5 .. 15].copy_from_slice(&registers.gpr2);
+        result[5] = registers.rsi;
+        result[6 .. 15].copy_from_slice(&registers.gpr2);
         result
     }
 }

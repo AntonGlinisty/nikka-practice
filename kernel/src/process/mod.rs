@@ -38,6 +38,7 @@ use crate::{
     },
 };
 
+use process::State;
 use registers::RFlags;
 use table::TABLE;
 

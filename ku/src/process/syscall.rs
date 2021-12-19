@@ -20,6 +20,8 @@ bitflags! {
         const MAP = 2;
         const UNMAP = 3;
         const COPY_MAPPING = 4;
+        const EXOFORK = 5;
+        const SET_STATE = 6;
     }
 }
 

@@ -54,6 +54,7 @@ use super::{
     Process,
     RFlags,
     Scheduler,
+    State,
     Table,
 };
 
@@ -175,6 +176,11 @@ fn sched_yield(process: MutexGuard<Process>) -> ! {
     unimplemented!();
 }
 
+fn exofork(process: MutexGuard<Process>) -> Result<SyscallResult> {
+    // TODO: your code here.
+    unimplemented!();
+}
+
 fn map(
     process: MutexGuard<Process>,
     dst_pid: usize,
@@ -203,6 +209,15 @@ fn copy_mapping(
     dst_address: usize,
     dst_size: usize,
     flags: usize,
+) -> Result<SyscallResult> {
+    // TODO: your code here.
+    unimplemented!();
+}
+
+fn set_state(
+    process: MutexGuard<Process>,
+    dst_pid: usize,
+    state: usize,
 ) -> Result<SyscallResult> {
     // TODO: your code here.
     unimplemented!();
