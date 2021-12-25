@@ -9,7 +9,10 @@ use ku::{
 
 use crate::{
     error::Result,
-    log::info,
+    log::{
+        debug,
+        info,
+    },
     memory::{
         AddressSpace,
         Virt,
@@ -135,17 +138,22 @@ impl Process {
 
         process.address_space.switch_to();
 
+        process.info().set_pid(pid);
         Cpu::set_current_process(Some(pid));
 
         let registers = &mut process.registers as *mut Registers;
 
         process.state = State::Running;
 
+        debug!(%pid, registers = %process.registers, "entering the user mode");
+
         drop(process);
 
         unsafe {
             Registers::switch_to(registers);
         }
+
+        debug!(%pid, "leaving the user mode");
 
         Cpu::set_current_process(None);
 

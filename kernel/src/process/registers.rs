@@ -108,6 +108,19 @@ impl Registers {
     }
 }
 
+impl fmt::Display for Registers {
+    fn fmt(
+        &self,
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
+        write!(
+            formatter,
+            "{{ rax: {:#X}, rdi: {:#X}, rsi: {:#X}, {} }}",
+            self.rax, self.rdi, self.rsi, self.user_context,
+        )
+    }
+}
+
 /// `iret` instruction layout.
 /// It is the minimal register context that is necessary for switching between the kernel mode and the user mode.
 #[derive(Clone, Copy, Debug)]

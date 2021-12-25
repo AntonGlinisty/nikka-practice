@@ -10,7 +10,11 @@ use core::{
 
 use static_assertions::const_assert;
 
-use crate::memory::Page;
+use crate::memory::{
+    Block,
+    Page,
+    Virt,
+};
 
 type RingBufferRaw = [u8; RingBuffer::MAPPED_SIZE];
 
@@ -40,6 +44,10 @@ impl RingBuffer {
             tail: AtomicUsize::new(0),
             stats: [RingBufferStats::new(), RingBufferStats::new()],
         }
+    }
+
+    pub fn block(&self) -> Block<Virt> {
+        Block::from_ref(self.buf)
     }
 
     pub fn read_tx(&mut self) -> RingBufferTx<'_, ReadTag> {

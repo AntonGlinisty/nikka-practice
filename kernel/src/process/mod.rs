@@ -82,8 +82,11 @@ pub fn create(elf_file: &[u8]) -> Result<Pid> {
 
 fn map_process_info(address_space: &mut AddressSpace) -> Result<&'static mut ProcessInfo> {
     let log = map_log(address_space)?;
+    let recursive_mapping = address_space.mapping().make_recursive_mapping()?;
     let system_info = map_system_info(address_space)?;
-    address_space.map_one(USER_RW, || ProcessInfo::new(log, system_info))
+    address_space.map_one(USER_RW, || {
+        ProcessInfo::new(log, recursive_mapping, system_info)
+    })
 }
 
 fn map_log(address_space: &mut AddressSpace) -> Result<RingBuffer> {

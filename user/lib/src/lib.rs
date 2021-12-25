@@ -2,9 +2,11 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
+#![allow(clippy::missing_safety_doc)]
 #![feature(asm)]
 #![no_std]
 
+pub mod memory;
 pub mod syscall;
 
 use core::panic::PanicInfo;

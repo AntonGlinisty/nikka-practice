@@ -28,6 +28,8 @@ use kernel::{
 
 use crate::forbid_frame_leaks;
 
+const EAGER_FORK_ELF: &[u8] =
+    include_bytes!("../../../user/eager_fork/target/kernel/debug/eager_fork");
 const EXIT_ELF: &[u8] = include_bytes!("../../../user/exit/target/kernel/debug/exit");
 const LOOP_ELF: &[u8] = include_bytes!("../../../user/loop/target/kernel/debug/loop");
 const PAGE_FAULT_ELF: &[u8] =
@@ -206,4 +208,21 @@ fn scheduler() {
     Table::get(exit_pid).expect_err("the 'exit' process was not run up to its completion");
     Table::get(page_fault_pid)
         .expect_err("the 'page_fault' process was not run up to its completion");
+}
+
+#[test_case]
+fn eager_fork() {
+    let start_page_fault_count = TRAP_STATS[PAGE_FAULT].count();
+
+    let pid = make_process(EAGER_FORK_ELF).pid();
+
+    Scheduler::enqueue(pid);
+
+    while Scheduler::run_one() {}
+
+    assert_eq!(
+        TRAP_STATS[PAGE_FAULT].count(),
+        start_page_fault_count,
+        "eager_fork should not page fault",
+    );
 }

@@ -300,6 +300,8 @@ impl Virt {
         }
     }
 
+    pub const NEGATIVE_SIGN_EXTEND: usize = !0 << Self::BITS;
+
     const BITS: u32 = PAGE_TABLE_INDEX_BITS * (PAGE_TABLE_ROOT_LEVEL + 1) + PAGE_OFFSET_BITS;
     const UNUSED_BITS: u32 = usize::BITS - Self::BITS;
 }

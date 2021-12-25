@@ -20,6 +20,7 @@ export PATH := $(RUST_PATH):$(PATH)
 
 CRATES = ku serial text kernel
 USER_CRATES = \
+    user/eager_fork \
     user/exit \
     user/loop \
     user/page_fault \

@@ -11,7 +11,12 @@ use static_assertions::const_assert;
 
 use super::{
     RingBuffer,
-    memory::Page,
+    memory::{
+        Block,
+        Page,
+        Virt,
+    },
+    process::Pid,
     time::{
         AtomicCorrelationInterval,
         rtc::TICKS_PER_SECOND,
@@ -21,6 +26,8 @@ use super::{
 #[repr(C, align(4096))]
 pub struct ProcessInfo {
     log: RingBuffer,
+    pid: Pid,
+    recursive_mapping: usize,
     system_info: *const SystemInfo,
 }
 
@@ -30,13 +37,48 @@ const_assert!(mem::size_of::<ProcessInfo>() % Page::SIZE == 0);
 impl ProcessInfo {
     pub fn new(
         log: RingBuffer,
+        recursive_mapping: usize,
         system_info: *const SystemInfo,
     ) -> Self {
-        Self { log, system_info }
+        Self {
+            log,
+            pid: Pid::Current,
+            recursive_mapping,
+            system_info,
+        }
     }
 
     pub fn log(&mut self) -> &mut RingBuffer {
         &mut self.log
+    }
+
+    pub fn pid(&self) -> Pid {
+        self.pid
+    }
+
+    pub fn set_pid(
+        &mut self,
+        pid: Pid,
+    ) {
+        self.pid = pid;
+    }
+
+    pub fn recursive_mapping(&self) -> usize {
+        self.recursive_mapping
+    }
+
+    pub fn contains_address(
+        &self,
+        address: Virt,
+    ) -> bool {
+        [
+            Block::<Virt>::from_ref(self),
+            Block::<Virt>::from_ref(unsafe { &*self.system_info }),
+            Block::<Virt>::from_ref(&self.log),
+            self.log.block(),
+        ]
+        .iter()
+        .any(|block| block.enclosing().contains_address(address))
     }
 }
 

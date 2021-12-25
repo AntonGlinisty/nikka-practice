@@ -9,3 +9,7 @@ pub use syscall::{
     ResultCode,
     Syscall,
 };
+
+pub fn pid() -> Pid {
+    super::process_info().pid()
+}

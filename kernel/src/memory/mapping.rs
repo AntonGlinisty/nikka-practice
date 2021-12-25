@@ -26,6 +26,7 @@ use super::{
         PageTable,
         PageTableEntry,
         PageTableFlags,
+        USER_R,
     },
     phys2virt,
 };
@@ -34,6 +35,7 @@ use super::{
 pub struct Mapping {
     page_table_root: Frame,
     phys2virt: Page,
+    recursive_mapping: usize,
 }
 
 impl Mapping {
@@ -44,6 +46,7 @@ impl Mapping {
         Self {
             page_table_root,
             phys2virt,
+            recursive_mapping: usize::MAX,
         }
     }
 
@@ -87,6 +90,11 @@ impl Mapping {
         node: Frame,
         level: u32,
     ) {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    pub(crate) fn make_recursive_mapping(&mut self) -> Result<usize> {
         // TODO: your code here.
         unimplemented!();
     }
