@@ -231,6 +231,7 @@ dependencies = [
  "chrono",
  "heapless",
  "itertools",
+ "memoffset",
  "num-traits",
  "number_prefix",
  "postcard",

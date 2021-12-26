@@ -13,6 +13,7 @@ bitflags = "*"
 chrono = { version = "*", default-features = false }
 heapless = "*"
 itertools = { version = "*", default-features = false }
+memoffset = { version = "*", features = ["unstable_const"] }
 num-traits = { version = "*", default-features = false }
 number_prefix = { version = "*", default-features = false }
 postcard = "*"

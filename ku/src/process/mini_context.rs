@@ -3,6 +3,8 @@ use core::{
     mem,
 };
 
+use memoffset::offset_of;
+
 use crate::{
     error::Result,
     memory::{
@@ -50,3 +52,5 @@ impl fmt::Display for MiniContext {
         write!(formatter, "{{ rip: {}, rsp: {} }}", self.rip, self.rsp)
     }
 }
+
+pub(super) const RSP_OFFSET_IN_MINI_CONTEXT: usize = offset_of!(MiniContext, rsp);
