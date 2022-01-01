@@ -22,6 +22,7 @@ bitflags! {
         const COPY_MAPPING = 4;
         const EXOFORK = 5;
         const SET_STATE = 6;
+        const SET_TRAP_HANDLER = 7;
     }
 }
 

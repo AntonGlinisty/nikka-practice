@@ -15,6 +15,7 @@ use crate::{
     },
     memory::{
         AddressSpace,
+        Block,
         Virt,
     },
     smp::Cpu,
@@ -41,6 +42,7 @@ pub struct Process {
     pid: Pid,
     registers: Registers,
     state: State,
+    trap_handler_context: TrapHandlerContext,
 }
 
 impl Process {
@@ -58,6 +60,7 @@ impl Process {
             pid: Pid::Current,
             registers: Registers::new(context, info.into_usize()),
             state: State::Runnable,
+            trap_handler_context: TrapHandlerContext::default(),
         }
     }
 
@@ -79,6 +82,7 @@ impl Process {
             pid: Pid::Current,
             registers: self.registers.duplicate(rax, rdi, info.into_usize()),
             state: State::Exofork,
+            trap_handler_context: TrapHandlerContext::default(),
         })
     }
 
@@ -131,6 +135,17 @@ impl Process {
         state: State,
     ) {
         self.state = state
+    }
+
+    pub(crate) fn trap_handler_context(&self) -> TrapHandlerContext {
+        self.trap_handler_context
+    }
+
+    pub(super) fn set_trap_handler_context(
+        &mut self,
+        trap_handler_context: TrapHandlerContext,
+    ) {
+        self.trap_handler_context = trap_handler_context;
     }
 
     pub fn enter_user_mode(mut process: MutexGuard<Process>) -> bool {
@@ -191,6 +206,52 @@ impl fmt::Display for Process {
             self.pid,
             self.address_space,
             self.registers.mini_context(),
+        )
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct TrapHandlerContext {
+    mini_context: MiniContext,
+    stack: Block<Virt>,
+}
+
+impl TrapHandlerContext {
+    pub(super) fn new(
+        rip: Virt,
+        stack: Block<Virt>,
+    ) -> Result<Self> {
+        Ok(Self {
+            mini_context: MiniContext::new(rip, stack.end_address()?),
+            stack,
+        })
+    }
+
+    pub(crate) fn contains(
+        &self,
+        rsp: Virt,
+    ) -> bool {
+        self.stack.contains_address(rsp)
+    }
+
+    pub(crate) fn is_valid(&self) -> bool {
+        self.stack != Block::default()
+    }
+
+    pub(crate) fn mini_context(&self) -> MiniContext {
+        self.mini_context
+    }
+}
+
+impl fmt::Display for TrapHandlerContext {
+    fn fmt(
+        &self,
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
+        write!(
+            formatter,
+            "{{ {}, stack: {} }}",
+            self.mini_context, self.stack,
         )
     }
 }

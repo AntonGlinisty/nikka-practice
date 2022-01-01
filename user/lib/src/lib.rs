@@ -4,6 +4,7 @@
 
 #![allow(clippy::missing_safety_doc)]
 #![feature(asm)]
+#![feature(naked_functions)]
 #![no_std]
 
 pub mod memory;

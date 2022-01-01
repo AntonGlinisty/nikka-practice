@@ -13,8 +13,10 @@ use ku::{
     },
     process::{
         Pid,
+        RSP_OFFSET_IN_TRAP_INFO,
         ResultCode,
         Syscall,
+        TrapInfo,
     },
 };
 
@@ -100,6 +102,26 @@ pub fn set_state(dst_pid: Pid) -> Result<()> {
     syscall(Syscall::SET_STATE.bits(), dst_pid.into_usize(), 0, 0, 0, 0).map(|_| ())
 }
 
+pub fn set_trap_handler(
+    dst_pid: Pid,
+    trap_handler: fn(&TrapInfo),
+    trap_handler_stack: Block<Page>,
+) -> Result<()> {
+    unsafe {
+        TRAP_HANDLER = trap_handler;
+    }
+
+    syscall(
+        Syscall::SET_TRAP_HANDLER.bits(),
+        dst_pid.into_usize(),
+        trap_handler_trampoline as *const () as usize,
+        trap_handler_stack.start_address().into_usize(),
+        trap_handler_stack.size(),
+        0,
+    )
+    .map(|_| ())
+}
+
 // Inline is needed for the correctness of exofork().
 #[inline(always)]
 fn syscall(
@@ -113,3 +135,45 @@ fn syscall(
     // TODO: your code here.
     unimplemented!();
 }
+
+#[cold]
+#[naked]
+extern "C" fn trap_handler_trampoline() -> ! {
+    unsafe {
+        asm!(
+            "
+            // TODO: your code here.
+
+            call {trap_handler_invoker}
+
+            // TODO: your code here.
+
+            // Return to the point which caused this trap.
+            // This relies on that trap_handler_invoker() has called TrapInfo::prepare_for_ret()
+            // to put the trap site RIP on the trap site stack.
+            ret
+            ",
+
+            // TODO: your code here.
+            trap_handler_invoker = sym trap_handler_invoker,
+
+            options(noreturn),
+        );
+    }
+}
+
+#[cold]
+#[inline(never)]
+extern "C" fn trap_handler_invoker(info: &mut TrapInfo, // rdi
+) {
+    unsafe {
+        TRAP_HANDLER(info);
+
+        info.prepare_for_ret().unwrap();
+    }
+}
+
+fn dummy_trap_handler(_info: &TrapInfo) {
+}
+
+static mut TRAP_HANDLER: fn(&TrapInfo) = dummy_trap_handler;

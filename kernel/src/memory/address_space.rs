@@ -285,9 +285,31 @@ impl AddressSpace {
         block: Block<Virt>,
         flags: PageTableFlags,
     ) -> Result<&'static [T]> {
-        // TODO: your code here.
+        self.check_permission_common(&block, flags)?;
 
         Ok(unsafe { block.try_into_slice()? })
+    }
+
+    pub(crate) fn check_permission_mut<T>(
+        &mut self,
+        block: Block<Virt>,
+        flags: PageTableFlags,
+    ) -> Result<&'static mut [T]> {
+        assert!(flags.contains(PageTableFlags::WRITABLE));
+
+        self.check_permission_common(&block, flags)?;
+
+        Ok(unsafe { block.try_into_mut_slice()? })
+    }
+
+    fn check_permission_common(
+        &mut self,
+        block: &Block<Virt>,
+        flags: PageTableFlags,
+    ) -> Result<()> {
+        // TODO: your code here.
+
+        Ok(())
     }
 }
 

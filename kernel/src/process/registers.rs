@@ -167,11 +167,11 @@ impl ModeContext {
         )
     }
 
-    fn mini_context(&self) -> MiniContext {
+    pub(crate) fn mini_context(&self) -> MiniContext {
         MiniContext::new(self.rip, self.rsp)
     }
 
-    fn set_mini_context(
+    pub(crate) fn set_mini_context(
         &mut self,
         context: MiniContext,
     ) {

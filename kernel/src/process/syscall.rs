@@ -56,6 +56,7 @@ use super::{
     Scheduler,
     State,
     Table,
+    TrapHandlerContext,
 };
 
 pub(crate) fn init() {
@@ -218,6 +219,17 @@ fn set_state(
     process: MutexGuard<Process>,
     dst_pid: usize,
     state: usize,
+) -> Result<SyscallResult> {
+    // TODO: your code here.
+    unimplemented!();
+}
+
+fn set_trap_handler(
+    process: MutexGuard<Process>,
+    dst_pid: usize,
+    rip: usize,
+    stack_address: usize,
+    stack_size: usize,
 ) -> Result<SyscallResult> {
     // TODO: your code here.
     unimplemented!();

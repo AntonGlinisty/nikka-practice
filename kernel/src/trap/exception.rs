@@ -1,14 +1,21 @@
-use core::fmt::{
-    Display,
-    Formatter,
-    Result,
-};
-
 use lazy_static::lazy_static;
-use spin::Mutex;
-use x86_64::{
-    registers::control::Cr2,
-    structures::idt::PageFaultErrorCode,
+use spin::{
+    Mutex,
+    MutexGuard,
+};
+use x86_64::registers::control::Cr2;
+
+use ku::{
+    memory::{
+        PageFaultInfo,
+        mmu::PageTableFlags,
+        size,
+    },
+    process::{
+        Info,
+        MiniContext,
+        TrapInfo,
+    },
 };
 
 use super::{
@@ -17,42 +24,21 @@ use super::{
 };
 
 use crate::{
+    error::Result,
     log,
     log::{
+        debug,
         error,
         info,
         trace,
+        warn,
     },
-    memory::Virt,
     process::{
         Process,
         Table,
     },
     smp::Cpu,
 };
-
-enum Info {
-    None,
-    Code(u64),
-    PageFault {
-        address: Virt,
-        code: PageFaultErrorCode,
-    },
-}
-
-impl Display for Info {
-    fn fmt(
-        &self,
-        formatter: &mut Formatter,
-    ) -> Result {
-        match self {
-            Info::None => write!(formatter, "{{ }}"),
-            Info::Code(code) => write!(formatter, "{{ code: {code} }}"),
-            Info::PageFault { address, code } =>
-                write!(formatter, "{{ address: {}, code: {:?} }}", address, code),
-        }
-    }
-}
 
 #[derive(PartialEq)]
 enum Fatal {
@@ -61,16 +47,17 @@ enum Fatal {
 }
 
 fn generic_trap(
-    context: &TrapContext,
-    exception_number: usize,
+    context: &mut TrapContext,
+    number: usize,
     info: Info,
     fatal: Fatal,
 ) {
-    let context = context.get();
+    debug!(trap = TRAP_STATS[number].name(), %context);
 
-    TRAP_STATS[exception_number].inc();
+    TRAP_STATS[number].inc();
 
-    if let Ok(pid) = Cpu::current_process() {
+    if context.is_user_mode() {
+        let pid = Cpu::current_process().expect("user mode without a process");
         let mut process =
             Table::get(pid).expect("failed to find the current process in the process table");
 
@@ -78,18 +65,15 @@ fn generic_trap(
         log::user_events(pid, log);
         trace!(read_stats = ?log.read_stats(), write_stats = ?log.write_stats());
 
+        // TODO: your code here.
+
         info!(
-            trap = TRAP_STATS[exception_number].name(),
-            exception_number,
+            trap = TRAP_STATS[number].name(),
+            number,
             %info,
             %context,
-            %process,
-            "{}",
-            if context.is_user_mode() {
-                "user mode trap"
-            } else {
-                "kernel mode trap on behalf of the user mode"
-            }
+            %pid,
+            "user mode trap",
         );
 
         if fatal == Fatal::Yes {
@@ -98,8 +82,8 @@ fn generic_trap(
         }
     } else {
         error!(
-            trap = TRAP_STATS[exception_number].name(),
-            exception_number,
+            trap = TRAP_STATS[number].name(),
+            number,
             %info,
             %context,
             "kernel mode trap",
@@ -108,55 +92,65 @@ fn generic_trap(
         if fatal == Fatal::Yes {
             panic!(
                 "kernel mode trap #{} - {}, context: {}",
-                exception_number,
-                TRAP_STATS[exception_number].name(),
+                number,
+                TRAP_STATS[number].name(),
                 context,
             );
         }
     }
 }
 
-pub(super) extern "x86-interrupt" fn divide_error(context: TrapContext) {
-    generic_trap(&context, super::DIVIDE_ERROR, Info::None, Fatal::Yes);
+fn user_trap_handler(
+    process: &mut MutexGuard<Process>,
+    original_context: &mut TrapContext,
+    number: usize,
+    info: Info,
+) -> Result<()> {
+    // TODO: your code here.
+    unimplemented!();
 }
 
-pub(super) extern "x86-interrupt" fn debug(context: TrapContext) {
-    generic_trap(&context, super::DEBUG, Info::None, Fatal::Yes);
+pub(super) extern "x86-interrupt" fn divide_error(mut context: TrapContext) {
+    generic_trap(&mut context, super::DIVIDE_ERROR, Info::None, Fatal::Yes);
 }
 
-pub(super) extern "x86-interrupt" fn non_maskable_interrupt(context: TrapContext) {
+pub(super) extern "x86-interrupt" fn debug(mut context: TrapContext) {
+    generic_trap(&mut context, super::DEBUG, Info::None, Fatal::Yes);
+}
+
+pub(super) extern "x86-interrupt" fn non_maskable_interrupt(mut context: TrapContext) {
     generic_trap(
-        &context,
+        &mut context,
         super::NON_MASKABLE_INTERRUPT,
         Info::None,
         Fatal::Yes,
     );
 }
 
-pub(super) extern "x86-interrupt" fn breakpoint(context: TrapContext) {
-    generic_trap(&context, super::BREAKPOINT, Info::None, Fatal::No);
+pub(super) extern "x86-interrupt" fn breakpoint(mut context: TrapContext) {
+    generic_trap(&mut context, super::BREAKPOINT, Info::None, Fatal::No);
 }
 
-pub(super) extern "x86-interrupt" fn overflow(context: TrapContext) {
-    generic_trap(&context, super::OVERFLOW, Info::None, Fatal::No);
+pub(super) extern "x86-interrupt" fn overflow(mut context: TrapContext) {
+    generic_trap(&mut context, super::OVERFLOW, Info::None, Fatal::No);
 }
 
-pub(super) extern "x86-interrupt" fn bound_range_exceeded(context: TrapContext) {
+pub(super) extern "x86-interrupt" fn bound_range_exceeded(mut context: TrapContext) {
     generic_trap(
-        &context,
+        &mut context,
         super::BOUND_RANGE_EXCEEDED,
         Info::None,
         Fatal::Yes,
     );
 }
 
-pub(super) extern "x86-interrupt" fn invalid_opcode(context: TrapContext) {
-    generic_trap(&context, super::INVALID_OPCODE, Info::None, Fatal::Yes);
+pub(super) extern "x86-interrupt" fn invalid_opcode(mut context: TrapContext) {
+    generic_trap(&mut context, super::INVALID_OPCODE, Info::None, Fatal::Yes);
 }
 
-pub(super) extern "x86-interrupt" fn device_not_available(context: TrapContext) {
+pub(super) extern "x86-interrupt" fn device_not_available(mut context: TrapContext) {
     generic_trap(
-        &context,
+        &mut context,
         super::DEVICE_NOT_AVAILABLE,
         Info::None,
         Fatal::Yes,
@@ -164,7 +158,7 @@ pub(super) extern "x86-interrupt" fn device_not_available(context: TrapContext) 
 }
 
 pub(super) extern "x86-interrupt" fn double_fault(
-    context: TrapContext,
+    mut context: TrapContext,
     error_code: u64,
 ) {
     lazy_static! {
@@ -174,7 +168,7 @@ pub(super) extern "x86-interrupt" fn double_fault(
     let _ = STOP_ALL_CPUS.lock();
 
     generic_trap(
-        &context,
+        &mut context,
         super::DOUBLE_FAULT,
         Info::Code(error_code),
         Fatal::Yes,
@@ -183,11 +177,11 @@ pub(super) extern "x86-interrupt" fn double_fault(
 }
 
 pub(super) extern "x86-interrupt" fn invalid_tss(
-    context: TrapContext,
+    mut context: TrapContext,
     error_code: u64,
 ) {
     generic_trap(
-        &context,
+        &mut context,
         super::INVALID_TSS,
         Info::Code(error_code),
         Fatal::Yes,
@@ -195,11 +189,11 @@ pub(super) extern "x86-interrupt" fn invalid_tss(
 }
 
 pub(super) extern "x86-interrupt" fn segment_not_present(
-    context: TrapContext,
+    mut context: TrapContext,
     error_code: u64,
 ) {
     generic_trap(
-        &context,
+        &mut context,
         super::SEGMENT_NOT_PRESENT,
         Info::Code(error_code),
         Fatal::Yes,
@@ -207,11 +201,11 @@ pub(super) extern "x86-interrupt" fn segment_not_present(
 }
 
 pub(super) extern "x86-interrupt" fn stack_segment_fault(
-    context: TrapContext,
+    mut context: TrapContext,
     error_code: u64,
 ) {
     generic_trap(
-        &context,
+        &mut context,
         super::STACK_SEGMENT_FAULT,
         Info::Code(error_code),
         Fatal::Yes,
@@ -219,11 +213,11 @@ pub(super) extern "x86-interrupt" fn stack_segment_fault(
 }
 
 pub(super) extern "x86-interrupt" fn general_protection_fault(
-    context: TrapContext,
+    mut context: TrapContext,
     error_code: u64,
 ) {
     generic_trap(
-        &context,
+        &mut context,
         super::GENERAL_PROTECTION_FAULT,
         Info::Code(error_code),
         Fatal::Yes,
@@ -231,54 +225,64 @@ pub(super) extern "x86-interrupt" fn general_protection_fault(
 }
 
 pub(super) extern "x86-interrupt" fn page_fault(
-    context: TrapContext,
+    mut context: TrapContext,
     error_code: u64,
 ) {
     generic_trap(
-        &context,
+        &mut context,
         super::PAGE_FAULT,
         Info::PageFault {
             address: Cr2::read().into(),
-            code: PageFaultErrorCode::from_bits_truncate(error_code),
+            code: PageFaultInfo::from_bits_truncate(size::from(error_code)),
         },
         Fatal::Yes,
     );
 }
 
-pub(super) extern "x86-interrupt" fn x87_floating_point(context: TrapContext) {
-    generic_trap(&context, super::X87_FLOATING_POINT, Info::None, Fatal::Yes);
+pub(super) extern "x86-interrupt" fn x87_floating_point(mut context: TrapContext) {
+    generic_trap(
+        &mut context,
+        super::X87_FLOATING_POINT,
+        Info::None,
+        Fatal::Yes,
+    );
 }
 
 pub(super) extern "x86-interrupt" fn alignment_check(
-    context: TrapContext,
+    mut context: TrapContext,
     error_code: u64,
 ) {
     generic_trap(
-        &context,
+        &mut context,
         super::ALIGNMENT_CHECK,
         Info::Code(error_code),
         Fatal::Yes,
     );
 }
 
-pub(super) extern "x86-interrupt" fn machine_check(context: TrapContext) {
-    generic_trap(&context, super::MACHINE_CHECK, Info::None, Fatal::Yes);
+pub(super) extern "x86-interrupt" fn machine_check(mut context: TrapContext) {
+    generic_trap(&mut context, super::MACHINE_CHECK, Info::None, Fatal::Yes);
 }
 
-pub(super) extern "x86-interrupt" fn simd_floating_point(context: TrapContext) {
-    generic_trap(&context, super::SIMD_FLOATING_POINT, Info::None, Fatal::Yes);
+pub(super) extern "x86-interrupt" fn simd_floating_point(mut context: TrapContext) {
+    generic_trap(
+        &mut context,
+        super::SIMD_FLOATING_POINT,
+        Info::None,
+        Fatal::Yes,
+    );
 }
 
-pub(super) extern "x86-interrupt" fn virtualization(context: TrapContext) {
-    generic_trap(&context, super::VIRTUALIZATION, Info::None, Fatal::Yes);
+pub(super) extern "x86-interrupt" fn virtualization(mut context: TrapContext) {
+    generic_trap(&mut context, super::VIRTUALIZATION, Info::None, Fatal::Yes);
 }
 
 pub(super) extern "x86-interrupt" fn security_exception(
-    context: TrapContext,
+    mut context: TrapContext,
     error_code: u64,
 ) {
     generic_trap(
-        &context,
+        &mut context,
         super::SECURITY_EXCEPTION,
         Info::Code(error_code),
         Fatal::Yes,

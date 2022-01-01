@@ -1,3 +1,5 @@
+use core::fmt;
+
 use volatile::Volatile;
 
 use crate::process::ModeContext;
@@ -19,5 +21,23 @@ impl TrapContext {
         context: ModeContext,
     ) {
         Volatile::new(&mut self.0).write(context);
+    }
+}
+
+impl fmt::Debug for TrapContext {
+    fn fmt(
+        &self,
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
+        write!(formatter, "{:?}", self.get())
+    }
+}
+
+impl fmt::Display for TrapContext {
+    fn fmt(
+        &self,
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
+        write!(formatter, "{}", self.get())
     }
 }

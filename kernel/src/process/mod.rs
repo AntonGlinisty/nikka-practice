@@ -38,7 +38,10 @@ use crate::{
     },
 };
 
-use process::State;
+use process::{
+    State,
+    TrapHandlerContext,
+};
 use registers::RFlags;
 use table::TABLE;
 
