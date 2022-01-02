@@ -1,3 +1,5 @@
+use core::str;
+
 use bitflags::bitflags;
 use spin::MutexGuard;
 use x86_64::registers::model_specific::{
@@ -168,6 +170,16 @@ fn exit(
     process: MutexGuard<Process>,
     code: usize,
 ) -> ! {
+    // TODO: your code here.
+    unimplemented!();
+}
+
+fn log_value(
+    mut process: MutexGuard<Process>,
+    start: usize,
+    len: usize,
+    value: usize,
+) -> Result<SyscallResult> {
     // TODO: your code here.
     unimplemented!();
 }

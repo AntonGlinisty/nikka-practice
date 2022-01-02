@@ -16,13 +16,14 @@ bitflags! {
 bitflags! {
     pub struct Syscall: usize {
         const EXIT = 0;
-        const SCHED_YIELD = 1;
-        const MAP = 2;
-        const UNMAP = 3;
-        const COPY_MAPPING = 4;
-        const EXOFORK = 5;
-        const SET_STATE = 6;
-        const SET_TRAP_HANDLER = 7;
+        const LOG_VALUE = 1;
+        const SCHED_YIELD = 2;
+        const EXOFORK = 3;
+        const MAP = 4;
+        const UNMAP = 5;
+        const COPY_MAPPING = 6;
+        const SET_STATE = 7;
+        const SET_TRAP_HANDLER = 8;
     }
 }
 

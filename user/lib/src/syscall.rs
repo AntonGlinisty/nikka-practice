@@ -26,6 +26,23 @@ pub fn exit(code: usize) -> ! {
     unreachable!();
 }
 
+pub fn log_value(
+    message: &str,
+    value: usize,
+) -> Result<()> {
+    let block = Block::<Virt>::from_slice(message.as_bytes());
+
+    syscall(
+        Syscall::LOG_VALUE.bits(),
+        block.start_address().into_usize(),
+        block.size(),
+        value,
+        0,
+        0,
+    )
+    .map(|_| ())
+}
+
 #[allow(unused_must_use)]
 pub fn sched_yield() {
     syscall(Syscall::SCHED_YIELD.bits(), 0, 0, 0, 0, 0);
