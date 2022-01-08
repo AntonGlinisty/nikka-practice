@@ -20,6 +20,7 @@ use kernel::{
         test_scaffolding,
     },
     trap::{
+        GENERAL_PROTECTION_FAULT,
         INVALID_OPCODE,
         PAGE_FAULT,
         TRAP_STATS,
@@ -28,6 +29,7 @@ use kernel::{
 
 use crate::forbid_frame_leaks;
 
+const COW_FORK_ELF: &[u8] = include_bytes!("../../../user/cow_fork/target/kernel/debug/cow_fork");
 const EAGER_FORK_ELF: &[u8] =
     include_bytes!("../../../user/eager_fork/target/kernel/debug/eager_fork");
 const EXIT_ELF: &[u8] = include_bytes!("../../../user/exit/target/kernel/debug/exit");
@@ -224,5 +226,26 @@ fn eager_fork() {
         TRAP_STATS[PAGE_FAULT].count(),
         start_page_fault_count,
         "eager_fork should not page fault",
+    );
+}
+
+#[test_case]
+fn cow_fork() {
+    let start_page_fault_count = TRAP_STATS[PAGE_FAULT].count();
+
+    let pid = make_process(COW_FORK_ELF).pid();
+
+    Scheduler::enqueue(pid);
+
+    while Scheduler::run_one() {}
+
+    assert_eq!(
+        TRAP_STATS[GENERAL_PROTECTION_FAULT].count(),
+        0,
+        "cow_fork should not trigger the general protection fault",
+    );
+    assert!(
+        TRAP_STATS[PAGE_FAULT].count() + 10 > start_page_fault_count,
+        "cow_fork should page fault many times",
     );
 }

@@ -120,6 +120,7 @@ bitflags! {
         const HUGE = 1 << 7;
         const GLOBAL = 1 << 8;
         const AVAILABLE = 0b111 << 9;
+        const COPY_ON_WRITE = 1 << 9;
         const NO_EXECUTE = 1 << 63;
     }
 }
@@ -146,6 +147,9 @@ pub const FULL_ACCESS: PageTableFlags = PageTableFlags::from_bits_truncate(
         PageTableFlags::WRITABLE.bits() |
         PageTableFlags::USER_ACCESSIBLE.bits(),
 );
+
+pub const SYSCALL_ALLOWED_FLAGS: PageTableFlags =
+    PageTableFlags::from_bits_truncate(USER_RW.bits() | PageTableFlags::COPY_ON_WRITE.bits());
 
 pub const PAGE_OFFSET_BITS: u32 = 12;
 pub const PAGE_TABLE_ENTRY_COUNT: usize = 1 << PAGE_TABLE_INDEX_BITS;
