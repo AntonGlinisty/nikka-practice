@@ -61,9 +61,12 @@ fn generic_trap(
         let mut process =
             Table::get(pid).expect("failed to find the current process in the process table");
 
-        let log = process.info().log();
-        log::user_events(pid, log);
-        trace!(read_stats = ?log.read_stats(), write_stats = ?log.write_stats());
+        if let Ok(log) = process.log() {
+            log::user_events(pid, log);
+            trace!(read_stats = ?log.read_stats(), write_stats = ?log.write_stats());
+        } else {
+            warn!(%pid, "log is not mapped properly");
+        }
 
         // TODO: your code here.
 

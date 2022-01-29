@@ -4,11 +4,15 @@ use spin::MutexGuard;
 
 use ku::{
     ProcessInfo,
+    RingBuffer,
     process::MiniContext,
 };
 
 use crate::{
-    error::Result,
+    error::{
+        Error::InvalidArgument,
+        Result,
+    },
     log::{
         debug,
         info,
@@ -16,6 +20,7 @@ use crate::{
     memory::{
         AddressSpace,
         Block,
+        USER_RW,
         Virt,
     },
     smp::Cpu,
@@ -37,7 +42,7 @@ pub(super) enum State {
 #[derive(Debug)]
 pub struct Process {
     address_space: AddressSpace,
-    info: Virt,
+    info: Block<Virt>,
     parent: Option<Pid>,
     pid: Pid,
     registers: Registers,
@@ -51,14 +56,14 @@ impl Process {
         context: MiniContext,
         info: &'static mut ProcessInfo,
     ) -> Self {
-        let info = Virt::from_ref(info);
+        let info = Block::from_ref(info);
 
         Self {
             address_space,
             info,
             parent: None,
             pid: Pid::Current,
-            registers: Registers::new(context, info.into_usize()),
+            registers: Registers::new(context, info.start_address().into_usize()),
             state: State::Runnable,
             trap_handler_context: TrapHandlerContext::default(),
         }
@@ -72,7 +77,7 @@ impl Process {
         let mut address_space = self.address_space.duplicate()?;
 
         address_space.switch_to();
-        let info = Virt::from_ref(super::map_process_info(&mut address_space)?);
+        let info = Block::from_ref(super::map_process_info(&mut address_space)?);
         self.address_space.switch_to();
 
         Ok(Self {
@@ -80,7 +85,7 @@ impl Process {
             info,
             parent: Some(self.pid),
             pid: Pid::Current,
-            registers: self.registers.duplicate(rax, rdi, info.into_usize()),
+            registers: self.registers.duplicate(rax, rdi, info.start_address().into_usize()),
             state: State::Exofork,
             trap_handler_context: TrapHandlerContext::default(),
         })
@@ -97,8 +102,28 @@ impl Process {
         self.registers.set_mini_context(context);
     }
 
-    pub fn info(&mut self) -> &mut ProcessInfo {
-        unsafe { self.info.try_into_mut().unwrap() }
+    unsafe fn info(&mut self) -> Result<&mut ProcessInfo> {
+        let info = self.address_space.check_permission_mut::<ProcessInfo>(self.info, USER_RW)?;
+
+        if info.len() == 1 {
+            Ok(&mut info[0])
+        } else {
+            Err(InvalidArgument)
+        }
+    }
+
+    pub fn log(&mut self) -> Result<&mut RingBuffer> {
+        let info = unsafe { self.info()? };
+        let log = Block::from_ref(info.log());
+
+        let log = self.address_space.check_permission_mut::<RingBuffer>(log, USER_RW)?;
+
+        if log.len() == 1 {
+            self.address_space.check_permission_mut::<u8>(log[0].block(), USER_RW)?;
+            Ok(&mut log[0])
+        } else {
+            Err(InvalidArgument)
+        }
     }
 
     pub fn parent(&self) -> Option<Pid> {
@@ -153,7 +178,10 @@ impl Process {
 
         process.address_space.switch_to();
 
-        process.info().set_pid(pid);
+        if let Ok(info) = unsafe { process.info() } {
+            info.set_pid(pid);
+        }
+
         Cpu::set_current_process(Some(pid));
 
         let registers = &mut process.registers as *mut Registers;
