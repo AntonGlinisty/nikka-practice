@@ -174,25 +174,44 @@ fn preemption() {
 
     let pid = make_process(LOOP_ELF).pid();
 
-    for _ in 0 .. 2 {
-        let process = Table::get(pid).expect("failed to find the new process in the process table");
-        Process::enter_user_mode(process);
-    }
+    let process = Table::get(pid).expect("failed to find the new process in the process table");
+    Process::enter_user_mode(process);
 
     // If this does not happen and the test times out, the preemption is not working properly.
     debug!("returned from the user space");
 
-    {
+    free_process(pid);
+}
+
+#[test_case]
+fn user_context_saved() {
+    forbid_frame_leaks!();
+
+    let pid = make_process(LOOP_ELF).pid();
+
+    let mut user_mode_context_saved = false;
+
+    while !user_mode_context_saved {
+        let process = Table::get(pid).expect("failed to find the new process in the process table");
+        Process::enter_user_mode(process);
+
         let process = Table::get(pid).expect("failed to find the new process in the process table");
 
         let user_registers = test_scaffolding::registers(&process);
 
         debug!(?user_registers);
 
-        for i in 0 .. user_registers.len() {
-            assert_eq!(user_registers[i], 77701 + i);
+        user_mode_context_saved = true;
+        for (i, register_value) in user_registers.iter().enumerate() {
+            if *register_value != 77701 + i {
+                user_mode_context_saved = false;
+                break;
+            }
         }
     }
+
+    // If this does not happen and the test times out, the user space context was not saved properly.
+    debug!("the user context is saved properly");
 
     free_process(pid);
 }
