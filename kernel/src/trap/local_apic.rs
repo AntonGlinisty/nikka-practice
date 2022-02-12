@@ -30,49 +30,63 @@ use crate::{
     },
 };
 
+use register::Register;
+
 pub(crate) type CpuId = u8;
 
 /// <https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.pdf>, Chapter 10.
 /// <https://wiki.osdev.org/APIC#Local_APIC_registers>
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 #[repr(C, align(4096))]
 pub(crate) struct LocalApic {
-    _0: [LocalApicRegister; 2],
-    id: LocalApicRegister,
-    _1: [LocalApicRegister; 8],
-    eoi: LocalApicRegister,
-    _2: [LocalApicRegister; 3],
-    spurious: LocalApicRegister,
-    _3: [LocalApicRegister; 32],
-    interrupt_command_lo: LocalApicRegister,
-    interrupt_command_hi: LocalApicRegister,
-    lvt_timer: LocalApicRegister,
-    lvt_termal_sensor: LocalApicRegister,
-    lvt_performance_counter_overflow: LocalApicRegister,
-    lvt_lint0: LocalApicRegister,
-    lvt_lint1: LocalApicRegister,
-    lvt_error: LocalApicRegister,
-    timer_initial_count: LocalApicRegister,
-    timer_current_count: LocalApicRegister,
-    _4: [LocalApicRegister; 4],
-    timer_divide_configuration: LocalApicRegister,
-    _5: [LocalApicRegister; 1],
+    _0: [Register; 2],
+    id: Register,
+    _1: [Register; 8],
+    eoi: Register,
+    _2: [Register; 3],
+    spurious: Register,
+    _3: [Register; 32],
+    interrupt_command_lo: Register,
+    interrupt_command_hi: Register,
+    lvt_timer: Register,
+    lvt_termal_sensor: Register,
+    lvt_performance_counter_overflow: Register,
+    lvt_lint0: Register,
+    lvt_lint1: Register,
+    lvt_error: Register,
+    timer_initial_count: Register,
+    timer_current_count: Register,
+    _4: [Register; 4],
+    timer_divide_configuration: Register,
+    _5: [Register; 1],
 }
 
 const_assert!(mem::size_of::<LocalApic>() == Page::SIZE);
 
 impl LocalApic {
     const fn zero() -> Self {
-        union LocalApicPage {
-            local_apic: LocalApic,
-            raw: [u8; Page::SIZE],
+        Self {
+            _0: [Register::zero(); 2],
+            id: Register::zero(),
+            _1: [Register::zero(); 8],
+            eoi: Register::zero(),
+            _2: [Register::zero(); 3],
+            spurious: Register::zero(),
+            _3: [Register::zero(); 32],
+            interrupt_command_lo: Register::zero(),
+            interrupt_command_hi: Register::zero(),
+            lvt_timer: Register::zero(),
+            lvt_termal_sensor: Register::zero(),
+            lvt_performance_counter_overflow: Register::zero(),
+            lvt_lint0: Register::zero(),
+            lvt_lint1: Register::zero(),
+            lvt_error: Register::zero(),
+            timer_initial_count: Register::zero(),
+            timer_current_count: Register::zero(),
+            _4: [Register::zero(); 4],
+            timer_divide_configuration: Register::zero(),
+            _5: [Register::zero(); 1],
         }
-
-        let clear_page = LocalApicPage {
-            raw: [0; Page::SIZE],
-        };
-
-        unsafe { clear_page.local_apic }
     }
 
     pub(super) fn init() {
@@ -157,7 +171,7 @@ impl LocalApic {
             &mut self.lvt_lint1,
             &mut self.lvt_error,
         ] {
-            interrupt.update(|x| x | MASK_INTERRUPT);
+            interrupt.update(|x| *x |= MASK_INTERRUPT);
         }
     }
 
@@ -182,29 +196,35 @@ impl LocalApic {
     const ID_SHIFT: usize = 24;
 }
 
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-struct LocalApicRegister(u32, [u32; 3]);
+mod register {
+    use volatile::Volatile;
 
-impl LocalApicRegister {
-    fn get(&self) -> u32 {
-        unsafe { (&self.0 as *const u32).read_volatile() }
-    }
+    #[derive(Clone, Copy)]
+    #[repr(C)]
+    pub(super) struct Register(u32, [u32; 3]);
 
-    fn set(
-        &mut self,
-        value: u32,
-    ) {
-        unsafe {
-            (&mut self.0 as *mut u32).write_volatile(value);
+    impl Register {
+        pub(super) const fn zero() -> Self {
+            Self(0, [0; 3])
         }
-    }
 
-    fn update<F: FnOnce(u32) -> u32>(
-        &mut self,
-        f: F,
-    ) {
-        self.set(f(self.get()));
+        pub(super) fn get(&self) -> u32 {
+            Volatile::new(&self.0).read()
+        }
+
+        pub(super) fn set(
+            &mut self,
+            value: u32,
+        ) {
+            Volatile::new(&mut self.0).write(value);
+        }
+
+        pub(super) fn update<F: FnOnce(&mut u32)>(
+            &mut self,
+            f: F,
+        ) {
+            Volatile::new(&mut self.0).update(f);
+        }
     }
 }
 
