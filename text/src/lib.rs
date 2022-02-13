@@ -184,7 +184,9 @@ macro_rules! print {
             let old_attribute = text.attribute();
             let new_attribute = $crate::make_attribute!(old_attribute; $($colors)*);
             text.set_attribute(new_attribute);
-            text.write_fmt(format_args!($($arg)*)).unwrap();
+            if text.write_fmt(format_args!($($arg)*)).is_err() {
+                text.write_str("Err").unwrap();
+            }
             text.set_attribute(old_attribute);
         })
     );
