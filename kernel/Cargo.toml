@@ -18,6 +18,7 @@ itertools = { version = "*", default-features = false }
 lazy_static = { version = "*", features = ["spin_no_std"] }
 memoffset = { version = "*", features = ["unstable_const"] }
 postcard = "*"
+rand = { version = "*", default-features = false, features = ["small_rng"] }
 scopeguard = { version = "*", default-features = false }
 serde = { version = "*", default-features = false, features = ["alloc"] }
 spin = "*"

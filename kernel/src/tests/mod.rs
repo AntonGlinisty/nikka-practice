@@ -1,5 +1,6 @@
 mod allocator;
 mod memory;
+mod pipe;
 mod process;
 mod trap;
 

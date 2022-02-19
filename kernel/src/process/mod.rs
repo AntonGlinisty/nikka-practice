@@ -121,4 +121,15 @@ pub mod test_scaffolding {
         process::test_scaffolding::*,
         scheduler::test_scaffolding::*,
     };
+
+    use ku::RingBuffer;
+
+    use crate::{
+        error::Result,
+        memory::AddressSpace,
+    };
+
+    pub fn map_log(address_space: &mut AddressSpace) -> Result<RingBuffer> {
+        super::map_log(address_space)
+    }
 }
