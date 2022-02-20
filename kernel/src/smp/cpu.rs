@@ -1,5 +1,8 @@
 use alloc::vec::Vec;
-use core::mem;
+use core::{
+    convert::TryInto,
+    mem,
+};
 
 use memoffset::offset_of;
 use x86_64::{
@@ -15,7 +18,10 @@ use crate::{
         Error::NoProcess,
         Result,
     },
-    log::debug,
+    log::{
+        debug,
+        error,
+    },
     memory::{
         BASE_ADDRESS_SPACE,
         DOUBLE_FAULT_IST_INDEX,
@@ -66,6 +72,7 @@ pub(crate) const KERNEL_RSP_OFFSET_IN_CPU: usize = offset_of!(Cpu, tss) +
 #[repr(align(128))]
 pub(crate) struct Cpu {
     current_process: Option<Pid>,
+    id: CpuId,
     kernel_stack: &'static Stack,
     launch_escape_stack: &'static Stack,
     this: Virt,
@@ -74,10 +81,14 @@ pub(crate) struct Cpu {
 }
 
 impl Cpu {
-    pub fn new(stacks: &'static [Stack]) -> Self {
+    pub fn new(
+        id: CpuId,
+        stacks: &'static [Stack],
+    ) -> Self {
         assert_eq!(stacks.len(), Self::STACKS_PER_CPU);
 
         let mut result = Self {
+            id,
             current_process: None,
             kernel_stack: &stacks[0],
             launch_escape_stack: &stacks[1],
@@ -122,6 +133,10 @@ impl Cpu {
     pub(crate) fn take_user_context() -> Option<ModeContext> {
         let cpu = unsafe { Self::get() };
         cpu.user_context.take()
+    }
+
+    pub(super) fn id(&self) -> CpuId {
+        self.id
     }
 
     pub(super) fn kernel_stack(&self) -> &'static Stack {

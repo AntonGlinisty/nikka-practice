@@ -48,7 +48,6 @@ use crate::{
 };
 
 use super::{
-    CpuId,
     LocalApic,
     cpu::Cpu,
 };
@@ -56,7 +55,6 @@ use super::{
 /// MultiProcessor Specification 4.1 part B.4 "Application Processor Startup"
 pub(super) fn boot_ap(
     phys2virt: Page,
-    id: CpuId,
     cpu: &mut Cpu,
 ) -> Result<()> {
     let timer = time::timer();
@@ -64,10 +62,10 @@ pub(super) fn boot_ap(
 
     let boot_code = prepare_boot_code(phys2virt, cpu, &initialized)?;
 
-    LocalApic::send_init(id, boot_code)?;
+    LocalApic::send_init(cpu.id(), boot_code)?;
     wait_initialized(&initialized);
 
-    info!(cpu = id, duration = %timer.elapsed(), "boot Application Processor");
+    info!(cpu = cpu.id(), duration = %timer.elapsed(), "boot Application Processor");
 
     Ok(())
 }
@@ -262,7 +260,7 @@ extern "C" fn ap_kernel_main(
 
     signal_initialized(initialized);
 
-    info!(cpu = LocalApic::id(), "report for duty");
+    info!(cpu = cpu.id(), "report for duty");
 
     Scheduler::run();
 }

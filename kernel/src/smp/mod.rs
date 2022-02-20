@@ -70,7 +70,7 @@ fn init_smp(phys2virt: Page) -> Result<()> {
     info!(cpu = current_cpu, "Bootstrap Processor");
 
     for id in acpi.ap_ids() {
-        ap_init::boot_ap(phys2virt, *id, &mut cpus[usize::from(*id)])
+        ap_init::boot_ap(phys2virt, &mut cpus[usize::from(*id)])
             .unwrap_or_else(|_| panic!("failed to boot the Application Processor #{}", id));
     }
 
