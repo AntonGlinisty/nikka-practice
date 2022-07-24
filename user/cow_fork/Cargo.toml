@@ -6,7 +6,7 @@ homepage = "https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/index.h
 license = "AGPL-3.0-or-later"
 name = "cow_fork"
 repository = "https://gitlab.com/sergey-v-galtsev/nikka-public"
-version = "0.1.0"
+version = "0.2.0"
 
 [dependencies]
 heapless = "*"

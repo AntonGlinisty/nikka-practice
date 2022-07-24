@@ -155,7 +155,7 @@ dependencies = [
 
 [[package]]
 name = "ku"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bitflags",
  "chrono",
@@ -182,7 +182,7 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "lib"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ku",
  "tracing-core",
@@ -254,7 +254,7 @@ checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
 name = "page_fault"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "lib",
 ]

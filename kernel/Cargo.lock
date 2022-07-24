@@ -197,7 +197,7 @@ dependencies = [
 
 [[package]]
 name = "kernel"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "acpi",
  "bitflags",
@@ -226,7 +226,7 @@ dependencies = [
 
 [[package]]
 name = "ku"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bitflags",
  "chrono",
@@ -338,7 +338,7 @@ dependencies = [
 
 [[package]]
 name = "pic8259"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "x86",
 ]
@@ -540,7 +540,7 @@ dependencies = [
 
 [[package]]
 name = "serial"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "x86",
 ]
@@ -585,7 +585,7 @@ dependencies = [
 
 [[package]]
 name = "text"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bitflags",
  "lazy_static",
