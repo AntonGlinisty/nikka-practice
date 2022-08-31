@@ -223,7 +223,7 @@ impl Log {
     fn user_event<'a>(
         &self,
         pid: Pid,
-        deserializer: &mut postcard::Deserializer<'a>,
+        deserializer: &mut postcard::Deserializer<'a, postcard::de_flavors::Slice<'a>>,
     ) -> Result<()> {
         let metadata = LogMetadata::deserialize(&mut *deserializer)?;
         let level = metadata.level().map_err(|_| Unimplemented)?;

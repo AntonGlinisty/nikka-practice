@@ -1,4 +1,5 @@
 use core::{
+    arch::asm,
     fmt,
     mem,
 };

@@ -3,7 +3,8 @@
 #![allow(unused_variables)]
 
 #![allow(clippy::missing_safety_doc)]
-#![feature(asm)]
+#![feature(asm_const)]
+#![feature(asm_sym)]
 #![feature(naked_functions)]
 #![no_std]
 

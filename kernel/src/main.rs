@@ -4,7 +4,6 @@
 
 #![deny(warnings)]
 #![feature(custom_test_frameworks)]
-#![feature(format_args_capture)]
 #![feature(maybe_uninit_slice)]
 #![feature(panic_info_message)]
 #![feature(sort_internals)]

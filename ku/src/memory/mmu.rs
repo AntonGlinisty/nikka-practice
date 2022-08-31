@@ -1,4 +1,7 @@
-use core::mem;
+use core::{
+    arch::asm,
+    mem,
+};
 
 use bitflags::bitflags;
 use static_assertions::const_assert_eq;

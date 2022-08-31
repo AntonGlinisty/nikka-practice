@@ -1,0 +1,16 @@
+[workspace]
+members = [
+    "kernel",
+    "ku",
+    "pic8259",
+    "serial",
+    "text",
+
+    "user/cow_fork",
+    "user/eager_fork",
+    "user/exit",
+    "user/lib",
+    "user/loop",
+    "user/page_fault",
+    "user/sched_yield",
+]

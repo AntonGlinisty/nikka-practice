@@ -7,7 +7,10 @@ use core::{
 };
 
 use heapless::String;
-use postcard::flavors::SerFlavor;
+use postcard::{
+    Error::SerializeBufferFull,
+    ser_flavors::Flavor,
+};
 use scopeguard::defer;
 use serde::{
     Deserialize,
@@ -554,27 +557,27 @@ impl LogBuffer<'_> {
     }
 }
 
-impl SerFlavor for LogBuffer<'_> {
+impl Flavor for LogBuffer<'_> {
     type Output = ();
 
     fn try_extend(
         &mut self,
         data: &[u8],
-    ) -> result::Result<(), ()> {
+    ) -> postcard::Result<()> {
         self.result = self.buffer.write(data);
-        self.result.map_err(|_| ())
+        self.result.map_err(|_| SerializeBufferFull)
     }
 
     fn try_push(
         &mut self,
         data: u8,
-    ) -> result::Result<(), ()> {
+    ) -> postcard::Result<()> {
         self.result = self.buffer.write(&[data; 1]);
-        self.result.map_err(|_| ())
+        self.result.map_err(|_| SerializeBufferFull)
     }
 
-    fn release(self) -> result::Result<Self::Output, ()> {
-        self.result.map_err(|_| ())
+    fn finalize(self) -> postcard::Result<Self::Output> {
+        self.result.map_err(|_| SerializeBufferFull)
     }
 }
 

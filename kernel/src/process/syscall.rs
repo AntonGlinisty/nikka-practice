@@ -1,4 +1,7 @@
-use core::str;
+use core::{
+    arch::asm,
+    str,
+};
 
 use bitflags::bitflags;
 use spin::MutexGuard;

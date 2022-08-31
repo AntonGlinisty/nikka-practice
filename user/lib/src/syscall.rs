@@ -1,3 +1,5 @@
+use core::arch::asm;
+
 use ku::{
     error::{
         Error::InvalidArgument,

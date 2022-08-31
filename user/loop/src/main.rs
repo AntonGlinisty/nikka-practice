@@ -2,9 +2,10 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
-#![feature(asm)]
 #![no_main]
 #![no_std]
+
+use core::arch::asm;
 
 use lib::entry;
 

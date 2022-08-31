@@ -2,7 +2,6 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
-#![feature(format_args_capture)]
 #![no_std]
 
 mod cursor;

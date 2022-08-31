@@ -37,7 +37,7 @@ text = { path = "../text" }
 [package.metadata.bootimage]
 run-args = [
     "-m",
-    "size=50M",
+    "size=500M",
     "-smp",
     "cpus=4",
     "-device",
