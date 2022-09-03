@@ -1,6 +1,5 @@
 use alloc::vec::Vec;
 use core::{
-    convert::TryInto,
     ptr::NonNull,
     result,
 };

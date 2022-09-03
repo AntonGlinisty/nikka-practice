@@ -5,10 +5,7 @@
 #![allow(clippy::unusual_byte_groupings)]
 #![no_std]
 
-use core::{
-    convert::TryInto,
-    hint,
-};
+use core::hint;
 
 use x86::io;
 

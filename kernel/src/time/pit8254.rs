@@ -1,7 +1,5 @@
 #![allow(clippy::unusual_byte_groupings)]
 
-use core::convert::TryFrom;
-
 use static_assertions::const_assert;
 use x86::io;
 

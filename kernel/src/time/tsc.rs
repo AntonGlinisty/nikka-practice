@@ -1,6 +1,5 @@
 use core::{
     arch::x86_64,
-    convert::TryInto,
     fmt::{
         Debug,
         Display,

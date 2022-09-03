@@ -1,5 +1,4 @@
 use core::{
-    convert::TryInto,
     fmt,
     mem,
 };

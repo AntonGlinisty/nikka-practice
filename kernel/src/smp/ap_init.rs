@@ -1,7 +1,6 @@
 use core::{
     arch,
     arch::asm,
-    convert::TryInto,
     fmt,
     hint,
     mem,

@@ -34,7 +34,7 @@ Rust имеет те же свойства, но в дополнение пре�
 Также рекомендуется пройти [упражнения](https://github.com/rust-lang/rustlings/).
 Глубоких знаний языка потребоваться не должно, особенно если вы знакомы с C++.
 
-Мы будем пользоваться [nightly](https://doc.rust-lang.ru/book/appendix-07-nightly-rust.html) Rust [редакции 2018](https://doc.rust-lang.org/edition-guide/rust-2018/index.html).
+Мы будем пользоваться [nightly](https://doc.rust-lang.ru/book/appendix-07-nightly-rust.html) Rust [редакции 2021](https://doc.rust-lang.org/edition-guide/rust-2021/index.html).
 Так как ядро --- это [`no_std`](https://docs.rust-embedded.org/book/intro/no-std.html) код,
 не вся [стандартная библиотека `std`](https://doc.rust-lang.org/nightly/std/index.html) будет нам доступна.
 Но будет доступна её

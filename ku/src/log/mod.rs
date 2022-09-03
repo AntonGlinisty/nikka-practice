@@ -1,6 +1,5 @@
 use core::{
     cell::Cell,
-    convert::TryFrom,
     fmt,
     fmt::Write,
     result,
