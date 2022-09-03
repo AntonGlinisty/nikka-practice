@@ -5,6 +5,9 @@
 *.swp
 .gdb_history
 .vscode
+doc/
+lab/book/
+lab/src/*.svg
 serial.out
 target
 target/

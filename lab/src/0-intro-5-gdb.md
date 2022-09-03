@@ -44,3 +44,38 @@ $ make run
 ```console
 $ make test
 ```
+
+
+### Отладка пользовательских процессов
+
+При необходимости отлаживать пользовательский процесс,
+нужно сделать несколько дополнительных вещей:
+
+- Оставить в пользовательском бинарнике отладочную информацию. Для этого нужно убрать строку `cargo strip;` из `Makefile`.
+- Отредактировать `gdbinit`, заменив в нём команду загрузки бинарника ядра `file kernel/target/kernel/debug/kernel` на команду загрузки нужного пользовательского бинарника, например `file user/cow_fork/target/kernel/debug/cow_fork`.
+- Можно также добавить в `gdbinit` дополнительные команды, например
+```gdb
+breakpoint lib::syscall::trap_handler_invoker
+ignore 1 10
+continue
+```
+добавит точку останова на заданную функцию и пропустит первые 10 попаданий на неё. То есть приглашение gdb будет показано на 11-е попадание в точку останова.
+- Запустить `make test-gdb` в одной консоли и несколько раз `make gdb` в другой консоли, пока не запустится нужный тестовый процесс.
+
+
+### Дизассемблирование
+
+Для получения информации о бинарниках и для их дизассемблирования можно использовать `objdump` в сочетании с `rustfilt`.
+Например:
+```console
+$ objdump --all-headers kernel/target/kernel/debug/kernel | rustfilt
+$ objdump --disassemble kernel/target/kernel/debug/kernel | rustfilt
+$ objdump --all-headers user/cow_fork/target/kernel/debug/cow_fork | rustfilt
+$ objdump --disassemble user/cow_fork/target/kernel/debug/cow_fork | rustfilt
+```
+
+Для запуска `rustfilt` и других бинарников Rust полезно добавить `$HOME/.cargo/bin/` в свой `$PATH`:
+```console
+$ tail -n1 ~/.bashrc
+export PATH="$HOME/.cargo/bin:$PATH"
+```

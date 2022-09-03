@@ -107,6 +107,29 @@ test-gdb: $(RUST_PATH)/cargo user
 fmt: $(RUST_PATH)/rustfmt
 	@find . -name \*.rs -a ! -path \*/target/\* -exec rustfmt \{\} \;
 
+lab: $(RUST_PATH)/mdbook doc lab/src/*.dot lab/src/*.md
+	@( \
+		cd lab/src; \
+		for i in *.dot; do dot -Tsvg $$i > $${i%dot}svg; done; \
+		cd - >/dev/null; \
+		cd lab; \
+		mdbook build; \
+		mv book/html html; \
+		rm --force --recursive book; \
+		mkdir book; \
+		mv html book/; \
+		mv book/html/* book/; \
+		cd - >/dev/null; \
+	)
+
+doc: FORCE
+	@( \
+		cargo doc --document-private-items; \
+		find target/doc/src -name \*.rs.html -delete; \
+		rm --force --recursive doc; \
+		mv target/doc .; \
+	)
+
 clean: $(RUST_PATH)/cargo
 	@( \
 		for crate in $(CRATES) $(USER_CRATES); do \
@@ -115,8 +138,11 @@ clean: $(RUST_PATH)/cargo
 			cd - >/dev/null; \
 		done; \
 	)
-	@rm --force \
+	@rm --force --recursive \
+		doc \
 		kernel/serial.out \
+		lab/book \
+		lab/src/*.svg \
 		$(find . -name \*.rs.bk)
 
 install: FORCE $(RUST_PATH)/rustup $(RUST_PATH)/rustfilt
