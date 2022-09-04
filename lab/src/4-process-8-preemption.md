@@ -51,7 +51,7 @@ fn Process::enter_user_mode(mut process: MutexGuard<Process>) -> bool
 - `Registers::set_mode_context()`
 
 После этого заработает тест `preemption()` в файле
-[`kernel/src/tests/process.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/tests/process.rs):
+[`kernel/tests/process.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/process.rs):
 
 ```console
 kernel::tests::process::preemption--------------------------

@@ -32,7 +32,7 @@ extern "x86-interrupt" fn timer(mut context: TrapContext)
 ### Проверьте себя
 
 Теперь должен заработать тест `scheduler()` в файле
-[`kernel/src/tests/process.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/tests/process.rs):
+[`kernel/tests/process.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/process.rs):
 
 ```console
 kernel::tests::process::scheduler---------------------------

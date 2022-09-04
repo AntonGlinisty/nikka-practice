@@ -298,7 +298,7 @@ fn BootFrameAllocator::allocate() -> Result<Frame>
 - При разрушении, например при выходе из своей зоны видимости или [явном вызове `drop(guard)`](../../doc/spin/mutex/struct.Mutex.html#thread-safety-example), автоматически освобождает захваченную блокировку.
 
 Пример использования с блокировками, которые освобождаются сразу, в том же выражении, есть в тестах
-[`kernel/src/tests/memory.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/tests/memory.rs):
+[`kernel/tests/memory.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/memory.rs):
 ```rust
     let frame = FRAME_ALLOCATOR
         .lock()

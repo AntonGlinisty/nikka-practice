@@ -157,13 +157,6 @@ pub fn pass_test() -> ! {
 }
 
 #[cfg(test)]
-#[no_mangle]
-extern "C" fn _start() -> ! {
-    test_main();
-    exit_qemu(ExitCode::FAILURE)
-}
-
-#[cfg(test)]
 #[cold]
 #[inline(never)]
 #[panic_handler]

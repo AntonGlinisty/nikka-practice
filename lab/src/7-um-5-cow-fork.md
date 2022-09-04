@@ -85,7 +85,7 @@ fn cow_fork() -> Result<bool>
 ### Проверьте себя
 
 Теперь должен заработать тест `cow_fork()` в файле
-[`kernel/src/tests/process.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/tests/process.rs):
+[`kernel/tests/process.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/process.rs):
 
 ```console
 kernel::tests::process::cow_fork----------------------------

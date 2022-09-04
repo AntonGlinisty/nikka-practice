@@ -282,7 +282,7 @@ fn lib::syscall::syscall(
 ### Проверьте себя
 
 Теперь должен заработать тест `syscall_exit()` в файле
-[`kernel/src/tests/process.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/tests/process.rs):
+[`kernel/tests/process.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/process.rs):
 
 ```console
 kernel::tests::process::syscall_exit------------------------

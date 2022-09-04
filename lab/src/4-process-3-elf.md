@@ -144,7 +144,7 @@ fn kernel::process::elf::memory_block(
 ### Проверьте себя
 
 Должны заработать тесты `create_process()` и `create_process_failure()` в файле
-[`kernel/src/tests/process.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/tests/process.rs):
+[`kernel/tests/process.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/process.rs):
 
 ```console
 kernel::tests::process::create_process----------------------

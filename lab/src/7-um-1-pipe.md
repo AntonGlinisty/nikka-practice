@@ -200,7 +200,7 @@ fn map_log(address_space: &mut AddressSpace) -> Result<RingBuffer>
 ### Проверьте себя
 
 Теперь должен заработать тест `stress()` в файле
-[`kernel/src/tests/pipe.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/tests/pipe.rs):
+[`kernel/tests/pipe.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/pipe.rs):
 
 ```console
 kernel::tests::pipe::stress---------------------------------
