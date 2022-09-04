@@ -1,3 +1,9 @@
+use core::panic::PanicInfo;
+
+use bootloader::{
+    BootInfo,
+    entry_point,
+};
 use spin::MutexGuard;
 use xmas_elf::ElfFile;
 
@@ -28,12 +34,25 @@ use kernel::{
     },
 };
 
-const COW_FORK_ELF: &[u8] = include_bytes!("../../../target/kernel/user/cow_fork");
-const EAGER_FORK_ELF: &[u8] = include_bytes!("../../../target/kernel/user/eager_fork");
-const EXIT_ELF: &[u8] = include_bytes!("../../../target/kernel/user/exit");
-const LOOP_ELF: &[u8] = include_bytes!("../../../target/kernel/user/loop");
-const PAGE_FAULT_ELF: &[u8] = include_bytes!("../../../target/kernel/user/page_fault");
-const SCHED_YIELD_ELF: &[u8] = include_bytes!("../../../target/kernel/user/sched_yield");
+entry_point!(test_entry);
+
+fn test_entry(boot_info: &'static BootInfo) -> ! {
+    kernel::init(boot_info);
+    test_main();
+    panic!("should not return to test_entry()")
+}
+
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    kernel::fail_test(info)
+}
+
+const COW_FORK_ELF: &[u8] = include_bytes!("../../target/kernel/user/cow_fork");
+const EAGER_FORK_ELF: &[u8] = include_bytes!("../../target/kernel/user/eager_fork");
+const EXIT_ELF: &[u8] = include_bytes!("../../target/kernel/user/exit");
+const LOOP_ELF: &[u8] = include_bytes!("../../target/kernel/user/loop");
+const PAGE_FAULT_ELF: &[u8] = include_bytes!("../../target/kernel/user/page_fault");
+const SCHED_YIELD_ELF: &[u8] = include_bytes!("../../target/kernel/user/sched_yield");
 
 fn make_process(file: &[u8]) -> MutexGuard<'static, Process> {
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
