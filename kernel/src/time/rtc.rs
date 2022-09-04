@@ -1,4 +1,7 @@
-use core::convert::From;
+use core::{
+    convert::From,
+    hint,
+};
 
 use bitflags::bitflags;
 use chrono::{
@@ -77,6 +80,13 @@ pub(super) fn init() {
 
 bitflags! {
     /// https://pdf1.alldatasheet.com/datasheet-pdf/view/122156/MOTOROLA/MC146818.html
+    struct RegisterA: u8 {
+        const UPDATE_IN_PROGRESS = 1 << 7;
+    }
+}
+
+bitflags! {
+    /// https://pdf1.alldatasheet.com/datasheet-pdf/view/122156/MOTOROLA/MC146818.html
     struct RegisterB: u8 {
         const DAYLIGHT_SAVING = 1 << 0;
         const USE_24_HOUR_FORMAT = 1 << 1;
@@ -89,7 +99,7 @@ bitflags! {
     }
 }
 
-#[derive(Clone, Copy, Display, PartialEq)]
+#[derive(Clone, Copy, Default, Display, Eq, PartialEq)]
 #[display(
     fmt = "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
     year,
