@@ -47,12 +47,6 @@ pub(crate) fn init() {
     GDT.lock().load();
 
     unsafe {
-        CS::set_reg(Gdt::kernel_code());
-
-        DS::set_reg(Gdt::kernel_data());
-        ES::set_reg(Gdt::kernel_data());
-        SS::set_reg(Gdt::kernel_data());
-
         tables::load_tss(Gdt::tss(0));
     }
 
@@ -168,13 +162,19 @@ impl<const TSS_COUNT: usize> SmpGdt<TSS_COUNT> {
     }
 
     pub(crate) fn load(&self) {
-        unsafe {
-            let pseudo_descriptor = DescriptorTablePointer {
-                limit: (mem::size_of::<Self>() - 1).try_into().expect("too large GDT"),
-                base: Virt::from_ref(self).into(),
-            };
+        let pseudo_descriptor = DescriptorTablePointer {
+            limit: (mem::size_of::<Self>() - 1).try_into().expect("too large GDT"),
+            base: Virt::from_ref(self).into(),
+        };
 
+        unsafe {
             tables::lgdt(&pseudo_descriptor);
+
+            CS::set_reg(Self::kernel_code());
+
+            DS::set_reg(Self::kernel_data());
+            ES::set_reg(Self::kernel_data());
+            SS::set_reg(Self::kernel_data());
         }
     }
 
