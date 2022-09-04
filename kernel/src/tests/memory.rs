@@ -1,4 +1,12 @@
-use core::slice;
+use core::{
+    panic::PanicInfo,
+    slice,
+};
+
+use bootloader::{
+    BootInfo,
+    entry_point,
+};
 
 use kernel::{
     log::debug,
@@ -8,14 +16,26 @@ use kernel::{
         Frame,
         KERNEL_RW,
         Page,
+        test_scaffolding::forbid_frame_leaks,
     },
 };
 
-use crate::forbid_frame_leaks;
+entry_point!(test_entry);
+
+fn test_entry(boot_info: &'static BootInfo) -> ! {
+    kernel::init(boot_info);
+    test_main();
+    panic!("should not return to test_entry()")
+}
+
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    kernel::fail_test(info)
+}
 
 #[test_case]
 fn basic_frame_allocator_functions() {
-    forbid_frame_leaks!();
+    let _guard = forbid_frame_leaks();
 
     let mut frame_allocator = FRAME_ALLOCATOR.lock();
     let start_free_frames = frame_allocator.count();
@@ -48,12 +68,11 @@ fn basic_frame_allocator_functions() {
     assert_eq!(frame_allocator.count(), start_free_frames - 1);
 
     frame_allocator.deallocate(frames[0]);
-    assert_eq!(frame_allocator.count(), start_free_frames);
 }
 
 #[test_case]
 fn allocated_frames_are_unique() {
-    forbid_frame_leaks!();
+    let _guard = forbid_frame_leaks();
 
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
     let frames = BASE_ADDRESS_SPACE
@@ -107,7 +126,7 @@ fn allocate_page() {
 
 #[test_case]
 fn shared_memory() {
-    forbid_frame_leaks!();
+    let _guard = forbid_frame_leaks();
 
     let frame = FRAME_ALLOCATOR.lock().allocate().expect("failed to allocate a frame");
 

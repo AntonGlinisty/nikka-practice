@@ -10,6 +10,7 @@ use kernel::{
         FRAME_ALLOCATOR,
         Virt,
         mmu::PageTableFlags,
+        test_scaffolding::forbid_frame_leaks,
     },
     process::{
         self,
@@ -26,8 +27,6 @@ use kernel::{
         TRAP_STATS,
     },
 };
-
-use crate::forbid_frame_leaks;
 
 const COW_FORK_ELF: &[u8] = include_bytes!("../../../target/kernel/user/cow_fork");
 const EAGER_FORK_ELF: &[u8] = include_bytes!("../../../target/kernel/user/eager_fork");
@@ -78,7 +77,7 @@ fn free_process(pid: Pid) {
 
 #[test_case]
 fn create_process() {
-    forbid_frame_leaks!();
+    let _guard = forbid_frame_leaks();
 
     let pid = make_process(LOOP_ELF).pid();
 
@@ -87,7 +86,7 @@ fn create_process() {
 
 #[test_case]
 fn create_process_failure() {
-    forbid_frame_leaks!();
+    let _guard = forbid_frame_leaks();
 
     let bad_elf_file: &[u8] = &[];
     let error = process::create(bad_elf_file).expect_err("created a process from a bad ELF file");
@@ -97,7 +96,7 @@ fn create_process_failure() {
 
 #[test_case]
 fn syscall_exit() {
-    forbid_frame_leaks!();
+    let _guard = forbid_frame_leaks();
 
     let mut process = make_process(EXIT_ELF);
     let pid = process.pid();
@@ -122,7 +121,7 @@ fn syscall_exit() {
 
 #[test_case]
 fn syscall_sched_yield() {
-    forbid_frame_leaks!();
+    let _guard = forbid_frame_leaks();
 
     let mut process = make_process(SCHED_YIELD_ELF);
     let pid = process.pid();
@@ -145,7 +144,7 @@ fn syscall_sched_yield() {
 
 #[test_case]
 fn user_mode_page_fault() {
-    forbid_frame_leaks!();
+    let _guard = forbid_frame_leaks();
 
     let mut process = make_process(PAGE_FAULT_ELF);
     let pid = process.pid();
@@ -167,7 +166,7 @@ fn user_mode_page_fault() {
 
 #[test_case]
 fn preemption() {
-    forbid_frame_leaks!();
+    let _guard = forbid_frame_leaks();
 
     let pid = make_process(LOOP_ELF).pid();
 
@@ -182,7 +181,7 @@ fn preemption() {
 
 #[test_case]
 fn user_context_saved() {
-    forbid_frame_leaks!();
+    let _guard = forbid_frame_leaks();
 
     let pid = make_process(LOOP_ELF).pid();
 

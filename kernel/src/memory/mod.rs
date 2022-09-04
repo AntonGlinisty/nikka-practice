@@ -93,3 +93,7 @@ pub(super) fn init(boot_info: &'static BootInfo) {
 
     info!(duration = %timer.elapsed(), "memory init");
 }
+
+pub mod test_scaffolding {
+    pub use super::frame_allocator::test_scaffolding::*;
+}

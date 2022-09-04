@@ -71,3 +71,28 @@ impl FrameAllocator {
 lazy_static! {
     pub static ref FRAME_ALLOCATOR: Mutex<FrameAllocator> = Mutex::new(FrameAllocator::Void);
 }
+
+pub(super) mod test_scaffolding {
+    use crate::log::error;
+
+    use super::FRAME_ALLOCATOR;
+
+    #[must_use]
+    pub fn forbid_frame_leaks() -> impl Drop {
+        scopeguard::guard(FRAME_ALLOCATOR.lock().count(), |start_free_frames| {
+            let end_free_frames = FRAME_ALLOCATOR.lock().count();
+            let (message, affected_frames) = if start_free_frames <= end_free_frames {
+                (
+                    "freed more memory than allocated",
+                    end_free_frames - start_free_frames,
+                )
+            } else {
+                ("leaked some memory", start_free_frames - end_free_frames)
+            };
+            if affected_frames != 0 {
+                error!(start_free_frames, end_free_frames, affected_frames, message);
+                panic!("{}", message);
+            }
+        })
+    }
+}
