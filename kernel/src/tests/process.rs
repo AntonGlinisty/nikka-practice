@@ -29,12 +29,12 @@ use kernel::{
 
 use crate::forbid_frame_leaks;
 
-const COW_FORK_ELF: &[u8] = include_bytes!("../../../target/kernel/debug/cow_fork");
-const EAGER_FORK_ELF: &[u8] = include_bytes!("../../../target/kernel/debug/eager_fork");
-const EXIT_ELF: &[u8] = include_bytes!("../../../target/kernel/debug/exit");
-const LOOP_ELF: &[u8] = include_bytes!("../../../target/kernel/debug/loop");
-const PAGE_FAULT_ELF: &[u8] = include_bytes!("../../../target/kernel/debug/page_fault");
-const SCHED_YIELD_ELF: &[u8] = include_bytes!("../../../target/kernel/debug/sched_yield");
+const COW_FORK_ELF: &[u8] = include_bytes!("../../../target/kernel/user/cow_fork");
+const EAGER_FORK_ELF: &[u8] = include_bytes!("../../../target/kernel/user/eager_fork");
+const EXIT_ELF: &[u8] = include_bytes!("../../../target/kernel/user/exit");
+const LOOP_ELF: &[u8] = include_bytes!("../../../target/kernel/user/loop");
+const PAGE_FAULT_ELF: &[u8] = include_bytes!("../../../target/kernel/user/page_fault");
+const SCHED_YIELD_ELF: &[u8] = include_bytes!("../../../target/kernel/user/sched_yield");
 
 fn make_process(file: &[u8]) -> MutexGuard<'static, Process> {
     let start_free_frames = FRAME_ALLOCATOR.lock().count();

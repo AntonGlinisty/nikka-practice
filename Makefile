@@ -19,24 +19,17 @@ RUST_PATH = $(HOME)/.cargo/bin
 export PATH := $(RUST_PATH):$(PATH)
 
 CRATES = ku serial text kernel
-USER_CRATES = \
-    user/cow_fork \
-    user/eager_fork \
-    user/exit \
-    user/loop \
-    user/page_fault \
-    user/sched_yield
 
 all: test run
 
-run: bootimage user
+run: bootimage
 	@( \
 		cd kernel; \
 		rm --force serial.out; \
 		cargo run $(BUILD_MODE_FLAG) -- $(QEMU_GTK); \
 	)
 
-run-gdb: bootimage user
+run-gdb: bootimage
 	@echo $(WAIT_MESSAGE)
 	@( \
 		cd kernel; \
@@ -44,7 +37,7 @@ run-gdb: bootimage user
 		cargo run $(BUILD_MODE_FLAG) -- $(QEMU_GTK) -gdb tcp::1234 -S; \
 	)
 
-nox: bootimage user
+nox: bootimage
 	@echo $(QUIT_MESSAGE)
 	@( \
 		cd kernel; \
@@ -52,7 +45,7 @@ nox: bootimage user
 		cargo run $(BUILD_MODE_FLAG) -- $(QEMU_NOX); \
 	)
 
-nox-gdb: bootimage user
+nox-gdb: bootimage
 	@echo $(QUIT_MESSAGE)
 	@echo $(WAIT_MESSAGE)
 	@( \
@@ -61,7 +54,7 @@ nox-gdb: bootimage user
 		cargo run $(BUILD_MODE_FLAG) -- $(QEMU_NOX) -gdb tcp::1234 -S; \
 	)
 
-curses: bootimage user
+curses: bootimage
 	@( \
 		cd kernel; \
 		rm --force serial.out; \
@@ -74,19 +67,9 @@ kill:
 gdb:
 	gdb -command=gdbinit
 
-user: FORCE $(RUST_PATH)/cargo-strip
-	@( \
-		for crate in $(USER_CRATES); do \
-			cd $$crate; \
-			cargo build || exit 1; \
-			cargo strip; \
-			cd - >/dev/null; \
-		done; \
-	)
-
 FORCE:
 
-test: $(RUST_PATH)/cargo user
+test: $(RUST_PATH)/cargo
 	@( \
 		for crate in $(CRATES); do \
 			cd $$crate; \
@@ -95,7 +78,7 @@ test: $(RUST_PATH)/cargo user
 		done; \
 	)
 
-test-gdb: $(RUST_PATH)/cargo user
+test-gdb: $(RUST_PATH)/cargo
 	@( \
 		for crate in kernel; do \
 			cd $$crate; \
@@ -132,7 +115,7 @@ doc: FORCE
 
 clean: $(RUST_PATH)/cargo
 	@( \
-		for crate in $(CRATES) $(USER_CRATES); do \
+		for crate in $(CRATES); do \
 			cd $$crate; \
 			cargo clean; \
 			cd - >/dev/null; \
@@ -146,16 +129,6 @@ clean: $(RUST_PATH)/cargo
 		$(find . -name \*.rs.bk)
 
 install: FORCE $(RUST_PATH)/rustup $(RUST_PATH)/rustfilt
-
-update: FORCE install
-	@rustup update
-	@( \
-		for crate in $(CRATES) $(USER_CRATES); do \
-			cd $$crate; \
-			cargo update; \
-			cd - >/dev/null; \
-		done; \
-	)
 
 $(RUST_PATH)/rustup:
 	@curl https://sh.rustup.rs -sSf | sh
