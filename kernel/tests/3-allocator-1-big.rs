@@ -1,6 +1,6 @@
-#![feature(custom_test_frameworks)]
 #![no_main]
 #![no_std]
+#![feature(custom_test_frameworks)]
 #![reexport_test_harness_main = "test_main"]
 #![test_runner(kernel::test_runner)]
 

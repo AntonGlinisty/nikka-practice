@@ -1,6 +1,5 @@
 use core::{
     fmt,
-    panic::PanicInfo,
     str,
 };
 
@@ -26,23 +25,9 @@ use kernel::{
     process::test_scaffolding,
 };
 
-use bootloader::{
-    BootInfo,
-    entry_point,
-};
+mod init;
 
-entry_point!(test_entry);
-
-fn test_entry(boot_info: &'static BootInfo) -> ! {
-    kernel::init(boot_info);
-    test_main();
-    panic!("should not return to test_entry()")
-}
-
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    kernel::fail_test(info)
-}
+init!();
 
 const QUALITY: Quality = Quality::Paranoid;
 

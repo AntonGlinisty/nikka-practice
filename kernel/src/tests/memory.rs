@@ -1,12 +1,4 @@
-use core::{
-    panic::PanicInfo,
-    slice,
-};
-
-use bootloader::{
-    BootInfo,
-    entry_point,
-};
+use core::slice;
 
 use kernel::{
     log::debug,
@@ -20,18 +12,9 @@ use kernel::{
     },
 };
 
-entry_point!(test_entry);
+mod init;
 
-fn test_entry(boot_info: &'static BootInfo) -> ! {
-    kernel::init(boot_info);
-    test_main();
-    panic!("should not return to test_entry()")
-}
-
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    kernel::fail_test(info)
-}
+init!();
 
 #[test_case]
 fn basic_frame_allocator_functions() {

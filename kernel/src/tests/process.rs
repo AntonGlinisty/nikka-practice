@@ -1,9 +1,3 @@
-use core::panic::PanicInfo;
-
-use bootloader::{
-    BootInfo,
-    entry_point,
-};
 use spin::MutexGuard;
 use xmas_elf::ElfFile;
 
@@ -34,18 +28,9 @@ use kernel::{
     },
 };
 
-entry_point!(test_entry);
+mod init;
 
-fn test_entry(boot_info: &'static BootInfo) -> ! {
-    kernel::init(boot_info);
-    test_main();
-    panic!("should not return to test_entry()")
-}
-
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    kernel::fail_test(info)
-}
+init!();
 
 const COW_FORK_ELF: &[u8] = include_bytes!("../../target/kernel/user/cow_fork");
 const EAGER_FORK_ELF: &[u8] = include_bytes!("../../target/kernel/user/eager_fork");
