@@ -22,14 +22,14 @@ CRATES = ku serial text kernel
 
 all: test run
 
-run: bootimage
+run: install
 	@( \
 		cd kernel; \
 		rm --force serial.out; \
 		cargo run $(BUILD_MODE_FLAG) -- $(QEMU_GTK); \
 	)
 
-run-gdb: bootimage
+run-gdb: install
 	@echo $(WAIT_MESSAGE)
 	@( \
 		cd kernel; \
@@ -37,7 +37,7 @@ run-gdb: bootimage
 		cargo run $(BUILD_MODE_FLAG) -- $(QEMU_GTK) -gdb tcp::1234 -S; \
 	)
 
-nox: bootimage
+nox: install
 	@echo $(QUIT_MESSAGE)
 	@( \
 		cd kernel; \
@@ -45,7 +45,7 @@ nox: bootimage
 		cargo run $(BUILD_MODE_FLAG) -- $(QEMU_NOX); \
 	)
 
-nox-gdb: bootimage
+nox-gdb: install
 	@echo $(QUIT_MESSAGE)
 	@echo $(WAIT_MESSAGE)
 	@( \
@@ -54,7 +54,7 @@ nox-gdb: bootimage
 		cargo run $(BUILD_MODE_FLAG) -- $(QEMU_NOX) -gdb tcp::1234 -S; \
 	)
 
-curses: bootimage
+curses: install
 	@( \
 		cd kernel; \
 		rm --force serial.out; \
@@ -69,7 +69,7 @@ gdb:
 
 FORCE:
 
-test: $(RUST_PATH)/cargo
+test: install
 	@( \
 		for crate in $(CRATES); do \
 			cd $$crate; \
@@ -78,7 +78,7 @@ test: $(RUST_PATH)/cargo
 		done; \
 	)
 
-test-gdb: $(RUST_PATH)/cargo
+test-gdb: install
 	@( \
 		for crate in kernel; do \
 			cd $$crate; \
@@ -86,9 +86,6 @@ test-gdb: $(RUST_PATH)/cargo
 			cd - >/dev/null; \
 		done; \
 	)
-
-fmt: $(RUST_PATH)/rustfmt
-	@find . -name \*.rs -a ! -path \*/target/\* -exec rustfmt \{\} \;
 
 lab: $(RUST_PATH)/mdbook doc lab/src/*.dot lab/src/*.md
 	@( \
@@ -113,7 +110,7 @@ doc: FORCE
 		mv target/doc .; \
 	)
 
-clean: $(RUST_PATH)/cargo
+clean:
 	@( \
 		for crate in $(CRATES); do \
 			cd $$crate; \
@@ -128,40 +125,15 @@ clean: $(RUST_PATH)/cargo
 		lab/src/*.svg \
 		$(find . -name \*.rs.bk)
 
-install: FORCE $(RUST_PATH)/rustup $(RUST_PATH)/rustfilt
-
 stat:
 	@cargo run --manifest-path tools/compose/Cargo.toml -- --in-path . --stat
 
 compose:
 	@cargo run --manifest-path tools/compose/Cargo.toml -- --in-path . --out-path .
 
-$(RUST_PATH)/rustup:
-	@curl https://sh.rustup.rs -sSf | sh
-	@rustup install $$(grep -o 'nightly-[^"]*' rust-toolchain.toml)
-	@rustup component add rust-src
-
-$(RUST_PATH)/cargo: $(RUST_PATH)/rustup
-
-$(RUST_PATH)/rustfilt: $(RUST_PATH)/cargo
-	@cargo install rustfilt
-
-$(RUST_PATH)/cargo-strip: $(RUST_PATH)/cargo
-	@cargo install --force cargo-strip
-
-$(RUST_PATH)/cargo-xbuild: $(RUST_PATH)/cargo
-	@cargo install --force cargo-xbuild
-
-$(RUST_PATH)/rustfmt: $(RUST_PATH)/cargo
-	@cargo install --force rustfmt
-
-bootimage: $(RUST_PATH)/bootimage llvm-tools-preview
-
-$(RUST_PATH)/bootimage: $(RUST_PATH)/cargo
-	@cargo install --force bootimage
-
-llvm-tools-preview: FORCE
-	@rustup component add llvm-tools-preview
+install:
+	@(which rustup > /dev/null || (curl https://sh.rustup.rs -sSf | sh))
+	@(which bootimage > /dev/null || (cargo install bootimage))
 
 nikka.pdf: FORCE
 	@trueprint \
