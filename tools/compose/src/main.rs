@@ -3,10 +3,8 @@
 #![allow(unused_variables)]
 
 use std::{
-    collections::HashSet,
-    ffi::OsString,
+    collections::HashMap,
     fs,
-    io::Read,
     path::{
         Path,
         PathBuf,
@@ -18,20 +16,16 @@ use anyhow::{
     Result,
     bail,
 };
-use serde::Deserialize;
+use itertools::Itertools;
 use structopt::StructOpt;
 
-const CONFIG_NAME: &str = ".compose.yml";
+const ALLOW_DEAD_CODE: &str = r#"#![allow(dead_code)]
+#![allow(unused_imports)]
+#![allow(unused_variables)]
 
-#[derive(Deserialize)]
-struct Config {
-    entries: Vec<PathBuf>,
-    no_copy: Vec<PathBuf>,
-    no_remove: Vec<PathBuf>,
-    workspace_tools: Vec<PathBuf>,
-}
+"#;
 
-#[derive(StructOpt, Debug)]
+#[derive(StructOpt, Debug, Clone)]
 #[structopt()]
 struct Opts {
     /// Path to the private repo.
@@ -40,19 +34,14 @@ struct Opts {
 
     /// Path to the public repo.
     #[structopt(short = "o", long = "out-path")]
-    out_path: PathBuf,
-
-    /// Disable file processing.
-    #[structopt(long = "no-process")]
-    no_process: bool,
+    out_path: Option<PathBuf>,
 
     /// Spare given directories from pruning.
     #[structopt(short = "s", long = "spare")]
     spare: Vec<PathBuf>,
 
-    /// Add given tools to Cargo.toml
-    #[structopt(short = "t", long = "add-tool")]
-    add_tools: Vec<PathBuf>,
+    #[structopt(long = "stat")]
+    stat: bool,
 }
 
 enum TokenKind {
@@ -61,8 +50,9 @@ enum TokenKind {
     EndPrivate,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 enum TokenProperty {
+    Task(String),
     NoHint,
     Unimplemented,
 }
@@ -93,8 +83,8 @@ fn parse_token(line: &str) -> Result<Option<Token>> {
         bail!("unknown compose command: {}", cmd);
     };
 
-    let properties_str = if let Some(pos) = cmd.find("(") {
-        if !cmd.trim_end().ends_with(")") {
+    let properties_str = if let Some(pos) = cmd.find('(') {
+        if !cmd.trim_end().ends_with(')') {
             bail!("unclosed '('");
         }
         &cmd[pos + 1 .. cmd.trim_end().len() - 1]
@@ -103,11 +93,16 @@ fn parse_token(line: &str) -> Result<Option<Token>> {
     };
 
     let mut properties = vec![];
-    for prop in properties_str.split_inclusive(",") {
+    for (i, prop) in properties_str.split(',').enumerate() {
         match prop {
             "no_hint" => properties.push(TokenProperty::NoHint),
             "unimplemented" => properties.push(TokenProperty::Unimplemented),
-            s => bail!("unknown property: {}", s),
+            s =>
+                if i == 0 {
+                    properties.push(TokenProperty::Task(String::from(s)))
+                } else {
+                    bail!("unknown property: {}", prop)
+                },
         }
     }
 
@@ -128,8 +123,24 @@ fn find_token(
     Ok(None)
 }
 
-fn process_source(src: String) -> Result<String> {
+struct ProcessedSource {
+    src: String,
+
+    removed_lines: usize,
+    removed_by_task: HashMap<String, usize>,
+}
+
+fn process_source(
+    in_path: &Path,
+    src: String,
+) -> Result<ProcessedSource> {
     let mut dst = String::new();
+    let mut removed_lines: usize = 0;
+    let mut removed_by_task: HashMap<String, usize> = HashMap::new();
+
+    if in_path.ends_with("src/main.rs") || in_path.ends_with("src/lib.rs") {
+        dst += ALLOW_DEAD_CODE;
+    }
 
     let lines = src.lines().collect::<Vec<_>>();
     let mut next_pos = 0;
@@ -159,9 +170,16 @@ fn process_source(src: String) -> Result<String> {
             },
         };
 
-        for i in next_pos .. begin {
-            dst += lines[i];
+        for line in lines.iter().take(begin).skip(next_pos) {
+            dst += line;
             dst += "\n";
+        }
+
+        removed_lines += end - begin;
+        if !token.properties.is_empty() {
+            if let TokenProperty::Task(task) = &token.properties[0] {
+                *removed_by_task.entry(task.clone()).or_insert(0) += end - begin;
+            }
         }
 
         let no_hint = token.properties.contains(&TokenProperty::NoHint);
@@ -190,7 +208,7 @@ fn process_source(src: String) -> Result<String> {
 
             insert_line("// TODO: your code here.\n");
             if unimpl {
-                insert_line("unimplemented!()\n");
+                insert_line("unimplemented!();\n");
             }
 
             next_pos = end;
@@ -202,182 +220,126 @@ fn process_source(src: String) -> Result<String> {
         dst += "\n";
     }
 
-    Ok(dst)
+    Ok(ProcessedSource {
+        src: dst,
+        removed_lines,
+        removed_by_task,
+    })
 }
 
-fn process_file(
-    in_path: &Path,
-    out_path: &Path,
-) -> Result<()> {
-    let out_dir = out_path.parent().unwrap();
-    fs::create_dir_all(out_dir)
-        .with_context(|| format!("failed to create dir {}", out_dir.display()))?;
+struct Compose {
+    args: Opts,
 
-    if in_path.to_str().map(|s| s.ends_with(".rs")).unwrap_or(false) {
-        let content = fs::read_to_string(in_path)
-            .with_context(|| format!("failed to read file {}", in_path.display()))?;
-        let new_content = process_source(content)
-            .with_context(|| format!("failed to process file {}", in_path.display()))?;
-        fs::write(out_path, new_content)
-            .with_context(|| format!("failed to write file {}", out_path.display()))?;
-    } else {
-        fs::copy(in_path, out_path).with_context(|| {
-            format!(
-                "failed to copy {} to {}",
-                in_path.display(),
-                out_path.display()
-            )
-        })?;
-    }
-
-    Ok(())
+    removed_lines: usize,
+    removed_by_task: HashMap<String, usize>,
 }
 
-fn process_dir(
-    in_path: &Path,
-    out_path: &Path,
-    excluded_entries: &HashSet<OsString>,
-) -> Result<()> {
-    let dir = fs::read_dir(in_path)
-        .with_context(|| format!("failed to read dir {}", in_path.display()))?;
+impl Compose {
+    fn new(args: &Opts) -> Compose {
+        Compose {
+            args: args.clone(),
 
-    for mb_entry in dir {
-        let name = mb_entry
-            .with_context(|| format!("failed to read entry in dir {}", in_path.display()))?
-            .file_name();
-
-        if excluded_entries.contains(&name) {
-            continue;
-        }
-
-        let new_in_path = in_path.join(&name);
-        let new_out_path = out_path.join(&name);
-
-        if new_in_path.is_dir() {
-            process_dir(&new_in_path, &new_out_path, excluded_entries)?;
-        } else {
-            process_file(&new_in_path, &new_out_path)?;
-        }
-    }
-    Ok(())
-}
-
-fn read_config(path: &Path) -> Result<Config> {
-    let mut file = fs::File::open(path).context(format!("failed to open {}", path.display()))?;
-
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer)
-        .context(format!("failed to read {}", path.display()))?;
-
-    serde_yaml::from_slice(&buffer).context("failed to parse config")
-}
-
-fn process_entries(
-    args: &Opts,
-    config: &Config,
-) -> Result<()> {
-    let excluded_entries = config
-        .no_copy
-        .iter()
-        .map(|p| p.clone().into_os_string())
-        .collect::<HashSet<_>>();
-
-    for entry in config.entries.iter() {
-        let in_path = args.in_path.join(entry);
-        let out_path = args.out_path.join(entry);
-        if in_path.is_dir() {
-            process_dir(&in_path, &out_path, &excluded_entries)?;
-        } else {
-            process_file(&in_path, &out_path)?;
+            removed_lines: 0,
+            removed_by_task: HashMap::new(),
         }
     }
 
-    Ok(())
-}
+    fn process_file(
+        &mut self,
+        in_path: &Path,
+        out_path: Option<&Path>,
+    ) -> Result<()> {
+        if in_path.to_str().map(|s| s.ends_with(".rs")).unwrap_or(false) {
+            let content = fs::read_to_string(in_path)
+                .with_context(|| format!("failed to read file {}", in_path.display()))?;
 
-fn prune_entries(
-    args: &Opts,
-    config: &Config,
-) -> Result<()> {
-    let spare = config
-        .entries
-        .iter()
-        .chain(config.no_remove.iter())
-        .chain(args.spare.iter())
-        .cloned()
-        .collect::<HashSet<_>>();
+            let new_content = process_source(in_path, content)
+                .with_context(|| format!("failed to process file {}", in_path.display()))?;
 
-    let dir = fs::read_dir(&args.out_path)
-        .with_context(|| format!("failed to read dir {}", args.out_path.display()))?;
-    for mb_entry in dir {
-        let path = mb_entry
-            .with_context(|| format!("failed to read entry in dir {}", args.out_path.display()))?
-            .path();
+            self.removed_lines += new_content.removed_lines;
 
-        if !spare.contains(Path::new(path.file_name().unwrap())) {
-            let res = if path.is_dir() {
-                fs::remove_dir_all(&path)
+            for (k, v) in new_content.removed_by_task {
+                *self.removed_by_task.entry(k).or_insert(0) += v;
+            }
+
+            if let Some(out_file) = out_path {
+                fs::write(out_file, new_content.src)
+                    .with_context(|| format!("failed to write file {}", out_file.display()))?;
+            }
+        } else if let Some(out_file) = out_path {
+            if in_path != out_file {
+                fs::copy(in_path, out_file).with_context(|| {
+                    format!(
+                        "failed to copy {} to {}",
+                        in_path.display(),
+                        out_file.display()
+                    )
+                })?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn process_dir(
+        &mut self,
+        in_path: &Path,
+        out_path: Option<&Path>,
+    ) -> Result<()> {
+        let dir = fs::read_dir(in_path)
+            .with_context(|| format!("failed to read dir {}", in_path.display()))?;
+
+        if let Some(out_dir) = out_path {
+            fs::create_dir_all(out_dir)
+                .with_context(|| format!("failed to create dir {}", out_dir.display()))?;
+        }
+
+        for mb_entry in dir {
+            let name = mb_entry
+                .with_context(|| format!("failed to read entry in dir {}", in_path.display()))?
+                .file_name();
+
+            let new_in_path = in_path.join(&name);
+            let new_out_path = out_path.map(|p| p.join(&name));
+
+            if self.args.spare.contains(&new_in_path) {
+                continue;
+            }
+
+            if new_in_path.is_dir() {
+                self.process_dir(&new_in_path, new_out_path.as_deref())?;
             } else {
-                fs::remove_file(&path)
-            };
-            res.with_context(|| format!("failed to remove {:?}", path.display()))?;
+                self.process_file(&new_in_path, new_out_path.as_deref())?;
+            }
         }
+
+        Ok(())
     }
 
-    Ok(())
-}
+    fn process(&mut self) -> Result<()> {
+        self.process_dir(
+            self.args.in_path.clone().as_path(),
+            self.args.out_path.clone().as_deref(),
+        )?;
 
-fn write_root_cargo(
-    args: &Opts,
-    config: &Config,
-) -> Result<()> {
-    let mut tasks = vec![];
-    for entry in config.entries.iter() {
-        if args.out_path.join(entry).join("Cargo.toml").exists() {
-            tasks.push(
-                entry
-                    .to_str()
-                    .with_context(|| format!("entry is not utf-8: {}", entry.display()))?,
-            );
+        if self.args.stat {
+            for (k, v) in self.removed_by_task.iter().sorted_by_key(|x| x.0) {
+                println!("{}\t{}", v, k);
+            }
+
+            println!("{}\ttotal", self.removed_lines);
         }
+
+        Ok(())
     }
-
-    let tools = config
-        .workspace_tools
-        .iter()
-        .chain(args.add_tools.iter())
-        .map(|t| t.to_str().unwrap())
-        .collect::<Vec<_>>();
-
-    let content = format!(
-        r#"[workspace]
-members = [
-    # Tasks
-    "{}",
-
-    # Tools
-    "{}",
-]
-"#,
-        tasks.join("\",\n    \""),
-        tools.join("\",\n    \"")
-    );
-
-    fs::write(args.out_path.join("Cargo.toml"), content).context("failed to write Cargo.toml")?;
-
-    Ok(())
 }
 
 fn do_main(args: Opts) -> Result<()> {
-    let config = read_config(&args.in_path.join(CONFIG_NAME)).context("failed to read config")?;
+    let mut compose = Compose::new(&args);
 
-    if !args.no_process {
-        process_entries(&args, &config).context("failed to process entries")?;
-    }
+    compose.process().context("failed to process entries")?;
 
-    prune_entries(&args, &config).context("failed to prune entries")?;
-
-    write_root_cargo(&args, &config).context("failed to write root Cargo.toml")
+    Ok(())
 }
 
 fn main() {

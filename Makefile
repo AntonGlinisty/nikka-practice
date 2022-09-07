@@ -130,6 +130,12 @@ clean: $(RUST_PATH)/cargo
 
 install: FORCE $(RUST_PATH)/rustup $(RUST_PATH)/rustfilt
 
+stat:
+	@cargo run --manifest-path tools/compose/Cargo.toml -- --in-path . --stat
+
+compose:
+	@cargo run --manifest-path tools/compose/Cargo.toml -- --in-path . --out-path .
+
 $(RUST_PATH)/rustup:
 	@curl https://sh.rustup.rs -sSf | sh
 	@rustup install $$(grep -o 'nightly-[^"]*' rust-toolchain.toml)
