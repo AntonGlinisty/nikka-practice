@@ -8,7 +8,7 @@ use core::{
 
 use super::tsc;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct CorrelationPoint {
     count: i64,
     tsc: i64,
@@ -72,7 +72,7 @@ impl AtomicCorrelationPoint {
 
     pub fn load(&self) -> CorrelationPoint {
         // TODO: your code here.
-        unimplemented!();
+        CorrelationPoint { count: self.count.load(Ordering::Relaxed), tsc: self.tsc.load(Ordering::Relaxed) } // TODO: remove before flight.
     }
 
     pub fn store(
@@ -80,7 +80,7 @@ impl AtomicCorrelationPoint {
         correlation_point: CorrelationPoint,
     ) {
         // TODO: your code here.
-        unimplemented!();
+        self.tsc.store(correlation_point.tsc(), Ordering::Relaxed); // TODO: remove before flight.
     }
 
     pub fn inc(
@@ -88,6 +88,17 @@ impl AtomicCorrelationPoint {
         tsc: i64,
     ) {
         // TODO: your code here.
-        unimplemented!();
+        self.count.fetch_add(1, Ordering::Relaxed); // TODO: remove before flight.
+        self.tsc.store(tsc, Ordering::Relaxed); // TODO: remove before flight.
+    }
+}
+
+pub(super) mod test_scaffolding {
+    use super::CorrelationPoint;
+
+    pub use super::AtomicCorrelationPoint;
+
+    pub fn equal_point(value: i64) -> CorrelationPoint {
+        CorrelationPoint::new(value, value)
     }
 }

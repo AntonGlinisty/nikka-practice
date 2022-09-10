@@ -21,3 +21,7 @@ pub(super) fn init() {
 
     info!("time init");
 }
+
+pub mod test_scaffolding {
+    pub use super::pit8254::test_scaffolding::TICKS_PER_SECOND;
+}

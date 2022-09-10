@@ -5,7 +5,7 @@ use volatile::Volatile;
 use crate::process::ModeContext;
 
 #[repr(transparent)]
-pub(super) struct TrapContext(ModeContext);
+pub struct TrapContext(ModeContext);
 
 impl TrapContext {
     pub(super) fn is_user_mode(&self) -> bool {

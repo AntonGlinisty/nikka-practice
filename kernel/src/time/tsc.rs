@@ -169,3 +169,12 @@ mod test {
         }
     }
 }
+
+#[doc(hidden)]
+pub(super) mod test_scaffolding {
+    use super::Tsc;
+
+    pub fn forge_tsc(tsc: i64) -> Tsc {
+        Tsc(tsc)
+    }
+}

@@ -17,6 +17,7 @@ derive_more = "*"
 itertools = { version = "*", default-features = false }
 lazy_static = { version = "*", features = ["spin_no_std"] }
 memoffset = { version = "*", features = ["unstable_const"] }
+num-integer = { version = "*", default-features = false }
 postcard = "*"
 rand = { version = "*", default-features = false, features = ["small_rng"] }
 scopeguard = { version = "*", default-features = false }

@@ -124,24 +124,29 @@ impl Date {
     }
 
     fn rtc_read() -> Option<Self> {
-        // TODO: your code here.
+        const REGISTER_A: u8 = 0xA;
 
-        None
+        // TODO: your code here.
+        Some(unsafe { Self::rtc_read_inconsistent() }) // TODO: remove before flight.
     }
 
     unsafe fn rtc_read_inconsistent() -> Self {
         // TODO: your code here.
-        unimplemented!();
+        Self::default() // TODO: remove before flight.
     }
 }
 
 impl From<Date> for NaiveDateTime {
     fn from(date: Date) -> NaiveDateTime {
-        NaiveDate::from_ymd(date.year.into(), date.month.into(), date.day.into()).and_hms(
-            date.hour.into(),
-            date.minute.into(),
-            date.second.into(),
-        )
+        if date == Date::default() {
+            Self::default()
+        } else {
+            NaiveDate::from_ymd(date.year.into(), date.month.into(), date.day.into()).and_hms(
+                date.hour.into(),
+                date.minute.into(),
+                date.second.into(),
+            )
+        }
     }
 }
 

@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use chrono::NaiveDateTime;
 
 use super::{
@@ -34,7 +36,7 @@ impl<const TICKS_PER_SECOND: i64> CorrelationInterval<TICKS_PER_SECOND> {
         tsc: Tsc,
     ) -> NaiveDateTime {
         // TODO: your code here.
-        unimplemented!();
+        NaiveDateTime::from_timestamp(self.prev.count() / TICKS_PER_SECOND, 0) // TODO: remove before flight.
     }
 
     fn tsc_per_second(&self) -> i64 {

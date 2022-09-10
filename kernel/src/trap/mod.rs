@@ -9,11 +9,12 @@ use x86_64::instructions::interrupts;
 
 use crate::log::info;
 
-use self::trap_context::TrapContext;
-
 pub(crate) use self::idt::IDT;
 
-pub use self::stats::TRAP_STATS;
+pub use self::{
+    stats::TRAP_STATS,
+    trap_context::TrapContext,
+};
 
 pub const DIVIDE_ERROR: usize = 0x00;
 pub const DEBUG: usize = 0x01;
@@ -74,4 +75,8 @@ pub(super) fn init() {
     interrupts::enable();
 
     info!("traps init");
+}
+
+pub mod test_scaffolding {
+    pub use super::idt::test_scaffolding::*;
 }

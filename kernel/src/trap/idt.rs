@@ -128,3 +128,26 @@ impl IdtEntry {
         unsafe { self.0.set_handler_addr(VirtAddr::from_ptr(handler as *const ())) }
     }
 }
+
+pub mod test_scaffolding {
+    use spin::Mutex;
+
+    use super::super::DEBUG;
+
+    use super::{
+        COUNT,
+        Idt,
+        IdtEntry,
+        TrapContext,
+    };
+
+    static IDT: Mutex<Idt> = Mutex::new(Idt([IdtEntry::missing(); COUNT]));
+
+    pub fn set_debug_handler(handler: extern "x86-interrupt" fn(TrapContext)) {
+        let mut idt = IDT.lock();
+
+        *idt = Idt::new();
+        idt.0[DEBUG].set_handler(handler);
+        idt.load();
+    }
+}

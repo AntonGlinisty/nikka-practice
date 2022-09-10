@@ -234,6 +234,7 @@ dependencies = [
  "ku",
  "lazy_static",
  "memoffset",
+ "num-integer",
  "pic8259",
  "postcard",
  "rand",

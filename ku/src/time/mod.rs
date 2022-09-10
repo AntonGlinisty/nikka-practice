@@ -47,3 +47,10 @@ const NSECS_PER_SEC: i64 = 1_000_000_000;
 fn datetime_with_precision<const PARTS_PER_SECOND: i64>(tsc: Tsc) -> DateTime<Utc> {
     DateTime::from_utc(Rtc::datetime::<PARTS_PER_SECOND>(tsc), Utc)
 }
+
+pub mod test_scaffolding {
+    pub use super::{
+        correlation_point::test_scaffolding::*,
+        tsc::test_scaffolding::*,
+    };
+}
