@@ -136,6 +136,7 @@ impl MainFrameAllocator {
         unimplemented!();
     }
 
+    #[allow(unused_mut)] // TODO: remove before flight.
     fn move_free_frames(
         &mut self,
         mut src: BootFrameAllocator,

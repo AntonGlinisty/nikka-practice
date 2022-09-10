@@ -65,6 +65,7 @@ impl Mapping {
         self.page_table_root
     }
 
+    #[allow(unused_mut)] // TODO: remove before flight.
     pub fn translate(
         &mut self,
         virt: Virt,
@@ -96,7 +97,7 @@ impl Mapping {
 
     pub(crate) fn make_recursive_mapping(&mut self) -> Result<usize> {
         // TODO: your code here.
-        unimplemented!();
+        Ok(self.recursive_mapping) // TODO: remove before flight.
     }
 
     pub(super) fn current_page_table_root() -> Frame {

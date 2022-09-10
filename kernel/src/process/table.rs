@@ -63,6 +63,7 @@ impl Table {
         unimplemented!();
     }
 
+    #[allow(unused_mut)] // TODO: remove before flight.
     pub(super) fn allocate(mut process: Process) -> Result<Pid> {
         // TODO: your code here.
         unimplemented!();

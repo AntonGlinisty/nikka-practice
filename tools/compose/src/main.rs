@@ -46,6 +46,7 @@ struct Opts {
 
 enum TokenKind {
     Private,
+    Public,
     BeginPrivate,
     EndPrivate,
 }
@@ -53,6 +54,7 @@ enum TokenKind {
 #[derive(Clone, PartialEq, Eq)]
 enum TokenProperty {
     Task(String),
+    Stub(String),
     NoHint,
     Unimplemented,
 }
@@ -75,6 +77,8 @@ fn parse_token(line: &str) -> Result<Option<Token>> {
 
     let kind = if cmd.starts_with("private") {
         TokenKind::Private
+    } else if cmd.starts_with("public") {
+        TokenKind::Public
     } else if cmd.starts_with("begin_private") {
         TokenKind::BeginPrivate
     } else if cmd.starts_with("end_private") {
@@ -93,17 +97,21 @@ fn parse_token(line: &str) -> Result<Option<Token>> {
     };
 
     let mut properties = vec![];
-    for (i, prop) in properties_str.split(',').enumerate() {
-        match prop {
-            "no_hint" => properties.push(TokenProperty::NoHint),
-            "unimplemented" => properties.push(TokenProperty::Unimplemented),
-            s =>
-                if i == 0 {
-                    properties.push(TokenProperty::Task(String::from(s)))
-                } else {
-                    bail!("unknown property: {}", prop)
-                },
-        }
+    match kind {
+        TokenKind::Public => properties.push(TokenProperty::Stub(String::from(properties_str))),
+        _ =>
+            for (i, prop) in properties_str.split(',').enumerate() {
+                match prop {
+                    "no_hint" => properties.push(TokenProperty::NoHint),
+                    "unimplemented" => properties.push(TokenProperty::Unimplemented),
+                    s =>
+                        if i == 0 {
+                            properties.push(TokenProperty::Task(String::from(s)))
+                        } else {
+                            bail!("unknown property: {}", prop)
+                        },
+                }
+            },
     }
 
     Ok(Some(Token { kind, properties }))
@@ -147,7 +155,7 @@ fn process_source(
     while let Some((begin, token)) = find_token(&lines, next_pos)? {
         let end = match token.kind {
             TokenKind::EndPrivate => bail!("unpaired 'end_private' on line {}", begin + 1),
-            TokenKind::Private => begin + 1,
+            TokenKind::Private | TokenKind::Public => begin + 1,
             TokenKind::BeginPrivate => {
                 let mut pos = begin + 1;
                 let mut mb_end: Option<usize> = None;
@@ -156,7 +164,7 @@ fn process_source(
                         TokenKind::BeginPrivate => {
                             bail!("nested 'begin_private' on line {}", k + 1)
                         },
-                        TokenKind::Private => pos = k + 1,
+                        TokenKind::Private | TokenKind::Public => pos = k + 1,
                         TokenKind::EndPrivate => {
                             mb_end = Some(k);
                             break;
@@ -184,6 +192,17 @@ fn process_source(
 
         let no_hint = token.properties.contains(&TokenProperty::NoHint);
         let unimpl = token.properties.contains(&TokenProperty::Unimplemented);
+        let stub = token
+            .properties
+            .iter()
+            .filter_map(|property| {
+                if let TokenProperty::Stub(stub) = property {
+                    Some(stub)
+                } else {
+                    None
+                }
+            })
+            .next();
         if no_hint {
             if begin > 0 &&
                 lines[begin - 1].trim().is_empty() &&
@@ -206,9 +225,14 @@ fn process_source(
                 dst.push_str(line);
             };
 
-            insert_line("// TODO: your code here.\n");
-            if unimpl {
-                insert_line("unimplemented!();\n");
+            if let Some(stub) = stub {
+                insert_line(stub);
+                dst.push_str(" // TODO: remove before flight.\n");
+            } else {
+                insert_line("// TODO: your code here.\n");
+                if unimpl {
+                    insert_line("unimplemented!();\n");
+                }
             }
 
             next_pos = end;

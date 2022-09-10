@@ -177,6 +177,7 @@ fn exit(
     unimplemented!();
 }
 
+#[allow(unused_mut)] // TODO: remove before flight.
 fn log_value(
     mut process: MutexGuard<Process>,
     start: usize,
