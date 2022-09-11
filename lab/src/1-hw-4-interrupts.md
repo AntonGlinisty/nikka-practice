@@ -2,15 +2,26 @@
 
 Как вы помните, при инициализации RTC функция
 [`kernel::time::rtc::init()`](../../doc/kernel/time/rtc/fn.init.html)
-включает прерывание, которое сигнализирует о том, что RTC обновил свою информацию о времени и дате:
+включает [прерывание](https://en.wikipedia.org/wiki/Interrupt),
+которое сигнализирует о том, что RTC обновил свою информацию о времени и дате:
 
 ```rust
-    let new_settings = ...
-        RegisterB::UPDATE_ENDED_INTERRUPT |
-        ...
+let new_settings = ...
+    RegisterB::UPDATE_ENDED_INTERRUPT |
+    ...
 ```
 
 Оно приходит каждую секунду.
+
+[Прерывание](https://en.wikipedia.org/wiki/Interrupt) --- это событие, которое останавливает текущую активность
+процессора и заставляет его переключиться на выполнение специального кода обработки возникшего прерывания.
+Прерывания происходят:
+
+- Либо асинхронно, в произвольный момент с точки зрения текущего исполняющегося кода. Обычно --- когда оборудование требует от него внимания.
+- Либо синхронно, на фиксированной инструкции исполняющегося кода. Обычно, если возникла особая ситуация при выполнении текущего кода.
+  - Это может быть ошибка в программе. Например, деление на ноль или [недопустимое обращение к памяти (Page Fault)](https://en.wikipedia.org/wiki/Page_fault).
+  - А может быть предусмотренное действие. Например, чтобы из режима пользователя переключиться в режим ядра для выполнения [системного вызова](https://en.wikipedia.org/wiki/System_call), такого как чтение файла.
+
 За настройки прерываний отвечает функция
 [`kernel::trap::init()`](../../doc/kernel/trap/fn.init.html)
 в файле [`kernel/src/trap/mod.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/trap/mod.rs).
@@ -36,7 +47,7 @@
 ```rust
 extern "x86-interrupt" fn rtc(_context: TrapContext) {
     TRAP_STATS[RTC].inc();
-    Rtc::interrupt();
+    rtc::interrupt();
 }
 ```
 
@@ -47,9 +58,9 @@ extern "x86-interrupt" fn rtc(_context: TrapContext) {
 
 ```rust
 pub struct Stats {
-    pub name: &'static str,
-    pub mnemonic: &'static str,
     count: AtomicUsize,
+    mnemonic: &'static str,
+    name: &'static str,
 }
 ```
 
@@ -62,14 +73,14 @@ pub struct Stats {
 Основную работу
 [`kernel::trap::pic::rtc()`](../../doc/kernel/trap/pic/fn.rtc.html)
 перекладывает на
-[`kernel::time::Rtc::interrupt()`](../../doc/kernel/time/struct.Rtc.html#method.interrupt),
+[`kernel::time::rtc::interrupt()`](../../doc/kernel/time/rtc/fn.interrupt.html),
 которая определена в файле [`kernel/src/time/rtc.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/time/rtc.rs):
 
 ```rust
-impl Rtc {
-    pub(crate) fn interrupt() {
-        if interrupt_status() & UPDATE_ENDED_INTERRUPT != 0 {
-            let now = CorrelationPoint::now(rtc_timestamp() * TICKS_PER_SECOND);
+pub(crate) fn interrupt() {
+    if interrupt_status().contains(RegisterC::UPDATE_ENDED_INTERRUPT) {
+        if let Some(timestamp) = timestamp() {
+            let now = CorrelationPoint::now(timestamp * TICKS_PER_SECOND);
             let rtc = SYSTEM_INFO.rtc();
             rtc.init_base(now);
             rtc.store_prev(now);
@@ -81,8 +92,8 @@ impl Rtc {
 Вы уже знакомы почти со всеми кусочками, которые использует этот код.
 Краткое напоминание:
 
-- `rtc_timestamp()` читает дату и время из микросхемы RTC и переводит их в секунды от начала Unix--эпохи.
-- `CorrelationPoint::now()` добавляет к этому счётчику секунд текущий номер такта процессора.
+- [`timestamp()`](../../doc/kernel/time/rtc/fn.timestamp.html) читает дату и время из микросхемы RTC и переводит их в секунды от начала Unix--эпохи.
+- [`CorrelationPoint::now()`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#method.now) добавляет к этому счётчику секунд текущий номер такта процессора.
 - `rtc.init_base(now)` сохраняет получившуюся пару `now` в поле [`CorrelationInterval::base`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#structfield.base), если оно ещё не было инициализировано. То есть, это происходит только на первом прерывании.
 - А `rtc.store_prev(now)` сохраняет пару `now` в поле [`CorrelationInterval::prev`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#structfield.prev) на каждом прерывании.
 
@@ -91,7 +102,9 @@ impl Rtc {
 может прочитать эти сохранённые значения и,
 если RTC уже дважды тикнул, то оценить текущее время по нему и одновременно по счётчику тактов процессора,
 с разрешением выше секунды.
-Если же RTC ещё не тикнул дважды, то выдать последнее прочитанное значение из RTC, имеющее разрешение в секунду.
+Если же RTC ещё не тикнул дважды, то
+[`CorrelationInterval::datetime()`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#method.datetime)
+может выдать последнее прочитанное из RTC значение, имеющее разрешение в секунду.
 Для того чтобы не ждать значение
 [`CorrelationInterval::prev`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#structfield.prev)
 до первого тика RTC, функция
@@ -100,7 +113,12 @@ impl Rtc {
 
 ```rust
 let rtc = SYSTEM_INFO.rtc();
-rtc.store_prev(CorrelationPoint::invalid(rtc_timestamp() * TICKS_PER_SECOND));
+rtc.store_prev(CorrelationPoint::invalid(timestamp() * TICKS_PER_SECOND));
 ```
 
-Остаётся понять, что же такое `SYSTEM_INFO`.
+[`CorrelationPoint::invalid()`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#method.invalid) помечает, что этим значением нельзя пользоваться для оценки частоты процессора и текущего времени высокого разрешения.
+Так как оно взято в случайный момент между тиками RTC.
+А не привязано по времени к определённому тику за счёт вызова из прерывания RTC.
+
+
+Остаётся понять, что же такое [`SYSTEM_INFO`](../../doc/ku/info/static.SYSTEM_INFO.html).

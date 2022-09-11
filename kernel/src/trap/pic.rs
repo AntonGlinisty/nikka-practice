@@ -1,6 +1,6 @@
 use crate::time::{
     Pit,
-    Rtc,
+    rtc,
 };
 
 use super::{
@@ -43,7 +43,7 @@ pub(super) extern "x86-interrupt" fn lpt1(_context: TrapContext) {
 
 pub(super) extern "x86-interrupt" fn rtc(_context: TrapContext) {
     TRAP_STATS[super::RTC].inc();
-    Rtc::interrupt();
+    rtc::interrupt();
 }
 
 pub(super) extern "x86-interrupt" fn free_29(_context: TrapContext) {

@@ -1,9 +1,9 @@
-## Счётчики тиков
+## Счётчики тиков различных источников времени
 
 Структура
 [`ku::time::correlation_point::CorrelationPoint`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html)
 из файла [`ku/src/time/correlation_point.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/time/correlation_point.rs)
-предназначена для привязки тактов процессора к другому источнику времени.
+предназначена для привязки тактов процессора к другим часам в один момент времени.
 Она содержит поля:
 
 - [`CorrelationPoint::tsc`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#structfield.tsc) со значением счётчика тактов процессора.
@@ -11,7 +11,18 @@
 
 Если значение
 [`CorrelationPoint::tsc`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#structfield.tsc)
-равно нулю, то вся структура в целом считается невалидной.
+равно нулю, то структура в целом считается невалидной ---
+[`CorrelationPoint::invalid()`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#method.invalid).
+Это означает, что
+[`CorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#structfield.count)
+не привязан ни к какому значению
+[`CorrelationPoint::tsc`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#structfield.tsc).
+И значение структуры относится не к самому тику, а к промежутку после тика
+[`CorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#structfield.count)
+и до следующего.
+При этом значение
+[`CorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#structfield.count)
+может быть использовано как текущее время с низким разрешением --- частотой соответствующих часов.
 
 Посмотрите код реализации структуры
 [`ku::time::correlation_point::CorrelationPoint`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html),
@@ -43,14 +54,29 @@
 Можно было бы завести блокировку на доступ к полям
 [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html),
 но это потребовало бы захватывать её из прерывания.
-Это практически гарантированно приведёт к проблемам, так как тогда захват этой блокировки должен ещё и запрещать прерывания.
+Это практически гарантированно приведёт к проблемам:
+
+- Захват этой блокировки должен ещё и запрещать прерывания.
+- Иногда прерывание будет ждать другой код, пока он не отпустит эту блокировку. Обычно прерывания являются более приоритетной деятельностью, поэтому возникнет нежелательная [инверсия приоритетов](https://en.wikipedia.org/wiki/Priority_inversion).
+- Писать мы хотим из прерывания в режиме ядра, а читать --- из режима пользователя. При этом с одной стороны, ядро должно обеспечить для кода пользователя согласованность чтения. А с другой --- оно не должны допустить чтобы злонамеренный код из пользовательского режима мог заблокировать ядро, в том числе навечно.
+
 Вообще, захват блокировок из прерываний --- очень плохая идея.
 
 Поэтому реализуем
 [неблокирующую синхронизацию](https://en.wikipedia.org/wiki/Non-blocking_algorithm)
 для согласованного доступа к полям
 [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html).
-А именно, предлагается использовать упрощённый
+Которая будет отдавать предпочтение писателю, так как это обработчик прерывания в ядре, ---
+он всегда сможет завершить работу по обновлению структуры за фиксированное количество тактов.
+И никогда не будет ждать читателей, которые могут быть запущены как в режиме ядра, так и в режиме пользователя.
+А вот читатели будут максимально пессимизированы ---
+они будут вынуждены ждать пока писатель завершит свою работу, если им не повезло запуститься конкурентно с писателем.
+Впрочем, для них это не будет страшно, так как:
+
+- Писатель запускается редко, один раз в секунду для микросхемы RTC или двадцать раз в секунду для микросхемы PIT [Intel 8253/8254](https://en.wikipedia.org/wiki/Intel_8253). Эти два писателя пишут в разные экземпляры структуры, поэтому они никогда не конфликтуют между собой.
+- Писатель отрабатывает очень быстро, всего за несколько инструкций процессора.
+
+В качестве инструмента такой неблокирующей синхронизации предлагается использовать упрощённый
 [sequence lock](https://en.wikipedia.org/wiki/Seqlock).
 В нашем случае его идея в следующем.
 Мы жертвуем одним младшим битом в поле
@@ -66,8 +92,8 @@
 Мы пожертвовали одним младшим битом в
 [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count),
 и при этом не хотим терять нечётные значения
-[`CorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#structfield.count)
-А значит, значения в этих полях должны отличаться вдвое когда
+[`CorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#structfield.count).
+Например, можно сделать чтобы значения в этих полях отличались вдвое когда
 [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
 находится в согласованном состоянии:
 
@@ -77,7 +103,7 @@ AtomicCorrelationPoint::count == 2 * CorrelationPoint::count
 
 В нашем случае писатель один, что дополнительно упрощает дело.
 Алгоритм его действий:
-- Раз он один, значит до начала им обновления, значение структуры [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html) заведомо согласованно, а [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count) содержит чётное значение.
+- Раз он один, значит до начала обновления им структуры [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html), её значение заведомо согласованно. А [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count) содержит чётное число.
 - Писатель атомарно инкрементирует поле [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count). Оно становится нечётным, символизируя что идёт обновление.
 - После этого писатель заполняет поле [`AtomicCorrelationPoint::tsc`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.tsc).
 - Последним действием писатель атомарно обновляет поле [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count) на целевое значение. Оно одновременно должно быть чётным. Тогда это действие сигнализирует всем читателям, что обновление завершено и структура находится в согласованном состоянии.
@@ -90,35 +116,63 @@ AtomicCorrelationPoint::count == 2 * CorrelationPoint::count
 - Если при обеих загрузках значения поля [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count) совпадают и являются чётными, то структура [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html) была прочитана в согласованном состоянии. Читатель делит значение [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count) пополам, чтобы получить соответствующее значение [`CorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#structfield.count). И возвращает значение получившейся структуры [`CorrelationPoint`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html) в вызывающую функцию.
 - Если же это не так, читатель повторяет все действия с самого начала.
 
+Перекос сложности в сторону читателя и наличие в нём цикла ожидания, чего нет в писателе, ---
+проявление большего приоритета писателя.
+
 
 ### Задача 1 --- реализация [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
 
-Реализуйте описанный алгоритм чтения в
-[методе](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.load)
+Реализуйте описанные алгоритмы чтения и записи.
+Читает из структуры
+[`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
+её [метод](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.load)
 
 ```rust
 fn AtomicCorrelationPoint::load(&self) -> CorrelationPoint
 ```
 
-А алгоритм записи в
-[методе](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.store)
+Точнее вам достаточно реализовать вспомогательный [метод](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.try_load)
+
+```rust
+fn AtomicCorrelationPoint::try_load(&self) -> Option<CorrelationPoint>
+```
+
+Он пытается прочитать значение только один раз.
+И возвращает его, завернув в
+[`core::option::Option::Some`](https://doc.rust-lang.org/nightly/core/option/enum.Option.html#variant.Some),
+если оно было прочитано согласованно.
+
+Пишут в
+[`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
+два других метода.
+[Метод](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.store)
 
 ```rust
 fn AtomicCorrelationPoint::store(&self, correlation_point: CorrelationPoint)
 ```
 
-А также в дополнительном
-[методе](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.inc)
+записывает заданное `correlation_point` значение. А
+[метод](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.inc)
 
 ```rust
 fn AtomicCorrelationPoint::inc(&self, tsc: i64)
 ```
 
-который увеличивает поле
+увеличивает поле
 [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count)
-и записывает в поле
+на минимальное неслужебное значение и записывает в поле
 [`AtomicCorrelationPoint::tsc`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.tsc)
-заданное в аргументе значение `tsc`.
+значение аргумента `tsc`.
+
+Методом
+[`AtomicCorrelationPoint::store()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.store)
+пользуется обработчик прерываний RTC.
+С его помощью он сохраняет текущее значение секунд, прошедших с начала Unix--эпохи.
+А методом
+[`AtomicCorrelationPoint::inc()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.inc) ---
+обработчик прерываний PIT.
+Он сохраняет просто счётчик своих тиков, который никак не привязан к реальному времени.
+Поэтому ему достаточно инкрементировать логическое значение своего счётчика при каждом прерывании.
 
 Используйте поле
 [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count)
@@ -128,13 +182,20 @@ fn AtomicCorrelationPoint::inc(&self, tsc: i64)
 То есть, правильно расставьте сами атомарные операции доступа к обоим полям и
 [`core::sync::atomic::Ordering`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html)
 в них.
-Также вам пригодится уже использовавшаяся ранее функция
-[`core::hint::spin_loop()`](https://doc.rust-lang.org/nightly/core/hint/fn.spin_loop.html).
+К сожалению, тест не может проверить корректность расстановки
+[`Ordering`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html).
+Поэтому ей стоит уделить повышенное внимание.
+
+Вы можете опираться на тот факт, что писатель один и методы записи ---
+[`AtomicCorrelationPoint::store()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.store) и
+[`AtomicCorrelationPoint::inc()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.inc) ---
+гарантированно не вызываются конкурентно ни каждый сам с собой, ни друг с другом.
+
 
 ### Theory and Practice of Concurrency
 
 Более подробно познакомиться с конкурентностью, атомарными переменными, синхронизациями, моделями памяти и т.п.,
-вы може на курсе Ромы Липовского Theory and Practice of Concurrency:
+вы можете на курсе Ромы Липовского "Theory and Practice of Concurrency":
 
 - Публичный доступ:
   - [Плейлист с лекциями](https://youtube.com/playlist?list=PL4_hYwCyhAva37lNnoMuBcKRELso5nvBm).

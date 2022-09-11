@@ -1,5 +1,6 @@
 mod pit8254;
-mod rtc;
+
+pub mod rtc;
 
 pub use ku::{
     Hz,
@@ -13,7 +14,6 @@ pub use ku::{
 use crate::log::info;
 
 pub use pit8254::Pit;
-pub use rtc::Rtc;
 
 pub(super) fn init() {
     pit8254::init();

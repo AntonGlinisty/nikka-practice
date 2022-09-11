@@ -50,46 +50,65 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 $ make run
 ```
 
+или
+
+```console
+$ (cd kernel; cargo run)
+```
+
 В файле `kernel/serial.out` появляется журнал, время должно соответствовать команде `date -u`:
 ```console
-13:31:48 0 I RTC init; acknowledged_settings = USE_24_HOUR_FORMAT | USE_BINARY_FORMAT | UPDATE_ENDED_INTERRUPT
-13:31:48 0 I time init
-13:31:48 0 I Nikka booted; now = 2022-09-04 13:31:48 UTC; tsc = Tsc(5913674560)
-13:31:48 0 I GDT init
-13:31:48 0 I traps init
-...
+14:58:18 0 I RTC init; acknowledged_settings = USE_24_HOUR_FORMAT | USE_BINARY_FORMAT | UPDATE_ENDED_INTERRUPT
+14:58:18 0 I time init
+14:58:18 0 I Nikka booted; now = 2022-09-17 14:58:18 UTC; tsc = Tsc(5139186658)
+14:58:18 0 I GDT init
+14:58:18 0 I traps init
 ```
-Видно, что RTC инициализировался, и выдаёт разумное время --- `now = 2022-09-04 13:31:48 UTC`.
+Видно, что RTC инициализировался, и выдаёт разумное время --- `now = 2022-09-17 14:58:18 UTC`.
 А время в журнале пока имеет разрешение в секунду.
-Дальше продолжается инициализация, после чего запускается наш цикл сбора статистик прерываний:
+Дальше запускается наш цикл сбора статистик прерываний.
+На первой итерации их ещё нет и он печатает только одну строку:
+```console
+14:58:18 0 D time_precision = 61.005 ktsc
 ```
-13:31:49 0 D CPU frequency measured by PIT; frequency = 3.742 GHz
-13:31:49 0 D time_precision = 61.685 ktsc
-13:31:49 0 D trap stats; number = 32; mnemonic = #TI; count = 11
-13:31:49 0 D trap stats; number = 40; mnemonic = #RT; count = 1
-13:31:49 0 D trap stats; number = 48; mnemonic = #AT; count = 7
+Потом тикает PIT:
+```console
+14:58:18 0 D CPU frequency measured by PIT; frequency = 3.434 GHz
+14:58:18 0 D time_precision = 2.572 ktsc
+14:58:18 0 D trap stats; number = 32; mnemonic = #TI; count = 1
 ```
-PIT уже тикнул 11 раз --- `trap stats; number = 32; mnemonic = #TI; count = 11`, поэтому он уже может оценить частоту процессора --- `CPU frequency measured by PIT; frequency = 3.742 GHz`.
-RTC тикнул пока только один раз --- `trap stats; number = 40; mnemonic = #RT; count = 1`, ждём дальше.
+Он сразу готов оценить частоту процессора, так как при инициализации в его
+[`CorrelationInterval::base`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#structfield.base)
+записывается валидное значение с
+[`CorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#structfield.count)
+равным нулю.
+Ждём дальше.
+PIT тикает уже 9 раз, и в первый раз тикает RTC.
+Текущее время в журнале увеличивается на 1 секунду:
+```console
+14:58:19 0 D time_precision = 2.871 ktsc
+14:58:19 0 D trap stats; number = 32; mnemonic = #TI; count = 9
+14:58:19 0 D trap stats; number = 40; mnemonic = #RT; count = 1
+14:58:19 0 D CPU frequency measured by PIT; frequency = 3.773 GHz
+```
 
 RTC тикает во второй раз, и на основе его показаний уже можно оценить частоту процессора.
 Также увеличивается разрешение системного времени в сообщениях журнала:
 ```
-13:31:50.001 0 D CPU frequency measured by PIT; frequency = 3.591 GHz
-13:31:50.029 0 D CPU frequency measured by RTC; frequency = 3.420 GHz
-13:31:50.033 0 D time_precision = 18.033 us
-13:31:50.040 0 D trap stats; number = 32; mnemonic = #TI; count = 24
-13:31:50.045 0 D trap stats; number = 40; mnemonic = #RT; count = 2
-13:31:50.050 0 D trap stats; number = 48; mnemonic = #AT; count = 31
+14:58:20.001 0 D CPU frequency measured by PIT; frequency = 3.557 GHz
+14:58:20.005 0 D CPU frequency measured by RTC; frequency = 3.424 GHz
+14:58:20.009 0 D time_precision = 881.745 ns
+14:58:20.016 0 D trap stats; number = 32; mnemonic = #TI; count = 28
+14:58:20.020 0 D trap stats; number = 40; mnemonic = #RT; count = 2
 ```
-И вычисление интервалов времени начинает опираться на секунды --- `time_precision = 18.033 us`.
-То есть, между последовательными обращениями к `RDTSC` проходит около 18 микросекунд.
+А вычисление интервалов времени начинает опираться на секунды --- `time_precision = 881.745 ns`.
+То есть, между последовательными обращениями к `RDTSC` проходит около 881 наносекунд.
 Такая низкая точность объясняется отладочной сборкой без оптимизаций.
 
 Если же собрать релизную, то получим более разумную цифру.
 Которая, правда, всё ещё далека от идеала:
 ```console
-$ cd kernel; cargo run --release
+$ (cd kernel; cargo run --release)
 ...
-14:36:08.714 0 D time_precision = 220.695 ns
+15:08:31.792 0 D time_precision = 93.029 ns
 ```

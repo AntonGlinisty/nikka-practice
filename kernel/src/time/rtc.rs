@@ -27,16 +27,14 @@ use crate::{
     },
 };
 
-pub struct Rtc;
-
-impl Rtc {
-    pub(crate) fn interrupt() {
-        if interrupt_status() & UPDATE_ENDED_INTERRUPT != 0 {
-            let now = CorrelationPoint::now(rtc_timestamp() * TICKS_PER_SECOND);
-            let rtc = SYSTEM_INFO.rtc();
-            rtc.init_base(now);
-            rtc.store_prev(now);
-        }
+pub(crate) fn interrupt() {
+    if interrupt_status().contains(RegisterC::UPDATE_ENDED_INTERRUPT) &&
+        let Some(timestamp) = timestamp()
+    {
+        let now = CorrelationPoint::now(timestamp * TICKS_PER_SECOND);
+        let rtc = SYSTEM_INFO.rtc();
+        rtc.init_base(now);
+        rtc.store_prev(now);
     }
 }
 
@@ -50,11 +48,10 @@ pub(super) fn init() {
 
     let old_settings =
         unsafe { RegisterB::from_bits_unchecked(rtc_read(DISABLE_NMI | REGISTER_B)) };
-    let new_settings = !RegisterB::DAYLIGHT_SAVING &
-        (old_settings |
-            RegisterB::UPDATE_ENDED_INTERRUPT |
-            RegisterB::USE_BINARY_FORMAT |
-            RegisterB::USE_24_HOUR_FORMAT);
+    let new_settings = (old_settings & !RegisterB::DAYLIGHT_SAVING) |
+        RegisterB::UPDATE_ENDED_INTERRUPT |
+        RegisterB::USE_BINARY_FORMAT |
+        RegisterB::USE_24_HOUR_FORMAT;
     unsafe { rtc_write(DISABLE_NMI | REGISTER_B, new_settings.bits()) };
     let acknowledged_settings =
         unsafe { RegisterB::from_bits_unchecked(rtc_read(DISABLE_NMI | REGISTER_B)) };
@@ -62,7 +59,7 @@ pub(super) fn init() {
     if acknowledged_settings == new_settings {
         let rtc = SYSTEM_INFO.rtc();
         rtc.store_prev(CorrelationPoint::invalid(
-            rtc_timestamp() * TICKS_PER_SECOND,
+            timestamp().unwrap_or(0) * TICKS_PER_SECOND,
         ));
 
         enable_next_interrupt();
@@ -120,17 +117,17 @@ struct Date {
 
 impl Date {
     fn now() -> Option<NaiveDateTime> {
-        Self::rtc_read().map(|now| now.into())
+        Self::read().map(|now| now.into())
     }
 
-    fn rtc_read() -> Option<Self> {
+    fn read() -> Option<Self> {
         const REGISTER_A: u8 = 0xA;
 
         // TODO: your code here.
-        Some(unsafe { Self::rtc_read_inconsistent() }) // TODO: remove before flight.
+        Some(unsafe { Self::read_inconsistent() }) // TODO: remove before flight.
     }
 
-    unsafe fn rtc_read_inconsistent() -> Self {
+    unsafe fn read_inconsistent() -> Self {
         // TODO: your code here.
         Self::default() // TODO: remove before flight.
     }
@@ -153,7 +150,12 @@ impl From<Date> for NaiveDateTime {
 const ADDRESS_PORT: u16 = 0x70;
 const DATA_PORT: u16 = 0x71;
 
-const UPDATE_ENDED_INTERRUPT: u8 = 1 << 4;
+bitflags! {
+    /// https://pdf1.alldatasheet.com/datasheet-pdf/view/122156/MOTOROLA/MC146818.html
+    struct RegisterC: u8 {
+        const UPDATE_ENDED_INTERRUPT = 1 << 4;
+    }
+}
 
 unsafe fn rtc_read(address: u8) -> u8 {
     io::outb(ADDRESS_PORT, address);
@@ -168,9 +170,9 @@ unsafe fn rtc_write(
     io::outb(DATA_PORT, data)
 }
 
-fn interrupt_status() -> u8 {
+fn interrupt_status() -> RegisterC {
     const REGISTER_C: u8 = 0xC;
-    unsafe { rtc_read(REGISTER_C) }
+    unsafe { RegisterC::from_bits_unchecked(rtc_read(REGISTER_C)) }
 }
 
 /// See [Interrupts and Register C](https://wiki.osdev.org/RTC#Interrupts_and_Register_C).
@@ -178,10 +180,6 @@ fn enable_next_interrupt() {
     interrupt_status();
 }
 
-fn rtc_timestamp() -> i64 {
-    if let Some(now) = Date::now() {
-        DateTime::<Utc>::from_utc(now, Utc).timestamp()
-    } else {
-        0
-    }
+fn timestamp() -> Option<i64> {
+    Date::now().map(|now| DateTime::<Utc>::from_utc(now, Utc).timestamp())
 }

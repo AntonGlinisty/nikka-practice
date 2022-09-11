@@ -1,5 +1,12 @@
 ## Часы реального времени
 
+Краткое описание возможностей микросхемы RTC и её низкоуровневого интерфейса можно посмотреть в статьях
+[RTC](https://wiki.osdev.org/RTC) и [CMOS](https://wiki.osdev.org/CMOS)
+на сайте [OSDev.org](https://wiki.osdev.org/).
+Подробное описание есть в
+[спецификации микросхемы Motorola MC146818](https://pdf1.alldatasheet.com/datasheet-pdf/view/122156/MOTOROLA/MC146818.html).
+Современные микросхемы RTC поддерживают совместимость с ней.
+
 Основная работа с микросхемой
 [часов реального времени (Real-time clock, RTC)](https://en.wikipedia.org/wiki/Real-time_clock)
 собрана в модуле
@@ -7,43 +14,39 @@
 который находится в файле
 [`kernel/src/time/rtc.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/time/rtc.rs).
 
-Краткое описание возможностей микросхемы RTC и её низкоуровневого интерфейса можно посмотреть в статьях
-[RTC](https://wiki.osdev.org/RTC) и [CMOS](https://wiki.osdev.org/CMOS)
-на сайте [OSDev.org](https://wiki.osdev.org/).
-Подробное описание есть в
-[спецификации микросхемы Motorola MC146818](https://pdf1.alldatasheet.com/datasheet-pdf/view/122156/MOTOROLA/MC146818.html),
-современные микросхемы RTC поддерживают совместимость с ней.
-
 Функция
 [`kernel::time::rtc::init()`](../../doc/kernel/time/rtc/fn.init.html)
 выполняет инициализацию микросхемы:
 
 ```rust
-    let old_settings = unsafe { RegisterB::from_bits_unchecked(rtc_read(DISABLE_NMI | REGISTER_B)) };
-    let new_settings = !RegisterB::DAYLIGHT_SAVING & (
-        old_settings |
-        RegisterB::UPDATE_ENDED_INTERRUPT |
-        RegisterB::USE_BINARY_FORMAT |
-        RegisterB::USE_24_HOUR_FORMAT
-    );
-    unsafe { rtc_write(DISABLE_NMI | REGISTER_B, new_settings.bits()) };
+let old_settings =
+    unsafe { RegisterB::from_bits_unchecked(rtc_read(DISABLE_NMI | REGISTER_B)) };
+let new_settings = (old_settings & !RegisterB::DAYLIGHT_SAVING) |
+    RegisterB::UPDATE_ENDED_INTERRUPT |
+    RegisterB::USE_BINARY_FORMAT |
+    RegisterB::USE_24_HOUR_FORMAT;
+unsafe { rtc_write(DISABLE_NMI | REGISTER_B, new_settings.bits()) };
 ```
 
 То есть, она
 
-- выключает переход на летнее время --- [`RegisterB::DAYLIGHT_SAVING`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.DAYLIGHT_SAVING),
-- включает прерывание, посылаемое процессору микросхемой после обновления показаний времени при тике, --- [`RegisterB::UPDATE_ENDED_INTERRUPT`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.UPDATE_ENDED_INTERRUPT),
+- выключает переход на летнее время --- `!`[`RegisterB::DAYLIGHT_SAVING`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.DAYLIGHT_SAVING),
+- включает [прерывание](https://en.wikipedia.org/wiki/Interrupt), посылаемое процессору микросхемой после обновления показаний времени при тике, --- [`RegisterB::UPDATE_ENDED_INTERRUPT`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.UPDATE_ENDED_INTERRUPT),
 - требует от микросхемы возвращать данные в двоичном коде, а не в [двоично--десятичном](https://en.wikipedia.org/wiki/Binary-coded_decimal), --- [`RegisterB::USE_BINARY_FORMAT`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.USE_BINARY_FORMAT).
 - использовать 24--часовой формат времени, а не 12--часовой, --- [`RegisterB::USE_24_HOUR_FORMAT`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.USE_24_HOUR_FORMAT).
 
-Далее, проверяет что микросхема подтвердила изменение конфигурации и читает текущие показания времени из микросхемы
+Далее
+[`rtc::init()`](../../doc/kernel/time/rtc/fn.init.html)
+проверяет что микросхема подтвердила изменение конфигурации и читает текущие показания времени из микросхемы
 
 ```rust
 let acknowledged_settings = unsafe { RegisterB::from_bits_unchecked(rtc_read(DISABLE_NMI | REGISTER_B)) };
 
 if acknowledged_settings == new_settings {
     let rtc = SYSTEM_INFO.rtc();
-    rtc.store_prev(CorrelationPoint::invalid(rtc_timestamp() * TICKS_PER_SECOND));
+    rtc.store_prev(CorrelationPoint::invalid(
+        timestamp().unwrap_or(0) * TICKS_PER_SECOND,
+    ));
 
     enable_next_interrupt();
 
@@ -59,18 +62,15 @@ if acknowledged_settings == new_settings {
 [`ku::time::correlation_point::CorrelationPoint`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html)
 узнаем чуть позже.
 
-Время переводится в
+Микросхема RTC выдаёт текущее время, разбитое на компоненты --- год, месяц, день, час, минута, секунда.
+Оно переводится в
 [секунды с момента начала Unix--эпохи](https://en.wikipedia.org/wiki/Unix_time)
 функцией
-[`kernel::time::rtc::rtc_timestamp()`](../../doc/kernel/time/rtc/fn.rtc_timestamp.html):
+[`kernel::time::rtc::timestamp()`](../../doc/kernel/time/rtc/fn.timestamp.html):
 
 ```rust
-fn rtc_timestamp() -> i64 {
-    if let Some(now) = Date::now() {
-        DateTime::<Utc>::from_utc(now, Utc).timestamp()
-    } else {
-        0
-    }
+fn timestamp() -> Option<i64> {
+    Date::now().map(|now| DateTime::<Utc>::from_utc(now, Utc).timestamp())
 }
 ```
 
@@ -83,15 +83,43 @@ fn rtc_timestamp() -> i64 {
 Это так в тестах, которые запускают Nikka в эмуляторе [`qemu`](https://en.wikipedia.org/wiki/QEMU).
 По умолчанию в [`qemu`](https://en.wikipedia.org/wiki/QEMU) используется UTC.
 
-
-### Задача 1 --- несогласованное чтение даты и времени из микросхемы RTC
-
-Реализуйте статический [метод](../../doc/kernel/time/rtc/struct.Date.html#method.rtc_read_inconsistent)
+Функция [`enable_next_interrupt()`](../../doc/kernel/time/rtc/fn.enable_next_interrupt.html)
+говорит микросхеме RTC, что процессор обработал
+[прерывание](https://en.wikipedia.org/wiki/Interrupt) от неё.
+Пока процессор этого не сделает, микросхема не пошлёт следующее прерывание,
+считая что процессор ещё занят обработкой предыдущего.
+То есть, если забыть это сделать, то "время остановится".
+Такой сигнал оборудованию от процессора иногда называется
+[end of interrupt (EOI)](https://en.wikipedia.org/wiki/End_of_interrupt).
+Он встречается не только для RTC, но и для другого оборудования.
+Например, контроллер прерываний можно сконфигурировать так,
+чтобы он тоже ждал от процессора подтверждения каждого прерывания.
+Посылать EOI соответствующему оборудованию нужно из каждого прерывания.
+Мы также посылаем его один раз при инициализации микросхемы RTC ---
+на всякий случай стоит перевести микросхему в определённое состояние.
+Кроме того, возможно она уже успела послать прерывание до того как ядро инициализировало их обработку.
+В частном случае микросхемы RTC, отправка ей EOI и чтение её регистра статуса прерывания функцией
+[`interrupt_status()`](../../doc/kernel/time/rtc/fn.interrupt_status.html), ---
+это одно и то же действие:
 
 ```rust
-fn Date::rtc_read_inconsistent() -> Date
+fn enable_next_interrupt() {
+    interrupt_status();
+}
 ```
 
+
+### Задача 1-hw-1-rtc
+
+#### Несогласованное чтение даты и времени из микросхемы RTC
+
+Реализуйте статический [метод](../../doc/kernel/time/rtc/struct.Date.html#method.read_inconsistent)
+
+```rust
+fn Date::read_inconsistent() -> Date
+```
+
+в файле [`kernel/src/time/rtc.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/time/rtc.rs),
 который считывает из микросхемы RTC показания даты и времени и возвращает их в виде
 [структуры](../../doc/kernel/time/rtc/struct.Date.html)
 
@@ -116,7 +144,7 @@ struct Date {
 }
 ```
 
-Метод называется `...inconsistent()`, потому что может вернуть некорректное значение
+Метод называется `...inconsistent()` и помечен `unsafe`, потому что может вернуть некорректное значение
 [`Date`](../../doc/kernel/time/rtc/struct.Date.html),
 если во время его работы произошёл тик RTC и микросхема конкурентно
 обновляла содержимое соответствующих полей в своей памяти.
@@ -128,21 +156,21 @@ struct Date {
 - Метод [`u16::from(u8)`](https://doc.rust-lang.org/nightly/core/primitive.u16.html#impl-From%3Cu8%3E-for-u16) для перевода значения типа [`u8`](https://doc.rust-lang.org/nightly/core/primitive.u8.html) в значение типа [`u16`](https://doc.rust-lang.org/nightly/core/primitive.u16.html).
 
 
-### Задача 2 --- согласованное чтение даты и времени из микросхемы RTC
+#### Согласованное чтение даты и времени из микросхемы RTC
 
-Реализуйте статический [метод](../../doc/kernel/time/rtc/struct.Date.html#method.rtc_read)
+Реализуйте статический [метод](../../doc/kernel/time/rtc/struct.Date.html#method.read)
 
 ```rust
-fn Date::rtc_read() -> Option<Date>
+fn Date::read() -> Option<Date>
 ```
 
 Он
 [пытается несколько раз прочитать данные из микросхемы RTC](https://wiki.osdev.org/CMOS#RTC_Update_In_Progress)
 уже реализованным вами методом
-[`Date::rtc_read_inconsistent()`](../../doc/kernel/time/rtc/struct.Date.html#method.rtc_read_inconsistent).
+[`Date::read_inconsistent()`](../../doc/kernel/time/rtc/struct.Date.html#method.read_inconsistent).
 Перед каждым чтением он в цикле ждёт, пока в регистре `A` микросхемы RTC флаг
 [`kernel::time::rtc::RegisterA::UPDATE_IN_PROGRESS`](../../doc/kernel/time/rtc/struct.RegisterA.html#associatedconstant.UPDATE_IN_PROGRESS)
-установлен, то есть микросхема обновляет данные в своей памяти.
+установлен, то есть пока микросхема обновляет данные в своей памяти.
 
 Если
 
@@ -183,9 +211,12 @@ return None;
 
 Вам могут пригодиться:
 
-- Метод [`Date::default()`](../../doc/kernel/time/rtc/struct.Date.html#method.default), который возвращает [`Date`](../../doc/kernel/time/rtc/struct.Date.html), заполненную нулями. Что не соответствует разумной дате. Он определён в [типаже](https://doc.rust-lang.ru/book/ch10-02-traits.html) [`core::default::Default`](https://doc.rust-lang.org/nightly/core/default/trait.Default.html#tymethod.default), который реализован для [`Date`](../../doc/kernel/time/rtc/struct.Date.html) автоматически за счёт атрибута [`derive`](https://doc.rust-lang.ru/book/appendix-03-derivable-traits.html) --- [`#[derive(Default)]`](https://doc.rust-lang.ru/book/appendix-03-derivable-traits.html#default-%D0%B4%D0%BB%D1%8F-%D0%B7%D0%BD%D0%B0%D1%87%D0%B5%D0%BD%D0%B8%D0%B9-%D0%BF%D0%BE-%D1%83%D0%BC%D0%BE%D0%BB%D1%87%D0%B0%D0%BD%D0%B8%D1%8E). Всю соответствующую работу выполняет макрос [`core::prelude::v1::derive`](https://doc.rust-lang.org/nightly/core/prelude/v1/macro.derive.html).
+- Метод [`Date::default()`](../../doc/kernel/time/rtc/struct.Date.html#method.default), который возвращает [`Date`](../../doc/kernel/time/rtc/struct.Date.html), заполненную нулями. Что не соответствует разумной дате настоящего времени. Он определён в [типаже](https://doc.rust-lang.ru/book/ch10-02-traits.html) [`core::default::Default`](https://doc.rust-lang.org/nightly/core/default/trait.Default.html#tymethod.default), который реализован для [`Date`](../../doc/kernel/time/rtc/struct.Date.html) автоматически за счёт атрибута [`derive`](https://doc.rust-lang.ru/book/appendix-03-derivable-traits.html) --- [`#[derive(Default)]`](https://doc.rust-lang.ru/book/appendix-03-derivable-traits.html#default-%D0%B4%D0%BB%D1%8F-%D0%B7%D0%BD%D0%B0%D1%87%D0%B5%D0%BD%D0%B8%D0%B9-%D0%BF%D0%BE-%D1%83%D0%BC%D0%BE%D0%BB%D1%87%D0%B0%D0%BD%D0%B8%D1%8E). Всю соответствующую работу выполняет макрос [`core::prelude::v1::derive`](https://doc.rust-lang.org/nightly/core/prelude/v1/macro.derive.html).
 - Функция [`core::hint::spin_loop()`](https://doc.rust-lang.org/nightly/core/hint/fn.spin_loop.html), которая сообщает процессору, что он находится в цикле ожидания внешнего события. И может, например, снизить частоту и энергопотребление.
-- Операторы равенства и неравенства для [`Date`](../../doc/kernel/time/rtc/struct.Date.html). Они определены в [типажах](https://doc.rust-lang.ru/book/ch10-02-traits.html) [`core::cmp::PartialEq`](https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html) и [`core::cmp::Eq`](https://doc.rust-lang.org/nightly/core/cmp/trait.Eq.html), которые реализованы для [`Date`](../../doc/kernel/time/rtc/struct.Date.html) автоматически за счёт атрибута [`#[derive(..., Eq, PartialEq)]`](https://doc.rust-lang.ru/book/appendix-03-derivable-traits.html#partialeq-%D0%B8-eq-%D0%B4%D0%BB%D1%8F-%D1%81%D1%80%D0%B0%D0%B2%D0%BD%D0%B5%D0%BD%D0%B8%D1%8F-%D1%80%D0%B0%D0%B2%D0%B5%D0%BD%D1%81%D1%82%D0%B2%D0%B0). Типаж [`core::cmp::PartialEq`](https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html) определяет методы [`PartialEq::eq()`](https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#tymethod.eq) и [`PartialEq::ne()`](https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#method.ne) для проверки на равенство или неравенство соответственно. Rust рассахаривает `==` и `!=` в обращения к этим методам. А дополнительный типаж [`core::cmp::Eq`](https://doc.rust-lang.org/nightly/core/cmp/trait.Eq.html) сигнализирует, что операции `PartialEq` для [`Date`](../../doc/kernel/time/rtc/struct.Date.html) задают [отношение эквивалентности](https://en.wikipedia.org/wiki/Equivalence_relation), то есть [рефлексивное](https://en.wikipedia.org/wiki/Reflexive_relation), [симметричное](https://en.wikipedia.org/wiki/Symmetric_relation) и [транзитивное](https://en.wikipedia.org/wiki/Transitive_relation).
+- Операторы равенства и неравенства для [`Date`](../../doc/kernel/time/rtc/struct.Date.html). Они определены в [типажах](https://doc.rust-lang.ru/book/ch10-02-traits.html) [`core::cmp::PartialEq`](https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html) и [`core::cmp::Eq`](https://doc.rust-lang.org/nightly/core/cmp/trait.Eq.html), которые реализованы для [`Date`](../../doc/kernel/time/rtc/struct.Date.html) автоматически за счёт атрибута [`#[derive(..., Eq, PartialEq)]`](https://doc.rust-lang.ru/book/appendix-03-derivable-traits.html#partialeq-%D0%B8-eq-%D0%B4%D0%BB%D1%8F-%D1%81%D1%80%D0%B0%D0%B2%D0%BD%D0%B5%D0%BD%D0%B8%D1%8F-%D1%80%D0%B0%D0%B2%D0%B5%D0%BD%D1%81%D1%82%D0%B2%D0%B0). Типаж [`core::cmp::PartialEq`](https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html) определяет методы [`PartialEq::eq()`](https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#tymethod.eq) и [`PartialEq::ne()`](https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#method.ne) для проверки на равенство или неравенство соответственно. Rust рассахаривает операторы `==` и `!=` в обращения к этим методам. А дополнительный типаж [`core::cmp::Eq`](https://doc.rust-lang.org/nightly/core/cmp/trait.Eq.html) сигнализирует, что операции `PartialEq` для [`Date`](../../doc/kernel/time/rtc/struct.Date.html) задают [отношение эквивалентности](https://en.wikipedia.org/wiki/Equivalence_relation), то есть [рефлексивное](https://en.wikipedia.org/wiki/Reflexive_relation), [симметричное](https://en.wikipedia.org/wiki/Symmetric_relation) и [транзитивное](https://en.wikipedia.org/wiki/Transitive_relation).
+
+В этом методе нужно писать код очень внимательно, так как он не покрывается тестами.
+А использование в будущем журнала с несогласованной датой может привести к потере времени при отладке.
 
 
 ### Ориентировочный объём работ этой части лабораторки
