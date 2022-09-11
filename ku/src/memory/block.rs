@@ -329,7 +329,6 @@ impl<T: Tag> Memory for Frage<T> {
 mod test {
     use super::{
         super::{
-            Frame,
             Page,
             Phys,
             Virt,
@@ -437,67 +436,5 @@ mod test {
 
         let bad_virt = 1 << 49;
         assert!(Block::<Virt>::from_index(bad_virt, bad_virt).is_err());
-    }
-
-    #[test]
-    fn basic_operations() {
-        for start in 0 .. 100 {
-            for count in 0 .. 100 {
-                let end = start + count;
-                let mut a = Block::<Frame>::from_index(start, end).unwrap();
-                assert_eq!(a.count(), count);
-
-                for requested_count in count + 1 .. count + 3 {
-                    assert!(a.tail(requested_count).is_none());
-                }
-
-                let mut requested_count = 0;
-
-                while requested_count < a.count() {
-                    let old_count = a.count();
-                    let old_end = a.end;
-
-                    a.tail(0).unwrap();
-                    assert_eq!(a.count(), old_count);
-
-                    let b = a.tail(requested_count).unwrap();
-
-                    assert_eq!(a.count(), old_count - requested_count);
-                    assert_eq!(b.count(), requested_count);
-
-                    assert_eq!(a.start, start);
-                    assert!(a.start < a.end);
-                    assert_eq!(a.start + old_count - requested_count, a.end);
-                    assert_eq!(a.end, b.start);
-                    assert!(b.start <= b.end);
-                    assert_eq!(b.start + requested_count, b.end);
-                    assert!(b.end <= end);
-                    assert_eq!(b.end, old_end);
-
-                    requested_count += 1;
-                }
-
-                if count > 0 {
-                    let remaining_count = a.count();
-                    assert!(remaining_count > 0);
-
-                    let c = a.tail(remaining_count).unwrap();
-
-                    assert_eq!(a.count(), 0);
-                    assert_eq!(c.count(), remaining_count);
-
-                    assert_eq!(a.start, start);
-                    assert_eq!(a.start, a.end);
-                    assert_eq!(a.end, c.start);
-                    assert!(c.start < c.end);
-                    assert_eq!(c.start + remaining_count, c.end);
-                    assert!(c.end <= end);
-                }
-
-                a.tail(0).unwrap();
-                assert_eq!(a.count(), 0);
-                assert!(a.tail(1).is_none());
-            }
-        }
     }
 }
