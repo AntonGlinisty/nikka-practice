@@ -12,6 +12,7 @@ use super::{
     },
 };
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct CorrelationInterval<const TICKS_PER_SECOND: i64> {
     base: CorrelationPoint,
     prev: CorrelationPoint,
@@ -64,6 +65,7 @@ impl<const TICKS_PER_SECOND: i64> CorrelationInterval<TICKS_PER_SECOND> {
     }
 }
 
+#[derive(Debug, Default)]
 pub struct AtomicCorrelationInterval<const TICKS_PER_SECOND: i64> {
     base: AtomicCorrelationPoint,
     prev: AtomicCorrelationPoint,

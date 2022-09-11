@@ -2,6 +2,7 @@ use core::{
     cmp,
     sync::atomic::{
         AtomicI64,
+        AtomicUsize,
         Ordering,
     },
 };
@@ -11,7 +12,13 @@ use chrono::{
     Duration,
     Utc,
 };
-use x86_64::registers::rflags;
+use x86_64::{
+    instructions,
+    registers::rflags::{
+        self,
+        RFlags,
+    },
+};
 
 use ku::time::{
     self,
@@ -44,13 +51,16 @@ fn rtc_read_inconsistent() {
     const TICKS: i64 = 10;
 
     debug!(%start);
-    assert!(start > DateTime::parse_from_rfc3339("2022-09-10T11:50:17+00:00").unwrap());
+    assert!(
+        start > DateTime::parse_from_rfc3339("2022-09-10T11:50:17+00:00").unwrap(),
+        "the RTC date does not pass the sanity check",
+    );
 
     for ticks in 1 .. TICKS {
         let mut rtc_count = TRAP_STATS[RTC].count();
 
         while rtc_count < rtc_ticks + (ticks as usize) {
-            x86_64::instructions::hlt();
+            instructions::hlt();
 
             let new_rtc_count = TRAP_STATS[RTC].count();
             if new_rtc_count != rtc_count {
@@ -125,11 +135,11 @@ fn high_resolution_date() {
     let mut sum = Duration::zero();
     let mut sum2 = 0;
 
-    debug!("measuring");
+    debug!(timer_ticks = PIT_TICKS, "measuring");
 
     for ticks in 1 .. PIT_TICKS {
         while TRAP_STATS[PIT].count() < timer_ticks + ticks as usize {
-            x86_64::instructions::hlt();
+            instructions::hlt();
         }
 
         let now = time::now();
@@ -154,51 +164,159 @@ fn high_resolution_date() {
 
     let max_mean = Duration::nanoseconds(NANOSECONDS_PER_PIT_TICK * 101 / 100);
     let min_mean = Duration::nanoseconds(NANOSECONDS_PER_PIT_TICK * 99 / 100);
-    let max_deviation = Duration::nanoseconds(5_000_000);
-    let min_deviation = Duration::nanoseconds(1_000);
+    let max_deviation = Duration::milliseconds(5);
+    let min_deviation = Duration::nanoseconds(100);
 
     let mean = sum / samples;
     let deviation = Duration::nanoseconds(num_integer::sqrt(sum2 / i64::from(samples)));
 
     debug!(samples, %min, %max, %mean, %deviation, "measured");
-    debug!(%min_delta, %max_delta, %min_mean, %max_mean, %max_deviation, "restrictions");
+    debug!(
+        %min_delta,
+        %max_delta,
+        %min_mean,
+        %max_mean,
+        %min_deviation,
+        %max_deviation,
+        "restrictions",
+    );
 
-    assert!(min_delta <= min && max <= max_delta);
-    assert!(min_mean <= mean && mean <= max_mean);
-    assert!(min_deviation <= deviation && deviation <= max_deviation);
+    assert!(
+        min_delta <= min && max <= max_delta,
+        "one of the measured durations between PIT ticks is not accurate",
+    );
+    assert!(
+        min_mean <= mean && mean <= max_mean,
+        "measured mean PIT frequency is not accurate",
+    );
+    assert!(
+        min_deviation <= deviation && deviation <= max_deviation,
+        "measured deviation of the PIT frequency is too big",
+    );
 }
 
 #[test_case]
-fn correlation_point() {
-    trap::test_scaffolding::set_debug_handler(debug);
+fn correlation_point_reader() {
+    trap::test_scaffolding::set_debug_handler(writer);
 
-    const TRAP_FLAG: u64 = 1 << 8;
-    let flags = rflags::read_raw();
-    unsafe { rflags::write_raw(flags | TRAP_FLAG) };
-
-    for iteration in 0 .. {
-        let point = POINT.load();
-        debug!(iteration, ?point);
-        assert_eq!(point.count(), point.tsc());
-        if point.count() > 1_000_000 && iteration > 20 {
-            break;
-        }
-    }
-
-    unsafe { rflags::write_raw(flags | TRAP_FLAG) };
+    reader();
 
     static POINT: AtomicCorrelationPoint = AtomicCorrelationPoint::new();
 
-    extern "x86-interrupt" fn debug(_: TrapContext) {
+    fn reader() {
+        let mut prev = POINT.load();
+        let mut different = 0;
+        let mut same = 0;
+        let rtc_ticks = AtomicUsize::new(0);
+
+        const ITERATIONS: usize = 10_000;
+
+        while same < ITERATIONS || different < ITERATIONS {
+            switch_trap_flag();
+            let point = POINT.load();
+            switch_trap_flag();
+
+            if prev == point {
+                same += 1;
+            } else {
+                different += 1;
+            }
+
+            if sample(&rtc_ticks) {
+                debug!(same, different, ?point);
+            }
+
+            assert_eq!(2 * point.count(), point.tsc(), "{point:?} is inconsistent");
+
+            prev = point;
+        }
+    }
+
+    extern "x86-interrupt" fn writer(_: TrapContext) {
         static VALUE: AtomicI64 = AtomicI64::new(0);
 
         let value = VALUE.fetch_add(1, Ordering::Relaxed);
 
         match (value / 1_000) % 4 {
-            0 => POINT.store(time::test_scaffolding::equal_point(value + 1)),
-            2 => POINT.inc(POINT.load().count() + 1),
+            0 => POINT.store(time::test_scaffolding::new_point(value + 1, 2 * value + 2)),
+            2 => POINT.inc(2 * POINT.load().count() + 2),
             _ => {},
         }
+    }
+}
+
+#[test_case]
+fn correlation_point_writer() {
+    trap::test_scaffolding::set_debug_handler(reader);
+
+    writer();
+
+    const LAST_ITERATION: i64 = 10_000;
+
+    static ITERATION: AtomicI64 = AtomicI64::new(0);
+    static POINT: AtomicCorrelationPoint = AtomicCorrelationPoint::new();
+
+    fn writer() {
+        switch_trap_flag();
+
+        for iteration in 0 .. LAST_ITERATION / 2 {
+            POINT.store(time::test_scaffolding::new_point(iteration, 2 * iteration));
+            ITERATION.store(iteration, Ordering::Relaxed);
+        }
+
+        for iteration in LAST_ITERATION / 2 ..= LAST_ITERATION {
+            POINT.inc(2 * POINT.load().count() + 2);
+            ITERATION.store(iteration, Ordering::Relaxed);
+        }
+
+        switch_trap_flag();
+    }
+
+    extern "x86-interrupt" fn reader(_: TrapContext) {
+        static FAILURE_COUNT: AtomicI64 = AtomicI64::new(0);
+        static SUCCESS_COUNT: AtomicI64 = AtomicI64::new(0);
+        static RTC_TICKS: AtomicUsize = AtomicUsize::new(0);
+
+        let iteration = ITERATION.load(Ordering::Relaxed);
+        let failure_count = FAILURE_COUNT.load(Ordering::Relaxed);
+        let success_count = SUCCESS_COUNT.load(Ordering::Relaxed);
+
+        if let Some(point) = time::test_scaffolding::try_load(&POINT) {
+            if sample(&RTC_TICKS) {
+                debug!(iteration, failure_count, success_count, ?point);
+                ITERATION.fetch_add(1, Ordering::Relaxed);
+            }
+            assert_eq!(2 * point.count(), point.tsc(), "{point:?} is inconsistent");
+            SUCCESS_COUNT.fetch_add(1, Ordering::Relaxed);
+        } else {
+            FAILURE_COUNT.fetch_add(1, Ordering::Relaxed);
+        }
+
+        if iteration == LAST_ITERATION {
+            debug!(iteration, failure_count, success_count);
+            assert!(
+                success_count >= LAST_ITERATION && failure_count >= 3 * LAST_ITERATION,
+                "the test is too weak",
+            );
+            ITERATION.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+}
+
+fn switch_trap_flag() {
+    unsafe {
+        rflags::write(rflags::read() ^ RFlags::TRAP_FLAG);
+    }
+}
+
+fn sample(ticks: &AtomicUsize) -> bool {
+    let prev_rtc_ticks = ticks.load(Ordering::Relaxed);
+    let rtc_ticks = TRAP_STATS[RTC].count();
+    if prev_rtc_ticks != rtc_ticks {
+        ticks.store(rtc_ticks, Ordering::Relaxed);
+        true
+    } else {
+        false
     }
 }
 
