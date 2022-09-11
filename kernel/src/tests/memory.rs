@@ -1,6 +1,7 @@
 use core::slice;
 
 use kernel::{
+    Subsystems,
     log::debug,
     memory::{
         BASE_ADDRESS_SPACE,
@@ -14,7 +15,7 @@ use kernel::{
 
 mod init;
 
-init!();
+init!(Subsystems::MEMORY);
 
 #[test_case]
 fn basic_frame_allocator_functions() {

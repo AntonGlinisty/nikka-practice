@@ -29,6 +29,7 @@ use ku::time::{
 };
 
 use kernel::{
+    Subsystems,
     log::debug,
     time::test_scaffolding::TICKS_PER_SECOND,
     trap::{
@@ -42,7 +43,7 @@ use kernel::{
 
 mod init;
 
-init!();
+init!(Subsystems::empty());
 
 #[test_case]
 fn rtc_read_inconsistent() {

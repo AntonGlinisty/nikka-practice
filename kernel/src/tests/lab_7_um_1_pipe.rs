@@ -17,6 +17,7 @@ use ku::{
 };
 
 use kernel::{
+    Subsystems,
     log::{
         debug,
         trace,
@@ -27,7 +28,7 @@ use kernel::{
 
 mod init;
 
-init!();
+init!(Subsystems::MEMORY | Subsystems::PROCESS);
 
 const QUALITY: Quality = Quality::Paranoid;
 

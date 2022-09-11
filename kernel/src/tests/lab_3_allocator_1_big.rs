@@ -7,13 +7,14 @@ use alloc::{
 use core::mem;
 
 use kernel::{
+    Subsystems,
     allocator,
     memory::Page,
 };
 
 mod init;
 
-init!();
+init!(Subsystems::MEMORY);
 
 #[test_case]
 fn basic() {

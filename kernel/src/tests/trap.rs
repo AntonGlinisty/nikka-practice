@@ -1,4 +1,5 @@
 use kernel::{
+    Subsystems,
     log::info,
     trap::{
         BREAKPOINT,
@@ -8,7 +9,7 @@ use kernel::{
 
 mod init;
 
-init!();
+init!(Subsystems::empty());
 
 fn emit_breakpoint_trap() {
     info!("emitting breakpoint interrupt (int3)");

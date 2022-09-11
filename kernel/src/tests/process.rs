@@ -2,6 +2,7 @@ use spin::MutexGuard;
 use xmas_elf::ElfFile;
 
 use kernel::{
+    Subsystems,
     log::{
         debug,
         info,
@@ -30,7 +31,7 @@ use kernel::{
 
 mod init;
 
-init!();
+init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::PROCESS);
 
 const COW_FORK_ELF: &[u8] = include_bytes!("../../target/kernel/user/cow_fork");
 const EAGER_FORK_ELF: &[u8] = include_bytes!("../../target/kernel/user/eager_fork");

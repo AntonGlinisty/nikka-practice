@@ -67,9 +67,20 @@ bitflags! {
     }
 }
 
+bitflags! {
+    pub struct Subsystems: u8 {
+        const MEMORY = 1 << 0;
+        const SMP = 1 << 1;
+        const PROCESS = 1 << 2;
+    }
+}
+
 #[cold]
 #[inline(never)]
-pub fn init(boot_info: &'static BootInfo) {
+pub fn init_subsystems(
+    boot_info: &'static BootInfo,
+    subsystems: Subsystems,
+) {
     set_system_info(&SYSTEM_INFO);
 
     text::TEXT.lock().init();
@@ -81,15 +92,27 @@ pub fn init(boot_info: &'static BootInfo) {
     gdt::init();
     trap::init();
 
-    memory::init(boot_info);
+    if subsystems.contains(Subsystems::MEMORY) {
+        memory::init(boot_info);
 
-    if let Err(error) = EXCEPTION_STACKS.lock().make_guard_zones() {
-        warn!(?error, "failed to make guard zones in exception stacks")
+        if let Err(error) = EXCEPTION_STACKS.lock().make_guard_zones() {
+            warn!(?error, "failed to make guard zones in exception stacks")
+        }
     }
 
-    smp::init(boot_info);
+    if subsystems.contains(Subsystems::SMP) {
+        smp::init(boot_info);
+    }
 
-    process::init();
+    if subsystems.contains(Subsystems::PROCESS) {
+        process::init();
+    }
+}
+
+#[cold]
+#[inline(never)]
+pub fn init(boot_info: &'static BootInfo) {
+    init_subsystems(boot_info, Subsystems::all());
 }
 
 #[cold]

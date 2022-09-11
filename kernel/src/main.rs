@@ -31,6 +31,7 @@ use text::{
 };
 
 use kernel::{
+    Subsystems,
     log::debug,
     time,
     time::Pit,
@@ -42,7 +43,7 @@ entry_point!(kernel_main);
 #[cold]
 #[inline(never)]
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
-    kernel::init(boot_info);
+    kernel::init_subsystems(boot_info, Subsystems::empty());
 
     #[cfg(test)]
     test_main();
