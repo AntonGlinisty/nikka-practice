@@ -1,0 +1,9 @@
+[package]
+authors = ["Sergey V. Galtsev <sergey-v-galtsev@gitlab.com>"]
+edition = "2021"
+license = "AGPL-3.0-or-later"
+name = "rsh"
+version = "0.2.0"
+
+[dependencies]
+nix = "*"
