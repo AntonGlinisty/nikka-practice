@@ -1,0 +1,43 @@
+- group: syscalls
+  start: 01-09-2022 18:00
+  deadline: 03-10-2022 23:59
+  second_deadline: 01-02-2023 23:59
+  enabled: true
+  tasks:
+    - task: hello_world
+      score: 100
+
+      url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/hello_world
+      allow_list:
+        - sem/hello_world/src/*.rs
+      check:
+        - cd sem/hello_world && cargo test
+
+    - task: rsh_fork
+      score: 100
+
+      allow_list: &allow_rsh
+        - sem/rsh/src/*.rs
+      check:
+        - cd sem/rsh && cargo test
+
+    - task: rsh_file
+      score: 100
+
+      allow_list: *allow_rsh
+      check:
+        - cd sem/rsh && cargo test
+
+    - task: rsh_pipe
+      score: 100
+
+      allow_list: *allow_rsh
+      check:
+        - cd sem/rsh && cargo test
+
+    - task: jobserver
+      score: 100
+      allow_list:
+        - sem/jobserver/src/*.rs
+      check:
+        - cd sem/jobserver && cargo test
