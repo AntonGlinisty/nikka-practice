@@ -12,4 +12,7 @@ COPY . .
 RUN rm --force --recursive .git .jj
 RUN rm --force --recursive $(find . -name \*.orig -o -name \*.rej -o -name \*.diff)
 
+RUN make install
+RUN cd sem && cargo build && cargo test
+RUN cd tools && cargo build
 RUN make test
