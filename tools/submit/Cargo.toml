@@ -1,0 +1,10 @@
+[package]
+authors = ["Sergei Fomin <sergio-dna@yandex.ru>"]
+edition = "2021"
+name = "submit"
+version = "0.1.0"
+
+[dependencies]
+anyhow = "1.0"
+git2 = "0.13"
+structopt = "0.3"
