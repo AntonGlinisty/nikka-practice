@@ -8,9 +8,10 @@
 
 ### Регистрация в системе
 
-1. Зарегистрируйтесь в проверяющей системе. Если вы уже зарегистрировались в manytask.org на другом курсе, вместо этого шага зайдите на [os.manytask.org](https://os.manytask.org) и нажмите Login.
-  * Заполните форму и зайдите в систему. [os.manytask.org](https://os.manytask.org) - secret code: `deadbeef`.
-  * Сгенерируйте ssh ключ и добавьте его в систему.
+Зарегистрируйтесь в проверяющей системе. Если вы уже зарегистрировались в manytask.org на другом курсе, вместо этого шага зайдите на [os.manytask.org](https://os.manytask.org) и нажмите Login.
+
+  - Заполните форму и зайдите в систему. [os.manytask.org](https://os.manytask.org) - secret code: `deadbeef`.
+  - Сгенерируйте ssh ключ и добавьте его в систему.
     1. `$ ssh-keygen -N "" -f ~/.ssh/id_rsa` - сгенерирует пару файлов `id_rsa` и `id_rsa.pub`. (Если у вас уже есть ключ, этот шаг не нужен).
     2. Скопируйте содержимое файла id_rsa.pub (`cat ~/.ssh/id_rsa.pub`) в [https://gitlab.manytask.org/-/profile/keys](https://gitlab.manytask.org/-/profile/keys)
     3. Проверьте, что ssh ключ работает. Выполните команду `ssh git@gitlab.manytask.org`. Вы должны увидеть такое приветствие:
@@ -24,7 +25,7 @@ Connection to gitlab.manytask.org closed.
 
 ### Настройка репозитория
 
-1. Склонируйте репозиторий с задачами:
+Склонируйте репозиторий с задачами:
 
 ```
 git clone https://gitlab.com/sergey-v-galtsev/nikka-public shad-os
@@ -32,25 +33,24 @@ git clone https://gitlab.com/sergey-v-galtsev/nikka-public shad-os
 
 Команда `git clone` создаст директорию `shad-os` и запишет туда все файлы из этого репозитория.
 
-1. Для отправки решения на сервер, необходимо, чтобы у вас были заданы имя и email в git:
+Для отправки решения на сервер, необходимо, чтобы у вас были заданы имя и email в git:
 
 ```
 git config --global user.name "Vasya Pupkin"
 git config --global user.email vasya@pupkin.ru
 ```
 
-1. Откройте страницу своего приватного репозитория в браузере. Для этого перейдите по ссылке `MY REPO` на странице с задачами [os.manytask.org](https://os.manytask.org).
-1. Добавьте в git свой приватный репозиторий. Для этого запустите из директории репозитория команду:
+- Откройте страницу своего приватного репозитория в браузере. Для этого перейдите по ссылке `MY REPO` на странице с задачами [os.manytask.org](https://os.manytask.org).
+- Добавьте в git свой приватный репозиторий. Для этого запустите из директории репозитория команду:
 
 ```
 git remote add student $ADDRESS
 ```
 
-`$ADDRESS` нужно скопировать со страницы репозитория. Синяя кнопка Clone -> Clone with SSH.
-Выглядеть он будет как `git@gitlab.manytask.org:os/students-fall-2022/XXXXXX.git`.
+`$ADDRESS` нужно скопировать со страницы репозитория. Синяя кнопка `Clone` -> `Clone with SSH`.
+Выглядеть он будет примерно как `git@gitlab.manytask.org:os/students-fall-2022/XXXXXX.git`.
 
-1. Периодически мы будем обновлять репозиторий с задачами, поэтому перед каждым семинаром необходимо выполнять следующие 3 команды из вашего локального репозитория (shad-os):
-1. Каждую неделю после занятий вам надо будет обновлять репозиторий, чтобы у вас появились условия
+Каждую неделю после занятий вам надо будет обновлять репозиторий, чтобы у вас появились условия
 новых задач:
 
 ```
@@ -62,7 +62,7 @@ git pull --rebase
 В корне репозитория выполните команду
 
 ```
-$ make install
+make install
 ```
 
 она поставит Rust в вашу домашнюю директорию.
@@ -86,6 +86,6 @@ git add .
 git commit -m 'Solve task: hello_world.'  # Сообщения выбирайте такие, по которым потом сможете вспомнить что вы меняли в коммите.
 ```
 
-1. Отправьте своё решение на сервер командой `cargo run --manifest-path ../../tools/submit/Cargo.toml -- --task-path .`  или `make submit`. Ваш сабмит должен появиться по ссылке `SUBMITS` на [os.manytask.org](https://os.manytask.org).
-После успешного прохождения тестов вам должно начислиться 0 баллов в
+Отправьте своё решение на сервер командой `cargo run --manifest-path ../../tools/submit/Cargo.toml -- --task-path .`  или `make submit`. Ваш сабмит должен появиться по ссылке `SUBMITS` на [os.manytask.org](https://os.manytask.org).
+После успешного прохождения тестов вам должно начислиться 100 баллов в
 [таблице с баллами](https://docs.google.com/spreadsheets/d/1FFkcx2dDeMH0OQhlrbGiXQ5kUG6K_Y3rgBlk3kKVves).
