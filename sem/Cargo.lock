@@ -37,6 +37,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "jobserver"
+version = "0.2.0"
+dependencies = [
+ "nix",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.132"
 source = "registry+https://github.com/rust-lang/crates.io-index"

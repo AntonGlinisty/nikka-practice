@@ -45,4 +45,4 @@
       allow_list:
         - sem/jobserver/src/*.rs
       check:
-        - cd sem/jobserver && cargo test
+        - cd sem/jobserver && cargo build && ./test.sh
