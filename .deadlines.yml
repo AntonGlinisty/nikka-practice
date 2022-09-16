@@ -16,27 +16,32 @@
     - task: rsh_fork
       score: 100
 
+      url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/sem/rsh/README.md
       allow_list: &allow_rsh
         - sem/rsh/src/*.rs
       check:
-        - cd sem/rsh && cargo test
+        - cd sem/rsh && cargo test simple
 
     - task: rsh_file
       score: 100
 
+      url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/sem/rsh/README.md#file
       allow_list: *allow_rsh
       check:
-        - cd sem/rsh && cargo test
+        - cd sem/rsh && cargo test file
 
     - task: rsh_pipe
       score: 100
 
+      url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/sem/rsh/README.md#pipe
       allow_list: *allow_rsh
       check:
-        - cd sem/rsh && cargo test
+        - cd sem/rsh && cargo test pipe
 
     - task: jobserver
       score: 100
+
+      url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/sem/jobserver/README.md
       allow_list:
         - sem/jobserver/src/*.rs
       check:
