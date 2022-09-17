@@ -126,7 +126,7 @@ impl fmt::Display for Registers {
 /// It is the minimal register context that is necessary for switching between the kernel mode and the user mode.
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub(crate) struct ModeContext {
+pub struct ModeContext {
     rip: Virt,
     cs: usize,
     rflags: RFlags,
@@ -168,11 +168,11 @@ impl ModeContext {
         )
     }
 
-    pub(crate) fn mini_context(&self) -> MiniContext {
+    pub fn mini_context(&self) -> MiniContext {
         MiniContext::new(self.rip, self.rsp)
     }
 
-    pub(crate) fn set_mini_context(
+    pub fn set_mini_context(
         &mut self,
         context: MiniContext,
     ) {
@@ -180,7 +180,7 @@ impl ModeContext {
         self.rsp = context.rsp();
     }
 
-    pub(crate) fn is_user_mode(&self) -> bool {
+    pub fn is_user_mode(&self) -> bool {
         assert_eq!(
             Self::is_user_mode_segment(self.cs),
             Self::is_user_mode_segment(self.ss),

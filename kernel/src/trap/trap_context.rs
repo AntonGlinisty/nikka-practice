@@ -12,7 +12,7 @@ impl TrapContext {
         self.0.is_user_mode()
     }
 
-    pub(super) fn get(&self) -> ModeContext {
+    pub fn get(&self) -> ModeContext {
         self.0
     }
 

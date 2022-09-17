@@ -56,9 +56,9 @@
 но это потребовало бы захватывать её из прерывания.
 Это практически гарантированно приведёт к проблемам:
 
-- Захват этой блокировки должен ещё и запрещать прерывания.
+- Захват этой блокировки должен ещё и запрещать прерывания. Иначе возможна [взаимоблокировка](https://en.wikipedia.org/wiki/Deadlock), подумайте почему.
 - Иногда прерывание будет ждать другой код, пока он не отпустит эту блокировку. Обычно прерывания являются более приоритетной деятельностью, поэтому возникнет нежелательная [инверсия приоритетов](https://en.wikipedia.org/wiki/Priority_inversion).
-- Писать мы хотим из прерывания в режиме ядра, а читать --- из режима пользователя. При этом с одной стороны, ядро должно обеспечить для кода пользователя согласованность чтения. А с другой --- оно не должны допустить чтобы злонамеренный код из пользовательского режима мог заблокировать ядро, в том числе навечно.
+- Писать мы хотим из прерывания в режиме ядра, а читать --- из режима пользователя. При этом с одной стороны, ядро должно обеспечить для кода пользователя согласованность чтения. А с другой --- оно не должно допустить чтобы злонамеренный код из пользовательского режима мог заблокировать ядро, в том числе навечно.
 
 Вообще, захват блокировок из прерываний --- очень плохая идея.
 
@@ -73,7 +73,7 @@
 они будут вынуждены ждать пока писатель завершит свою работу, если им не повезло запуститься конкурентно с писателем.
 Впрочем, для них это не будет страшно, так как:
 
-- Писатель запускается редко, один раз в секунду для микросхемы RTC или двадцать раз в секунду для микросхемы PIT [Intel 8253/8254](https://en.wikipedia.org/wiki/Intel_8253). Эти два писателя пишут в разные экземпляры структуры, поэтому они никогда не конфликтуют между собой.
+- Писатель запускается редко, один раз в секунду для микросхемы RTC. Или двадцать раз в секунду для микросхемы PIT [Intel 8253/8254](https://en.wikipedia.org/wiki/Intel_8253) --- это сконфигурированная в Nikka частота, её можно поменять. Эти два писателя пишут в разные экземпляры структуры, поэтому они никогда не конфликтуют между собой.
 - Писатель отрабатывает очень быстро, всего за несколько инструкций процессора.
 
 В качестве инструмента такой неблокирующей синхронизации предлагается использовать упрощённый
@@ -101,6 +101,12 @@
 AtomicCorrelationPoint::count == 2 * CorrelationPoint::count
 ```
 
+Кроме того, алгоритм существенно опирается на то, что
+[`CorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#structfield.count)
+монотонно возрастает.
+Подумайте, в каких ситуациях это может быть не так.
+Для упрощения Nikka их игнорирует.
+
 В нашем случае писатель один, что дополнительно упрощает дело.
 Алгоритм его действий:
 - Раз он один, значит до начала обновления им структуры [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html), её значение заведомо согласованно. А [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count) содержит чётное число.
@@ -120,7 +126,7 @@ AtomicCorrelationPoint::count == 2 * CorrelationPoint::count
 проявление большего приоритета писателя.
 
 
-### Задача 1 --- реализация [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
+### Задача 2 --- реализация [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
 
 Реализуйте описанные алгоритмы чтения и записи.
 Читает из структуры
@@ -190,6 +196,268 @@ fn AtomicCorrelationPoint::inc(&self, tsc: i64)
 [`AtomicCorrelationPoint::store()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.store) и
 [`AtomicCorrelationPoint::inc()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.inc) ---
 гарантированно не вызываются конкурентно ни каждый сам с собой, ни друг с другом.
+
+
+> ### Как устроен тест
+>
+> Для того чтобы проверить корректность реализации
+> [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
+> было бы здорово запустить стресс-тест с писателем и читателем на разных процессорах.
+> И желательно на процессорах со
+> [слабой моделью памяти](https://en.wikipedia.org/wiki/Memory_ordering#In_symmetric_multiprocessing_(SMP)_microprocessor_systems),
+> в которых возможно больше интересных эффектов, чем в архитектуре
+> [x86-64](https://en.wikipedia.org/wiki/X86-64).
+> А в случае архитектуры
+> [NUMA](https://en.wikipedia.org/wiki/Non-uniform_memory_access),
+> в которой процессоры организованы в сложную иерархию,
+> стоило бы запустить этот тест несколько раз на наборе неэквивалентных с точки зрения архитектуры пар процессоров ---
+> читатель и писатель в одном NUMA--домене, в разных NUMA--доменах и т.д.
+>
+> Но в Nikka поддержана только
+> архитектура [x86-64](https://en.wikipedia.org/wiki/X86-64).
+> А поддержку нескольких процессоров мы сделаем только в
+> [будущей лабе](../../lab/book/3-smp-2-smp-0-intro.html).
+> И пока нам не доступна возможность запустить стресс-тест даже на двух процессорах в симметричной системе.
+>
+> Но можно вспомнить про то, что
+> [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
+> реализуется конкурентной ради прерываний,
+> которые являются одной из конкурентных активностей в компьютере.
+> Тогда в голову приходит вариант запустить стресс-тест,
+> в котором писатель будет работать в прерывании, а читатель --- в обычном коде, прерываемом периодически этим прерыванием.
+> Собственно
+> [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
+> предназначен именно для такого сценария использования, в котором прерывание поступает от источника времени --- RTC или PIT.
+> Тики RTC, происходящие раз в секунду, точно не подходят для стресс-теста.
+> Можно было бы сконфигурировать PIT на его максимальную частоту --- 1.193(18) MHz, но этого тоже не достаточно для стресс--теста.
+>
+> Зато есть интересный режим работы процессора ---
+> [режим трассировки](https://en.wikipedia.org/wiki/Stepping_(debugging)).
+> От предназначен для пошаговой отладки программ.
+> В этом режиме процессор генерирует прерывание с номером
+> [`kernel::trap::DEBUG`](../../doc/kernel/trap/constant.DEBUG.html)
+> на каждой исполняемой им инструкции программы.
+> Задаётся такой режим работы включением
+> [флага трассировки](https://en.wikipedia.org/wiki/Trap_flag) в
+> [регистре флагов](https://en.wikipedia.org/wiki/FLAGS_register) процессора.
+>
+> То есть, идея состоит в том, чтобы запустить читателя "под пошаговой отладкой".
+> А писателя использовать вместо отладчика.
+> Тогда между каждыми двумя инструкциями кода читателя будет запускаться код писателя.
+> Правда, так как читатель работает в цикле ожидания корректности структуры
+> [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html),
+> если писатель будет обновлять её на каждом прерывании --- между каждыми двумя инструкциями читателя,
+> то читатель никогда не дождётся своего условия выхода из цикла и зависнет.
+> Поэтому писатель должен будет на значительное количество итераций такой
+> пошаговой отладки прекращать обновление
+> [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html).
+>
+> В коде теста это выглядит так:
+> ```rust
+> #[test_case]
+> fn correlation_point_reader() {
+>     trap::test_scaffolding::set_debug_handler(writer);
+>
+>     reader();
+>
+>     static POINT: AtomicCorrelationPoint = AtomicCorrelationPoint::new();
+>
+>     ...
+> }
+> ```
+> Функция `trap::test_scaffolding::set_debug_handler()` устанавливает заданный обработчик
+> прерывания
+> [`kernel::trap::DEBUG`](../../doc/kernel/trap/constant.DEBUG.html),
+> который содержит процедуру писателя `writer()`.
+> Дальше запускается читатель `reader()`.
+> Конкурировать они будут за переменную `POINT`. Она сделана статической для удобства доступа из
+> обработчика прерываний, которому мы не можем передать произвольный набор аргументов.
+> По той же причине его внутренне состояние, которое нужно сохранять между вызовами обработчика,
+> тоже записывается в статические переменные.
+> Переменные, которые использует, в том числе, обработчик прерывания, дополнительно сделаны атомарными,
+> так как формально к ним есть конкурентный доступ.
+> Плюс Rust не даст работать с изменяемой статической переменной без `unsafe`,
+> как раз, чтобы защищать от непредумышленных гонок.
+> А вот атомарные типы
+> [помечены](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicUsize.html#impl-Sync-for-AtomicUsize)
+> типажом
+> [`core::marker::Sync`](https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html),
+> [что означает](https://doc.rust-lang.org/nomicon/send-and-sync.html)
+> корректность их конкурентного использования.
+> К сожалению, это приводит к страшно выглядящему коду.
+>
+> Писатель имеет внутренний счётчик запусков `VALUE`, который и определяет, что делать:
+>
+> ```rust
+> extern "x86-interrupt" fn writer(_: TrapContext) {
+>     static VALUE: AtomicUsize = AtomicUsize::new(0);
+>
+>     let value = VALUE.fetch_add(1, Ordering::Relaxed);
+>
+>     match (value / 1_000) % 4 {
+>         0 => POINT.store(time::test_scaffolding::equal_point(value as i64 + 1)),
+>         2 => POINT.inc(POINT.load().count() + 1),
+>         _ => {},
+>     }
+> }
+> ```
+>
+> Сигнатуру `extern "x86-interrupt" fn writer(_: TrapContext)`
+> [обсудим чуть позже](../../lab/book/1-hw-4-interrupts.html).
+>
+> Каждую тысячу своих запусков писатель переключается между режимами:
+>
+> - Записи в `POINT` через вызов [`AtomicCorrelationPoint::store()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.store).
+> - Бездействия, чтобы дать шанс читателю увидеть [`AtomicCorrelationPoint::store()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.store) в одном и том же состоянии на протяжении всего цикла своей работы.
+> - Записи в `POINT` через вызов [`AtomicCorrelationPoint::inc()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.inc).
+> - Очередного бездействия.
+>
+> При этом писатель и читатель придерживаются соглашения, что согласованными состояниями
+> [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
+> являются только состояния с одинаковыми значениями полей
+> [`CorrelationPoint::tsc`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#structfield.tsc) и
+> [`CorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#structfield.count).
+> Поэтому в циклах обновления писатель меняет оба поля на одинаковые значения, отличающиеся от значений при предыдущей записи.
+> В частности функция
+> `time::test_scaffolding::equal_point()`
+> создаёт
+> [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
+> с одинаковыми
+> [`CorrelationPoint::tsc`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#structfield.tsc) и
+> [`CorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#structfield.count),
+> равными заданному значению.
+> Это имеет смысл только для тестов, поэтому она убрана в модуль `test_scaffolding`.
+>
+> Читатель устроен так:
+>
+> ```rust
+> fn reader() {
+>     ...
+>     while ... {
+>         switch_trap_flag();
+>         let point = POINT.load();
+>         switch_trap_flag();
+>         ...
+>         assert_eq!(point.count(), point.tsc(), "{:?} is inconsistent", point);
+>         ...
+>     }
+> }
+> ```
+>
+> Он включает режим трассировки функцией `switch_trap_flag()`, которая просто переключает состояние
+> [флага трассировки](https://en.wikipedia.org/wiki/Trap_flag)
+> процессора.
+> После этого запускает тестируемый алгоритм чтения
+> [`AtomicCorrelationPoint::load()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.load).
+> Который должен вернуть управление, только когда писатель прекратит обновлять `POINT` и перейдёт в режим бездействия.
+> После чего читатель отключает трассировку повторным переключением флаг `switch_trap_flag()` ---
+> когда она включена он работает очень медленно.
+> И проверяет согласованность полученного от
+> [`AtomicCorrelationPoint::load()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.load)
+> значения
+> [`CorrelationPoint`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html).
+>
+> Нетрудно догадаться, что в этом тесте мы никогда не прерываем писателя и каждый вызов
+> [`AtomicCorrelationPoint::store()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.store) или
+> [`AtomicCorrelationPoint::inc()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.inc)
+> выполняется атомарно с точки зрения читателя.
+> А значит, их корректность мы не проверили.
+> Это делает другой тест:
+>
+> ```rust
+> #[test_case]
+> fn correlation_point_writer() {
+>     trap::test_scaffolding::set_debug_handler(reader);
+>
+>     writer();
+>     ...
+> }
+> ```
+>
+> Он аналогичен рассмотренному `correlation_point_reader()`, только меняет ролями читателя и писателя.
+> Теперь писатель запускается "под пошаговой отладкой", а в обработчике прерывания работает читатель.
+>
+> Видно, что никак не проверяется случай, когда в едином конкурентном исполнении и читатель прерывается писателем, и наоборот, писатель прерывается читателем.
+> Также видно, что такой тест не сможет проверить правильность расстановки `Ordering` в них,
+> так как с точки зрения пошаговой отладки все инструкции процессора атомарны с наиболее строгой гарантией согласованности.
+>
+>> Теперь вы можете исследовать код, запуская его в пошаговом режиме.
+>> Например:
+>>
+>> ```rust
+>> #[test_case]
+>> fn down_the_rabbit_hole() {
+>>     use ku::memory::{Block, Virt};
+>>
+>>     trap::test_scaffolding::set_debug_handler(collect_statistics);
+>>
+>>     switch_trap_flag();
+>>     debug!("how many instructions does it take to log something?");
+>>     switch_trap_flag();
+>>
+>>     let max_rsp = MAX_RSP.load(Ordering::Relaxed);
+>>     let min_rsp = cmp::min(max_rsp, MIN_RSP.load(Ordering::Relaxed));
+>>     let rip = RIP.load(Ordering::Relaxed);
+>>
+>>     debug!(
+>>         instruction_count = INSTRUCTION_COUNT.load(Ordering::Relaxed),
+>>         used_stack_space = ?Block::<Virt>::from_index(min_rsp, max_rsp),
+>>         last_traced_instruction_address = ?Virt::new(rip),
+>>     );
+>>
+>>     static INSTRUCTION_COUNT: AtomicUsize = AtomicUsize::new(0);
+>>     static MAX_RSP: AtomicUsize = AtomicUsize::new(usize::MIN);
+>>     static MIN_RSP: AtomicUsize = AtomicUsize::new(usize::MAX);
+>>     static RIP: AtomicUsize = AtomicUsize::new(0);
+>>
+>>     extern "x86-interrupt" fn collect_statistics(context: TrapContext) {
+>>         let context = context.get().mini_context();
+>>         let rip = context.rip().into_usize();
+>>         let rsp = context.rsp().into_usize();
+>>
+>>         let max_rsp = cmp::max(rsp, MAX_RSP.load(Ordering::Relaxed));
+>>         let min_rsp = cmp::min(rsp, MIN_RSP.load(Ordering::Relaxed));
+>>
+>>         INSTRUCTION_COUNT.fetch_add(1, Ordering::Relaxed);
+>>         MAX_RSP.store(max_rsp, Ordering::Relaxed);
+>>         MIN_RSP.store(min_rsp, Ordering::Relaxed);
+>>         RIP.store(rip, Ordering::Relaxed);
+>>     }
+>> }
+>> ```
+>>
+>> В отладочной сборке на запись в журнал одной строки ушло 112209 инструкций процессора,
+>> последняя из них располагалась по адресу `0v216D07`.
+>> А также было потрачено 5.742 KiB стека по адресам `[0x100002001c8, 0x100002018c0)`
+>> ```console
+>> $ (cd kernel; cargo test --test time)
+>> ...
+>> time::down_the_rabbit_hole----------------------------------
+>> 21:10:12 0 D waiting for the RTC to tick twice
+>> 21:10:14.001 0 D how many instructions does it take to log something?
+>> 21:10:14.022 0 D how many instructions does it take to log something?
+>> 21:10:14.436 0 D instruction_count = 121954; used_stack_space = Ok([0x100001ffbd8, 0x100002012d0), size 5.742 KiB); last_traced_instruction_address = Ok(Virt(0v2180F7))
+>> 21:10:14.460 0 D time_to_log_a_message = 2.198 ms; time_to_log_a_message_in_the_stepping_mode = 432.808 ms; stepping_slowdown_ratio = 196.9484863163476
+>> time::down_the_rabbit_hole------------------------- [passed]
+>> ```
+>> Возможно вы заметили, что второе сообщение `how many ...`, которое печаталось под трассировкой, появлялось на экране медленнее.
+>>
+>> В релизной сборке на запись в журнал одной строки ушло 6874 инструкций и 1.141 KiB стека:
+>>
+>> ```console
+>> $ (cd kernel; cargo test --test time --release)
+>> ...
+>> time::down_the_rabbit_hole----------------------------------
+>> 21:09:33 0 D waiting for the RTC to tick twice
+>> 21:09:35.001 0 D how many instructions does it take to log something?
+>> 21:09:35.001 0 D how many instructions does it take to log something?
+>> 21:09:35.011 0 D instruction_count = 7624; used_stack_space = Ok([0x10000201890, 0x10000201d20), size 1.141 KiB); last_traced_instruction_address = Ok(Virt(0v20AA12))
+>> 21:09:35.014 0 D time_to_log_a_message = 549.737 us; time_to_log_a_message_in_the_stepping_mode = 10.388 ms; stepping_slowdown_ratio = 18.89630272070954
+>> time::down_the_rabbit_hole------------------------- [passed]
+>> ```
+>>
+>>> Теперь вы можете, например, построить гистограмму количества раз, сколько исполнялись инструкции по разным адресам.
+>>> И найти самые горячие циклы кода.
 
 
 ### Theory and Practice of Concurrency

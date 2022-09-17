@@ -20,11 +20,17 @@ use x86_64::{
     },
 };
 
-use ku::time::{
-    self,
-    test_scaffolding::{
-        AtomicCorrelationPoint,
-        forge_tsc,
+use ku::{
+    memory::{
+        Block,
+        Virt,
+    },
+    time::{
+        self,
+        test_scaffolding::{
+            AtomicCorrelationPoint,
+            forge_tsc,
+        },
     },
 };
 
@@ -236,7 +242,10 @@ fn correlation_point_reader() {
     extern "x86-interrupt" fn writer(_: TrapContext) {
         static VALUE: AtomicI64 = AtomicI64::new(0);
 
-        let value = VALUE.fetch_add(1, Ordering::Relaxed);
+        let mut value = VALUE.fetch_add(1, Ordering::Relaxed);
+        if value % 37 == 17 {
+            value -= 1;
+        }
 
         match (value / 1_000) % 4 {
             0 => POINT.store(time::test_scaffolding::new_point(value + 1, 2 * value + 2)),
@@ -261,7 +270,13 @@ fn correlation_point_writer() {
         switch_trap_flag();
 
         for iteration in 0 .. LAST_ITERATION / 2 {
-            POINT.store(time::test_scaffolding::new_point(iteration, 2 * iteration));
+            let value = iteration -
+                if iteration % 37 == 17 {
+                    1
+                } else {
+                    0
+                };
+            POINT.store(time::test_scaffolding::new_point(value, 2 * value));
             ITERATION.store(iteration, Ordering::Relaxed);
         }
 
@@ -296,7 +311,7 @@ fn correlation_point_writer() {
         if iteration == LAST_ITERATION {
             debug!(iteration, failure_count, success_count);
             assert!(
-                success_count >= LAST_ITERATION && failure_count >= 3 * LAST_ITERATION,
+                success_count >= LAST_ITERATION && failure_count >= LAST_ITERATION,
                 "the test is too weak",
             );
             ITERATION.fetch_add(1, Ordering::Relaxed);
@@ -304,9 +319,57 @@ fn correlation_point_writer() {
     }
 }
 
-fn switch_trap_flag() {
-    unsafe {
-        rflags::write(rflags::read() ^ RFlags::TRAP_FLAG);
+#[allow(dead_code)]
+// #[test_case] // Uncomment it if you wish.
+fn down_the_rabbit_hole() {
+    trap::test_scaffolding::set_debug_handler(collect_statistics);
+
+    wait_for_two_correlation_points();
+
+    let mut timer = ku::timer();
+    debug!(rflags = ?rflags::read(), "how many instructions does it take to log something?");
+    let time_to_log_a_message = timer.lap();
+
+    switch_trap_flag();
+    debug!(rflags = ?rflags::read(), "how many instructions does it take to log something?");
+    switch_trap_flag();
+    let time_to_log_a_message_in_the_stepping_mode = timer.elapsed();
+
+    let max_rsp = MAX_RSP.load(Ordering::Relaxed);
+    let min_rsp = cmp::min(max_rsp, MIN_RSP.load(Ordering::Relaxed));
+    let rip = RIP.load(Ordering::Relaxed);
+
+    debug!(
+        instruction_count = INSTRUCTION_COUNT.load(Ordering::Relaxed),
+        used_stack_space = ?Block::<Virt>::from_index(min_rsp, max_rsp).unwrap(),
+        last_traced_instruction_address = %Virt::new(rip).unwrap(),
+    );
+
+    let stepping_slowdown_ratio =
+        time_to_log_a_message_in_the_stepping_mode.into_f64() / time_to_log_a_message.into_f64();
+    debug!(
+        %time_to_log_a_message,
+        %time_to_log_a_message_in_the_stepping_mode,
+        stepping_slowdown_ratio,
+    );
+
+    static INSTRUCTION_COUNT: AtomicUsize = AtomicUsize::new(0);
+    static MAX_RSP: AtomicUsize = AtomicUsize::new(usize::MIN);
+    static MIN_RSP: AtomicUsize = AtomicUsize::new(usize::MAX);
+    static RIP: AtomicUsize = AtomicUsize::new(0);
+
+    extern "x86-interrupt" fn collect_statistics(context: TrapContext) {
+        let context = context.get().mini_context();
+        let rip = context.rip().into_usize();
+        let rsp = context.rsp().into_usize();
+
+        let max_rsp = cmp::max(rsp, MAX_RSP.load(Ordering::Relaxed));
+        let min_rsp = cmp::min(rsp, MIN_RSP.load(Ordering::Relaxed));
+
+        INSTRUCTION_COUNT.fetch_add(1, Ordering::Relaxed);
+        MAX_RSP.store(max_rsp, Ordering::Relaxed);
+        MIN_RSP.store(min_rsp, Ordering::Relaxed);
+        RIP.store(rip, Ordering::Relaxed);
     }
 }
 
@@ -321,11 +384,17 @@ fn sample(ticks: &AtomicUsize) -> bool {
     }
 }
 
+fn switch_trap_flag() {
+    unsafe {
+        rflags::write(rflags::read() ^ RFlags::TRAP_FLAG);
+    }
+}
+
 fn wait_for_two_correlation_points() {
     debug!("waiting for the RTC to tick twice");
 
     let rtc_ticks = TRAP_STATS[RTC].count();
     while TRAP_STATS[RTC].count() < rtc_ticks + 2 {
-        x86_64::instructions::hlt();
+        instructions::hlt();
     }
 }
