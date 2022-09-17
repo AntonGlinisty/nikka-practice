@@ -377,9 +377,75 @@ return None;
 > [транзитивное](https://en.wikipedia.org/wiki/Transitive_relation).
 
 
+### Запуск тестов
+
+Тесты можно запустить командой `cargo test --test time` в директории `kernel` репозитория.
+Вы увидите сборку, запуск эмулятора [`qemu`](https://en.wikipedia.org/wiki/QEMU), сообщения журнала об инициализации ядра и прогоне тестов:
+
+```console
+$ (cd kernel; cargo test --test time)
+...
+Running: `qemu-system-x86_64 -drive format=raw,file=/.../shad-os/target/kernel/debug/deps/bootimage-time-8696ef78d2ec023a.bin -no-reboot -m size=50M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none`
+00:00:00 0 I RTC init; acknowledged_settings = USE_24_HOUR_FORMAT | USE_BINARY_FORMAT | UPDATE_ENDED_INTERRUPT
+00:00:00 0 I time init
+00:00:00 0 I Nikka booted; now = 1970-01-01 00:00:00 UTC; tsc = Tsc(5345850832)
+00:00:00 0 I GDT init
+00:00:00 0 I traps init
+running 4 tests
+
+time::rtc_read_inconsistent---------------------------------
+00:00:00 0 D start = 1970-01-01 00:00:00 UTC
+panicked at 'the RTC date does not pass the sanity check', kernel/tests/time.rs:43:5
+--------------------------------------------------- [failed]
+00:00:00 0 I exit qemu; exit_code = FAILURE
+error: test failed, to rerun pass '--test time'
+```
+
+Если запустить тест из корня репозитория, то вы столкнётесь ошибкой:
+
+```console
+error: language item required, but not found: `eh_personality`
+  |
+  = note: this can occur when a binary crate with `#![no_std]` is compiled for a target where `eh_personality` is defined in the standard library
+  = help: you may be able to compile for a target that doesn't need `eh_personality`, specify a target with `--target` or in `.cargo/config`
+```
+
+Это ожидаемо, запускайте тест из директории `kernel`.
+
+До решения задачи тест `fn rtc_read_inconsistent()` из файла
+[`kernel/tests/time.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/time.rs)
+падает:
+
+```console
+time::rtc_read_inconsistent---------------------------------
+00:00:00 0 D start = 1970-01-01 00:00:00 UTC
+panicked at 'the RTC date does not pass the sanity check', kernel/tests/time.rs:43:5
+--------------------------------------------------- [failed]
+```
+
+А после выполнения задачи он должен проходить:
+
+```console
+$ (cd kernel; cargo test --test time)
+...
+time::rtc_read_inconsistent---------------------------------
+10:25:26 0 D start = 2022-09-17 10:25:26 UTC
+10:25:27 0 D now = 2022-09-17 10:25:27 UTC
+10:25:28 0 D now = 2022-09-17 10:25:28 UTC
+10:25:29 0 D now = 2022-09-17 10:25:29 UTC
+10:25:30 0 D now = 2022-09-17 10:25:30 UTC
+10:25:31 0 D now = 2022-09-17 10:25:31 UTC
+10:25:32 0 D now = 2022-09-17 10:25:32 UTC
+10:25:33 0 D now = 2022-09-17 10:25:33 UTC
+10:25:34 0 D now = 2022-09-17 10:25:34 UTC
+10:25:35 0 D now = 2022-09-17 10:25:35 UTC
+time::rtc_read_inconsistent------------------------ [passed]
+```
+
+
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/time/rtc.rs |   30 +++++++++++++++++++++++++++---
- 1 file changed, 27 insertions(+), 3 deletions(-)
+ kernel/src/time/rtc.rs |   32 ++++++++++++++++++++++++++++----
+ 1 file changed, 28 insertions(+), 4 deletions(-)
 ```

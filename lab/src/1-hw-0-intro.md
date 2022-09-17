@@ -58,8 +58,8 @@
 чтобы контролировать ошибку такой оценки и корректировать её с учётом новых данных.
 
 ```console
- kernel/src/time/rtc.rs       |   30 +++++++++++++++++++++++++++---
- ku/src/time/correlation_point.rs |   24 +++++++++++++++++++++---
- ku/src/time/correlation_interval.rs   |   20 +++++++++++++++++++-
- 3 files changed, 67 insertions(+), 7 deletions(-)
+ kernel/src/time/rtc.rs              |   32 ++++++++++++++++++++++++++++----
+ ku/src/time/correlation_interval.rs |   21 +++++++++++++++++++--
+ ku/src/time/correlation_point.rs    |   25 +++++++++++++++++--------
+ 3 files changed, 64 insertions(+), 14 deletions(-)
 ```

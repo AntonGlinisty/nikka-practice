@@ -115,7 +115,7 @@ fn CorrelationInterval::datetime_with_resolution<const PARTS_PER_SECOND: i64>(
 Мы заметим это на старте системы по низкому --- секундному --- разрешению в записях журнала.
 
 
-### Задача 1 --- реализация основного метода повышения разрешения часов
+### Задача 3 --- реализация основного метода повышения разрешения часов
 
 Реализуйте метод
 [`fn CorrelationInterval::datetime_with_resolution()`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#method.datetime_with_resolution).
@@ -127,9 +127,28 @@ fn CorrelationInterval::datetime_with_resolution<const PARTS_PER_SECOND: i64>(
 - [Високосные секунды](https://en.wikipedia.org/wiki/Leap_second) не поддерживаем.
 
 
+### Запуск тестов
+
+Тесты можно запустить командой `cargo test --test time` в директории `kernel` репозитория.
+
+После выполнения задачи должен проходить тест `high_resolution_date()`
+в файле
+[`kernel/tests/time.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/time.rs):
+
+```console
+$ (cd kernel; cargo test --test time)
+...
+time::high_resolution_date----------------------------------
+10:39:50.562 0 D waiting for the RTC to tick twice
+10:39:52.001 0 D measuring; timer_ticks = 102
+10:39:57.015 0 D measured; samples = 100; min = PT0.049911511S; max = PT0.050046701S; mean = PT0.049999155S; deviation = PT0.000020516S
+10:39:57.024 0 D restrictions; min_delta = PT0.040S; max_delta = PT0.060S; min_mean = PT0.049500S; max_mean = PT0.050500S; min_deviation = PT0.000000100S; max_deviation = PT0.005S
+time::high_resolution_date------------------------- [passed]
+```
+
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- ku/src/time/correlation_interval.rs |   20 +++++++++++++++++++-
- 1 file changed, 19 insertions(+), 1 deletion(-)
+ ku/src/time/correlation_interval.rs |   21 +++++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)
 ```

@@ -198,6 +198,53 @@ fn AtomicCorrelationPoint::inc(&self, tsc: i64)
 гарантированно не вызываются конкурентно ни каждый сам с собой, ни друг с другом.
 
 
+### Запуск тестов
+
+Тесты можно запустить командой `cargo test --test time` в директории `kernel` репозитория.
+
+После выполнения задачи должны проходить тесты `correlation_point_reader()` и `correlation_point_writer()`
+в файле
+[`kernel/tests/time.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/time.rs):
+
+```console
+$ (cd kernel; cargo test --test time)
+...
+time::correlation_point_reader------------------------------
+10:35:25 0 D same = 0; different = 1; point = CorrelationPoint { count: 1000, tsc: 1000 }
+10:35:26 0 D same = 1082; different = 542; point = CorrelationPoint { count: 1082000, tsc: 1082000 }
+10:35:27 0 D same = 2166; different = 1084; point = CorrelationPoint { count: 2166000, tsc: 2166000 }
+10:35:28 0 D same = 3253; different = 1627; point = CorrelationPoint { count: 3253000, tsc: 3253000 }
+10:35:29 0 D same = 4340; different = 2170; point = CorrelationPoint { count: 4338000, tsc: 4338000 }
+10:35:30 0 D same = 5422; different = 2712; point = CorrelationPoint { count: 5422000, tsc: 5422000 }
+10:35:31 0 D same = 6506; different = 3254; point = CorrelationPoint { count: 6506000, tsc: 6506000 }
+10:35:32 0 D same = 7594; different = 3798; point = CorrelationPoint { count: 7594000, tsc: 7594000 }
+10:35:33 0 D same = 8678; different = 4340; point = CorrelationPoint { count: 8678000, tsc: 8678000 }
+10:35:34 0 D same = 9762; different = 4882; point = CorrelationPoint { count: 9762000, tsc: 9762000 }
+10:35:35 0 D same = 10848; different = 5425; point = CorrelationPoint { count: 10849000, tsc: 10849000 }
+10:35:36 0 D same = 11936; different = 5968; point = CorrelationPoint { count: 11934000, tsc: 11934000 }
+10:35:37 0 D same = 13022; different = 6512; point = CorrelationPoint { count: 13022000, tsc: 13022000 }
+10:35:38 0 D same = 14108; different = 7055; point = CorrelationPoint { count: 14109000, tsc: 14109000 }
+10:35:39 0 D same = 15184; different = 7593; point = CorrelationPoint { count: 15185000, tsc: 15185000 }
+10:35:40 0 D same = 16270; different = 8135; point = CorrelationPoint { count: 16269000, tsc: 16269000 }
+10:35:41 0 D same = 17356; different = 8679; point = CorrelationPoint { count: 17357000, tsc: 17357000 }
+10:35:42 0 D same = 18438; different = 9220; point = CorrelationPoint { count: 18438000, tsc: 18438000 }
+10:35:43 0 D same = 19520; different = 9761; point = CorrelationPoint { count: 19521000, tsc: 19521000 }
+time::correlation_point_reader--------------------- [passed]
+
+time::correlation_point_writer------------------------------
+10:35:43 0 D iteration = 0; failure_count = 0; success_count = 0; point = CorrelationPoint { count: 0, tsc: 0 }
+10:35:44 0 D iteration = 840; failure_count = 90828; success_count = 220580; point = CorrelationPoint { count: 840, tsc: 840 }
+10:35:45 0 D iteration = 2396; failure_count = 258876; success_count = 628295; point = CorrelationPoint { count: 2396, tsc: 2396 }
+10:35:46 0 D iteration = 3958; failure_count = 427572; success_count = 1037519; point = CorrelationPoint { count: 3958, tsc: 3958 }
+10:35:47 0 D iteration = 5345; failure_count = 570102; success_count = 1472279; point = CorrelationPoint { count: 5345, tsc: 5345 }
+10:35:48 0 D iteration = 6383; failure_count = 660408; success_count = 1958120; point = CorrelationPoint { count: 6383, tsc: 6383 }
+10:35:49 0 D iteration = 7433; failure_count = 751845; success_count = 2449799; point = CorrelationPoint { count: 7434, tsc: 7434 }
+10:35:50 0 D iteration = 8485; failure_count = 843282; success_count = 2941927; point = CorrelationPoint { count: 8485, tsc: 8485 }
+10:35:51 0 D iteration = 9529; failure_count = 934110; success_count = 3430565; point = CorrelationPoint { count: 9529, tsc: 9529 }
+10:35:51 0 D iteration = 10000; failure_count = 975087; success_count = 3650638
+time::correlation_point_writer--------------------- [passed]
+```
+
 > ### Как устроен тест
 >
 > Для того чтобы проверить корректность реализации
@@ -475,6 +522,6 @@ fn AtomicCorrelationPoint::inc(&self, tsc: i64)
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- ku/src/time/correlation_point.rs |   24 +++++++++++++++++++++---
- 1 file changed, 21 insertions(+), 3 deletions(-)
+ ku/src/time/correlation_point.rs |   25 +++++++++++++++++--------
+ 1 file changed, 17 insertions(+), 8 deletions(-)
 ```
