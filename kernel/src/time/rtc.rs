@@ -154,8 +154,8 @@ impl From<Date> for NaiveDateTime {
     }
 }
 
-const ADDRESS_PORT: u16 = 0x70;
-const DATA_PORT: u16 = 0x71;
+const ADDRESS_PORT: u16 = 0x0070;
+const DATA_PORT: u16 = 0x0071;
 
 unsafe fn rtc_read(address: u8) -> u8 {
     io::outb(ADDRESS_PORT, address);
