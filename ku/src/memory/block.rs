@@ -1,3 +1,6 @@
+#![warn(clippy::missing_docs_in_private_items)]
+#![warn(missing_docs)]
+
 use core::{
     fmt,
     iter::IntoIterator,
@@ -27,14 +30,41 @@ use super::{
     },
 };
 
+// Used in docs.
+#[allow(unused)]
+use {
+    super::{
+        Frame,
+        Page,
+        Phys,
+    },
+    crate::error::Error,
+};
+
+/// Абстракция диапазона физической или виртуальной памяти, постраничного или произвольного.
+///
+/// - `Block<Phys>` --- произвольный диапазон физической памяти.
+/// - `Block<Virt>` --- произвольный диапазон виртуальной памяти.
+/// - `Block<Frame>` --- набор последовательных физических фреймов.
+/// - `Block<Page>` --- набор последовательных виртуальных страниц.
+///
+/// [`Block`] не владеет описываемой им памятью.
 #[derive(Clone, Copy, Default, Eq, PartialEq)]
 pub struct Block<T: Memory> {
+    /// Номер первого элемента в блоке.
     start: usize,
+
+    /// Номер следующего за последним элементом блока.
     end: usize,
+
+    /// Фантомное, не занимающее памяти, поле.
+    /// Служит для того чтобы сделать блоки с разными параметрами `T` несовместимыми.
     tag: PhantomData<T>,
 }
 
 impl<T: Memory> Block<T> {
+    /// Создаёт блок для полуоткрытого интервала `[start, end)` базового типа `T`,
+    /// который может быть [`Phys`], [`Virt`], [`Frame`] или [`Page`].
     pub fn new(
         start: T,
         end: T,
@@ -42,6 +72,9 @@ impl<T: Memory> Block<T> {
         Self::from_index(T::index(start), T::index(end))
     }
 
+    /// Создаёт блок для полуоткрытого интервала `[start, end)` базового типа `T`,
+    /// который задаётся своими индексами --- номерами байт для [`Phys`] и [`Virt`],
+    /// номерами физических фреймов для [`Frame`] и номерами виртуальных страниц для [`Page`].
     pub fn from_index(
         start: usize,
         end: usize,
@@ -66,6 +99,11 @@ impl<T: Memory> Block<T> {
         }
     }
 
+    /// Создаёт блок для полуоткрытого интервала `[start, end)` базового типа `T`,
+    /// который задаётся своими индексами --- номерами байт для [`Phys`] и [`Virt`],
+    /// номерами физических фреймов для [`Frame`] и номерами виртуальных страниц для [`Page`].
+    ///
+    /// Аналогичен [`Block::from_index()`], но индексы имеют тип [`u64`].
     pub fn from_index_u64(
         start: u64,
         end: u64,
@@ -73,22 +111,27 @@ impl<T: Memory> Block<T> {
         Self::from_index(size::from(start), size::from(end))
     }
 
+    /// Возвращает количество элементов в блоке, оно равно `Block::end - Block::start`.
     pub const fn count(&self) -> usize {
         self.end - self.start
     }
 
+    /// Размер блока в байтах. Равно количеству элементов в блоке, умноженному на размер элемента.
     pub const fn size(&self) -> usize {
         self.count() * T::SIZE_OF
     }
 
+    /// Возвращает адрес первого элемента в блоке.
     pub fn start_address(&self) -> T::Address {
         T::address_by_index(self.start).unwrap()
     }
 
+    /// Возвращает адрес следующего за последним элементом блока.
     pub fn end_address(&self) -> Result<T::Address> {
         T::address_by_index(self.end)
     }
 
+    /// Проверяет, что заданный элемент относится к блоку.
     pub fn contains(
         &self,
         element: T,
@@ -96,6 +139,7 @@ impl<T: Memory> Block<T> {
         self.contains_address(T::address(element))
     }
 
+    /// Проверяет, что заданный адрес относится к блоку.
     pub fn contains_address(
         &self,
         addr: T::Address,
@@ -109,6 +153,11 @@ impl<T: Memory> Block<T> {
         }
     }
 
+    /// Разделяет блок на две дизъюнктные части:
+    ///   - изменённый `self`;
+    ///   - новый блок размером `count` единиц, взятый с конца текущего блока.
+    ///
+    /// Если в блоке недостаточно элементов, не меняя его возвращает `None`.
     pub fn tail(
         &mut self,
         count: usize,
@@ -119,6 +168,9 @@ impl<T: Memory> Block<T> {
 }
 
 impl<T: Tag> Block<Addr<T>> {
+    /// Для заданного блока виртуальных или физических адресов
+    /// возвращает минимальный содержащий его
+    /// блок виртуальных страниц или физических фреймов соответственно.
     pub fn enclosing(&self) -> Block<Frage<T>> {
         let start_frage = Frage::<T>::index_by_address(self.start_address());
         let end_frage = if self.start == self.end {
@@ -135,14 +187,21 @@ impl<T: Memory> Block<T>
 where
     T::Address: IsVirt,
 {
+    /// Преобразует `Block<Virt>` или `Block<Page>` в указатель на константный [`u8`].
     pub fn into_ptr_u8(self) -> *const u8 {
         self.start_address().into_ptr_u8()
     }
 
+    /// Преобразует `Block<Virt>` или `Block<Page>` в указатель на изменяемый [`u8`].
     pub fn into_mut_ptr_u8(self) -> *mut u8 {
         self.start_address().into_mut_ptr_u8()
     }
 
+    /// Преобразует `Block<Virt>` или `Block<Page>` в указатель на константный `Q`.
+    ///
+    /// Возвращает ошибки:
+    /// - [`Error::InvalidArgument`] если блок не соответствует типу `Q` по размеру.
+    /// - [`Error::InvalidAlignment`] если блок не соответствует типу `Q` по выравниванию.
     pub fn try_into_ptr<Q>(self) -> Result<*const Q> {
         if self.size() == mem::size_of::<Q>() {
             self.start_address().try_into_ptr::<Q>()
@@ -151,6 +210,11 @@ where
         }
     }
 
+    /// Преобразует `Block<Virt>` или `Block<Page>` в указатель на изменяемый `Q`.
+    ///
+    /// Возвращает ошибки:
+    /// - [`Error::InvalidArgument`] если блок не соответствует типу `Q` по размеру.
+    /// - [`Error::InvalidAlignment`] если блок не соответствует типу `Q` по выравниванию.
     pub fn try_into_mut_ptr<Q>(self) -> Result<*mut Q> {
         if self.size() == mem::size_of::<Q>() {
             self.start_address().try_into_mut_ptr::<Q>()
@@ -159,6 +223,18 @@ where
         }
     }
 
+    /// Преобразует `Block<Virt>` или `Block<Page>` в неизменяемую ссылку на `Q`.
+    ///
+    /// Возвращает ошибки:
+    /// - [`Error::InvalidArgument`] если блок не соответствует типу `Q` по размеру.
+    /// - [`Error::InvalidAlignment`] если блок не соответствует типу `Q` по выравниванию.
+    /// - [`Error::Null`] если адрес блока нулевой.
+    ///
+    /// # Safety
+    ///
+    /// Вызывающая сторона должна гарантировать,
+    /// что не будут нарушены инварианты управления памятью в Rust,
+    /// которые не относятся к возвращаемым ошибкам.
     pub unsafe fn try_into_ref<'a, Q>(self) -> Result<&'a Q> {
         if self.size() == mem::size_of::<Q>() {
             self.start_address().try_into_ref::<Q>()
@@ -167,6 +243,18 @@ where
         }
     }
 
+    /// Преобразует `Block<Virt>` или `Block<Page>` в изменяемую ссылку на `Q`.
+    ///
+    /// Возвращает ошибки:
+    /// - [`Error::InvalidArgument`] если блок не соответствует типу `Q` по размеру.
+    /// - [`Error::InvalidAlignment`] если блок не соответствует типу `Q` по выравниванию.
+    /// - [`Error::Null`] если адрес блока нулевой.
+    ///
+    /// # Safety
+    ///
+    /// Вызывающая сторона должна гарантировать,
+    /// что не будут нарушены инварианты управления памятью в Rust,
+    /// которые не относятся к возвращаемым ошибкам.
     pub unsafe fn try_into_mut<'a, Q>(self) -> Result<&'a mut Q> {
         if self.size() == mem::size_of::<Q>() {
             self.start_address().try_into_mut::<Q>()
@@ -175,6 +263,19 @@ where
         }
     }
 
+    /// Преобразует `Block<Virt>` или `Block<Page>` в срез неизменяемых элементов типа `Q`.
+    /// Размер среза вычисляется из размера блока и размера типа `Q`.
+    ///
+    /// Возвращает ошибки:
+    /// - [`Error::InvalidArgument`] если блок не соответствует типу `Q` по размеру.
+    /// - [`Error::InvalidAlignment`] если блок не соответствует типу `Q` по выравниванию.
+    /// - [`Error::Null`] если адрес блока нулевой.
+    ///
+    /// # Safety
+    ///
+    /// Вызывающая сторона должна гарантировать,
+    /// что не будут нарушены инварианты управления памятью в Rust,
+    /// которые не относятся к возвращаемым ошибкам.
     pub unsafe fn try_into_slice<'a, Q>(self) -> Result<&'a [Q]> {
         if self.size() % mem::size_of::<Q>() == 0 {
             self.start_address().try_into_slice::<Q>(self.size() / mem::size_of::<Q>())
@@ -183,6 +284,19 @@ where
         }
     }
 
+    /// Преобразует `Block<Virt>` или `Block<Page>` в срез изменяемых элементов типа `Q`.
+    /// Размер среза вычисляется из размера блока и размера типа `Q`.
+    ///
+    /// Возвращает ошибки:
+    /// - [`Error::InvalidArgument`] если блок не соответствует типу `Q` по размеру.
+    /// - [`Error::InvalidAlignment`] если блок не соответствует типу `Q` по выравниванию.
+    /// - [`Error::Null`] если адрес блока нулевой.
+    ///
+    /// # Safety
+    ///
+    /// Вызывающая сторона должна гарантировать,
+    /// что не будут нарушены инварианты управления памятью в Rust,
+    /// которые не относятся к возвращаемым ошибкам.
     pub unsafe fn try_into_mut_slice<'a, Q>(self) -> Result<&'a mut [Q]> {
         if self.size() % mem::size_of::<Q>() == 0 {
             self.start_address().try_into_mut_slice::<Q>(self.size() / mem::size_of::<Q>())
@@ -193,16 +307,31 @@ where
 }
 
 impl Block<Virt> {
+    /// Преобразует указатель на `T` в `Block<Virt>`.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если указатель не корректен.
     pub fn from_ptr<T>(x: *const T) -> Self {
         let start = Virt::from_ptr(x);
         let end = (start + mem::size_of::<T>()).unwrap();
         Self::new(start, end).unwrap()
     }
 
+    /// Преобразует ссылку на `T` в `Block<Virt>`.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если ссылка не корректна.
     pub fn from_ref<T>(x: &T) -> Self {
         Self::from_ptr(x)
     }
 
+    /// Преобразует срез элементов типа `T` в `Block<Virt>`.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если срез не корректен.
     pub fn from_slice<T>(x: &[T]) -> Self {
         let range = x.as_ptr_range();
 
@@ -211,6 +340,8 @@ impl Block<Virt> {
 }
 
 impl<T: Tag> From<Block<Frage<T>>> for Block<Addr<T>> {
+    /// Преобразует блок виртуальных страниц или физических фреймов
+    /// в блок виртуальных или физических адресов соответственно.
     fn from(block: Block<Frage<T>>) -> Self {
         Self::new(block.start_address(), block.end_address().unwrap()).unwrap()
     }
@@ -255,7 +386,10 @@ impl<T: Tag> IntoIterator for Block<Frage<T>> {
     }
 }
 
-/// A separate struct for iterating over a block since Block is Copy and copyable iterators are a source of bugs.
+/// Итератор по блоку.
+///
+/// В качестве итератора нельзя использовать сам [`Block`], так как он реализует типаж [`Copy`].
+/// А делать итератор копируемым чревато ошибками.
 #[derive(Clone)]
 pub struct IntoIter<T>(Range<usize>, PhantomData<T>);
 
@@ -267,12 +401,32 @@ impl<T: Tag> Iterator for IntoIter<Frage<T>> {
     }
 }
 
+/// Описывает базовые типы для [`Block`] и их операции.
 pub trait Memory: Clone + Copy + SizeOf {
+    /// Тип адреса для базового типа:
+    /// - [`Virt`] для [`Virt`] и [`Page`];
+    /// - [`Phys`] для [`Phys`] и [`Frame`].
     type Address: Ord;
 
+    /// Возвращает адрес базового элемента `element`:
+    /// - `element` для `Addr`;
+    /// - `element.address()` для `Frage`.
     fn address(element: Self) -> Self::Address;
+
+    /// Возвращает адрес базового элемента с индексом `index`:
+    /// - `Addr::new(index)` для `Addr`;
+    /// - `Frage::address_by_index(index)` для `Frage`.
     fn address_by_index(index: usize) -> Result<Self::Address>;
+
+    /// Возвращает индекс базового элемента `element`:
+    /// - `element.into_usize()` для `Addr`;
+    /// - `element.index()` для `Frage`.
     fn index(element: Self) -> usize;
+
+    /// Возвращает `true` если:
+    /// - Адреса `x` и `y` виртуальные и находятся в одной и той же
+    /// [половине виртуального адресного пространства](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details).
+    /// - Адреса `x` и `y` физические.
     fn is_same_half(
         x: Self::Address,
         y: Self::Address,

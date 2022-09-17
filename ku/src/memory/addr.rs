@@ -1,3 +1,6 @@
+#![warn(clippy::missing_docs_in_private_items)]
+#![warn(missing_docs)]
+
 use core::{
     fmt,
     marker::PhantomData,
@@ -34,6 +37,14 @@ use super::{
     },
 };
 
+// Used in docs.
+#[allow(unused)]
+use crate::{
+    self as ku,
+    error::Error,
+};
+
+/// Базовый тип для адресов [архитектуры x86-64](https://wiki.osdev.org/X86-64), как виртуальных, так и физических.
 #[derive(Clone, Copy, Default, Eq, Ord, PartialEq, PartialOrd)]
 #[repr(transparent)]
 pub struct Addr<T>(usize, PhantomData<T>);
@@ -42,22 +53,35 @@ const_assert_eq!(mem::size_of::<Addr<()>>(), mem::size_of::<usize>());
 const_assert_eq!(mem::size_of::<Addr<()>>(), mem::size_of::<u64>());
 
 impl<T: Tag> Addr<T> {
+    /// Создаёт [`Addr`] --- [`Phys`] или [`Virt`] --- по его битовому представлению `addr`.
+    ///
+    /// Возвращает ошибку [`Error::InvalidArgument`] если битовое представление `addr`
+    /// не является корректным для адреса целевого типа.
     pub fn new(addr: usize) -> Result<Self> {
         T::new(addr)
     }
 
+    /// Создаёт [`Addr`] --- [`Phys`] или [`Virt`] --- по его битовому представлению `addr`.
+    ///
+    /// Возвращает ошибку [`Error::InvalidArgument`] если битовое представление `addr`
+    /// не является корректным для адреса целевого типа.
     pub fn new_u64(addr: u64) -> Result<Self> {
         Self::new(size::from(addr))
     }
 
+    /// Возвращает битовое представление адреса.
     pub fn into_usize(self) -> usize {
         self.0
     }
 
+    /// Возвращает битовое представление адреса.
     pub fn into_u64(self) -> u64 {
         size::into_u64(self.0)
     }
 
+    /// Возвращает битовое представление адреса типа [`u32`],
+    /// если адрес представим в 32-х битном виде.
+    /// Иначе возвращает ошибку [`Error::Int`].
     pub fn try_into_u32(self) -> Result<u32> {
         size::try_into_u32(self.0)
     }
@@ -115,19 +139,42 @@ impl<T: Tag> fmt::Display for Addr<T> {
     }
 }
 
+/// Тег, позволяющий различать
+/// виртуальные адреса [`ku::memory::Virt`] и физические [`ku::memory::Phys`],
+/// а также (виртуальные) страницы [`ku::memory::Page`] и (физические) фреймы [`ku::memory::Frame`].
 pub trait Tag: Clone + Copy + Default + Eq + Ord {
+    /// Создаёт [`Addr`] --- [`Phys`] или [`Virt`] --- по его битовому представлению `addr`.
+    ///
+    /// Возвращает ошибку [`Error::InvalidArgument`] если битовое представление `addr`
+    /// не является корректным для адреса целевого типа.
     fn new(addr: usize) -> Result<Addr<Self>>;
 
+    /// Возвращает `true` если:
+    /// - Адреса `x` и `y` виртуальные и находятся в одной и той же
+    /// [половине виртуального адресного пространства](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details).
+    /// - Адреса `x` и `y` физические.
     fn is_same_half(
         x: Addr<Self>,
         y: Addr<Self>,
     ) -> bool;
 
+    /// Задаёт имя типа при печати:
+    /// - `"Phys"` для физических адресов;
+    /// - `"Virt"` для виртуальных адресов.
     const ADDR_NAME: &'static str;
+
+    /// Задаёт имя типа при печати:
+    /// - `"Frame"` для физических фреймов;
+    /// - `"Page"` для виртуальных страниц.
     const FRAGE_NAME: &'static str;
+
+    /// Заменяет префикс `0x` при печати на:
+    /// - `0p` (**p**hysical) для физических адресов;
+    /// - `0v` (**v**irtual) для виртуальных адресов.
     const HEX_PREFIX: &'static str;
 }
 
+/// Тег физических адресов [`ku::memory::Phys`] и фреймов [`ku::memory::Frame`].
 #[derive(Clone, Copy, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PhysTag;
 
@@ -148,6 +195,7 @@ impl Tag for PhysTag {
     const HEX_PREFIX: &'static str = "0p";
 }
 
+/// Тег виртуальных адресов и страниц.
 #[derive(Clone, Copy, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct VirtTag;
 
@@ -168,6 +216,8 @@ impl Tag for VirtTag {
     const HEX_PREFIX: &'static str = "0v";
 }
 
+/// Используется для [`ku::memory::Block<Virt>`] и [`ku::memory::Block<Page>`].
+#[doc(hidden)]
 pub trait IsVirt {
     fn from_ptr<T: ?Sized>(ptr: *const T) -> Self;
     fn from_ref<T: ?Sized>(x: &T) -> Self;
@@ -187,11 +237,116 @@ pub trait IsVirt {
     ) -> Result<&'a mut [T]>;
 }
 
+/// Физический адрес [архитектуры x86-64](https://wiki.osdev.org/X86-64).
+///
+/// # Examples
+///
+/// ## Преобразования между `Phys` и базовыми типами
+/// Преобразования между [`Phys`] и [`usize`](https://doc.rust-lang.org/core/primitive.usize.html)/[`u64`](https://doc.rust-lang.org/core/primitive.u64.html).
+/// ```rust
+/// # use ku::{
+/// #     error::Result,
+/// #     memory::Phys,
+/// # };
+/// #
+/// # fn f() -> Result<()> {
+/// let phys = Phys::new(0x123ABC)?;
+/// assert_eq!(phys, Phys::new_u64(0x123ABC)?);
+/// assert_eq!(phys.into_u64(), 0x123ABC_u64);
+/// assert_eq!(phys.into_usize(), 0x123ABC_usize);
+/// # Ok(())
+/// # }
+/// #
+/// # assert!(f().is_ok());
+/// ```
+///
+/// ## Некорректные адреса
+/// [`Phys::new()`] возвращает ошибку [`ku::error::Error::InvalidArgument`]
+/// при попытке задать некорректный с точки зрения [архитектуры x86-64](https://wiki.osdev.org/X86-64) физический адрес.
+/// ```rust
+/// # use ku::{
+/// #     error::Error::InvalidArgument,
+/// #     memory::Phys,
+/// # };
+/// #
+/// let bad_address = 1 << 63;
+/// assert_eq!(Phys::new(bad_address), Err(InvalidArgument));
+/// ```
 pub type Phys = Addr<PhysTag>;
 
+/// Виртуальный адрес [архитектуры x86-64](https://wiki.osdev.org/X86-64).
+///
+/// # Examples
+///
+/// ## Преобразования между `Virt` и базовыми типами
+/// Преобразования между [`Virt`] и
+/// [`usize`](https://doc.rust-lang.org/core/primitive.usize.html)/[`u64`](https://doc.rust-lang.org/core/primitive.u64.html).
+/// ```rust
+/// # use ku::{
+/// #     error::Result,
+/// #     memory::Virt,
+/// # };
+/// #
+/// # fn f() -> Result<()> {
+/// let virt = Virt::new(0x123ABC)?;
+/// assert_eq!(virt, Virt::new_u64(0x123ABC)?);
+/// assert_eq!(virt.into_u64(), 0x123ABC_u64);
+/// assert_eq!(virt.into_usize(), 0x123ABC_usize);
+/// # Ok(())
+/// # }
+/// #
+/// # assert!(f().is_ok());
+/// ```
+///
+/// ## Некорректные адреса
+/// [`Virt::new()`] возвращает ошибку [`ku::error::Error::InvalidArgument`]
+/// при попытке задать некорректный с точки зрения
+/// [архитектуры x86-64](https://wiki.osdev.org/X86-64) виртуальный адрес.
+/// ```rust
+/// # use ku::{
+/// #     error::Error::InvalidArgument,
+/// #     memory::Virt,
+/// # };
+/// #
+/// let bad_address = 1 << 63;
+/// assert_eq!(Virt::new(bad_address), Err(InvalidArgument));
+/// ```
+///
+/// ## Преобразования между `Virt` и `VirtAddr`
+/// [`Virt`] поддерживает преобразования в/из [`x86_64::addr::VirtAddr`].
+/// Это нужно для использования структур из [`x86_64`],
+/// например [`x86_64::structures::tss::TaskStateSegment`] и
+/// [`x86_64::structures::idt::Entry::set_handler_addr()`].
+/// ```rust
+/// # use x86_64::VirtAddr;
+/// #
+/// # use ku::{
+/// #     error::Result,
+/// #     memory::Virt,
+/// # };
+/// #
+/// fn f(virt_addr: VirtAddr) -> Virt {
+///     virt_addr.into()
+/// }
+///
+/// # fn g() -> Result<()> {
+/// let virt = Virt::new(0x123ABC)?;
+/// let virt_addr: VirtAddr = virt.into();
+/// let virt2: Virt = virt_addr.into();
+/// assert_eq!(virt, virt2);
+/// assert_eq!(virt, f(virt.into()));
+/// # Ok(())
+/// # }
+/// #
+/// # assert!(g().is_ok());
+/// ```
 pub type Virt = Addr<VirtTag>;
 
 impl Phys {
+    /// Создаёт физический адрес по его битовому представлению `addr`.
+    ///
+    /// Возвращает ошибку [`Error::InvalidArgument`] если битовое представление `addr`
+    /// не является корректным для физического адреса.
     fn new_impl(addr: usize) -> Result<Self> {
         let zeros = addr.leading_zeros();
         if zeros >= Self::UNUSED_BITS {
@@ -201,12 +356,18 @@ impl Phys {
         }
     }
 
+    /// Количество используемых битов в физическом адресе.
     pub(super) const BITS: u32 = 52;
 
+    /// Количество неиспользуемых битов в физическом адресе.
     const UNUSED_BITS: u32 = usize::BITS - Self::BITS;
 }
 
 impl Virt {
+    /// Создаёт виртуальный адрес по его битовому представлению `addr`.
+    ///
+    /// Возвращает ошибку [`Error::InvalidArgument`] если битовое представление `addr`
+    /// не является корректным для виртуального адреса.
     fn new_impl(addr: usize) -> Result<Self> {
         if addr.leading_zeros() > Self::UNUSED_BITS || addr.leading_ones() > Self::UNUSED_BITS {
             Ok(Self(addr, PhantomData))
@@ -215,31 +376,50 @@ impl Virt {
         }
     }
 
+    /// Возвращает `true` если виртуальный адрес относится к
+    /// [верхней половине](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details)
+    /// адресного пространства.
     pub fn is_higher_half(&self) -> bool {
         self.into_usize() >> Self::BITS != 0
     }
 
+    /// Преобразует указатель на `T` в [`Virt`].
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если указатель не корректен.
     pub fn from_ptr<T: ?Sized>(ptr: *const T) -> Self {
         const_assert_eq!(mem::size_of::<*const ()>(), mem::size_of::<usize>());
         Self::new(ptr as *const () as usize).expect("bad pointer")
     }
 
+    /// Преобразует ссылку на `T` в [`Virt`].
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если ссылка не корректна.
     pub fn from_ref<T: ?Sized>(x: &T) -> Self {
         Self::from_ptr(x as *const T)
     }
 
+    /// Преобразует [`Virt`] в указатель на константный [`u8`].
     pub fn into_ptr_u8(self) -> *const u8 {
         const_assert_eq!(mem::align_of::<u8>(), 1);
         const_assert_eq!(mem::size_of::<*const u8>(), mem::size_of::<usize>());
         self.0 as *const u8
     }
 
+    /// Преобразует [`Virt`] в указатель на изменяемый [`u8`].
     pub fn into_mut_ptr_u8(self) -> *mut u8 {
         const_assert_eq!(mem::align_of::<u8>(), 1);
         const_assert_eq!(mem::size_of::<*mut u8>(), mem::size_of::<usize>());
         self.0 as *mut u8
     }
 
+    /// Преобразует [`Virt`] в указатель на константный `T`.
+    ///
+    /// Возвращает ошибку [`Error::InvalidAlignment`],
+    /// если адрес не соответствует типу `T` по выравниванию.
     pub fn try_into_ptr<T>(self) -> Result<*const T> {
         const_assert_eq!(mem::size_of::<*const ()>(), mem::size_of::<usize>());
         if self.0 % mem::align_of::<T>() == 0 {
@@ -249,6 +429,10 @@ impl Virt {
         }
     }
 
+    /// Преобразует [`Virt`] в указатель на изменяемый `T`.
+    ///
+    /// Возвращает ошибку [`Error::InvalidAlignment`],
+    /// если адрес не соответствует типу `T` по выравниванию.
     pub fn try_into_mut_ptr<T>(self) -> Result<*mut T> {
         const_assert_eq!(mem::size_of::<*mut ()>(), mem::size_of::<usize>());
         if self.0 % mem::align_of::<T>() == 0 {
@@ -258,6 +442,17 @@ impl Virt {
         }
     }
 
+    /// Преобразует [`Virt`] в неизменяемую ссылку на `T`.
+    ///
+    /// Возвращает ошибки:
+    /// - [`Error::InvalidAlignment`] если адрес не соответствует типу `Q` по выравниванию.
+    /// - [`Error::Null`] если адрес нулевой.
+    ///
+    /// # Safety
+    ///
+    /// Вызывающая сторона должна гарантировать,
+    /// что не будут нарушены инварианты управления памятью в Rust,
+    /// которые не относятся к возвращаемым ошибкам.
     pub unsafe fn try_into_ref<'a, T>(self) -> Result<&'a T> {
         let ptr = self.try_into_ptr::<T>()?;
         if ptr.is_null() {
@@ -267,6 +462,17 @@ impl Virt {
         }
     }
 
+    /// Преобразует [`Virt`] в изменяемую ссылку на `T`.
+    ///
+    /// Возвращает ошибки:
+    /// - [`Error::InvalidAlignment`] если адрес не соответствует типу `Q` по выравниванию.
+    /// - [`Error::Null`] если адрес нулевой.
+    ///
+    /// # Safety
+    ///
+    /// Вызывающая сторона должна гарантировать,
+    /// что не будут нарушены инварианты управления памятью в Rust,
+    /// которые не относятся к возвращаемым ошибкам.
     pub unsafe fn try_into_mut<'a, T>(self) -> Result<&'a mut T> {
         let ptr = self.try_into_mut_ptr::<T>()?;
         if ptr.is_null() {
@@ -276,6 +482,17 @@ impl Virt {
         }
     }
 
+    /// Преобразует [`Virt`] в срез из `len` неизменяемых элементов типа `Q`.
+    ///
+    /// Возвращает ошибки:
+    /// - [`Error::InvalidAlignment`] если адрес не соответствует типу `Q` по выравниванию.
+    /// - [`Error::Null`] если адрес нулевой.
+    ///
+    /// # Safety
+    ///
+    /// Вызывающая сторона должна гарантировать,
+    /// что не будут нарушены инварианты управления памятью в Rust,
+    /// которые не относятся к возвращаемым ошибкам.
     pub unsafe fn try_into_slice<'a, T>(
         self,
         len: usize,
@@ -288,6 +505,17 @@ impl Virt {
         }
     }
 
+    /// Преобразует [`Virt`] в срез из `len` изменяемых элементов типа `Q`.
+    ///
+    /// Возвращает ошибки:
+    /// - [`Error::InvalidAlignment`] если адрес не соответствует типу `Q` по выравниванию.
+    /// - [`Error::Null`] если адрес нулевой.
+    ///
+    /// # Safety
+    ///
+    /// Вызывающая сторона должна гарантировать,
+    /// что не будут нарушены инварианты управления памятью в Rust,
+    /// которые не относятся к возвращаемым ошибкам.
     pub unsafe fn try_into_mut_slice<'a, T>(
         self,
         len: usize,
@@ -300,9 +528,15 @@ impl Virt {
         }
     }
 
+    /// Маска для
+    /// [знакового расширения](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details)
+    /// битового представления виртуального адреса.
     pub const NEGATIVE_SIGN_EXTEND: usize = !0 << Self::BITS;
 
+    /// Количество используемых битов в физическом адресе.
     const BITS: u32 = PAGE_TABLE_INDEX_BITS * (PAGE_TABLE_ROOT_LEVEL + 1) + PAGE_OFFSET_BITS;
+
+    /// Количество неиспользуемых битов в физическом адресе.
     const UNUSED_BITS: u32 = usize::BITS - Self::BITS;
 }
 

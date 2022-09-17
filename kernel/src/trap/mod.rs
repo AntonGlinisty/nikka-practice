@@ -65,6 +65,7 @@ pub const SPURIOUS: usize = APIC_BASE + 0x1;
 
 const COUNT: usize = SPURIOUS + 1;
 
+/// Инициализирует таблицу обработчиков прерываний [`static@IDT`].
 pub(super) fn init() {
     unsafe {
         pic8259::init(PIC_FIRST_INTERRUPT);

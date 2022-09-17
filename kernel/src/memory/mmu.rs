@@ -22,6 +22,9 @@ pub use ku::memory::mmu::{
 
 use ku::memory::Page;
 
-pub(super) unsafe fn flush(page: Page) {
+/// Сбрасывает кэш страничного преобразования процессора
+/// ([Translation Lookaside Buffer, TLB](https://en.wikipedia.org/wiki/Translation_lookaside_buffer))
+/// для заданной страницы `page`.
+pub unsafe fn flush(page: Page) {
     tlb::flush(page.address().into_usize());
 }

@@ -57,6 +57,7 @@ const_assert!(TICKS_PER_SECOND * DIVISOR == BASE);
 
 static PIT: Pit = Pit(AtomicCorrelationInterval::<{ TICKS_PER_SECOND as i64 }>::new());
 
+#[doc(hidden)]
 pub(super) mod test_scaffolding {
     pub const TICKS_PER_SECOND: u32 = super::TICKS_PER_SECOND;
 }

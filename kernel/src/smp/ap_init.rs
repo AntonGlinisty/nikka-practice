@@ -52,6 +52,8 @@ use super::{
     cpu::Cpu,
 };
 
+/// Запуск Application Processor из Bootstrap Processor.
+///
 /// MultiProcessor Specification 4.1 part B.4 "Application Processor Startup"
 pub(super) fn boot_ap(
     phys2virt: Page,
@@ -70,6 +72,7 @@ pub(super) fn boot_ap(
     Ok(())
 }
 
+/// Подготовка кода и стека начальной инициализации Application Processor.
 fn prepare_boot_code(
     phys2virt: Page,
     cpu: &mut Cpu,
@@ -99,6 +102,25 @@ const BOOT_CODE: usize = 7 * Page::SIZE;
 const BOOT_STACK: usize = BOOT_CODE + BOOT_CODE_PLUS_STACK_SIZE - mem::size_of::<BootStack>();
 const BOOT_CODE_PLUS_STACK_SIZE: usize = Page::SIZE;
 
+/// Стек с дополнительной информацией для загрузки AP.
+///
+/// Через этот стек в [`switch_from_real_mode_to_long_mode()`] передаётся дополнительная информация,
+/// необходимая для загрузки AP.
+/// Например, дескриптор описывающий GDT, который можно передать инструкции `lgdt` как есть,
+/// или адрес корневой таблицы страниц, который можно как есть записать в `CR3`.
+/// Это сделано, чтобы:
+///
+/// - Не нужно было в функции [`switch_from_real_mode_to_long_mode()`] на 16-битном ассемблере строить GDT,
+/// таблицы страниц и т.д. То есть для максимального упрощения ассемблерной части кода.
+/// - Содержимое системных регистров процессора на всех AP совпадало с аналогичными регистрами BSP.
+/// То есть, чтобы можно было один раз правильно настроить системные регистры BSP,
+/// и автоматически получить правильные и согласованные по системе в целом настройки всех процессоров.
+///
+/// Поля в [`BootStack`] организованы в удобном для [`switch_from_real_mode_to_long_mode()`] порядке.
+/// В частности, поля с селектором кода [`BootStack::kernel_code`] и релоцированным адресом
+/// [`BootStack::set_cs_rip_to_64bit`] метки `set_cs_rip_to_64bit:` лежат так, что образуют
+/// [far pointer](https://en.wikipedia.org/wiki/Far_pointer) `kernel_code:set_cs_rip_to_64bit`,
+/// который может быть использован инструкцией `far ret` как есть.
 #[repr(C)]
 struct BootStack {
     /// <https://wiki.osdev.org/CPU_Registers_x86-64#IA32_EFER>
@@ -122,6 +144,7 @@ struct BootStack {
 }
 
 impl BootStack {
+    /// Подготавливает временный стек для функции [`switch_from_real_mode_to_long_mode()`].
     fn new(
         boot_stack_phys: Phys,
         cpu: &mut Cpu,
@@ -204,6 +227,10 @@ impl fmt::Debug for BootStack {
     }
 }
 
+/// Переключает Application Processor из [реального режима](https://en.wikipedia.org/wiki/Real_mode) в [64-битный режим](https://en.wikipedia.org/wiki/Long_mode) и выполняет начальную инициализацию процессора.
+///
+/// Переключение режима происходит напрямую, минуя [32-х битный защищённый режим](https://en.wikipedia.org/wiki/Protected_mode).
+/// Все нужные структуры и значения регистров копируются с BSP.
 #[allow(named_asm_labels)]
 #[cold]
 #[naked]
@@ -242,6 +269,7 @@ extern "C" fn switch_from_real_mode_to_long_mode() -> ! {
     }
 }
 
+/// Завершает инициализацию AP.
 #[cold]
 #[inline(never)]
 extern "C" fn ap_kernel_main(
@@ -265,6 +293,7 @@ extern "C" fn ap_kernel_main(
     Scheduler::run();
 }
 
+/// Релоцирует код начальной загрузки Application Processor, расположенный в функции [`switch_from_real_mode_to_long_mode()`] в заданный адрес `boot_code_address`.
 fn copy_switch_mode_code(boot_code_address: Virt) -> Result<()> {
     let switch_mode_code_address = Virt::from_ptr(switch_from_real_mode_to_long_mode as *const ());
     let switch_mode_code_slice =
@@ -277,6 +306,7 @@ fn copy_switch_mode_code(boot_code_address: Virt) -> Result<()> {
     Ok(())
 }
 
+/// Вычисляет размер кода начальной загрузки Application Processor, расположенного в функции [`switch_from_real_mode_to_long_mode()`].
 fn switch_mode_code_size() -> usize {
     let switch_mode_start: usize;
     let switch_mode_end: usize;
@@ -297,6 +327,11 @@ fn switch_mode_code_size() -> usize {
     switch_mode_code_size
 }
 
+/// Преобразует заданный физический адрес `address` в [`Phys`].
+///
+/// # Panics
+///
+/// Паникует, если адрес не влезает в 32 бита и потому не будет доступен в 32-битном режиме.
 fn real_mode_address(
     address: usize,
     what: &'static str,

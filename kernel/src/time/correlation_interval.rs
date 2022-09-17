@@ -16,13 +16,34 @@ use super::{
     },
 };
 
+/// Предназначена для соотнесения частоты процессора и другого источника времени.
+///
+/// Частота отслеживаемых часов задаётся как константный параметр `TICKS_PER_SECOND`.
+///
+/// По этой информации можно:
+/// - Вычислить частоту процессора с точки зрения отслеживаемых часов.
+/// - Пересчитать произвольное значение счётчика тактов процессора [`Tsc`]
+///   в показания времени отслеживаемых часов.
+///   При этом мы фактически повышаем разрешение отслеживаемых часов до частоты процессора.
+///   Разумеется, погрешность при этом превышает разрешение.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct CorrelationInterval<const TICKS_PER_SECOND: i64> {
+    /// Значение [`CorrelationPoint`] в некоторый базовый момент времени,
+    /// когда тикнули отслеживаемые [`CorrelationInterval`] часы.
     base: CorrelationPoint,
+
+    /// Значение [`CorrelationPoint`] на момент последнего тика отслеживаемых часов.
     prev: CorrelationPoint,
 }
 
 impl<const TICKS_PER_SECOND: i64> CorrelationInterval<TICKS_PER_SECOND> {
+    /// Выдаёт время, соответствующее такту процессора, записанному в `tsc`,
+    /// для часов, к которым привязан `atomic_correlation_interval`.
+    ///
+    /// Считает, что заданные ему часы показывают количество секунд,
+    /// прошедших с начала Unix--эпохи в [`Utc`].
+    /// В тех редких случаях, когда в `atomic_correlation_interval` ещё не прошло два тика часов,
+    /// возвращает момент времени [`CorrelationInterval::prev`], **игнорируя** `tsc`.
     pub fn datetime<const PARTS_PER_SECOND: i64>(
         atomic_correlation_interval: &AtomicCorrelationInterval<TICKS_PER_SECOND>,
         tsc: Tsc,
@@ -38,6 +59,14 @@ impl<const TICKS_PER_SECOND: i64> CorrelationInterval<TICKS_PER_SECOND> {
         DateTime::from_utc(datetime, Utc)
     }
 
+    /// Возвращает реальное время, которое соответствует тику номер `tsc` процессора.
+    /// Значение `tsc` может быть как больше [`CorrelationInterval::prev`],
+    /// так и меньше [`CorrelationInterval::base`], а может лежать где-то между ними.
+    ///
+    /// - Запрошенное разрешение `PARTS_PER_SECOND` задаётся в единицах в секунду,
+    ///   например для миллисекунд `PARTS_PER_SECOND = 1_000`.
+    ///   Оно должно быть не точнее наносекунд --- `PARTS_PER_SECOND = 1_000_000_000`.
+    /// - Не поддерживает [високосные секунды](https://en.wikipedia.org/wiki/Leap_second).
     fn datetime_with_resolution<const PARTS_PER_SECOND: i64>(
         &self,
         tsc: Tsc,
@@ -71,6 +100,8 @@ impl<const TICKS_PER_SECOND: i64> CorrelationInterval<TICKS_PER_SECOND> {
     }
 }
 
+#[allow(rustdoc::private_intra_doc_links)]
+/// Конкурентное хранилище в памяти для [`CorrelationInterval`].
 #[derive(Debug, Default)]
 pub struct AtomicCorrelationInterval<const TICKS_PER_SECOND: i64> {
     base: AtomicCorrelationPoint,
@@ -115,6 +146,8 @@ impl<const TICKS_PER_SECOND: i64> AtomicCorrelationInterval<TICKS_PER_SECOND> {
         self.prev.inc(tsc);
     }
 
+    /// Возвращает частоту процессора с точки зрения часов,
+    /// которые отслеживает этот [`AtomicCorrelationInterval`].
     pub fn tsc_per_second(&self) -> Option<Hz> {
         self.load().tsc_per_second().try_into().ok().and_then(Hz::new)
     }

@@ -32,17 +32,37 @@ use super::{
     size,
 };
 
+// Used in docs.
+#[allow(unused)]
+use {
+    super::Mapping,
+    crate::error::Error,
+};
+
+/// Информация об одном физическом фрейме.
 #[derive(Clone, Debug)]
 enum FrameInfo {
+    /// Фрейм не доступен --- либо находится за пределами физической памяти,
+    /// либо зарезервирован аппаратурой, загрузчиком или BIOS.
     Absent,
+
+    /// Фрейм свободен.
     Free {
+        /// Номер следующего свободного фрейма.
         next_free: Option<usize>,
     },
+
+    /// Фрейм занят.
     Used {
+        /// Количество ссылок на этот фрейм.
+        /// Например, из одного или разных страничных отображений [`Mapping`].
         reference_count: usize,
     },
 }
 
+/// Инициализирует аллокатор [`MainFrameAllocator`] по информации из `memory_map`.
+/// И передаёт под его управление все фреймы,
+/// которые остались свободны в [`BootFrameAllocator`].
 pub(super) fn init(memory_map: &MemoryMap) -> MainFrameAllocator {
     let timer = time::timer();
     let frame_allocator = MainFrameAllocator::new(memory_map);
@@ -55,13 +75,22 @@ pub(super) fn init(memory_map: &MemoryMap) -> MainFrameAllocator {
     frame_allocator
 }
 
+/// Основной аллокатор физических фреймов.
 pub struct MainFrameAllocator {
+    /// Информация про все доступные физические фреймы.
     frame_info: &'static mut [FrameInfo],
+
+    /// Голова интрузивного списка номеров свободных физических фреймов.
     free_frame: Option<usize>,
+
+    /// Количество свободных физических фреймов.
     free_count: usize,
 }
 
 impl MainFrameAllocator {
+    /// Инициализирует аллокатор [`MainFrameAllocator`] по информации из `memory_map`.
+    /// И передаёт под его управление все фреймы,
+    /// которые остались свободны в [`BootFrameAllocator`].
     fn new(memory_map: &MemoryMap) -> Self {
         let mut timer = time::timer();
 
@@ -94,15 +123,26 @@ impl MainFrameAllocator {
         }
     }
 
+    /// Возвращает количество свободных физических фреймов у аллокатора [`MainFrameAllocator`].
     pub(super) fn count(&self) -> usize {
         self.free_count
     }
 
+    /// Выделяет ровно один физический фрейм.
+    ///
+    /// Если свободных физических фреймов не осталось,
+    /// возвращает ошибку [`Error::NoFrame`].
     pub(super) fn allocate(&mut self) -> Result<Frame> {
         // TODO: your code here.
         unimplemented!();
     }
 
+    /// Уменьшает на единицу счётчик использований заданного физического фрейма `frame`.
+    /// Физический фрейм освобождается, если на него не осталось других ссылок.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если фрейм свободен.
     pub(super) fn deallocate(
         &mut self,
         frame: Frame,
@@ -111,6 +151,11 @@ impl MainFrameAllocator {
         unimplemented!();
     }
 
+    /// Увеличивает на единицу счётчик использований заданного физического фрейма `frame`.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если фрейм свободен.
     pub(super) fn reference(
         &mut self,
         frame: Frame,
@@ -119,6 +164,7 @@ impl MainFrameAllocator {
         unimplemented!();
     }
 
+    /// Проверяет, что заданный физический фрейм уже был выделен.
     pub(super) fn is_used(
         &self,
         frame: Frame,
@@ -127,6 +173,9 @@ impl MainFrameAllocator {
             !matches!(self.frame_info[frame.index()], FrameInfo::Free { .. })
     }
 
+    /// Инициализирует аллокатор [`MainFrameAllocator`] по информации из `memory_map`.
+    /// Отмечает все фреймы, которые находятся под управлением [`BootFrameAllocator`]
+    /// как занятые со счётчиком использований, равным 1.
     fn init_frame_info(
         &mut self,
         memory_map: &MemoryMap,
@@ -136,6 +185,9 @@ impl MainFrameAllocator {
         unimplemented!();
     }
 
+    /// И передаёт под управление [`MainFrameAllocator`] все фреймы,
+    /// которые на данный момент принадлежат [`BootFrameAllocator`] и
+    /// являются свободными.
     #[allow(unused_mut)] // TODO: remove before flight.
     fn move_free_frames(
         &mut self,

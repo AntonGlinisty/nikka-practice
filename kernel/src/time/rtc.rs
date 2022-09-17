@@ -27,6 +27,7 @@ use crate::{
     },
 };
 
+/// Обработчик прерываний [часов реального времени (Real-time clock, RTC)](https://en.wikipedia.org/wiki/Real-time_clock).
 pub(crate) fn interrupt() {
     if interrupt_status().contains(RegisterC::UPDATE_ENDED_INTERRUPT) &&
         let Some(timestamp) = timestamp()
@@ -38,6 +39,7 @@ pub(crate) fn interrupt() {
     }
 }
 
+/// Инициализация микросхемы [часов реального времени (Real-time clock, RTC)](https://en.wikipedia.org/wiki/Real-time_clock).
 pub(super) fn init() {
     const DISABLE_NMI: u8 = 1 << 7;
     const REGISTER_B: u8 = 0xB;
@@ -76,33 +78,47 @@ pub(super) fn init() {
 }
 
 bitflags! {
-    /// https://pdf1.alldatasheet.com/datasheet-pdf/view/122156/MOTOROLA/MC146818.html
+    /// Регистр статуса RTC.
     struct RegisterA: u8 {
         const UPDATE_IN_PROGRESS = 1 << 7;
     }
 }
 
 bitflags! {
-    /// https://pdf1.alldatasheet.com/datasheet-pdf/view/122156/MOTOROLA/MC146818.html
+    /// Командный регистр RTC.
     struct RegisterB: u8 {
+        /// Включает переход на летнее время.
         const DAYLIGHT_SAVING = 1 << 0;
+
+        /// Требует от микросхемы использовать 24--часовой формат времени, а не 12--часовой.
         const USE_24_HOUR_FORMAT = 1 << 1;
+
+        /// Требует от микросхемы возвращать данные в двоичном коде, а не в [двоично--десятичном](https://en.wikipedia.org/wiki/Binary-coded_decimal).
         const USE_BINARY_FORMAT = 1 << 2;
+
         const SQUARE_WAVE = 1 << 3;
+
+        /// Включает [прерывание](https://en.wikipedia.org/wiki/Interrupt), посылаемое процессору микросхемой после обновления показаний времени при тике.
         const UPDATE_ENDED_INTERRUPT = 1 << 4;
+
+        /// Включает [прерывание](https://en.wikipedia.org/wiki/Interrupt), посылаемое процессору при срабатывании будильника.
         const ALARM_INTERRUPT = 1 << 5;
+
+        /// Включает периодическое [прерывание](https://en.wikipedia.org/wiki/Interrupt).
         const PERIODIC_INTERRUPT = 1 << 6;
+
         const SET_CLOCK = 1 << 7;
     }
 }
 
 bitflags! {
-    /// https://pdf1.alldatasheet.com/datasheet-pdf/view/122156/MOTOROLA/MC146818.html
+    /// Регистр статуса прерывания RTC.
     struct RegisterC: u8 {
         const UPDATE_ENDED_INTERRUPT = 1 << 4;
     }
 }
 
+/// Структура для хранения даты и времени, прочитанных из микросхемы [часов реального времени (Real-time clock, RTC)](https://en.wikipedia.org/wiki/Real-time_clock).
 #[derive(Clone, Copy, Default, Display, Eq, PartialEq)]
 #[display(
     fmt = "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
@@ -127,6 +143,11 @@ impl Date {
         Self::read().map(|now| now.into())
     }
 
+    /// [Пытается несколько раз прочитать данные из микросхемы RTC](https://wiki.osdev.org/CMOS#RTC_Update_In_Progress)
+    /// методом [`Date::read_inconsistent()`].
+    /// Перед каждым чтением в цикле ждёт, пока в регистре `A` микросхемы RTC флаг
+    /// [`RegisterA::UPDATE_IN_PROGRESS`] установлен, то есть пока микросхема обновляет данные в своей памяти.
+    /// Возвращает [`Some`], если два чтения подряд вернут одинаковое значение структуры [`Date`].
     fn read() -> Option<Self> {
         const REGISTER_A: u8 = 0xA;
 
@@ -134,6 +155,13 @@ impl Date {
         Some(unsafe { Self::read_inconsistent() }) // TODO: remove before flight.
     }
 
+    /// Считывает из микросхемы RTC показания даты и времени и возвращает их в виде
+    ///
+    /// # Safety
+    ///
+    /// Может вернуть некорректное значение [`Date`],
+    /// если во время его работы произошёл тик RTC и микросхема конкурентно
+    /// обновляла содержимое соответствующих полей в своей памяти.
     unsafe fn read_inconsistent() -> Self {
         // TODO: your code here.
         Self::default() // TODO: remove before flight.
@@ -157,11 +185,17 @@ impl From<Date> for NaiveDateTime {
 const ADDRESS_PORT: u16 = 0x0070;
 const DATA_PORT: u16 = 0x0071;
 
+/// Читает значение, которое находится в байте номер `address` внутренней памяти микросхемы RTC.
+///
+/// Адрес `address` не имеет отношения к основной памяти компьютера, он адресует внутреннюю память микросхемы RTC.
 unsafe fn rtc_read(address: u8) -> u8 {
     io::outb(ADDRESS_PORT, address);
     io::inb(DATA_PORT)
 }
 
+/// Записывает значение `data`, в байт номер `address` внутренней памяти микросхемы RTC.
+///
+/// Адрес `address` не имеет отношения к основной памяти компьютера, он адресует внутреннюю память микросхемы RTC.
 unsafe fn rtc_write(
     address: u8,
     data: u8,
@@ -170,16 +204,22 @@ unsafe fn rtc_write(
     io::outb(DATA_PORT, data)
 }
 
+/// Читает регистр статуса прерывания RTC.
 fn interrupt_status() -> RegisterC {
     const REGISTER_C: u8 = 0xC;
     unsafe { RegisterC::from_bits_unchecked(rtc_read(REGISTER_C)) }
 }
 
-/// See [Interrupts and Register C](https://wiki.osdev.org/RTC#Interrupts_and_Register_C).
+/// Говорит микросхеме RTC, что процессор обработал [прерывание](https://en.wikipedia.org/wiki/Interrupt) от неё.
+/// То есть, посылает ей [end of interrupt (EOI)](https://en.wikipedia.org/wiki/End_of_interrupt).
+///
+/// См. [Interrupts and Register C](https://wiki.osdev.org/RTC#Interrupts_and_Register_C).
 fn enable_next_interrupt() {
     interrupt_status();
 }
 
+/// Переводит текущее время RTC в [секунды с момента начала Unix--эпохи](https://en.wikipedia.org/wiki/Unix_time).
+/// Предполагает, что микросхема RTC хранит [всемирное координированное время (Coordinated Universal Time, UTC)](https://en.wikipedia.org/wiki/Coordinated_Universal_Time).
 fn timestamp() -> Option<i64> {
     Date::now().map(|now| DateTime::<Utc>::from_utc(now, Utc).timestamp())
 }

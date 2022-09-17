@@ -1,3 +1,6 @@
+#![warn(clippy::missing_docs_in_private_items)]
+#![warn(missing_docs)]
+
 use core::fmt;
 
 use crate::error::{
@@ -21,13 +24,29 @@ use super::{
     },
 };
 
+// Used in docs.
+#[allow(unused)]
+use {
+    super::{
+        Phys,
+        Virt,
+    },
+    crate::error::Error,
+};
+
+/// Обобщённый тип для (виртуальных) страниц памяти и (физических) фреймов.
 #[derive(Clone, Copy, Default, Eq, Ord, PartialEq, PartialOrd)]
 #[repr(transparent)]
 pub struct Frage<T: Tag>(Addr<T>);
 
 impl<T: Tag> Frage<T> {
+    /// Размер физического фрейма или виртуальной страницы.
     pub const SIZE: usize = 4 * KiB;
 
+    /// Создаёт [`Frage`] --- [`Frame`] или [`Page`] ---
+    /// по его начальному адресу `addr` --- [`Phys`] или [`Virt`] соответственно.
+    ///
+    /// Возвращает ошибку [`Error::InvalidAlignment`] если `addr` не выровнен на [`Frage::SIZE`].
     pub fn new(addr: Addr<T>) -> Result<Self> {
         if addr.into_usize() % Self::SIZE == 0 {
             Ok(Self(addr))
@@ -36,27 +55,41 @@ impl<T: Tag> Frage<T> {
         }
     }
 
+    /// Возвращает начальный адрес --- [`Phys`] или [`Virt`] ---
+    /// для [`Frame`] или [`Page`] соответственно.
     pub fn address(&self) -> Addr<T> {
         self.0
     }
 
+    /// Возвращает адрес [`Frage`] по его индексу `index`.
+    ///
+    /// Возвращает ошибку [`Error::Overflow`], если `index` превышает максимально допустимый.
     pub fn address_by_index(index: usize) -> Result<Addr<T>> {
         let address = index.checked_mul(Self::SIZE).ok_or(Overflow)?;
         Addr::new(address)
     }
 
+    /// Создаёт [`Frage`] --- [`Frame`] или [`Page`] ---
+    /// по находящемуся внутри адресу `addr` --- [`Phys`] или [`Virt`] соответственно.
     pub fn containing(addr: Addr<T>) -> Self {
         Self(Addr::new(addr.into_usize() & !(Self::SIZE - 1)).unwrap())
     }
 
+    /// Создаёт [`Frage`] --- [`Frame`] или [`Page`] ---
+    /// по его номеру `index`.
+    ///
+    /// Возвращает ошибку [`Error::Overflow`], если `index` превышает максимально допустимый.
     pub fn from_index(index: usize) -> Result<Self> {
         Ok(Self(Self::address_by_index(index)?))
     }
 
+    /// Возвращает номер физического фрейма или виртуальной страницы.
     pub fn index(&self) -> usize {
         Self::index_by_address(self.address())
     }
 
+    /// Возвращает номер физического фрейма или виртуальной страницы
+    /// по адресу --- [`Phys`] или [`Virt`] соответственно.
     pub fn index_by_address(address: Addr<T>) -> usize {
         address.into_usize() / Self::SIZE
     }
@@ -90,8 +123,10 @@ impl<T: Tag> SizeOf for Frage<T> {
     const SIZE_OF: usize = Self::SIZE;
 }
 
+/// (Физический) фрейм памяти.
 pub type Frame = Frage<PhysTag>;
 
+/// (Виртуальная) страница памяти.
 pub type Page = Frage<VirtTag>;
 
 #[cfg(test)]

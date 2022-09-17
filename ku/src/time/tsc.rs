@@ -25,13 +25,27 @@ use serde::{
 
 use super::rtc::Rtc;
 
-/// Modelled after [`std::time::Instant`](https://doc.rust-lang.org/std/time/struct.Instant.html).
-/// Note: `Tsc` is valid only on the current computer and between reboots.
-/// Do not store it in a file or send it over a network.
-/// `Serialize` and `Deserialize` traits are for sending `Tsc` between the kernel and the user space.
+/// Описывает момент времени, храня значение счётчика тактов процессора.
+///
+/// Похожа на стандартную, но недоступную нам в `#[no_std]`--окружении структуру
+/// [`std::time::Instant`](https://doc.rust-lang.org/std/time/struct.Instant.html).
+/// Обе описывают [монотонно возрастающее время](https://blog.codeminer42.com/the-monotonic-clock-and-why-you-should-care-about-it/).
+/// То есть время, не ходящее "назад" ни при переводе часов на летнее время, ни при корректировке неточно идущих часов.
+/// Но такое время может никак не соответствовать [реальному времени](https://en.wikipedia.org/wiki/Civil_time).
+///
+/// # Note
+///
+/// [`Tsc`] задаёт корректно определенную и монотонно возрастающую точку во времени только на текущем компьютере и только до его перезапуска.
+/// Её бессмысленно сохранять в персистентном хранилище вроде файла или посылать по сети.
+/// Типажи [`Serialize`] и [`Deserialize`] используются только для передачи [`Tsc`] между ядром и пространством пользователя.
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Tsc(i64);
-/// Modelled after [`std::time::Duration`](https://doc.rust-lang.org/std/time/struct.Duration.html).
+
+/// Описывает интервал между двумя моментами времени [`Tsc`].
+///
+/// Наивно предполагает, что используемый ею счётчик тактов процессора как минимум инвариантен и согласован между процессорами.
+/// Похожа на стандартную, но недоступную нам в `#[no_std]`--окружении структуру
+/// [`std::time::Duration`](https://doc.rust-lang.org/std/time/struct.Duration.html).
 #[derive(Clone, Copy, Default, Eq, PartialEq)]
 pub struct TscDuration(i64);
 
@@ -104,6 +118,7 @@ impl Display for TscDuration {
     }
 }
 
+/// Возвращает [номер текущего такта процессора](https://en.wikipedia.org/wiki/Time_Stamp_Counter) в некоторый момент времени своего исполнения.
 #[inline(always)]
 pub fn tsc() -> i64 {
     // Do not use `x86::fence::lfence()` and `x86::time::rdtsc()` because they are not marked as `#[inline]`.

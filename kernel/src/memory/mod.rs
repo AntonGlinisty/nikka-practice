@@ -1,16 +1,47 @@
+#![warn(clippy::missing_docs_in_private_items)]
+#![warn(missing_docs)]
+
+/// Дополнительные функции для работы с
+/// [Memory Management Unit](https://en.wikipedia.org/wiki/Memory_management_unit),
+/// доступные только ядру.
 pub mod mmu;
 
+/// Глобальная таблица дескрипторов [`Gdt`]
+/// ([Global Descriptor Table](https://en.wikipedia.org/wiki/Global_Descriptor_Table), GDT).
 pub(crate) mod gdt;
+
+/// Для простоты работы с физической памятью,
+/// она целиком замаплена в некоторую область виртуальной.
 pub(crate) mod phys2virt;
 
+/// Абстракция адресного пространства [`AddressSpace`].
 mod address_space;
+
+/// Временный аллокатор физических фреймов [`BootFrameAllocator`].
 mod boot_frame_allocator;
+
+/// Аллокатор физических фреймов [`FrameAllocator`],
+/// хранящий и оборачивающий либо [`BootFrameAllocator`], либо [`MainFrameAllocator`].
 mod frame_allocator;
+
+/// Основной аллокатор физических фреймов [`MainFrameAllocator`].
 mod main_frame_allocator;
+
+/// Реализация отображения виртуальной памяти в физическую [`Mapping`].
 mod mapping;
+
+/// Аллокатор страниц виртуальной памяти [`PageAllocator`].
 mod page_allocator;
+
+/// Диапазоны памяти в системе.
 mod range;
+
+/// Работа со стеками [`Stack`] и
+/// выделенные стеки для непредвиденных исключений [`ExceptionStacks`].
 mod stack;
+
+/// Сегмент состояния задачи
+/// ([Task State Segment](https://en.wikipedia.org/wiki/Task_state_segment), TSS).
 mod tss;
 
 use bootloader::BootInfo;
@@ -74,6 +105,16 @@ pub(crate) use tss::{
     PAGE_FAULT_IST_INDEX,
 };
 
+// Used in docs.
+#[allow(unused)]
+use self::{
+    main_frame_allocator::MainFrameAllocator,
+    mapping::Mapping,
+    page_allocator::PageAllocator,
+    stack::ExceptionStacks,
+};
+
+/// Инициализация подсистемы памяти.
 pub(super) fn init(boot_info: &'static BootInfo) {
     let timer = time::timer();
 
@@ -94,6 +135,7 @@ pub(super) fn init(boot_info: &'static BootInfo) {
     info!(duration = %timer.elapsed(), "memory init");
 }
 
+#[doc(hidden)]
 pub mod test_scaffolding {
     pub use super::frame_allocator::test_scaffolding::*;
 }

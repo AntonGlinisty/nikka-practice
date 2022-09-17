@@ -2,11 +2,13 @@ use lazy_static::lazy_static;
 use x86_64::structures::tss::TaskStateSegment;
 
 use super::{
-    EXCEPTION_STACKS,
     size,
+    stack::EXCEPTION_STACKS,
 };
 
 lazy_static! {
+    /// Сегмент состояния задачи
+    /// ([Task State Segment](https://en.wikipedia.org/wiki/Task_state_segment), TSS)
     pub(super) static ref TSS: TaskStateSegment = {
         let mut tss = TaskStateSegment::new();
 
@@ -21,5 +23,14 @@ lazy_static! {
     };
 }
 
+/// Индекс в сегменте состояния задачи
+/// ([Task State Segment](https://en.wikipedia.org/wiki/Task_state_segment), TSS)
+/// стека, выделенного для обработки
+/// [Double Fault](https://en.wikipedia.org/wiki/Double_fault).
 pub(crate) const DOUBLE_FAULT_IST_INDEX: u16 = 0;
+
+/// Индекс в сегменте состояния задачи
+/// ([Task State Segment](https://en.wikipedia.org/wiki/Task_state_segment), TSS)
+/// стека, выделенного для обработки
+/// [Page Fault](https://en.wikipedia.org/wiki/Page_fault).
 pub(crate) const PAGE_FAULT_IST_INDEX: u16 = 1;

@@ -5,9 +5,15 @@ use core::sync::atomic::{
 
 use super::COUNT;
 
+/// Информация о прерывании с некоторым номером.
 pub struct Stats {
+    /// Сколько раз сработало это исключение или прерывание.
     count: AtomicUsize,
+
+    /// Короткая мнемоника исключения или прерывания.
     mnemonic: &'static str,
+
+    /// Имя исключения или прерывания.
     name: &'static str,
 }
 

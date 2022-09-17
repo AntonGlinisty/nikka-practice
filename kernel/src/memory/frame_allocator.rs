@@ -12,13 +12,26 @@ use super::{
     main_frame_allocator::MainFrameAllocator,
 };
 
+// Used in docs.
+#[allow(unused)]
+use crate::error::Error;
+
+/// Аллокатор физических фреймов [`FrameAllocator`],
+/// хранящий и оборачивающий либо [`BootFrameAllocator`], либо [`MainFrameAllocator`].
 pub enum FrameAllocator {
+    /// Пустой аллокатор физических фреймов.
     Void,
+
+    /// Временный аллокатор физических фреймов, используется при инициализации подсистемы памяти.
     Boot(BootFrameAllocator),
+
+    /// Основной аллокатор физических фреймов.
     Main(MainFrameAllocator),
 }
 
+#[allow(rustdoc::private_intra_doc_links)]
 impl FrameAllocator {
+    /// Возвращает количество свободных физических фреймов у аллокатора [`FrameAllocator`].
     pub fn count(&self) -> usize {
         match self {
             FrameAllocator::Void => 0,
@@ -27,6 +40,10 @@ impl FrameAllocator {
         }
     }
 
+    /// Выделяет ровно один физический фрейм.
+    ///
+    /// Если свободных физических фреймов не осталось,
+    /// возвращает ошибку [`Error::NoFrame`].
     pub fn allocate(&mut self) -> Result<Frame> {
         match self {
             FrameAllocator::Void => Err(NoFrame),
@@ -35,6 +52,13 @@ impl FrameAllocator {
         }
     }
 
+    /// Уменьшает на единицу счётчик использований заданного физического фрейма `frame`.
+    /// Физический фрейм освобождается, если на него не осталось других ссылок.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если фрейм свободен или
+    /// если в данный момент за выделение физических фреймов отвечает не [`MainFrameAllocator`].
     pub fn deallocate(
         &mut self,
         frame: Frame,
@@ -45,6 +69,12 @@ impl FrameAllocator {
         }
     }
 
+    /// Увеличивает на единицу счётчик использований заданного физического фрейма `frame`.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если фрейм свободен или
+    /// если в данный момент за выделение физических фреймов отвечает не [`MainFrameAllocator`].
     pub fn reference(
         &mut self,
         frame: Frame,
@@ -55,6 +85,12 @@ impl FrameAllocator {
         }
     }
 
+    /// Проверяет, что заданный физический фрейм уже был выделен.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если в данный момент ни [`BootFrameAllocator`] ни [`MainFrameAllocator`]
+    /// ещё не используются.
     pub(super) fn is_used(
         &self,
         frame: Frame,
@@ -69,9 +105,12 @@ impl FrameAllocator {
 }
 
 lazy_static! {
+    /// Аллокатор физических фреймов [`FrameAllocator`],
+    /// хранящий и оборачивающий либо [`BootFrameAllocator`], либо [`MainFrameAllocator`].
     pub static ref FRAME_ALLOCATOR: Mutex<FrameAllocator> = Mutex::new(FrameAllocator::Void);
 }
 
+#[doc(hidden)]
 pub(super) mod test_scaffolding {
     use crate::log::error;
 

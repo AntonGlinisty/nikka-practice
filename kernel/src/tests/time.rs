@@ -53,6 +53,11 @@ init!(Subsystems::empty());
 
 #[test_case]
 fn rtc_read_inconsistent() {
+    debug!("waiting for the RTC to tick at least once");
+    while TRAP_STATS[RTC].count() == 0 {
+        instructions::hlt();
+    }
+
     let start = time::now();
     let rtc_ticks = TRAP_STATS[RTC].count();
     const TICKS: i64 = 10;

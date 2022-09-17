@@ -30,9 +30,11 @@ use super::{
     pic,
 };
 
+/// Таблица обработчиков прерываний.
 pub(crate) struct Idt([IdtEntry; COUNT]);
 
 impl Idt {
+    /// Создаёт таблицу обработчиков прерываний.
     fn new() -> Self {
         let mut idt = [IdtEntry::missing(); COUNT];
 
@@ -89,6 +91,9 @@ impl Idt {
         Self(idt)
     }
 
+    /// Загружает ссылку на таблицу обработчиков прерываний в
+    /// [регистр `IDTR`](https://wiki.osdev.org/Interrupt_Descriptor_Table#IDTR)
+    /// процессора.
     pub(crate) fn load(&self) {
         unsafe {
             let pseudo_descriptor = DescriptorTablePointer {
@@ -101,6 +106,7 @@ impl Idt {
 }
 
 lazy_static! {
+    /// Таблица обработчиков прерываний.
     pub(crate) static ref IDT: Idt = Idt::new();
 }
 

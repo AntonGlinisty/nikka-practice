@@ -9,6 +9,7 @@ use core::{
 
 use number_prefix::NumberPrefix;
 
+/// Вспомогательная структура для форматирования [частоты](https://en.wikipedia.org/wiki/Hertz) при журналировании.
 #[repr(transparent)]
 pub struct Hz(NonZeroU64);
 

@@ -88,6 +88,7 @@ impl LocalApic {
         }
     }
 
+    /// Инициализирует local APIC, например включает прерывание таймера.
     pub(super) fn init() {
         const TSCS_PER_INTERRUPT: u32 = 100_000_000;
 
@@ -99,6 +100,7 @@ impl LocalApic {
         Self::end_of_interrupt();
     }
 
+    /// Инициализирует [Memory--mapped I/O (MMIO)](https://en.wikipedia.org/wiki/Memory-mapped_I/O) для работы с local APIC.
     pub(super) fn map(address: Phys) -> Result<()> {
         // TODO: your code here.
         unimplemented!();
@@ -110,11 +112,15 @@ impl LocalApic {
         Self::get().eoi.set(0);
     }
 
+    /// Возвращает идентификатор local APIC и текущего CPU.
+    ///
     /// <https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.pdf>, Chapter 10.4.6 "Local APIC ID"
     pub(crate) fn id() -> CpuId {
         (Self::get().id.get() >> Self::ID_SHIFT).try_into().unwrap()
     }
 
+    /// Посылает прерывание на Application Processor, предназначенное для его инициализации.
+    ///
     /// MultiProcessor Specification 4.1 part B.4 "Application Processor Startup"
     pub(super) fn send_init(
         dst: CpuId,
@@ -151,6 +157,7 @@ impl LocalApic {
         }
     }
 
+    /// Возвращает структуру [`LocalApic`] текущего CPU.
     fn get() -> &'static mut Self {
         unsafe { &mut LOCAL_APIC }
     }

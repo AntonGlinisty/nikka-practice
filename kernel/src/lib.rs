@@ -23,10 +23,16 @@ extern crate alloc;
 pub mod allocator;
 pub mod error;
 pub mod log;
+
+/// Здесь находится часть работы с памятью, которая происходит только в ядре.
 pub mod memory;
+
 pub mod process;
 pub mod smp;
+
+/// Здесь находится часть работы со временем, которая происходит только в ядре.
 pub mod time;
+
 pub mod trap;
 
 use core::{

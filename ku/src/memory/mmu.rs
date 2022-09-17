@@ -22,15 +22,20 @@ use super::{
     },
 };
 
+/// Запись таблицы страниц.
+///
+/// Аналогична [`x86_64::structures::paging::page_table::PageTableEntry`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[repr(transparent)]
 pub struct PageTableEntry(usize);
 
 impl PageTableEntry {
+    /// Флаги доступа к странице, которую описывает эта запись.
     pub fn flags(&self) -> PageTableFlags {
         PageTableFlags::from_bits(self.0 & !Self::ADDRESS_MASK).unwrap()
     }
 
+    /// Устанавливает флаги доступа к странице, которую описывает эта запись.
     pub fn set_flags(
         &mut self,
         flags: PageTableFlags,
@@ -38,6 +43,7 @@ impl PageTableEntry {
         self.set_phys(self.phys(), flags);
     }
 
+    /// Физический фрейм, на который указывает эта запись.
     pub fn frame(&self) -> Result<Frame> {
         if self.is_present() {
             Ok(Frame::new(self.phys()).unwrap())
@@ -46,6 +52,9 @@ impl PageTableEntry {
         }
     }
 
+    /// Устанавливает целевой физический фрейм `frame` и
+    /// флаги доступа `flags` в данной записи.
+    /// Принудительно выставляет флаг [`PageTableFlags::PRESENT`].
     pub fn set_frame(
         &mut self,
         frame: Frame,
@@ -54,10 +63,12 @@ impl PageTableEntry {
         self.set_phys(frame.address(), flags | PageTableFlags::PRESENT);
     }
 
+    /// Адрес физического фрейма, на который указывает эта запись.
     fn phys(&self) -> Phys {
         Phys::new(self.0 & Self::ADDRESS_MASK).unwrap()
     }
 
+    /// Устанавливает адрес физического фрейма `phys` и флаги доступа `flags`.
     fn set_phys(
         &mut self,
         phys: Phys,
@@ -66,17 +77,21 @@ impl PageTableEntry {
         self.0 = phys.into_usize() | flags.bits();
     }
 
+    /// Возвращает `true`, если запись используется.
     pub fn is_present(&self) -> bool {
         self.flags().contains(PageTableFlags::PRESENT)
     }
 
+    /// Очищает запись.
     pub fn clear(&mut self) {
         self.0 = 0;
     }
 
+    /// Маска адреса физического фрейма, на который указывает эта запись.
     const ADDRESS_MASK: usize = ((1 << Phys::BITS) - 1) & !((1 << PAGE_OFFSET_BITS) - 1);
 }
 
+/// Читает из регистра `CR3` физический адрес корневого узла текущей таблицы страниц.
 pub fn page_table_root() -> Frame {
     let page_table_root: usize;
 
@@ -102,6 +117,15 @@ pub fn page_table_root() -> Frame {
     page_table_root
 }
 
+/// Записывает в регистра `CR3` физический адрес корневого узла таблицы страниц.
+/// При этом процессор переключается в виртуальное адресное пространство,
+/// задаваемое этой таблицей страниц.
+///
+/// # Safety
+///
+/// Вызывающий код должен гарантировать сохранение инвариантов работы с памятью в Rust.
+/// В частности, что не осталось ссылок, ведущих в страницы, для которых целевое
+/// страничное отображение отличается от текущего.
 pub unsafe fn set_page_table_root(page_table_root: Frame) {
     asm!(
         "mov cr3, {pte}",
@@ -109,21 +133,49 @@ pub unsafe fn set_page_table_root(page_table_root: Frame) {
     );
 }
 
+/// Узел таблицы страниц.
+/// Аналогичен [`x86_64::structures::paging::page_table::PageTable`].
 pub type PageTable = [PageTableEntry; PAGE_TABLE_ENTRY_COUNT];
 
 bitflags! {
+    /// Флаги в записи таблицы страниц.
+    /// Аналогичны [`x86_64::structures::paging::page_table::PageTableFlags`].
     pub struct PageTableFlags: usize {
+        /// Страница отображена в память.
         const PRESENT = 1 << 0;
+
+        /// Страница доступна на запись.
         const WRITABLE = 1 << 1;
+
+        /// Страница доступна в режиме пользователя.
         const USER_ACCESSIBLE = 1 << 2;
+
+        /// Для страницы используется синхронная запись в память, без ожидания буфера записи.
         const WRITE_THROUGH = 1 << 3;
+
+        /// Кэширование страницы запрещено.
         const NO_CACHE = 1 << 4;
+
+        /// К странице был доступ.
         const ACCESSED = 1 << 5;
+
+        /// В страницу была запись.
         const DIRTY = 1 << 6;
+
+        /// Большая страница вместо следующего уровня таблицы страниц.
         const HUGE = 1 << 7;
+
+        /// Страницу не нужно сбрасывать при сбросе всего TLB.
         const GLOBAL = 1 << 8;
+
+        /// Биты, доступные ОС для произвольных нужд.
         const AVAILABLE = 0b111 << 9;
+
+        /// Один из битов [`PageTableFlags::AVAILABLE`] используется
+        /// для пометки страниц, которые должны быть скопированы в случае записи в них.
         const COPY_ON_WRITE = 1 << 9;
+
+        /// Запрет интерпретировать данные в странице как код, требует включения флага [`x86_64::registers::model_specific::EferFlags::NO_EXECUTE_ENABLE`] в [`x86_64::registers::model_specific::Efer`].
         const NO_EXECUTE = 1 << 63;
     }
 }
@@ -154,11 +206,23 @@ pub const FULL_ACCESS: PageTableFlags = PageTableFlags::from_bits_truncate(
 pub const SYSCALL_ALLOWED_FLAGS: PageTableFlags =
     PageTableFlags::from_bits_truncate(USER_RW.bits() | PageTableFlags::COPY_ON_WRITE.bits());
 
+/// Количество бит в смещении внутри виртуальной страницы или физического фрейма.
+/// Равно двоичному логарифму их размера.
 pub const PAGE_OFFSET_BITS: u32 = 12;
+
+/// Количество записей в одном узле таблицы страниц.
 pub const PAGE_TABLE_ENTRY_COUNT: usize = 1 << PAGE_TABLE_INDEX_BITS;
+
+/// Количество бит в номере записи внутри одного узла таблицы страниц.
 pub const PAGE_TABLE_INDEX_BITS: u32 = 9;
+
+/// Маска для вырезания из адреса индекса в каком-нибудь из узлов таблицы страниц.
 pub const PAGE_TABLE_INDEX_MASK: usize = (1 << PAGE_TABLE_INDEX_BITS) - 1;
+
+/// Номер листьевого уровня таблицы страниц.
 pub const PAGE_TABLE_LEAF_LEVEL: u32 = 0;
+
+/// Номер корневого уровня таблицы страниц.
 pub const PAGE_TABLE_ROOT_LEVEL: u32 = 3;
 
 const_assert_eq!(

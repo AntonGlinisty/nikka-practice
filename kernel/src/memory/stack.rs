@@ -13,14 +13,21 @@ use super::{
     mmu::PageTableFlags,
 };
 
+// Used in docs.
+#[allow(unused)]
+use crate as kernel;
+
+/// Выровненный на границу страницы стек.
 #[repr(C, align(4096))]
 pub(crate) struct Stack([u8; STACK_SIZE]);
 
 impl Stack {
+    /// Создаёт статически выделенный стек.
     const fn new_static() -> Self {
         Self([0; mem::size_of::<Self>()])
     }
 
+    /// Выделяет стек с флагами доступа `flags` в адресном пространстве `address_space`.
     pub(crate) fn new(
         address_space: &mut AddressSpace,
         flags: PageTableFlags,
@@ -28,6 +35,7 @@ impl Stack {
         Ok(&mut Self::new_slice(address_space, flags, 1)?[0])
     }
 
+    /// Выделяет `len` стеков с флагами доступа `flags` в адресном пространстве `address_space`.
     pub(crate) fn new_slice(
         address_space: &mut AddressSpace,
         flags: PageTableFlags,
@@ -44,10 +52,13 @@ impl Stack {
         Ok(stacks)
     }
 
+    /// Возвращает указатель на вершину пустого стека.
     pub(crate) fn pointer(&self) -> Virt {
         Virt::from_ptr(self.0.as_ptr_range().end)
     }
 
+    /// Создаёт в стеке не отображённый блок памяти,
+    /// защищающий от неопределённого поведения при переполнении стека.
     unsafe fn make_guard_zone(
         &mut self,
         address_space: &mut AddressSpace,
@@ -56,6 +67,7 @@ impl Stack {
     }
 }
 
+/// Создаёт статически выделенный стек.
 macro_rules! make_static_stack {
     () => {{
         #[link_section = ".stack"]
@@ -65,41 +77,62 @@ macro_rules! make_static_stack {
     }};
 }
 
+/// Выделенные стеки для непредвиденных исключений.
 pub(crate) struct ExceptionStacks {
-    double_fault_stack: &'static mut Stack,
+    /// Стек, который используется всеми процессорами в случае наступления
+    /// [Double Fault](https://en.wikipedia.org/wiki/Double_fault).
+    /// То есть в аварийной ситуации, когда
+    /// [продолжение миссии невозможно](https://en.wikipedia.org/wiki/Launch_escape_system).
+    /// ![](https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Apollo_Pad_Abort_Test_-2.jpg/440px-Apollo_Pad_Abort_Test_-2.jpg)
+    launch_escape_stack: &'static mut Stack,
+
+    /// Стек для обработки [Page Fault](https://en.wikipedia.org/wiki/Page_fault) на
+    /// Bootstrap Processor до инициализации структур [`kernel::smp::Cpu`].
     page_fault_stack: &'static mut Stack,
 }
 
 impl ExceptionStacks {
+    /// Создаёт статические стеки для непредвиденных исключений.
     fn new() -> Self {
         Self {
-            double_fault_stack: make_static_stack!(),
+            launch_escape_stack: make_static_stack!(),
             page_fault_stack: make_static_stack!(),
         }
     }
 
+    /// После инициализации системы виртуальной памяти
+    /// добавляет в стеки для непредвиденных исключений защитные зоны.
     pub(crate) fn make_guard_zones(&mut self) -> Result<()> {
         let address_space = &mut BASE_ADDRESS_SPACE.lock();
         unsafe {
-            self.double_fault_stack.make_guard_zone(address_space)?;
+            self.launch_escape_stack.make_guard_zone(address_space)?;
             self.page_fault_stack.make_guard_zone(address_space)
         }
     }
 
+    /// Возвращает указатель на вершину пустого стека выделенного для обработки
+    /// [Double Fault](https://en.wikipedia.org/wiki/Double_fault).
     pub(crate) fn double_fault_rsp(&self) -> Virt {
-        self.double_fault_stack.pointer()
+        self.launch_escape_stack.pointer()
     }
 
+    /// Возвращает указатель на вершину пустого стека выделенного для обработки
+    /// [Page Fault](https://en.wikipedia.org/wiki/Page_fault).
     pub(super) fn page_fault_rsp(&self) -> Virt {
         self.page_fault_stack.pointer()
     }
 }
 
 lazy_static! {
+    /// Выделенные стеки для непредвиденных исключений.
     pub(crate) static ref EXCEPTION_STACKS: Mutex<ExceptionStacks> =
         Mutex::new(ExceptionStacks::new());
 }
 
+/// Размер не отображённой в память защитной области стека.
+/// Которая служит для обнаружения переполнения стека и
+/// не допускает перезапись других данных в этом случае.
 pub const GUARD_ZONE_SIZE: usize = Page::SIZE;
 
+/// Размер стеков, включая не отображённую в память защитную область.
 const STACK_SIZE: usize = 32 * Page::SIZE;

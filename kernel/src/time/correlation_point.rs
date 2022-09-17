@@ -8,9 +8,13 @@ use core::{
 
 use super::tsc;
 
+/// Предназначена для привязки тактов процессора к другим часам в один момент времени.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct CorrelationPoint {
+    /// Значение счётчика тиков некоторого источника времени.
     count: i64,
+
+    /// Значение счётчика тактов процессора в тот же момент.
     tsc: i64,
 }
 
@@ -25,6 +29,10 @@ impl CorrelationPoint {
         Self { count, tsc }
     }
 
+    /// Возвращает [`CorrelationPoint`], который соответствует тику `count`, но не привязан ни к какому такту процессора.
+    ///
+    /// Используется, когда значение структуры относится не к самому тику `count`, а к промежутку после него.
+    /// И может быть использовано как текущее время с низким разрешением --- частотой соответствующих часов.
     pub fn invalid(count: i64) -> Self {
         Self::new(count, 0)
     }
@@ -46,16 +54,27 @@ impl CorrelationPoint {
     }
 }
 
-/// Single writer [Sequence Lock (AKA Seqlock)](https://en.wikipedia.org/wiki/Seqlock).
-/// The protected data is a couple of atomic variables which simplifies the Seqlock a lot.
-/// See also:
+/// Предназначена для конкурентного доступа к значениям [`CorrelationPoint`].
+///
+/// То есть [`CorrelationPoint`] и [`AtomicCorrelationPoint`] соотносятся также как примитивный тип [`i64`] и атомарный [`AtomicI64`].
+/// Атомарность нужна для того, чтобы конкурентно
+/// - в обработчике прерывания обновлять счётчики [`AtomicCorrelationPoint`];
+/// - а в обычном коде читать эти счётчики, чтобы "посмотреть на часы".
+///
+/// Реализует [неблокирующую синхронизацию](https://en.wikipedia.org/wiki/Non-blocking_algorithm) для согласованного доступа к полям [`AtomicCorrelationPoint`], используя упрощённый [sequence lock](https://en.wikipedia.org/wiki/Seqlock).
+///
+/// См. также:
 /// - [Writing a seqlock in Rust.](https://pitdicker.github.io/Writing-a-seqlock-in-Rust/)
 /// - [Can Seqlocks Get Along With Programming Language Memory Models?](https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf)
 /// - [Crate seqlock.](https://docs.rs/seqlock/0.1.2/seqlock/)
 #[derive(Debug, Default)]
 pub struct AtomicCorrelationPoint {
-    /// An odd `count` means that an update is in progress.
+    /// - Нечётное значение в [`AtomicCorrelationPoint::count`] означает, что писатель начал обновлять структуру [`AtomicCorrelationPoint`], но ещё не закончил. Если читатель обнаруживает структуру в таком состоянии, он должен подождать пока писатель закончит обновление.
+    /// - Чётное значение в [`AtomicCorrelationPoint::count`] означает, что значение структуры [`AtomicCorrelationPoint`] согласованно и читатель может его использовать при дополнительном условии, что чтение [`AtomicCorrelationPoint`] дважды вернуло один и тот же результат.
+    /// - `AtomicCorrelationPoint::count == 2 * CorrelationPoint::count`.
     count: AtomicI64,
+
+    /// Значение счётчика тактов процессора.
     tsc: AtomicI64,
 }
 
@@ -71,6 +90,7 @@ impl AtomicCorrelationPoint {
         self.tsc.load(Ordering::Relaxed) != 0
     }
 
+    /// Атомарно увеличивает `count` на минимальное неслужебное значение и одновременно записывает заданное `tsc` значение счётчика тактов процессора.
     pub fn inc(
         &self,
         tsc: i64,
@@ -80,6 +100,7 @@ impl AtomicCorrelationPoint {
         self.tsc.store(tsc, Ordering::Relaxed); // TODO: remove before flight.
     }
 
+    /// Атомарно записывает заданное `correlation_point` значение.
     pub fn store(
         &self,
         correlation_point: CorrelationPoint,
@@ -89,6 +110,7 @@ impl AtomicCorrelationPoint {
         self.tsc.store(correlation_point.tsc(), Ordering::Relaxed); // TODO: remove before flight.
     }
 
+    /// Атомарно читает значение [`CorrelationPoint`] из структуры [`AtomicCorrelationPoint`].
     pub fn load(&self) -> CorrelationPoint {
         loop {
             if let Some(point) = self.try_load() {
@@ -99,12 +121,15 @@ impl AtomicCorrelationPoint {
         }
     }
 
+    /// Читает значение [`CorrelationPoint`] из структуры [`AtomicCorrelationPoint`].
+    /// Возвращает [`Some`], если удалось прочитать согласованное значение.
     fn try_load(&self) -> Option<CorrelationPoint> {
         // TODO: your code here.
         Some(CorrelationPoint { count: self.count.load(Ordering::Relaxed), tsc: self.tsc.load(Ordering::Relaxed) }) // TODO: remove before flight.
     }
 }
 
+#[doc(hidden)]
 pub(super) mod test_scaffolding {
     use super::CorrelationPoint;
 
