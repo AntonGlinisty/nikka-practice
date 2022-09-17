@@ -9,7 +9,7 @@
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
     kernel::init(boot_info);
 
-    loop {
+    while TRAP_STATS[RTC].count() < 10 {
         if let Some(frequency) = Pit::tsc_per_second() {
             debug!(%frequency, "CPU frequency measured by PIT");
         }
@@ -23,13 +23,15 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         for (number, stats) in TRAP_STATS.iter().enumerate() {
             let count = stats.count();
             if count != 0 {
-                let mnemonic = stats.mnemonic;
+                let mnemonic = stats.mnemonic();
                 debug!(number, %mnemonic, count, "trap stats");
             }
         }
 
         x86_64::instructions::hlt();
     }
+
+    kernel::exit_qemu(ExitCode::SUCCESS);
 }
 ```
 
@@ -42,7 +44,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 [`x86_64::instructions::hlt()`](../../doc/x86_64/instructions/fn.hlt.html),
 выключает процессор до прихода следующего прерывания.
 Реализация PIT устроена также, как и изученная вами реализация RTC.
-Только он тикает 20 раз в секунду и не привязан к реальному времени.
+Только он настроен тикать 20 раз в секунду и не привязан к реальному времени.
 
 Запускаем:
 
@@ -112,3 +114,15 @@ $ (cd kernel; cargo run --release)
 ...
 15:08:31.792 0 D time_precision = 93.029 ns
 ```
+
+> ### Больше информации про время в компьютерных системах
+>
+> Если вас заинтересовала тема отслеживания времени в компьютерных системах,
+> вы можете посмотреть небольшой отрывок с [семинара из курса распределённых систем](https://lk.yandexdataschool.ru/courses/2021-autumn/7.946-raspredelennye-sistemy/classes/7879/).
+> В [видеозаписи](https://disk.yandex.ru/i/MwH4kiQ_p4XCsA) он начинается с 44:44.
+> Там, в частности рассказано:
+>
+>   - Что такое високосные секунды.
+>   - Оказывается, есть несколько стандартов текущего времени. И некоторые из них зависят, например, от приливов.
+>   - Как устроено отслеживание точного времени на Земле.
+>   - Про несколько серьёзных компьютерных сбоев, связанных с неаккуратной работой со временем в программах. Например, про [сбой в Cloudflare](https://blog.cloudflare.com/how-and-why-the-leap-second-affected-cloudflare-dns/) из-за использования немонотонных часов при измерении интервала времени.

@@ -1,6 +1,10 @@
 #![forbid(unsafe_code)]
 
-use chrono::NaiveDateTime;
+use chrono::{
+    DateTime,
+    NaiveDateTime,
+    Utc,
+};
 
 use super::{
     Hz,
@@ -22,14 +26,16 @@ impl<const TICKS_PER_SECOND: i64> CorrelationInterval<TICKS_PER_SECOND> {
     pub fn datetime<const PARTS_PER_SECOND: i64>(
         atomic_correlation_interval: &AtomicCorrelationInterval<TICKS_PER_SECOND>,
         tsc: Tsc,
-    ) -> NaiveDateTime {
+    ) -> DateTime<Utc> {
         let correlation_interval = atomic_correlation_interval.load();
 
-        if correlation_interval.elapsed_count() > 0 {
+        let datetime = if correlation_interval.elapsed_count() > 0 {
             correlation_interval.datetime_with_resolution::<PARTS_PER_SECOND>(tsc)
         } else {
             NaiveDateTime::from_timestamp(correlation_interval.prev.count() / TICKS_PER_SECOND, 0)
-        }
+        };
+
+        DateTime::from_utc(datetime, Utc)
     }
 
     fn datetime_with_resolution<const PARTS_PER_SECOND: i64>(

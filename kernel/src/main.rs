@@ -31,11 +31,16 @@ use text::{
 };
 
 use kernel::{
+    self,
+    ExitCode,
     Subsystems,
     log::debug,
     time,
     time::Pit,
-    trap::TRAP_STATS,
+    trap::{
+        RTC,
+        TRAP_STATS,
+    },
 };
 
 entry_point!(kernel_main);
@@ -48,7 +53,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     #[cfg(test)]
     test_main();
 
-    loop {
+    while TRAP_STATS[RTC].count() < 10 {
         if let Some(frequency) = Pit::tsc_per_second() {
             debug!(%frequency, "CPU frequency measured by PIT");
         }
@@ -70,6 +75,8 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
         x86_64::instructions::hlt();
     }
+
+    kernel::exit_qemu(ExitCode::SUCCESS);
 }
 
 #[cold]

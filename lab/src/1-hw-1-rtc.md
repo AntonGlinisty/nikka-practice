@@ -14,6 +14,9 @@
 который находится в файле
 [`kernel/src/time/rtc.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/time/rtc.rs).
 
+
+### Инициализация микросхемы часов реального времени
+
 Функция
 [`kernel::time::rtc::init()`](../../doc/kernel/time/rtc/fn.init.html)
 выполняет инициализацию микросхемы:
@@ -30,10 +33,11 @@ unsafe { rtc_write(DISABLE_NMI | REGISTER_B, new_settings.bits()) };
 
 То есть, она
 
-- выключает переход на летнее время --- `!`[`RegisterB::DAYLIGHT_SAVING`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.DAYLIGHT_SAVING),
-- включает [прерывание](https://en.wikipedia.org/wiki/Interrupt), посылаемое процессору микросхемой после обновления показаний времени при тике, --- [`RegisterB::UPDATE_ENDED_INTERRUPT`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.UPDATE_ENDED_INTERRUPT),
-- требует от микросхемы возвращать данные в двоичном коде, а не в [двоично--десятичном](https://en.wikipedia.org/wiki/Binary-coded_decimal), --- [`RegisterB::USE_BINARY_FORMAT`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.USE_BINARY_FORMAT).
-- использовать 24--часовой формат времени, а не 12--часовой, --- [`RegisterB::USE_24_HOUR_FORMAT`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.USE_24_HOUR_FORMAT).
+- Выключает переход на летнее время --- `!`[`RegisterB::DAYLIGHT_SAVING`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.DAYLIGHT_SAVING).
+- Включает [прерывание](https://en.wikipedia.org/wiki/Interrupt), посылаемое процессору микросхемой после обновления показаний времени при тике, --- [`RegisterB::UPDATE_ENDED_INTERRUPT`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.UPDATE_ENDED_INTERRUPT).
+- Требует от микросхемы возвращать данные в двоичном коде, а не в [двоично--десятичном](https://en.wikipedia.org/wiki/Binary-coded_decimal), --- [`RegisterB::USE_BINARY_FORMAT`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.USE_BINARY_FORMAT).
+- Требует от микросхемы использовать 24--часовой формат времени, а не 12--часовой, --- [`RegisterB::USE_24_HOUR_FORMAT`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.USE_24_HOUR_FORMAT).
+- Остальные настройки оставляет без изменений.
 
 Далее
 [`rtc::init()`](../../doc/kernel/time/rtc/fn.init.html)
@@ -74,7 +78,7 @@ fn timestamp() -> Option<i64> {
 }
 ```
 
-с использованием внешней библиотеки
+В ней используется внешняя библиотека
 [`chrono`](../../doc/chrono/index.html),
 которая реализует работу со временем и календарём.
 
@@ -98,6 +102,7 @@ fn timestamp() -> Option<i64> {
 Мы также посылаем его один раз при инициализации микросхемы RTC ---
 на всякий случай стоит перевести микросхему в определённое состояние.
 Кроме того, возможно она уже успела послать прерывание до того как ядро инициализировало их обработку.
+Тогда мы его потеряли, но должны разблокировать последующие.
 В частном случае микросхемы RTC, отправка ей EOI и чтение её регистра статуса прерывания функцией
 [`interrupt_status()`](../../doc/kernel/time/rtc/fn.interrupt_status.html), ---
 это одно и то же действие:
@@ -152,7 +157,7 @@ struct Date {
 Вам могут пригодиться:
 
 - Функция [`kernel::time::rtc::rtc_read(address)`](../../doc/kernel/time/rtc/fn.rtc_read.html), которая читает из микросхемы один байт [`u8`](https://doc.rust-lang.org/nightly/core/primitive.u8.html), расположенный по адресу `address` в памяти микросхемы RTC. Адрес `address` не имеет отношения к основной памяти компьютера, он адресует внутреннюю память микросхемы RTC.
-- [Таблица адресов памяти RTC](http://www.bioscentral.com/misc/cmosmap.htm) или её [подходящий фрагмент](https://wiki.osdev.org/CMOS#Getting_Current_Date_and_Time_from_RTC).
+- [Таблица адресов памяти RTC](http://www.bioscentral.com/misc/cmosmap.htm) или её [подходящий фрагмент](https://wiki.osdev.org/CMOS#Getting_Current_Date_and_Time_from_RTC). Либо вы можете найти эту таблицу в первоисточнике --- [спецификации микросхемы Motorola MC146818](https://pdf1.alldatasheet.com/datasheet-pdf/view/122156/MOTOROLA/MC146818.html).
 - Метод [`u16::from(u8)`](https://doc.rust-lang.org/nightly/core/primitive.u16.html#impl-From%3Cu8%3E-for-u16) для перевода значения типа [`u8`](https://doc.rust-lang.org/nightly/core/primitive.u8.html) в значение типа [`u16`](https://doc.rust-lang.org/nightly/core/primitive.u16.html).
 
 
@@ -199,24 +204,54 @@ return Some(date);
 return None;
 ```
 
-Полные пути `core::option::Option::` можно не указывать, так как `Option`, `None`, `Some` и другие стандартные вещи
-импортируются по умолчанию прелюдией
-[`core::prelude`](https://doc.rust-lang.org/nightly/core/prelude/index.html).
-У нас [редакция 2021](https://doc.rust-lang.org/edition-guide/rust-2021/index.html),
-соответствующая прелюдия ---
-[`core::prelude::rust_2021`](https://doc.rust-lang.org/nightly/core/prelude/rust_2021/index.html).
-А она перекладывает основную работу на
-[`core::prelude::v1`](https://doc.rust-lang.org/nightly/core/prelude/v1/index.html),
-где и импортируются `Option`, `None`, `Some` и многое другое.
 
 Вам могут пригодиться:
 
-- Метод [`Date::default()`](../../doc/kernel/time/rtc/struct.Date.html#method.default), который возвращает [`Date`](../../doc/kernel/time/rtc/struct.Date.html), заполненную нулями. Что не соответствует разумной дате настоящего времени. Он определён в [типаже](https://doc.rust-lang.ru/book/ch10-02-traits.html) [`core::default::Default`](https://doc.rust-lang.org/nightly/core/default/trait.Default.html#tymethod.default), который реализован для [`Date`](../../doc/kernel/time/rtc/struct.Date.html) автоматически за счёт атрибута [`derive`](https://doc.rust-lang.ru/book/appendix-03-derivable-traits.html) --- [`#[derive(Default)]`](https://doc.rust-lang.ru/book/appendix-03-derivable-traits.html#default-%D0%B4%D0%BB%D1%8F-%D0%B7%D0%BD%D0%B0%D1%87%D0%B5%D0%BD%D0%B8%D0%B9-%D0%BF%D0%BE-%D1%83%D0%BC%D0%BE%D0%BB%D1%87%D0%B0%D0%BD%D0%B8%D1%8E). Всю соответствующую работу выполняет макрос [`core::prelude::v1::derive`](https://doc.rust-lang.org/nightly/core/prelude/v1/macro.derive.html).
+- Метод [`Date::default()`](../../doc/kernel/time/rtc/struct.Date.html#method.default), который возвращает [`Date`](../../doc/kernel/time/rtc/struct.Date.html), заполненную нулями. Что не соответствует разумной дате настоящего времени.
 - Функция [`core::hint::spin_loop()`](https://doc.rust-lang.org/nightly/core/hint/fn.spin_loop.html), которая сообщает процессору, что он находится в цикле ожидания внешнего события. И может, например, снизить частоту и энергопотребление.
-- Операторы равенства и неравенства для [`Date`](../../doc/kernel/time/rtc/struct.Date.html). Они определены в [типажах](https://doc.rust-lang.ru/book/ch10-02-traits.html) [`core::cmp::PartialEq`](https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html) и [`core::cmp::Eq`](https://doc.rust-lang.org/nightly/core/cmp/trait.Eq.html), которые реализованы для [`Date`](../../doc/kernel/time/rtc/struct.Date.html) автоматически за счёт атрибута [`#[derive(..., Eq, PartialEq)]`](https://doc.rust-lang.ru/book/appendix-03-derivable-traits.html#partialeq-%D0%B8-eq-%D0%B4%D0%BB%D1%8F-%D1%81%D1%80%D0%B0%D0%B2%D0%BD%D0%B5%D0%BD%D0%B8%D1%8F-%D1%80%D0%B0%D0%B2%D0%B5%D0%BD%D1%81%D1%82%D0%B2%D0%B0). Типаж [`core::cmp::PartialEq`](https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html) определяет методы [`PartialEq::eq()`](https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#tymethod.eq) и [`PartialEq::ne()`](https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#method.ne) для проверки на равенство или неравенство соответственно. Rust рассахаривает операторы `==` и `!=` в обращения к этим методам. А дополнительный типаж [`core::cmp::Eq`](https://doc.rust-lang.org/nightly/core/cmp/trait.Eq.html) сигнализирует, что операции `PartialEq` для [`Date`](../../doc/kernel/time/rtc/struct.Date.html) задают [отношение эквивалентности](https://en.wikipedia.org/wiki/Equivalence_relation), то есть [рефлексивное](https://en.wikipedia.org/wiki/Reflexive_relation), [симметричное](https://en.wikipedia.org/wiki/Symmetric_relation) и [транзитивное](https://en.wikipedia.org/wiki/Transitive_relation).
+- Операторы равенства `==` и неравенства `!=` для [`Date`](../../doc/kernel/time/rtc/struct.Date.html).
 
 В этом методе нужно писать код очень внимательно, так как он не покрывается тестами.
 А использование в будущем журнала с несогласованной датой может привести к потере времени при отладке.
+
+> Полные пути `core::option::Option::` можно не указывать, так как `Option`, `None`, `Some` и другие стандартные вещи
+> импортируются по умолчанию прелюдией
+> [`core::prelude`](https://doc.rust-lang.org/nightly/core/prelude/index.html).
+> У нас [редакция 2021](https://doc.rust-lang.org/edition-guide/rust-2021/index.html),
+> соответствующая прелюдия ---
+> [`core::prelude::rust_2021`](https://doc.rust-lang.org/nightly/core/prelude/rust_2021/index.html).
+> А она перекладывает основную работу на
+> [`core::prelude::v1`](https://doc.rust-lang.org/nightly/core/prelude/v1/index.html),
+> где и импортируются `Option`, `None`, `Some` и многое другое.
+>
+> Метод [`Date::default()`](../../doc/kernel/time/rtc/struct.Date.html#method.default) определён в
+> [типаже](https://doc.rust-lang.ru/book/ch10-02-traits.html)
+> [`core::default::Default`](https://doc.rust-lang.org/nightly/core/default/trait.Default.html#tymethod.default),
+> который реализован для [`Date`](../../doc/kernel/time/rtc/struct.Date.html) автоматически за счёт атрибута
+> [`derive`](https://doc.rust-lang.ru/book/appendix-03-derivable-traits.html) ---
+> [`#[derive(Default)]`](https://doc.rust-lang.ru/book/appendix-03-derivable-traits.html#default-%D0%B4%D0%BB%D1%8F-%D0%B7%D0%BD%D0%B0%D1%87%D0%B5%D0%BD%D0%B8%D0%B9-%D0%BF%D0%BE-%D1%83%D0%BC%D0%BE%D0%BB%D1%87%D0%B0%D0%BD%D0%B8%D1%8E).
+> Всю соответствующую работу выполняет макрос
+> [`core::prelude::v1::derive`](https://doc.rust-lang.org/nightly/core/prelude/v1/macro.derive.html).
+>
+> Операторы равенства и неравенства для [`Date`](../../doc/kernel/time/rtc/struct.Date.html) определены в
+> [типажах](https://doc.rust-lang.ru/book/ch10-02-traits.html)
+> [`core::cmp::PartialEq`](https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html) и
+> [`core::cmp::Eq`](https://doc.rust-lang.org/nightly/core/cmp/trait.Eq.html),
+> которые реализованы для [`Date`](../../doc/kernel/time/rtc/struct.Date.html) автоматически за счёт атрибута
+> [`#[derive(..., Eq, PartialEq)]`](https://doc.rust-lang.ru/book/appendix-03-derivable-traits.html#partialeq-%D0%B8-eq-%D0%B4%D0%BB%D1%8F-%D1%81%D1%80%D0%B0%D0%B2%D0%BD%D0%B5%D0%BD%D0%B8%D1%8F-%D1%80%D0%B0%D0%B2%D0%B5%D0%BD%D1%81%D1%82%D0%B2%D0%B0).
+> Типаж [`core::cmp::PartialEq`](https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html) определяет методы
+> [`PartialEq::eq()`](https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#tymethod.eq) и
+> [`PartialEq::ne()`](https://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#method.ne)
+> для проверки на равенство или неравенство соответственно.
+> Rust рассахаривает операторы `==` и `!=` в обращения к этим методам.
+> А дополнительный типаж
+> [`core::cmp::Eq`](https://doc.rust-lang.org/nightly/core/cmp/trait.Eq.html)
+> сигнализирует, что операции `PartialEq` для
+> [`Date`](../../doc/kernel/time/rtc/struct.Date.html) задают
+> [отношение эквивалентности](https://en.wikipedia.org/wiki/Equivalence_relation), то есть
+> [рефлексивное](https://en.wikipedia.org/wiki/Reflexive_relation),
+> [симметричное](https://en.wikipedia.org/wiki/Symmetric_relation) и
+> [транзитивное](https://en.wikipedia.org/wiki/Transitive_relation).
 
 
 ### Ориентировочный объём работ этой части лабораторки

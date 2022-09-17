@@ -21,19 +21,19 @@ pub use tsc::{
 use rtc::Rtc;
 
 pub fn datetime(tsc: Tsc) -> DateTime<Utc> {
-    datetime_with_precision::<NSECS_PER_SEC>(tsc)
+    Rtc::datetime::<NSECS_PER_SEC>(tsc)
 }
 
 pub fn datetime_ms(tsc: Tsc) -> DateTime<Utc> {
-    datetime_with_precision::<MSECS_PER_SEC>(tsc)
+    Rtc::datetime::<MSECS_PER_SEC>(tsc)
 }
 
 pub fn now() -> DateTime<Utc> {
-    datetime_with_precision::<NSECS_PER_SEC>(Tsc::now())
+    Rtc::datetime::<NSECS_PER_SEC>(Tsc::now())
 }
 
 pub fn now_ms() -> DateTime<Utc> {
-    datetime_with_precision::<MSECS_PER_SEC>(Tsc::now())
+    Rtc::datetime::<MSECS_PER_SEC>(Tsc::now())
 }
 
 #[inline(always)]
@@ -43,10 +43,6 @@ pub fn timer() -> Tsc {
 
 const MSECS_PER_SEC: i64 = 1_000;
 const NSECS_PER_SEC: i64 = 1_000_000_000;
-
-fn datetime_with_precision<const PARTS_PER_SECOND: i64>(tsc: Tsc) -> DateTime<Utc> {
-    DateTime::from_utc(Rtc::datetime::<PARTS_PER_SECOND>(tsc), Utc)
-}
 
 pub mod test_scaffolding {
     pub use super::{

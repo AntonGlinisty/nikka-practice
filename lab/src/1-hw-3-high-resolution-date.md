@@ -59,26 +59,33 @@
 fn CorrelationInterval::datetime<const PARTS_PER_SECOND: i64>(
     atomic_correlation_interval: &AtomicCorrelationInterval<TICKS_PER_SECOND>,
     tsc: Tsc,
-) -> NaiveDateTime
+) -> DateTime<Utc>
 ```
 
 должен для часов, к которым привязан `atomic_correlation_interval`, выдать время, соответствующее
 такту процессора, записанному в `tsc`.
 Время он возвращает в типе
-[`chrono::naive::NaiveDateTime`](../../doc/chrono/naive/struct.NaiveDateTime.html),
-который не содержит данных о часовом поясе.
+[`chrono::DateTime`](../../doc/chrono/struct.DateTime.html).
+Он считает, что заданные ему часы показывают количество секунд, прошедших с начала Unix--эпохи в UTC ---
+[`chrono::offset::Utc`](../../doc/chrono/offset/struct.Utc.html).
 
-Функция
-[`ku::time::datetime_with_precision()`](../../doc/ku/time/fn.datetime_with_precision.html)
-используя этот метод повышает разрешение часов реального времени
-[`ku::time::rtc::Rtc`](../../doc/ku/time/rtc/struct.Rtc.html)
-и добавляет к возвращаемому типу информацию о часовом поясе ---
-[`chrono::offset::Utc`](../../doc/chrono/offset/struct.Utc.html):
+Функции
+[`ku::time::datetime()`](../../doc/ku/time/fn.datetime.html)
+[`ku::time::datetime_ms()`](../../doc/ku/time/fn.datetime_ms.html)
+используя этот метод повышают разрешение часов реального времени
+[`ku::time::rtc::Rtc`](../../doc/ku/time/rtc/struct.Rtc.html):
 
 ```rust
-fn datetime_with_precision<const PARTS_PER_SECOND: i64>(tsc: Tsc) -> DateTime<Utc> {
-    DateTime::from_utc(Rtc::datetime::<PARTS_PER_SECOND>(tsc), Utc)
+pub fn datetime(tsc: Tsc) -> DateTime<Utc> {
+    Rtc::datetime::<NSECS_PER_SEC>(tsc)
 }
+
+pub fn datetime_ms(tsc: Tsc) -> DateTime<Utc> {
+    Rtc::datetime::<MSECS_PER_SEC>(tsc)
+}
+
+const MSECS_PER_SEC: i64 = 1_000;
+const NSECS_PER_SEC: i64 = 1_000_000_000;
 ```
 
 Метод
@@ -104,7 +111,7 @@ fn CorrelationInterval::datetime_with_resolution<const PARTS_PER_SECOND: i64>(
 возвращает момент времени
 [`CorrelationInterval::prev`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#structfield.prev)
 в виде
-[`NaiveDateTime`](../../doc/chrono/naive/struct.NaiveDateTime.html).
+[`DateTime`](../../doc/chrono/struct.DateTime.html).
 Мы заметим это на старте системы по низкому --- секундному --- разрешению в записях журнала.
 
 
@@ -115,7 +122,8 @@ fn CorrelationInterval::datetime_with_resolution<const PARTS_PER_SECOND: i64>(
 
 - Считайте, что `self.base.count()` и `self.prev.count()` задают разные секунды с начала Unix--эпохи.
 - Необходимо вернуть реальное время, которое соответствует такту номер `tsc.get()` процессора. Он может быть как больше `self.prev.tsc()`, так и меньше `self.base.tsc()`, а может лежать где-то между ними. Чтобы все эти варианты можно было поддержать, такты процессора хранятся в знаковом типе [`i64`](https://doc.rust-lang.org/nightly/core/primitive.i64.html).
-- Запрошенное разрешение `PARTS_PER_SECOND` не будет выше наносекунд, которые поддерживает [`NaiveDateTime`](../../doc/chrono/naive/struct.NaiveDateTime.html).
+- Результат возвращается в типе [`chrono::naive::NaiveDateTime`](../../doc/chrono/naive/struct.NaiveDateTime.html), который не содержит данных о часовом поясе. Идентификатор часового пояса добавит вызывающая функция.
+- Запрошенное разрешение `PARTS_PER_SECOND` задаётся в единицах в секунду, например для миллисекунд `PARTS_PER_SECOND = 1_000`. Оно не будет выше наносекунд --- `PARTS_PER_SECOND = 1_000_000_000`, --- которые поддерживает [`NaiveDateTime`](../../doc/chrono/naive/struct.NaiveDateTime.html).
 - [Високосные секунды](https://en.wikipedia.org/wiki/Leap_second) не поддерживаем.
 
 

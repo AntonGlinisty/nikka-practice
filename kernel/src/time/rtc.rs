@@ -96,6 +96,13 @@ bitflags! {
     }
 }
 
+bitflags! {
+    /// https://pdf1.alldatasheet.com/datasheet-pdf/view/122156/MOTOROLA/MC146818.html
+    struct RegisterC: u8 {
+        const UPDATE_ENDED_INTERRUPT = 1 << 4;
+    }
+}
+
 #[derive(Clone, Copy, Default, Display, Eq, PartialEq)]
 #[display(
     fmt = "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
@@ -149,13 +156,6 @@ impl From<Date> for NaiveDateTime {
 
 const ADDRESS_PORT: u16 = 0x70;
 const DATA_PORT: u16 = 0x71;
-
-bitflags! {
-    /// https://pdf1.alldatasheet.com/datasheet-pdf/view/122156/MOTOROLA/MC146818.html
-    struct RegisterC: u8 {
-        const UPDATE_ENDED_INTERRUPT = 1 << 4;
-    }
-}
 
 unsafe fn rtc_read(address: u8) -> u8 {
     io::outb(ADDRESS_PORT, address);

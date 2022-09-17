@@ -12,20 +12,22 @@
 [Прерывания](https://en.wikipedia.org/wiki/Interrupt),
 [`RDTSC`](https://en.wikipedia.org/wiki/Time_Stamp_Counter),
 [атомарные переменные](https://doc.rust-lang.org/nightly/core/sync/atomic/index.html),
-[неблокирующая синхронизация](https://en.wikipedia.org/wiki/Non-blocking_algorithm), и т.д.
+[неблокирующая синхронизация](https://en.wikipedia.org/wiki/Non-blocking_algorithm),
 спецификации аппаратного обеспечения, и т.д.
 Не пугайтесь, предварительных знаний не должно потребоваться.
-Во многих случаях они упоминаются на тот случай, если вы захотите углубиться в какую-либо из таких областей.
+Они упоминаются на тот случай,
+если вы уже хорошо знаете базовую часть материала или же захотите углубиться в какую-либо из таких областей.
 Это может оказаться очень увлекательно!
+Большие блоки интересного, но не обязательного материала выделены цветом, точно так же как цитаты:
+
+> Time is an illusion. Lunchtime doubly so.
+> - Douglas Adams, The Hitchhiker's Guide to the Galaxy
 
 В современном компьютере есть несколько источников времени с разными характеристиками.
 Мы познакомимся с парой из них и сделаем комбинированное по их характеристикам [системное время](https://en.wikipedia.org/wiki/System_time).
 А именно, из часов, показывающих время в реальном мире и имеющих низкое --- секундное --- разрешение,
 и источника времени с высоким разрешением, но не привязанного ко времени в реальном мире,
 построим часы, показывающие время в реальном мире с высоким разрешением.
-
-> Time is an illusion. Lunchtime doubly so.
-> - Douglas Adams, The Hitchhiker's Guide to the Galaxy
 
 
 ### Код работы со временем в Nikka собран в модули
@@ -38,13 +40,12 @@
 - [`ku::time`](../../doc/ku/time/index.html) в директории `ku/src/time`. Здесь собраны базовые примитивы для работы со временем, которые нужны и в ядре, и в пространстве пользователя.
   - [`ku/src/time/mod.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/time/mod.rs) --- корневая часть модуля [`ku::time`](../../doc/ku/time/index.html). Содержит:
     - Функцию [`ku::time::timer()`](../../doc/ku/time/fn.timer.html) для получения монотонного процессорного времени, которое измеряется его тактами.
-    - Функцию [`ku::time::datetime_with_precision()`](../../doc/ku/time/fn.datetime_with_precision.html) которая переводит значение счётчика тактов процессора в системное время с заданным разрешением.
-    - Функции [`ku::time::datetime()`](../../doc/ku/time/fn.datetime.html) и [`ku::time::datetime_ms()`](../../doc/ku/time/fn.datetime_ms.html), которые являются удобными сокращениями для [`datetime_with_precision()`](../../doc/ku/time/fn.datetime_with_precision.html) с разрешением в наносекунды и миллисекунды соответственно.
+    - Функции [`ku::time::datetime()`](../../doc/ku/time/fn.datetime.html) и [`ku::time::datetime_ms()`](../../doc/ku/time/fn.datetime_ms.html), которые переводят значение счётчика тактов процессора в системное время с разрешением в наносекунды и миллисекунды соответственно.
     - Функции [`ku::time::now()`](../../doc/ku/time/fn.now.html) и [`ku::time::now_ms()`](../../doc/ku/time/fn.now_ms.html), которые сообщают системное время в текущий момент с разрешением в наносекунды и миллисекунды соответственно.
   - [`ku/src/time/correlation_point.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/time/correlation_point.rs) --- вспомогательные структуры [`ku::time::correlation_point::AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html) и [`ku::time::correlation_point::CorrelationPoint`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html) для привязки тактов процессора к другому источнику времени, в один момент времени.
   - [`ku/src/time/correlation_interval.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/time/correlation_interval.rs) --- вспомогательные структуры [`ku::time::correlation_interval::AtomicCorrelationInterval`](../../doc/ku/time/correlation_interval/struct.AtomicCorrelationInterval.html) и [`ku::time::correlation_interval::CorrelationInterval`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html) для соотнесения частоты процессора с частотой другого источника времени по двум моментам времени.
   - [`ku/src/time/hz.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/time/hz.rs) --- вспомогательная структура [`ku::time::hz::Hz`](../../doc/ku/time/hz/struct.Hz.html) для форматирования [частоты](https://en.wikipedia.org/wiki/Hertz) при журналировании.
-  - [`ku/src/time/rtc.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/time/rtc.rs) --- [синглтон](https://en.wikipedia.org/wiki/Singleton_pattern) [`ku::time::rtc::Rtc`](../../doc/ku/time/rtc/struct.Rtc.html), позволяющий узнать показания часов реального времени как из ядра, так и из пользовательского пространства.
+  - [`ku/src/time/rtc.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/time/rtc.rs) --- [синглтон](https://en.wikipedia.org/wiki/Singleton_pattern) [`ku::time::rtc::Rtc`](../../doc/ku/time/rtc/struct.Rtc.html), позволяющий узнать показания часов реального времени как из ядра, так и из [пространства пользователя](https://en.wikipedia.org/wiki/User_space_and_kernel_space).
   - [`ku/src/time/tsc.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/time/tsc.rs) --- структура [`ku::time::tsc::Tsc`](../../doc/ku/time/tsc/struct.Tsc.html) для хранения показаний счётчика тактов процессора, который является одним из источников времени в компьютере. А также структура [`ku::time::tsc::TscDuration`](../../doc/ku/time/tsc/struct.TscDuration.html) для хранения интервалов времени в тактах процессора.
 
 

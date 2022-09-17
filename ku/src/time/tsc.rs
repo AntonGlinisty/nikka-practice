@@ -58,7 +58,7 @@ impl Tsc {
 }
 
 impl TscDuration {
-    fn into_f64(self) -> f64 {
+    pub fn into_f64(self) -> f64 {
         let tsc: u64 = self.0.try_into().expect("duration should not be negative");
         cast::cast(tsc).expect(U64_AS_F64_SHOULD_NOT_FAIL)
     }
