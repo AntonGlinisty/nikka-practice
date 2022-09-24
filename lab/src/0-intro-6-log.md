@@ -79,7 +79,8 @@ error: expected expression, found `%`
 debug!(frame = %frames[0]);
 ```
 
-Tracing поддерживает печать встроенных типов напрямую.
+Библиотека [tracing](https://docs.rs/tracing/)
+поддерживает печать встроенных типов напрямую.
 А вот для пользовательских типов нужно указать `%` или `?`, как в
 
 ```rust
@@ -135,7 +136,11 @@ struct PageAllocator {
 
 Это потребует реализацию [`Debug`](https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html) от всех полей структуры, которую при необходимости можно добавить аналогичным способом в местах объявления типов полей.
 
-[`Display`](https://doc.rust-lang.org/nightly/core/fmt/trait.Display.html) тоже можно реализовать с помощью макроса из внешней библиотеки [derive_more](https://docs.rs/derive_more/0.99.16/derive_more/), при этом можно указать [формат печати](https://jeltef.github.io/derive_more/derive_more/display.html):
+[`Display`](https://doc.rust-lang.org/nightly/core/fmt/trait.Display.html)
+тоже можно реализовать с помощью атрибута `#[derive(Display)]` из внешней библиотеки
+[derive_more](https://docs.rs/derive_more/0.99.16/derive_more/),
+при этом можно указать
+[формат печати](https://jeltef.github.io/derive_more/derive_more/display.html):
 
 ```rust
 use derive_more::Display;

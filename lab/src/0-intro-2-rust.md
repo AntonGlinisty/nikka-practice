@@ -26,7 +26,7 @@ Rust имеет те же свойства, но в дополнение пре�
 [Современное системное программирование на Rust](https://lk.yandexdataschool.ru/courses/2021-autumn/7.939-rust/classes/)
 2021 года:
 
-- [Лекция 1. Зачем придуман Rust](https://lk.yandexdataschool.ru/courses/2021-autumn/7.939-rust/classes/7745/), [Семинар 1. Rust crash course](https://lk.yandexdataschool.ru/courses/2021-autumn/7.939-rust/classes/7746/).
+- [Семинар 1. Rust crash course](https://lk.yandexdataschool.ru/courses/2021-autumn/7.939-rust/classes/7746/).
 - [Лекция 2. Lifetimes, ownership & borrow checking](https://lk.yandexdataschool.ru/courses/2021-autumn/7.939-rust/classes/7891/).
 - [Лекция 3. Enums & pattern matching. Traits](https://lk.yandexdataschool.ru/courses/2021-autumn/7.939-rust/classes/7932/).
 - [Лекция 4. Обработка ошибок](https://lk.yandexdataschool.ru/courses/2021-autumn/7.939-rust/classes/8070/).
@@ -35,25 +35,28 @@ Rust имеет те же свойства, но в дополнение пре�
 Глубоких знаний языка потребоваться не должно, особенно если вы знакомы с C++.
 
 Мы будем пользоваться [nightly](https://doc.rust-lang.ru/book/appendix-07-nightly-rust.html) Rust [редакции 2021](https://doc.rust-lang.org/edition-guide/rust-2021/index.html).
+
 Так как ядро --- это [`no_std`](https://docs.rust-embedded.org/book/intro/no-std.html) код,
 не вся [стандартная библиотека `std`](https://doc.rust-lang.org/nightly/std/index.html) будет нам доступна.
 Но будет доступна её
 [`core`](https://doc.rust-lang.org/nightly/core/index.html)
 часть.
-Учтите, что многие объекты из
-[`core`](https://doc.rust-lang.org/nightly/core/index.html) реэкспортируются в
-[`std`](https://doc.rust-lang.org/nightly/std/index.html) и широко известны под своими `std::...` именами.
 После реализации аллокатора нам также будет доступна
 [`alloc`](https://doc.rust-lang.org/nightly/alloc/index.html)
 часть стандартной библиотеки.
-Аналогично `core`, `alloc` тоже реэкспортируется в `std`.
+Так что, например [`alloc::vec::Vec`](https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html) будет нам доступен.
+
+Учтите, что многие объекты из
+[`alloc`](https://doc.rust-lang.org/nightly/alloc/index.html) и
+[`core`](https://doc.rust-lang.org/nightly/core/index.html) реэкспортируются в
+[`std`](https://doc.rust-lang.org/nightly/std/index.html)
+и широко известны под своими `std::...` именами.
 Поэтому если вы в поиске нашли какую-нибудь ссылку на `std::abc::def`, это ещё не значит, что он не доступен.
 Просто проверьте его наличие в
 [`core`](https://doc.rust-lang.org/nightly/core/index.html)
 под именем `core::abc::def` и в
 [`alloc`](https://doc.rust-lang.org/nightly/alloc/index.html)
 под именем `alloc::abc::def`.
-Так что, например [`alloc::vec::Vec`](https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html) будет нам доступен.
 
 Полезные ресурсы по Rust:
 - [The Rust Programming Language](https://doc.rust-lang.org/book/) --- основная книга по языку, [перевод](https://doc.rust-lang.ru/book/).

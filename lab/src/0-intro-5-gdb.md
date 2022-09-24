@@ -51,8 +51,7 @@ $ make test
 При необходимости отлаживать пользовательский процесс,
 нужно сделать несколько дополнительных вещей:
 
-- Оставить в пользовательском бинарнике отладочную информацию. Для этого нужно убрать строку `cargo strip;` из `Makefile`.
-- Отредактировать `gdbinit`, заменив в нём команду загрузки бинарника ядра `file kernel/target/kernel/debug/kernel` на команду загрузки нужного пользовательского бинарника, например `file user/cow_fork/target/kernel/debug/cow_fork`.
+- Отредактировать файл [`gdbinit`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/gdbinit), заменив в нём команду загрузки бинарника ядра `file target/kernel/debug/kernel` на команду загрузки нужного пользовательского бинарника, например `file target/kernel/user/cow_fork`.
 - Можно также добавить в `gdbinit` дополнительные команды, например
 ```gdb
 breakpoint lib::syscall::trap_handler_invoker
@@ -68,10 +67,10 @@ continue
 Для получения информации о бинарниках и для их дизассемблирования можно использовать `objdump` в сочетании с `rustfilt`.
 Например:
 ```console
-$ objdump --all-headers kernel/target/kernel/debug/kernel | rustfilt
-$ objdump --disassemble kernel/target/kernel/debug/kernel | rustfilt
-$ objdump --all-headers user/cow_fork/target/kernel/debug/cow_fork | rustfilt
-$ objdump --disassemble user/cow_fork/target/kernel/debug/cow_fork | rustfilt
+$ objdump --all-headers target/kernel/debug/kernel | rustfilt
+$ objdump --disassemble --disassembler-options=intel target/kernel/debug/kernel | rustfilt
+$ objdump --all-headers target/kernel/user/cow_fork | rustfilt
+$ objdump --disassemble --disassembler-options=intel target/kernel/user/cow_fork | rustfilt
 ```
 
 Для запуска `rustfilt` и других бинарников Rust полезно добавить `$HOME/.cargo/bin/` в свой `$PATH`:

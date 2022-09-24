@@ -17,4 +17,3 @@ members = [
 
 [profile.user]
 inherits = "dev"
-strip = true

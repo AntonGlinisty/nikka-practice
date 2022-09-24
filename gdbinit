@@ -1,3 +1,4 @@
 set architecture i386:x86-64
+set disassembly-flavor intel
 target remote localhost:1234
-file kernel/target/kernel/debug/kernel
+file target/kernel/debug/kernel

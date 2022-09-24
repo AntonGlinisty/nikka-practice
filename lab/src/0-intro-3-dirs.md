@@ -13,4 +13,9 @@
   - pic8259 --- драйвер устаревшего контроллера прерываний ([programmable interrupt controller, PIC](https://en.wikipedia.org/wiki/Programmable_interrupt_controller)) на микросхеме [Intel 8259](https://en.wikipedia.org/wiki/Intel_8259);
   - serial --- драйвер COM--порта;
   - text --- драйвер для работы с экраном в текстовом режиме.
-- Также используется несколько внешних библиотек, наиболее часто --- библиотека структурированного журналирования [tracing](../../doc/tracing/index.html), а также [x86](../../doc/x86/index.html) и её развитый форк [x86_64](../../doc/x86_64/index.html).
+
+Также используется несколько внешних библиотек
+Наиболее часто:
+
+- [tracing](../../doc/tracing/index.html) для структурированного журналирования.
+- [x86](../../doc/x86/index.html) и её развитый форк [x86_64](../../doc/x86_64/index.html) для низкоуровневой работы с архитектурой [x86-64](https://en.wikipedia.org/wiki/X86-64).
