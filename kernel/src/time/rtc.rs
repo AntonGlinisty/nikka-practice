@@ -66,7 +66,11 @@ pub(super) fn init() {
 
         enable_next_interrupt();
 
-        info!(?acknowledged_settings, "RTC init");
+        if is_time_valid() {
+            info!(?acknowledged_settings, "RTC init");
+        } else {
+            error!("RTC reports low battery, its time and date values are incorrect");
+        }
     } else {
         error!(
             ?old_settings,
@@ -118,6 +122,15 @@ bitflags! {
     }
 }
 
+bitflags! {
+    /// Регистр сохранности данных в памяти RTC при выключении.
+    struct RegisterD: u8 {
+        /// Есть заряд в батарейке.
+        /// Поэтому данные в памяти RTC валидны, в том числе дата и время.
+        const VALID_RAM_AND_TIME = 1 << 7;
+    }
+}
+
 /// Структура для хранения даты и времени, прочитанных из микросхемы [часов реального времени (Real-time clock, RTC)](https://en.wikipedia.org/wiki/Real-time_clock).
 #[derive(Clone, Copy, Default, Display, Eq, PartialEq)]
 #[display(
@@ -145,6 +158,10 @@ impl Date {
     /// [`RegisterA::UPDATE_IN_PROGRESS`] установлен, то есть пока микросхема обновляет данные в своей памяти.
     /// Возвращает [`Some`], если два чтения подряд вернут одинаковое значение структуры [`Date`].
     fn read() -> Option<Self> {
+        if !is_time_valid() {
+            return None;
+        }
+
         const REGISTER_A: u8 = 0xA;
 
         // TODO: your code here.
@@ -206,6 +223,15 @@ fn rtc_write(
 fn interrupt_status() -> RegisterC {
     const REGISTER_C: u8 = 0xC;
     unsafe { RegisterC::from_bits_unchecked(rtc_read(REGISTER_C)) }
+}
+
+/// Проверяет правильность данных даты и времени в RTC.
+///
+/// На самом деле просто заряд в батарейке.
+fn is_time_valid() -> bool {
+    const REGISTER_D: u8 = 0xD;
+    let register_d = unsafe { RegisterD::from_bits_unchecked(rtc_read(REGISTER_D)) };
+    register_d.contains(RegisterD::VALID_RAM_AND_TIME)
 }
 
 /// Говорит микросхеме RTC, что процессор обработал [прерывание](https://en.wikipedia.org/wiki/Interrupt) от неё.

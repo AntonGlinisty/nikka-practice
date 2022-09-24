@@ -182,7 +182,11 @@ fn rtc_write(address: u8, data: u8) {
 
         enable_next_interrupt();
 
-        info!(?acknowledged_settings, "RTC init");
+        if is_time_valid() {
+            info!(?acknowledged_settings, "RTC init");
+        } else {
+            error!("RTC reports low battery, its time and date values are incorrect");
+        }
     }
 ```
 
