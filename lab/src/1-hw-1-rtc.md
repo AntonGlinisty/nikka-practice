@@ -202,7 +202,7 @@ fn rtc_write(address: u8, data: u8) {
 
 ```rust
 fn timestamp() -> Option<i64> {
-    Date::now().map(|now| DateTime::<Utc>::from_utc(now, Utc).timestamp())
+    Date::read().map(|date| DateTime::<Utc>::from_utc(date.into(), Utc).timestamp())
 }
 ```
 

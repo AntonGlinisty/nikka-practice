@@ -139,10 +139,6 @@ struct Date {
 }
 
 impl Date {
-    fn now() -> Option<NaiveDateTime> {
-        Self::read().map(|now| now.into())
-    }
-
     /// [Пытается несколько раз прочитать данные из микросхемы RTC](https://wiki.osdev.org/CMOS#RTC_Update_In_Progress)
     /// методом [`Date::read_inconsistent()`].
     /// Перед каждым чтением в цикле ждёт, пока в регистре `A` микросхемы RTC флаг
@@ -223,5 +219,5 @@ fn enable_next_interrupt() {
 /// Переводит текущее время RTC в [секунды с момента начала Unix--эпохи](https://en.wikipedia.org/wiki/Unix_time).
 /// Предполагает, что микросхема RTC хранит [всемирное координированное время (Coordinated Universal Time, UTC)](https://en.wikipedia.org/wiki/Coordinated_Universal_Time).
 fn timestamp() -> Option<i64> {
-    Date::now().map(|now| DateTime::<Utc>::from_utc(now, Utc).timestamp())
+    Date::read().map(|date| DateTime::<Utc>::from_utc(date.into(), Utc).timestamp())
 }
