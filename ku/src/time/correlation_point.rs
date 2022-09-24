@@ -69,10 +69,19 @@ impl CorrelationPoint {
 /// - [Crate seqlock.](https://docs.rs/seqlock/0.1.2/seqlock/)
 #[derive(Debug, Default)]
 pub struct AtomicCorrelationPoint {
-    /// - Нечётное значение в [`AtomicCorrelationPoint::count`] означает, что писатель начал обновлять структуру [`AtomicCorrelationPoint`], но ещё не закончил. Если читатель обнаруживает структуру в таком состоянии, он должен подождать пока писатель закончит обновление.
-    /// - Чётное значение в [`AtomicCorrelationPoint::count`] означает, что значение структуры [`AtomicCorrelationPoint`] согласованно и читатель может его использовать при дополнительном условии, что чтение [`AtomicCorrelationPoint`] дважды вернуло один и тот же результат.
-    /// - `AtomicCorrelationPoint::count == 2 * CorrelationPoint::count`.
+    /// Значение счётчика тиков отслеживаемых часов.
     count: AtomicI64,
+
+    /// - Нечётное значение в [`AtomicCorrelationPoint::sequence`] означает,
+    /// что писатель начал обновлять структуру [`AtomicCorrelationPoint`], но ещё не закончил.
+    /// Если читатель обнаруживает структуру в таком состоянии,
+    /// он должен подождать пока писатель закончит обновление.
+    /// - Чётное значение в [`AtomicCorrelationPoint::sequence`] означает,
+    /// что значение структуры [`AtomicCorrelationPoint`] согласованно.
+    /// И читатель может его использовать при дополнительном условии,
+    /// что чтение [`AtomicCorrelationPoint::sequence`] вернуло один и тот же результат
+    /// до чтения и после чтения остальных полей.
+    sequence: AtomicI64,
 
     /// Значение счётчика тактов процессора.
     tsc: AtomicI64,
@@ -82,6 +91,7 @@ impl AtomicCorrelationPoint {
     pub const fn new() -> Self {
         Self {
             count: AtomicI64::new(0),
+            sequence: AtomicI64::new(0),
             tsc: AtomicI64::new(0),
         }
     }
@@ -90,7 +100,8 @@ impl AtomicCorrelationPoint {
         self.tsc.load(Ordering::Relaxed) != 0
     }
 
-    /// Атомарно увеличивает `count` на минимальное неслужебное значение и одновременно записывает заданное `tsc` значение счётчика тактов процессора.
+    /// Атомарно инкрементирует `count` и
+    /// одновременно записывает заданное в `tsc` значение счётчика тактов процессора.
     pub fn inc(
         &self,
         tsc: i64,

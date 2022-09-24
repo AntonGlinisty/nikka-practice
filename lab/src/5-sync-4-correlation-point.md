@@ -79,47 +79,30 @@
 В качестве инструмента такой неблокирующей синхронизации предлагается использовать упрощённый
 [sequence lock](https://en.wikipedia.org/wiki/Seqlock).
 В нашем случае его идея в следующем.
-Мы жертвуем одним младшим битом в поле
-[`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count)
-для хранения признака, что сейчас структура
+Мы храним в поле
+[`AtomicCorrelationPoint::sequence_number`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence_number)
+удвоенный номер операции обновления.
+А в его младшем бите хранится признак, что сейчас структура
 [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
 находится в несогласованном состоянии из-за текущей активности писателя.
 То есть:
 
-- Нечётное значение в [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count) означает, что писатель начал обновлять структуру [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html), но ещё не закончил. Если читатель обнаруживает структуру в таком состоянии, он должен подождать пока писатель закончит обновление.
-- Чётное значение в [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count) означает, что значение структуры [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html) согласованно и читатель может его использовать.
-
-Мы пожертвовали одним младшим битом в
-[`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count),
-и при этом не хотим терять нечётные значения
-[`CorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#structfield.count).
-Например, можно сделать чтобы значения в этих полях отличались вдвое когда
-[`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
-находится в согласованном состоянии:
-
-```rust
-AtomicCorrelationPoint::count == 2 * CorrelationPoint::count
-```
-
-Кроме того, алгоритм существенно опирается на то, что
-[`CorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#structfield.count)
-монотонно возрастает.
-Подумайте, в каких ситуациях это может быть не так.
-Для упрощения Nikka их игнорирует.
+- Нечётное значение в [`AtomicCorrelationPoint::sequence_number`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence_number) означает, что писатель начал обновлять структуру [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html), но ещё не закончил. Если читатель обнаруживает структуру в таком состоянии, он должен подождать пока писатель закончит обновление.
+- Чётное значение в [`AtomicCorrelationPoint::sequence_number`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence_number) означает, что значение структуры [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html) согласованно и читатель может его использовать.
 
 В нашем случае писатель один, что дополнительно упрощает дело.
 Алгоритм его действий:
-- Раз он один, значит до начала обновления им структуры [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html), её значение заведомо согласованно. А [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count) содержит чётное число.
-- Писатель атомарно инкрементирует поле [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count). Оно становится нечётным, символизируя что идёт обновление.
-- После этого писатель заполняет поле [`AtomicCorrelationPoint::tsc`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.tsc).
-- Последним действием писатель атомарно обновляет поле [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count) на целевое значение. Оно одновременно должно быть чётным. Тогда это действие сигнализирует всем читателям, что обновление завершено и структура находится в согласованном состоянии.
+- Раз он один, значит до начала обновления им структуры [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html), её значение заведомо согласованно. А [`AtomicCorrelationPoint::sequence_number`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence_number) содержит чётное число.
+- Писатель атомарно инкрементирует поле [`AtomicCorrelationPoint::sequence_number`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence_number). Оно становится нечётным, символизируя что идёт обновление.
+- После этого писатель заполняет поля [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count) и [`AtomicCorrelationPoint::tsc`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.tsc).
+- Последним действием писатель атомарно инкрементирует поле [`AtomicCorrelationPoint::sequence_number`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence_number). Это действие сигнализирует всем читателям, что обновление завершено и структура находится в согласованном состоянии.
 
 Алгоритм действий читателя чуть сложнее:
 
-- Читатель атомарно загружает значения поля [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count).
-- Далее он читает значение поля [`AtomicCorrelationPoint::tsc`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.tsc).
-- После чего он повторно атомарно загружает значение поля [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count).
-- Если при обеих загрузках значения поля [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count) совпадают и являются чётными, то структура [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html) была прочитана в согласованном состоянии. Читатель делит значение [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count) пополам, чтобы получить соответствующее значение [`CorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#structfield.count). И возвращает значение получившейся структуры [`CorrelationPoint`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html) в вызывающую функцию.
+- Читатель атомарно загружает значения поля [`AtomicCorrelationPoint::sequence_number`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence_number).
+- Далее он читает значение полей [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count) и [`AtomicCorrelationPoint::tsc`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.tsc).
+- После чего он повторно атомарно загружает значение поля [`AtomicCorrelationPoint::sequence_number`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence_number).
+- Если при обеих загрузках значения поля [`AtomicCorrelationPoint::sequence_number`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence_number) совпадают и являются чётными, то структура [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html) была прочитана в согласованном состоянии. Читатель возвращает значение получившейся структуры [`CorrelationPoint`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html) в вызывающую функцию.
 - Если же это не так, читатель повторяет все действия с самого начала.
 
 Перекос сложности в сторону читателя и наличие в нём цикла ожидания, чего нет в писателе, ---
@@ -164,9 +147,9 @@ fn AtomicCorrelationPoint::store(&self, correlation_point: CorrelationPoint)
 fn AtomicCorrelationPoint::inc(&self, tsc: i64)
 ```
 
-увеличивает поле
+инкрементирует поле
 [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count)
-на минимальное неслужебное значение и записывает в поле
+и записывает в поле
 [`AtomicCorrelationPoint::tsc`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.tsc)
 значение аргумента `tsc`.
 
@@ -181,7 +164,7 @@ fn AtomicCorrelationPoint::inc(&self, tsc: i64)
 Поэтому ему достаточно инкрементировать логическое значение своего счётчика при каждом прерывании.
 
 Используйте поле
-[`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count)
+[`AtomicCorrelationPoint::sequence_number`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence_number)
 как атомарную переменную, синхронизующую между собой
 [`load()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.load) и
 [`store()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.store)/[`inc()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.inc).
