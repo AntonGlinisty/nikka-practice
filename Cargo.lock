@@ -257,6 +257,7 @@ version = "0.2.0"
 dependencies = [
  "bitflags",
  "chrono",
+ "derive_more",
  "heapless",
  "itertools",
  "memoffset",

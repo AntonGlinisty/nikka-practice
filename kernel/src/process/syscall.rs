@@ -15,6 +15,7 @@ use x86_64::registers::model_specific::{
 use ku::process::{
     ExitCode,
     MiniContext,
+    RFlags,
     Syscall,
 };
 
@@ -57,7 +58,6 @@ use crate::{
 use super::{
     Pid,
     Process,
-    RFlags,
     Scheduler,
     State,
     Table,

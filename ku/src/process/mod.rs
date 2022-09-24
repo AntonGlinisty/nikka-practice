@@ -1,10 +1,12 @@
 pub mod mini_context;
 pub mod pid;
+pub mod registers;
 pub mod syscall;
 pub mod trap_info;
 
 pub use mini_context::MiniContext;
 pub use pid::Pid;
+pub use registers::RFlags;
 pub use syscall::{
     ExitCode,
     ResultCode,

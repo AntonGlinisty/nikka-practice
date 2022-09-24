@@ -42,7 +42,6 @@ use process::{
     State,
     TrapHandlerContext,
 };
-use registers::RFlags;
 use table::TABLE;
 
 pub use ku::process::Pid;

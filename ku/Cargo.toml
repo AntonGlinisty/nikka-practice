@@ -11,6 +11,7 @@ version = "0.2.0"
 [dependencies]
 bitflags = "*"
 chrono = { version = "*", default-features = false }
+derive_more = "*"
 heapless = "*"
 itertools = { version = "*", default-features = false }
 memoffset = { version = "*", features = ["unstable_const"] }

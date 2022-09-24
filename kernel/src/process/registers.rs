@@ -6,7 +6,10 @@ use core::{
 
 use x86_64::structures::gdt::SegmentSelector;
 
-use ku::process::MiniContext;
+use ku::process::{
+    MiniContext,
+    RFlags,
+};
 
 use crate::{
     gdt::Gdt,
@@ -223,57 +226,6 @@ impl fmt::Display for ModeContext {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-#[repr(transparent)]
-pub(super) struct RFlags(pub(super) usize);
-
-impl RFlags {
-    pub(super) const INTERRUPT_FLAG: RFlags = RFlags(1 << 9);
-}
-
-impl fmt::Display for RFlags {
-    fn fmt(
-        &self,
-        formatter: &mut fmt::Formatter,
-    ) -> fmt::Result {
-        static FLAGS: [&str; 22] = [
-            "CF",
-            "",
-            "PF",
-            "",
-            "AF",
-            "",
-            "ZF",
-            "SF",
-            "TF",
-            "IF",
-            "DF",
-            "OF",
-            "",
-            "",
-            "NT",
-            "",
-            "RF",
-            "VM",
-            "AC",
-            "VF",
-            "VP",
-            "ID",
-        ];
-
-        let mut separator = "";
-
-        for i in (0 .. FLAGS.len()).rev() {
-            if (self.0 >> i) & 1 != 0 && !FLAGS[i].is_empty() {
-                write!(formatter, "{}{}", separator, FLAGS[i])?;
-                separator = " ";
-            }
-        }
-
-        Ok(())
-    }
-}
-
 pub(super) mod test_scaffolding {
     use super::{
         RFlags,
@@ -281,8 +233,7 @@ pub(super) mod test_scaffolding {
     };
 
     pub(in super::super) fn disable_interrupts(registers: &mut Registers) {
-        registers.user_context.rflags =
-            RFlags(registers.user_context.rflags.0 & !RFlags::INTERRUPT_FLAG.0);
+        registers.user_context.rflags &= !RFlags::INTERRUPT_FLAG;
     }
 
     pub(in super::super) fn registers(registers: &Registers) -> [usize; 15] {

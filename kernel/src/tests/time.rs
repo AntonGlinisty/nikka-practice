@@ -12,19 +12,14 @@ use chrono::{
     Duration,
     Utc,
 };
-use x86_64::{
-    instructions,
-    registers::rflags::{
-        self,
-        RFlags,
-    },
-};
+use x86_64::instructions;
 
 use ku::{
     memory::{
         Block,
         Virt,
     },
+    process::RFlags,
     time::{
         self,
         test_scaffolding::{
@@ -332,11 +327,11 @@ fn down_the_rabbit_hole() {
     wait_for_two_correlation_points();
 
     let mut timer = ku::timer();
-    debug!(rflags = ?rflags::read(), "how many instructions does it take to log something?");
+    debug!(rflags = %RFlags::read(), "how many instructions does it take to log something?");
     let time_to_log_a_message = timer.lap();
 
     switch_trap_flag();
-    debug!(rflags = ?rflags::read(), "how many instructions does it take to log something?");
+    debug!(rflags = %RFlags::read(), "how many instructions does it take to log something?");
     switch_trap_flag();
     let time_to_log_a_message_in_the_stepping_mode = timer.elapsed();
 
@@ -390,8 +385,9 @@ fn sample(ticks: &AtomicUsize) -> bool {
 }
 
 fn switch_trap_flag() {
+    let new_flags = RFlags::read() ^ RFlags::TRAP_FLAG;
     unsafe {
-        rflags::write(rflags::read() ^ RFlags::TRAP_FLAG);
+        new_flags.write();
     }
 }
 
