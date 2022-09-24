@@ -45,7 +45,7 @@ pub(super) fn init() {
     const REGISTER_B: u8 = 0xB;
 
     defer! {
-        unsafe { rtc_read(!DISABLE_NMI); }
+        rtc_read(!DISABLE_NMI);
     }
 
     let old_settings =
@@ -54,7 +54,7 @@ pub(super) fn init() {
         RegisterB::UPDATE_ENDED_INTERRUPT |
         RegisterB::USE_BINARY_FORMAT |
         RegisterB::USE_24_HOUR_FORMAT;
-    unsafe { rtc_write(DISABLE_NMI | REGISTER_B, new_settings.bits()) };
+    rtc_write(DISABLE_NMI | REGISTER_B, new_settings.bits());
     let acknowledged_settings =
         unsafe { RegisterB::from_bits_unchecked(rtc_read(DISABLE_NMI | REGISTER_B)) };
 
@@ -152,17 +152,15 @@ impl Date {
         const REGISTER_A: u8 = 0xA;
 
         // TODO: your code here.
-        Some(unsafe { Self::read_inconsistent() }) // TODO: remove before flight.
+        Some(Self::read_inconsistent()) // TODO: remove before flight.
     }
 
-    /// Считывает из микросхемы RTC показания даты и времени и возвращает их в виде
-    ///
-    /// # Safety
+    /// Считывает из микросхемы RTC показания даты и времени и возвращает их в виде [`Date`].
     ///
     /// Может вернуть некорректное значение [`Date`],
     /// если во время его работы произошёл тик RTC и микросхема конкурентно
     /// обновляла содержимое соответствующих полей в своей памяти.
-    unsafe fn read_inconsistent() -> Self {
+    fn read_inconsistent() -> Self {
         // TODO: your code here.
         Self::default() // TODO: remove before flight.
     }
@@ -188,20 +186,24 @@ const DATA_PORT: u16 = 0x0071;
 /// Читает значение, которое находится в байте номер `address` внутренней памяти микросхемы RTC.
 ///
 /// Адрес `address` не имеет отношения к основной памяти компьютера, он адресует внутреннюю память микросхемы RTC.
-unsafe fn rtc_read(address: u8) -> u8 {
-    io::outb(ADDRESS_PORT, address);
-    io::inb(DATA_PORT)
+fn rtc_read(address: u8) -> u8 {
+    unsafe {
+        io::outb(ADDRESS_PORT, address);
+        io::inb(DATA_PORT)
+    }
 }
 
 /// Записывает значение `data`, в байт номер `address` внутренней памяти микросхемы RTC.
 ///
 /// Адрес `address` не имеет отношения к основной памяти компьютера, он адресует внутреннюю память микросхемы RTC.
-unsafe fn rtc_write(
+fn rtc_write(
     address: u8,
     data: u8,
 ) {
-    io::outb(ADDRESS_PORT, address);
-    io::outb(DATA_PORT, data)
+    unsafe {
+        io::outb(ADDRESS_PORT, address);
+        io::outb(DATA_PORT, data);
+    }
 }
 
 /// Читает регистр статуса прерывания RTC.

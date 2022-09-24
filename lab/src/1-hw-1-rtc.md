@@ -75,9 +75,11 @@
 [`kernel::time::rtc::rtc_read()`](../../doc/kernel/time/rtc/fn.rtc_read.html):
 
 ```rust
-unsafe fn rtc_read(address: u8) -> u8 {
-    io::outb(ADDRESS_PORT, address);
-    io::inb(DATA_PORT)
+fn rtc_read(address: u8) -> u8 {
+    unsafe {
+        io::outb(ADDRESS_PORT, address);
+        io::inb(DATA_PORT)
+    }
 }
 ```
 
@@ -85,9 +87,11 @@ unsafe fn rtc_read(address: u8) -> u8 {
 [`kernel::time::rtc::rtc_write()`](../../doc/kernel/time/rtc/fn.rtc_read.html):
 
 ```rust
-unsafe fn rtc_write(address: u8, data: u8) {
-    io::outb(ADDRESS_PORT, address);
-    io::outb(DATA_PORT, data)
+fn rtc_write(address: u8, data: u8) {
+    unsafe {
+        io::outb(ADDRESS_PORT, address);
+        io::outb(DATA_PORT, data);
+    }
 }
 ```
 
@@ -145,13 +149,13 @@ unsafe fn rtc_write(address: u8, data: u8) {
 выполняет инициализацию микросхемы:
 
 ```rust
-let old_settings =
-    unsafe { RegisterB::from_bits_unchecked(rtc_read(DISABLE_NMI | REGISTER_B)) };
-let new_settings = (old_settings & !RegisterB::DAYLIGHT_SAVING) |
-    RegisterB::UPDATE_ENDED_INTERRUPT |
-    RegisterB::USE_BINARY_FORMAT |
-    RegisterB::USE_24_HOUR_FORMAT;
-unsafe { rtc_write(DISABLE_NMI | REGISTER_B, new_settings.bits()) };
+    let old_settings =
+        unsafe { RegisterB::from_bits_unchecked(rtc_read(DISABLE_NMI | REGISTER_B)) };
+    let new_settings = (old_settings & !RegisterB::DAYLIGHT_SAVING) |
+        RegisterB::UPDATE_ENDED_INTERRUPT |
+        RegisterB::USE_BINARY_FORMAT |
+        RegisterB::USE_24_HOUR_FORMAT;
+    rtc_write(DISABLE_NMI | REGISTER_B, new_settings.bits());
 ```
 
 То есть, она
@@ -167,18 +171,19 @@ unsafe { rtc_write(DISABLE_NMI | REGISTER_B, new_settings.bits()) };
 проверяет что микросхема подтвердила изменение конфигурации и читает текущие показания времени из микросхемы
 
 ```rust
-let acknowledged_settings = unsafe { RegisterB::from_bits_unchecked(rtc_read(DISABLE_NMI | REGISTER_B)) };
+    let acknowledged_settings =
+        unsafe { RegisterB::from_bits_unchecked(rtc_read(DISABLE_NMI | REGISTER_B)) };
 
-if acknowledged_settings == new_settings {
-    let rtc = SYSTEM_INFO.rtc();
-    rtc.store_prev(CorrelationPoint::invalid(
-        timestamp().unwrap_or(0) * TICKS_PER_SECOND,
-    ));
+    if acknowledged_settings == new_settings {
+        let rtc = SYSTEM_INFO.rtc();
+        rtc.store_prev(CorrelationPoint::invalid(
+            timestamp().unwrap_or(0) * TICKS_PER_SECOND,
+        ));
 
-    enable_next_interrupt();
+        enable_next_interrupt();
 
-    ...
-}
+        info!(?acknowledged_settings, "RTC init");
+    }
 ```
 
 Количество тиков в секунду ---
@@ -272,7 +277,7 @@ struct Date {
 }
 ```
 
-Метод называется `...inconsistent()` и помечен `unsafe`, потому что может вернуть некорректное значение
+Метод называется `...inconsistent()`, потому что может вернуть некорректное значение
 [`Date`](../../doc/kernel/time/rtc/struct.Date.html),
 если во время его работы произошёл тик RTC и микросхема конкурентно
 обновляла содержимое соответствующих полей в своей памяти.
