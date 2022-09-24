@@ -5,7 +5,10 @@
 #![no_main]
 #![no_std]
 
-use ku::log::info;
+use ku::{
+    log::info,
+    time,
+};
 
 use lib::{
     entry,
@@ -15,6 +18,7 @@ use lib::{
 entry!(main);
 
 fn main() {
+    info!(now = %time::now());
     syscall::sched_yield();
 
     let message = "trigger the sched_yield() syscall by overflowing the log buffer";

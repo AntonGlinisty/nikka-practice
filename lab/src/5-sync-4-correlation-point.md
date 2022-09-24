@@ -108,6 +108,23 @@
 Перекос сложности в сторону читателя и наличие в нём цикла ожидания, чего нет в писателе, ---
 проявление большего приоритета писателя.
 
+> Обобщённая реализация [sequence lock](https://en.wikipedia.org/wiki/Seqlock)
+> с несколькими писателями и произвольной защищаемой структурой данных была бы сложнее.
+> Например, можете посмотреть на:
+>
+> - [Writing a seqlock in Rust.](https://pitdicker.github.io/Writing-a-seqlock-in-Rust/)
+> - [Can Seqlocks Get Along With Programming Language Memory Models?](https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf)
+> - [Crate seqlock.](https://docs.rs/seqlock/0.1.2/seqlock/)
+>
+> При этом учтите, что нам точно не нужен приём "read-dont-modify-write".
+> Более того, его может хотеться использовать в читателе.
+> Но он потенциально будет выполнятся в режиме пользователя.
+> А значит, не сможет выполнять запись в общесистемную структуру
+> [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html),
+> хранящую показания RTC.
+> Не говоря уж о совершенно лишнем захвате линии кэша в эксклюзивное использование при чтении
+> [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html).
+
 
 ### Задача 2 --- реализация [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
 

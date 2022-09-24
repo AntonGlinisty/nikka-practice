@@ -135,6 +135,13 @@ fn syscall_sched_yield() {
 
     Process::enter_user_mode(process);
 
+    assert_eq!(
+        TRAP_STATS[PAGE_FAULT].count(),
+        0,
+        "maybe the read-dont-modify-write construction was used for reading the RTC time from the \
+         user space",
+    );
+
     for _ in 0 .. 2 {
         let process = Table::get(pid).expect("failed to find the new process in the process table");
 
