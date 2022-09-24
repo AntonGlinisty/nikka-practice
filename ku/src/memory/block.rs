@@ -352,13 +352,24 @@ impl<T: Memory> fmt::Debug for Block<T> {
         &self,
         formatter: &mut fmt::Formatter,
     ) -> fmt::Result {
-        write!(
-            formatter,
-            "[{:#x}, {:#x}), size {}",
-            self.start,
-            self.end,
-            Size::new::<T>(self.count()),
-        )
+        if self.end_address().is_ok() {
+            write!(
+                formatter,
+                "{}, {}[~{}, ~{})",
+                self,
+                T::NAME,
+                Size::new::<T>(self.start),
+                Size::new::<T>(self.end),
+            )
+        } else {
+            write!(
+                formatter,
+                "{}, {}[~{}, ~16.000EiB)",
+                self,
+                T::NAME,
+                Size::new::<T>(self.start),
+            )
+        }
     }
 }
 
@@ -367,13 +378,22 @@ impl<T: Memory> fmt::Display for Block<T> {
         &self,
         formatter: &mut fmt::Formatter,
     ) -> fmt::Result {
-        write!(
-            formatter,
-            "[{}, {}), size {}",
-            Size::new::<T>(self.start),
-            Size::new::<T>(self.end),
-            Size::new::<T>(self.count()),
-        )
+        if let Ok(end_address) = self.end_address() {
+            write!(
+                formatter,
+                "[{}, {}), size {}",
+                self.start_address(),
+                end_address,
+                Size::new::<T>(self.count()),
+            )
+        } else {
+            write!(
+                formatter,
+                "[{}, 0v10000000000000000), size {}",
+                self.start_address(),
+                Size::new::<T>(self.count()),
+            )
+        }
     }
 }
 
@@ -403,10 +423,13 @@ impl<T: Tag> Iterator for IntoIter<Frage<T>> {
 
 /// Описывает базовые типы для [`Block`] и их операции.
 pub trait Memory: Clone + Copy + SizeOf {
+    /// Имя базового типа для отладочной печати блока.
+    const NAME: &'static str;
+
     /// Тип адреса для базового типа:
     /// - [`Virt`] для [`Virt`] и [`Page`];
     /// - [`Phys`] для [`Phys`] и [`Frame`].
-    type Address: Ord;
+    type Address: fmt::Display + Ord;
 
     /// Возвращает адрес базового элемента `element`:
     /// - `element` для `Addr`;
@@ -434,6 +457,8 @@ pub trait Memory: Clone + Copy + SizeOf {
 }
 
 impl<T: Tag> Memory for Addr<T> {
+    const NAME: &'static str = T::ADDR_NAME;
+
     type Address = Addr<T>;
 
     fn address(element: Self) -> Self::Address {
@@ -457,6 +482,8 @@ impl<T: Tag> Memory for Addr<T> {
 }
 
 impl<T: Tag> Memory for Frage<T> {
+    const NAME: &'static str = T::FRAGE_NAME;
+
     type Address = Addr<T>;
 
     fn address(element: Self) -> Self::Address {
