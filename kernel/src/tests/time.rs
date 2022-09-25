@@ -32,7 +32,11 @@ use ku::{
 use kernel::{
     Subsystems,
     log::debug,
-    time::test_scaffolding::TICKS_PER_SECOND,
+    time::test_scaffolding::{
+        RegisterB,
+        TICKS_PER_SECOND,
+        parse_hour,
+    },
     trap::{
         self,
         PIT,
@@ -45,6 +49,47 @@ use kernel::{
 mod init;
 
 init!(Subsystems::empty());
+
+#[test_case]
+fn different_rtc_formats() {
+    for hour_24 in 0 .. 24 {
+        let pm = hour_24 / 12;
+        let hour_12 = ((hour_24 + 11) % 12) + 1;
+
+        debug!(hour_24, hour_12, pm);
+
+        assert_eq!(
+            hour_24,
+            parse_hour(
+                hour_24,
+                RegisterB::USE_BINARY_FORMAT | RegisterB::USE_24_HOUR_FORMAT,
+            ),
+        );
+        assert_eq!(
+            hour_24,
+            parse_hour(pack(hour_12, pm), RegisterB::USE_BINARY_FORMAT),
+        );
+        assert_eq!(
+            hour_24,
+            parse_hour(bcd(hour_24), RegisterB::USE_24_HOUR_FORMAT),
+        );
+        assert_eq!(
+            hour_24,
+            parse_hour(pack(bcd(hour_12), pm), RegisterB::empty()),
+        );
+    }
+
+    fn bcd(x: u8) -> u8 {
+        (x / 10) * 16 + (x % 10)
+    }
+
+    fn pack(
+        hour: u8,
+        pm: u8,
+    ) -> u8 {
+        hour | (pm << 7)
+    }
+}
 
 #[test_case]
 fn rtc_read_inconsistent() {

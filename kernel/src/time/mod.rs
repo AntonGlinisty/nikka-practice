@@ -27,5 +27,11 @@ pub(super) fn init() {
 
 #[doc(hidden)]
 pub mod test_scaffolding {
-    pub use super::pit8254::test_scaffolding::TICKS_PER_SECOND;
+    pub use super::{
+        pit8254::test_scaffolding::TICKS_PER_SECOND,
+        rtc::test_scaffolding::{
+            RegisterB,
+            parse_hour,
+        },
+    };
 }
