@@ -5,4 +5,4 @@
 #![reexport_test_harness_main = "test_main"]
 #![test_runner(kernel::test_runner)]
 
-core::include!("../src/tests/time.rs");
+core::include!("../src/tests/lab_1_hw_3_high_resolution_date.rs");

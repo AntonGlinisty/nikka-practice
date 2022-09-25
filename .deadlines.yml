@@ -46,3 +46,38 @@
         - sem/jobserver/src/*.rs
       check:
         - cd sem/jobserver && cargo build && ./test.sh
+
+- group: lab-1-time
+  start: 26-09-2022 18:00
+  deadline: 10-10-2022 23:59
+  second_deadline: 01-02-2023 23:59
+  enabled: true
+  tasks:
+    - task: rtc
+      score: 100
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-1-rtc.html
+      allow_list:
+        - kernel/src/time/rtc.rs
+      check:
+        - cd kernel && cargo test --test 1-hw-1-rtc
+
+    - task: correlation-point
+      score: 100
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-4-correlation-point.html
+      allow_list:
+        - ku/src/time/correlation_point.rs
+      check:
+        - cd kernel && cargo test --test 5-sync-4-correlation-point
+
+    - task: high-resolution-date
+      score: 50
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-3-high-resolution-date.html
+      allow_list:
+        - kernel/src/time/rtc.rs
+        - ku/src/time/correlation_interval.rs
+      check:
+        - cd kernel && cargo test --test 1-hw-3-high-resolution-date
+

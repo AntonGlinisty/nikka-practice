@@ -117,6 +117,8 @@ fn CorrelationInterval::datetime_with_resolution<const PARTS_PER_SECOND: i64>(
 
 ### Задача 3 --- реализация основного метода повышения разрешения часов
 
+Для этой задачи понадобится готовое решение [задачи 1](../../lab/book/1-hw-1-rtc.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-1--%D1%87%D1%82%D0%B5%D0%BD%D0%B8%D0%B5-%D1%80%D0%B5%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%B3%D0%BE-%D0%B2%D1%80%D0%B5%D0%BC%D0%B5%D0%BD%D0%B8-%D0%B8%D0%B7-%D0%BC%D0%B8%D0%BA%D1%80%D0%BE%D1%81%D1%85%D0%B5%D0%BC%D1%8B-rtc).
+
 Реализуйте метод
 [`fn CorrelationInterval::datetime_with_resolution()`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#method.datetime_with_resolution).
 
@@ -129,14 +131,14 @@ fn CorrelationInterval::datetime_with_resolution<const PARTS_PER_SECOND: i64>(
 
 ### Запуск тестов
 
-Тесты можно запустить командой `cargo test --test time` в директории `kernel` репозитория.
+Тесты можно запустить командой `cargo test --test 1-hw-3-high-resolution-date` в директории `kernel` репозитория.
 
 После выполнения задачи должен проходить тест `high_resolution_date()`
 в файле
 [`kernel/tests/time.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/time.rs):
 
 ```console
-$ (cd kernel; cargo test --test time)
+$ (cd kernel; cargo test --test 1-hw-3-high-resolution-date)
 ...
 time::high_resolution_date----------------------------------
 10:39:50.562 0 D waiting for the RTC to tick twice
@@ -149,6 +151,6 @@ time::high_resolution_date------------------------- [passed]
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- ku/src/time/correlation_interval.rs |   21 +++++++++++++++++++--
- 1 file changed, 19 insertions(+), 2 deletions(-)
+ ku/src/time/correlation_interval.rs |   26 ++++++++++++++++++++++++--
+ 1 file changed, 24 insertions(+), 2 deletions(-)
 ```

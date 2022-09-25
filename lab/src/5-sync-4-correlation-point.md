@@ -56,7 +56,7 @@
 но это потребовало бы захватывать её из прерывания.
 Это практически гарантированно приведёт к проблемам:
 
-- Захват этой блокировки должен ещё и запрещать прерывания. Иначе возможна [взаимоблокировка](https://en.wikipedia.org/wiki/Deadlock), подумайте почему.
+- Захват этой блокировки должен ещё и запрещать прерывания. Иначе возможна [взаимоблокировка](https://en.wikipedia.org/wiki/Deadlock), подумайте почему. А Nikka предпочитает не отключать прерывания на потенциально длительное время удержания какой-нибудь блокировки.
 - Иногда прерывание будет ждать другой код, пока он не отпустит эту блокировку. Обычно прерывания являются более приоритетной деятельностью, поэтому возникнет нежелательная [инверсия приоритетов](https://en.wikipedia.org/wiki/Priority_inversion).
 - Писать мы хотим из прерывания в режиме ядра, а читать --- из режима пользователя. При этом с одной стороны, ядро должно обеспечить для кода пользователя согласованность чтения. А с другой --- оно не должно допустить чтобы злонамеренный код из пользовательского режима мог заблокировать ядро, в том числе навечно.
 
@@ -67,7 +67,7 @@
 для согласованного доступа к полям
 [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html).
 Которая будет отдавать предпочтение писателю, так как это обработчик прерывания в ядре, ---
-он всегда сможет завершить работу по обновлению структуры за фиксированное количество тактов.
+он всегда сможет завершить работу по обновлению структуры за фиксированное и достаточно небольшое количество тактов.
 И никогда не будет ждать читателей, которые могут быть запущены как в режиме ядра, так и в режиме пользователя.
 А вот читатели будут максимально пессимизированы ---
 они будут вынуждены ждать пока писатель завершит свою работу, если им не повезло запуститься конкурентно с писателем.
@@ -115,15 +115,6 @@
 > - [Writing a seqlock in Rust.](https://pitdicker.github.io/Writing-a-seqlock-in-Rust/)
 > - [Can Seqlocks Get Along With Programming Language Memory Models?](https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf)
 > - [Crate seqlock.](https://docs.rs/seqlock/0.1.2/seqlock/)
->
-> При этом учтите, что нам точно не нужен приём "read-dont-modify-write".
-> Более того, его может хотеться использовать в читателе.
-> Но он потенциально будет выполнятся в режиме пользователя.
-> А значит, не сможет выполнять запись в общесистемную структуру
-> [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html),
-> хранящую показания RTC.
-> Не говоря уж о совершенно лишнем захвате линии кэша в эксклюзивное использование при чтении
-> [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html).
 
 
 ### Задача 2 --- реализация [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
@@ -192,6 +183,76 @@ fn AtomicCorrelationPoint::inc(&self, tsc: i64)
 [`Ordering`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html).
 Поэтому ей стоит уделить повышенное внимание.
 
+Обратите внимание, что
+[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst)
+использовать не рекомендуется.
+Так как мнение "использовать
+[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst)
+гарантированно безопасно" неверно.
+Режим
+[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst)
+позволяет делать довольно специфические вещи, которые реально нужны довольно редко.
+[А вот гарантий корректности не даёт, это заблуждение](https://github.com/rust-lang/nomicon/issues/166).
+
+Если в алгоритме синхронизации вам понадобилось написать что-нибудь вроде
+
+```rust
+let end_sequence_number = sequence_number.load(Ordering::Release);
+```
+
+Компилятор выдаст ошибку:
+
+```console
+error: atomic loads cannot have `Release` or `AcqRel` ordering
+  --> kernel/tests/5-sync-4-correlation-point.rs:38:52
+   |
+38 |     let end_sequence_number = sequence_number.load(Ordering::Release);
+   |                                                    ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[deny(invalid_atomic_ordering)]` on by default
+   = help: consider using ordering modes `Acquire`, `SeqCst` or `Relaxed`
+```
+
+А если её подавить с помощью `#[allow(invalid_atomic_ordering)]`, то уже при запуске будет
+[паника](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicI64.html#panics):
+
+```
+5_sync_4_correlation_point::wrong_ordering------------------
+panicked at 'there is no such thing as a release load', .../src/rust/library/core/src/sync/atomic.rs:2964:24
+--------------------------------------------------- [failed]
+```
+
+Если в этом месте поменять
+[`Ordering::Release`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Release)
+на
+[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst),
+не меняя остальную часть алгоритма синхронизации,
+то компиляция пройдёт и паники не будет.
+Но код скорее всего будет **некорректен**, --- простая замена на
+[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst)
+не исправит сам алгоритм синхронизации.
+То есть, использование
+[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst)
+скроет ошибку в алгоритме синхронизации, о наличии которой заботливо предупреждали компилятор и паника.
+К такому же эффекту приведёт смена
+[`Ordering::Release`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Release)
+на
+[`Ordering::Relaxed`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Relaxed).
+Но [`Ordering::Relaxed`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Relaxed)
+хотя бы бросается в глаза в коде.
+
+Также учтите, что нам точно не нужен
+[приём "read-dont-modify-write"](https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf).
+Его может хотеться использовать в читателе.
+Но читатель потенциально будет выполняться в режиме пользователя.
+А значит, не сможет выполнять запись в общесистемную структуру
+[`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html),
+хранящую показания RTC.
+Так как она доступна в режиме пользователя только на чтение.
+Другими словами, если вы используете "read-dont-modify-write", то в будущих лабораторках вылезет ошибка.
+Не говоря уж о совершенно лишнем захвате линии кэша в эксклюзивное использование при чтении
+[`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html).
+
 Вы можете опираться на тот факт, что писатель один и методы записи ---
 [`AtomicCorrelationPoint::store()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.store) и
 [`AtomicCorrelationPoint::inc()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.inc) ---
@@ -200,14 +261,14 @@ fn AtomicCorrelationPoint::inc(&self, tsc: i64)
 
 ### Запуск тестов
 
-Тесты можно запустить командой `cargo test --test time` в директории `kernel` репозитория.
+Тесты можно запустить командой `cargo test --test 5-sync-4-correlation-point` в директории `kernel` репозитория.
 
 После выполнения задачи должны проходить тесты `correlation_point_reader()` и `correlation_point_writer()`
 в файле
 [`kernel/tests/time.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/time.rs):
 
 ```console
-$ (cd kernel; cargo test --test time)
+$ (cd kernel; cargo test --test 5-sync-4-correlation-point)
 ...
 time::correlation_point_reader------------------------------
 10:35:25 0 D same = 0; different = 1; point = CorrelationPoint { count: 1000, tsc: 1000 }
@@ -249,7 +310,7 @@ time::correlation_point_writer--------------------- [passed]
 >
 > Для того чтобы проверить корректность реализации
 > [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
-> было бы здорово запустить стресс-тест с писателем и читателем на разных процессорах.
+> было бы здорово запустить стресс--тест с писателем и читателем на разных процессорах.
 > И желательно на процессорах со
 > [слабой моделью памяти](https://en.wikipedia.org/wiki/Memory_ordering#In_symmetric_multiprocessing_(SMP)_microprocessor_systems),
 > в которых возможно больше интересных эффектов, чем в архитектуре
@@ -264,18 +325,18 @@ time::correlation_point_writer--------------------- [passed]
 > архитектура [x86-64](https://en.wikipedia.org/wiki/X86-64).
 > А поддержку нескольких процессоров мы сделаем только в
 > [будущей лабе](../../lab/book/3-smp-2-smp-0-intro.html).
-> И пока нам не доступна возможность запустить стресс-тест даже на двух процессорах в симметричной системе.
+> И пока нам не доступна возможность запустить стресс--тест даже на двух процессорах в симметричной системе.
 >
 > Но можно вспомнить про то, что
 > [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
 > реализуется конкурентной ради прерываний,
 > которые являются одной из конкурентных активностей в компьютере.
-> Тогда в голову приходит вариант запустить стресс-тест,
+> Тогда в голову приходит вариант запустить стресс--тест,
 > в котором писатель будет работать в прерывании, а читатель --- в обычном коде, прерываемом периодически этим прерыванием.
 > Собственно
 > [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
 > предназначен именно для такого сценария использования, в котором прерывание поступает от источника времени --- RTC или PIT.
-> Тики RTC, происходящие раз в секунду, точно не подходят для стресс-теста.
+> Тики RTC, происходящие раз в секунду, точно не подходят для стресс--теста.
 > Можно было бы сконфигурировать PIT на его максимальную частоту --- 1.193(18) MHz, но этого тоже не достаточно для стресс--теста.
 >
 > Зато есть интересный режим работы процессора ---
@@ -477,7 +538,7 @@ time::correlation_point_writer--------------------- [passed]
 >> последняя из них располагалась по адресу `0v216D07`.
 >> А также было потрачено 5.742 KiB стека по адресам `[0x100002001c8, 0x100002018c0)`
 >> ```console
->> $ (cd kernel; cargo test --test time)
+>> $ (cd kernel; cargo test --test 5-sync-4-correlation-point)
 >> ...
 >> time::down_the_rabbit_hole----------------------------------
 >> 21:10:12 0 D waiting for the RTC to tick twice
@@ -492,7 +553,7 @@ time::correlation_point_writer--------------------- [passed]
 >> В релизной сборке на запись в журнал одной строки ушло 6874 инструкций и 1.141 KiB стека:
 >>
 >> ```console
->> $ (cd kernel; cargo test --test time --release)
+>> $ (cd kernel; cargo test --test 5-sync-4-correlation-point --release)
 >> ...
 >> time::down_the_rabbit_hole----------------------------------
 >> 21:09:33 0 D waiting for the RTC to tick twice
@@ -522,6 +583,6 @@ time::correlation_point_writer--------------------- [passed]
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- ku/src/time/correlation_point.rs |   25 +++++++++++++++++--------
- 1 file changed, 17 insertions(+), 8 deletions(-)
+ ku/src/time/correlation_point.rs |   40 +++++++++++++++++++++++++++++++--------
+ 1 file changed, 32 insertions(+), 8 deletions(-)
 ```

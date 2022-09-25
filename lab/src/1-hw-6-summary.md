@@ -7,7 +7,7 @@
 
 ```rust
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
-    kernel::init(boot_info);
+    kernel::init_subsystems(boot_info, Subsystems::empty());
 
     while TRAP_STATS[RTC].count() < 10 {
         if let Some(frequency) = Pit::tsc_per_second() {
@@ -40,7 +40,9 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 из файла [`kernel/src/lib.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/lib.rs).
 А затем мы в цикле выводим в журнал статистику счётчиков прерываний и
 вычисленную с помощью RTC и PIT частоту процессора.
-Инструкция `HLT`, которую мы используем через функцию
+Инструкция
+[`HLT`](https://www.felixcloutier.com/x86/htl),
+которую мы используем через функцию
 [`x86_64::instructions::hlt()`](../../doc/x86_64/instructions/fn.hlt.html),
 выключает процессор до прихода следующего прерывания.
 Реализация PIT устроена также, как и изученная вами реализация RTC.
@@ -73,6 +75,7 @@ $ (cd kernel; cargo run)
 ```console
 14:58:18 0 D time_precision = 61.005 ktsc
 ```
+Так как мы пока не откалибровали частоту процессора, в ней точность времени указана в тысячах его тиков --- `ktsc`.
 Потом тикает PIT:
 ```console
 14:58:18 0 D CPU frequency measured by PIT; frequency = 3.434 GHz
@@ -107,13 +110,19 @@ RTC тикает во второй раз, и на основе его пока�
 То есть, между последовательными обращениями к `RDTSC` проходит около 881 наносекунд.
 Такая низкая точность объясняется отладочной сборкой без оптимизаций.
 
-Если же собрать релизную, то получим более разумную цифру.
-Которая, правда, всё ещё далека от идеала:
+Если же собрать релизную, то получим более разумную цифру:
+
 ```console
 $ (cd kernel; cargo run --release)
 ...
 15:08:31.792 0 D time_precision = 93.029 ns
 ```
+
+Правда, она всё ещё далека от идеала.
+Это связано с запуском под эмулятором.
+Если запустить Nikka на железе, то получаем прерно 30--80 тактов, или около 10-20 наносекунд:
+![](1-hw-5-time-precision.png)
+
 
 > ### Больше информации про время в компьютерных системах
 >

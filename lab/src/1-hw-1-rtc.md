@@ -58,9 +58,9 @@
 В микросхеме RTC применена разновидность этого подхода.
 А именно, в самой микросхеме есть целый блок собственной памяти, часть которой выделена под её управляющие регистры:
 
-  - 10 байт под данные даты, времени и будильника.
-  - 4 байта под управляющие регистры микросхемы.
-  - Ещё [50 байт энергонезависимой памяти](https://wiki.osdev.org/CMOS), которые [BIOS](https://en.wikipedia.org/wiki/BIOS) использует под нужды не связанные с RTC.
+- 10 байт под данные даты, времени и будильника.
+- 4 байта под управляющие регистры микросхемы.
+- Ещё [50 байт энергонезависимой памяти](https://wiki.osdev.org/CMOS), которые [BIOS](https://en.wikipedia.org/wiki/BIOS) использует под нужды не связанные с RTC.
 
 Доступ к этому блоку внутренней памяти микросхемы RTC осуществляется всего через два однобайтовых порта.
 Первым шагом в порт номер
@@ -101,12 +101,13 @@ fn rtc_write(address: u8, data: u8) {
 [`x86::io::outb()`](../../doc/x86/io/fn.outb.html)
 внешней библиотеки [`x86`](../../doc/x86/index.html).
 
-Байты номер `0xA`, `0xB`, `0xC` и `0xD` в памяти микросхемы отведены под её [регистры управления](https://en.wikipedia.org/wiki/Device_register).
+Байты номер `0xA`, `0xB`, `0xC` и `0xD` в памяти микросхемы отведены под её
+[регистры управления](https://en.wikipedia.org/wiki/Device_register).
 Смысл их битов вынесен в соответствующие наборы флагов
 [`kernel::time::rtc::RegisterA`](../../doc/kernel/time/rtc/struct.RegisterA.html),
-[`kernel::time::rtc::RegisterB`](../../doc/kernel/time/rtc/struct.RegisterB.html) и
-[`kernel::time::rtc::RegisterC`](../../doc/kernel/time/rtc/struct.RegisterC.html).
-Регистр `0xD` нам не понадобится.
+[`kernel::time::rtc::RegisterB`](../../doc/kernel/time/rtc/struct.RegisterB.html),
+[`kernel::time::rtc::RegisterC`](../../doc/kernel/time/rtc/struct.RegisterC.html) и
+[`kernel::time::rtc::RegisterD`](../../doc/kernel/time/rtc/struct.RegisterD.html).
 
 
 ### Прерывания
@@ -149,45 +150,53 @@ fn rtc_write(address: u8, data: u8) {
 выполняет инициализацию микросхемы:
 
 ```rust
-    let old_settings =
-        unsafe { RegisterB::from_bits_unchecked(rtc_read(DISABLE_NMI | REGISTER_B)) };
-    let new_settings = (old_settings & !RegisterB::DAYLIGHT_SAVING) |
-        RegisterB::UPDATE_ENDED_INTERRUPT |
-        RegisterB::USE_BINARY_FORMAT |
-        RegisterB::USE_24_HOUR_FORMAT;
+interrupts::without_interrupts(|| {
+    defer! {
+        rtc_read(!DISABLE_NMI | REGISTER_B);
+    }
+
+    old_settings = RegisterB::from_bits(rtc_read(DISABLE_NMI | REGISTER_B)).unwrap();
+    new_settings =
+        (old_settings & !RegisterB::DAYLIGHT_SAVING) | RegisterB::UPDATE_ENDED_INTERRUPT;
     rtc_write(DISABLE_NMI | REGISTER_B, new_settings.bits());
+    acknowledged_settings = RegisterB::from_bits(rtc_read(DISABLE_NMI | REGISTER_B)).unwrap();
+
+    SETTINGS.store(acknowledged_settings.bits(), Ordering::Relaxed);
+});
 ```
 
 То есть, она
 
+- Выключает все [прерывания](https://en.wikipedia.org/wiki/Interrupt), в том числе [немаскируемые](https://en.wikipedia.org/wiki/Non-maskable_interrupt), на время конфигурирования микросхемы. Иначе она может остаться в [некоррекном состоянии](https://wiki.osdev.org/RTC#Avoiding_NMI_and_Other_Interrupts_While_Programming).
 - Выключает переход на летнее время --- `!`[`RegisterB::DAYLIGHT_SAVING`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.DAYLIGHT_SAVING).
 - Включает [прерывание](https://en.wikipedia.org/wiki/Interrupt), посылаемое процессору микросхемой после обновления показаний времени при тике, --- [`RegisterB::UPDATE_ENDED_INTERRUPT`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.UPDATE_ENDED_INTERRUPT).
-- Требует от микросхемы возвращать данные в двоичном коде, а не в [двоично--десятичном](https://en.wikipedia.org/wiki/Binary-coded_decimal), --- [`RegisterB::USE_BINARY_FORMAT`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.USE_BINARY_FORMAT).
-- Требует от микросхемы использовать 24--часовой формат времени, а не 12--часовой, --- [`RegisterB::USE_24_HOUR_FORMAT`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.USE_24_HOUR_FORMAT).
 - Остальные настройки оставляет без изменений.
 
-Далее
-[`rtc::init()`](../../doc/kernel/time/rtc/fn.init.html)
-проверяет что микросхема подтвердила изменение конфигурации и читает текущие показания времени из микросхемы
+Далее [`rtc::init()`](../../doc/kernel/time/rtc/fn.init.html):
+
+- Сохраняет конфигурацию микросхемы в глобальной переменной [`kernel::time::rtc::SETTINGS`](../../doc/kernel/time/rtc/static.SETTINGS.html).
+- Проверяет что микросхема подтвердила изменение конфигурации.
+- Читает текущие показания времени из микросхемы.
 
 ```rust
-    let acknowledged_settings =
-        unsafe { RegisterB::from_bits_unchecked(rtc_read(DISABLE_NMI | REGISTER_B)) };
+SETTINGS.store(acknowledged_settings.bits(), Ordering::Relaxed);
 
-    if acknowledged_settings == new_settings {
-        let rtc = SYSTEM_INFO.rtc();
-        rtc.store_prev(CorrelationPoint::invalid(
-            timestamp().unwrap_or(0) * TICKS_PER_SECOND,
-        ));
+if acknowledged_settings == new_settings {
+    let rtc = SYSTEM_INFO.rtc();
+    rtc.store_prev(CorrelationPoint::invalid(
+        timestamp().unwrap_or(0) * TICKS_PER_SECOND,
+    ));
 
-        enable_next_interrupt();
+    enable_next_interrupt();
 
-        if is_time_valid() {
-            info!(?acknowledged_settings, "RTC init");
-        } else {
-            error!("RTC reports low battery, its time and date values are incorrect");
-        }
+    if is_time_valid() {
+        info!(?acknowledged_settings, "RTC init");
+    } else {
+        error!("RTC reports low battery, its time and date values are incorrect");
     }
+} else {
+    // ...
+}
 ```
 
 Количество тиков в секунду ---
@@ -246,7 +255,7 @@ fn enable_next_interrupt() {
 ```
 
 
-### Задача 1-hw-1-rtc
+### Задача 1 --- чтение реального времени из микросхемы RTC
 
 #### Несогласованное чтение даты и времени из микросхемы RTC
 
@@ -286,11 +295,132 @@ struct Date {
 если во время его работы произошёл тик RTC и микросхема конкурентно
 обновляла содержимое соответствующих полей в своей памяти.
 
+Реализуйте и используйте вспомогательный [метод](../../doc/kernel/time/rtc/fn.parse_value.html)
+
+```rust
+fn kernel::time::rtc::parse_value(
+    x: u8,
+    format: RegisterB,
+) -> u8
+```
+
+Он переводит значение `x` из формата, в котором микросхема хранит время в двоичный.
+Дело в том, что время может храниться как в обычном
+[двоичном коде](https://en.wikipedia.org/wiki/Binary_number),
+если в `format` установлен флаг
+[`RegisterB::USE_BINARY_FORMAT`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.USE_BINARY_FORMAT).
+Так и в [двоично--десятичном](https://en.wikipedia.org/wiki/Binary-coded_decimal), если этот флаг не установлен.
+
+Реализуйте и используйте вспомогательный [метод](../../doc/kernel/time/rtc/fn.parse_hour.html)
+
+```rust
+fn kernel::time::rtc::parse_hour(
+    hour: u8,
+    format: RegisterB,
+) -> u8
+```
+
+Он переводит значение текущего часа `hour` из формата, в котором микросхема хранит время в двоичный 24-часовой.
+Кроме [двоично--десятичного](https://en.wikipedia.org/wiki/Binary-coded_decimal) варианта, тут возможен ещё и
+[12-часовой формат](https://en.wikipedia.org/wiki/12-hour_clock).
+Если в `format` установлен бит
+[`RegisterB::USE_24_HOUR_FORMAT`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.USE_24_HOUR_FORMAT),
+то формат времени [24-часовой](https://en.wikipedia.org/wiki/24-hour_clock).
+Обратите внимание на
+[путаницу в значениях 12am и 12pm](https://en.wikipedia.org/wiki/12-hour_clock#Confusion_at_noon_and_midnight)
+для [12-часового формата](https://en.wikipedia.org/wiki/12-hour_clock).
+Наш вариант --- "digital watches".
+[Подробнее про формат времени в RTC](https://wiki.osdev.org/CMOS#Format_of_Bytes).
+
 Вам могут пригодиться:
 
+- Конфигурация микросхемы в глобальной переменной [`kernel::time::rtc::SETTINGS`](../../doc/kernel/time/rtc/static.SETTINGS.html). Из неё можно узнать формат в котором она хранит время.
 - Функция [`kernel::time::rtc::rtc_read(address)`](../../doc/kernel/time/rtc/fn.rtc_read.html), которая читает из микросхемы один байт [`u8`](https://doc.rust-lang.org/nightly/core/primitive.u8.html), расположенный по адресу `address` в памяти микросхемы RTC. Адрес `address` не имеет отношения к основной памяти компьютера, он адресует внутреннюю память микросхемы RTC.
 - [Таблица адресов памяти RTC](http://www.bioscentral.com/misc/cmosmap.htm) или её [подходящий фрагмент](https://wiki.osdev.org/CMOS#Getting_Current_Date_and_Time_from_RTC). Либо вы можете найти эту таблицу в первоисточнике --- [спецификации микросхемы Motorola MC146818](https://pdf1.alldatasheet.com/datasheet-pdf/view/122156/MOTOROLA/MC146818.html).
 - Метод [`u16::from(u8)`](https://doc.rust-lang.org/nightly/core/primitive.u16.html#impl-From%3Cu8%3E-for-u16) для перевода значения типа [`u8`](https://doc.rust-lang.org/nightly/core/primitive.u8.html) в значение типа [`u16`](https://doc.rust-lang.org/nightly/core/primitive.u16.html).
+
+
+> ##### [Путаница в значениях 12am и 12pm](https://en.wikipedia.org/wiki/12-hour_clock#Confusion_at_noon_and_midnight)
+>
+> Функция [`parse_hour()`](../../doc/kernel/time/rtc/fn.parse_hour.html)
+> проверяется тестом `different_rtc_formats()` в файле
+> [`kernel/tests/1-hw-1-rtc.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/1-hw-1-rtc.rs).
+> Можно вручную убедиться, что тест
+> [не путает 12am и 12pm](https://en.wikipedia.org/wiki/12-hour_clock#Confusion_at_noon_and_midnight),
+> а также проверить что вы реализовали [12-ти часовой](https://en.wikipedia.org/wiki/12-hour_clock) формат правильно.
+> Для этого включите 12-ти часовой формат в
+> [`rtc::init()`](../../doc/kernel/time/rtc/fn.init.html)
+> и установите время, например на `11:59:55 am`:
+>
+> ```rust
+> interrupts::without_interrupts(|| {
+>     // ...
+>
+>     new_settings =
+>         (old_settings & !RegisterB::DAYLIGHT_SAVING & !RegisterB::USE_24_HOUR_FORMAT) |
+>         RegisterB::UPDATE_ENDED_INTERRUPT;
+>
+>     rtc_write(DISABLE_NMI | REGISTER_B, (new_settings | RegisterB::SET_CLOCK).bits());
+>
+>     if new_settings.contains(RegisterB::USE_BINARY_FORMAT) {
+>         rtc_write(4, 11);
+>         rtc_write(2, 59);
+>         rtc_write(0, 55);
+>     } else {
+>         rtc_write(4, 1 * 16 + 1);
+>         rtc_write(2, 5 * 16 + 9);
+>         rtc_write(0, 5 * 16 + 5);
+>     }
+>
+>     rtc_write(DISABLE_NMI | REGISTER_B, new_settings.bits());
+>     acknowledged_settings = RegisterB::from_bits(rtc_read(DISABLE_NMI | REGISTER_B)).unwrap();
+>
+>     // ...
+> });
+> ```
+>
+> После этого запустите
+>
+> ```console
+> $ (cd kernel; cargo run)
+> ```
+>
+> В журнале время печатается в
+> [24-часовом](https://en.wikipedia.org/wiki/24-hour_clock)
+> формате, вне зависимости от настроек RTC.
+> В нём вы увидите как `11:59:59` сменяется на `12:00:00`:
+>
+> ```console
+> $ cat kernel/serial.out
+> ...
+> 11:59:59.985 0 D time_precision = 933.673 ns
+> 11:59:59.989 0 D trap stats; number = 32; mnemonic = #TI; count = 85
+> 11:59:59.993 0 D trap stats; number = 40; mnemonic = #RT; count = 4
+> 12:00:00.001 0 D CPU frequency measured by PIT; frequency = 3.471 GHz
+> 12:00:00.005 0 D CPU frequency measured by RTC; frequency = 3.437 GHz
+> 12:00:00.009 0 D time_precision = 814.689 ns
+> ...
+> ```
+>
+> Если же установить время на `11:59:55 pm`, то в журнале `23:59:59` сменяется на `00:00:00`:
+>
+> ```console
+> $ cat kernel/serial.out
+> ...
+> 23:59:59.969 0 D time_precision = 1.375 us
+> 23:59:59.973 0 D trap stats; number = 32; mnemonic = #TI; count = 84
+> 23:59:59.979 0 D trap stats; number = 40; mnemonic = #RT; count = 4
+> 00:00:00.001 0 D CPU frequency measured by PIT; frequency = 3.471 GHz
+> 00:00:00.005 0 D CPU frequency measured by RTC; frequency = 3.428 GHz
+> 00:00:00.009 0 D time_precision = 1.222 us
+> ...
+> ```
+>
+> При неверной реализации функции
+> [`parse_hour()`](../../doc/kernel/time/rtc/fn.parse_hour.html)
+> показания времени в журнале после перехода через полдень или полночь будут вести себя гораздо интереснее.
+>
+> > В качестве дополнительного упражнения, посмотрите как 12-часовой формат реализован в Linux.
 
 
 #### Согласованное чтение даты и времени из микросхемы RTC
@@ -388,11 +518,11 @@ return None;
 
 ### Запуск тестов
 
-Тесты можно запустить командой `cargo test --test time` в директории `kernel` репозитория.
+Тесты можно запустить командой `cargo test --test 1-hw-1-rtc` в директории `kernel` репозитория.
 Вы увидите сборку, запуск эмулятора [`qemu`](https://en.wikipedia.org/wiki/QEMU), сообщения журнала об инициализации ядра и прогоне тестов:
 
 ```console
-$ (cd kernel; cargo test --test time)
+$ (cd kernel; cargo test --test 1-hw-1-rtc)
 ...
 Running: `qemu-system-x86_64 -drive format=raw,file=/.../shad-os/target/kernel/debug/deps/bootimage-time-8696ef78d2ec023a.bin -no-reboot -m size=50M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none`
 00:00:00 0 I RTC init; acknowledged_settings = USE_24_HOUR_FORMAT | USE_BINARY_FORMAT | UPDATE_ENDED_INTERRUPT
@@ -435,7 +565,7 @@ panicked at 'the RTC date does not pass the sanity check', kernel/tests/time.rs:
 А после выполнения задачи он должен проходить:
 
 ```console
-$ (cd kernel; cargo test --test time)
+$ (cd kernel; cargo test --test 1-hw-1-rtc)
 ...
 time::rtc_read_inconsistent---------------------------------
 10:25:26 0 D start = 2022-09-17 10:25:26 UTC
@@ -455,6 +585,6 @@ time::rtc_read_inconsistent------------------------ [passed]
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/time/rtc.rs |   32 ++++++++++++++++++++++++++++----
- 1 file changed, 28 insertions(+), 4 deletions(-)
+ kernel/src/time/rtc.rs |   65 ++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 59 insertions(+), 6 deletions(-)
 ```
