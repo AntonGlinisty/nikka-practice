@@ -4,72 +4,80 @@ use crate::time::{
 };
 
 use super::{
+    PIC_BASE,
     TRAP_STATS,
     TrapContext,
 };
 
 pub(super) extern "x86-interrupt" fn pit(_context: TrapContext) {
-    TRAP_STATS[super::PIT].inc();
     Pit::interrupt();
+    generic_pic_interrupt(super::PIT);
 }
 
 pub(super) extern "x86-interrupt" fn keyboard(_context: TrapContext) {
-    TRAP_STATS[super::KEYBOARD].inc();
+    generic_pic_interrupt(super::KEYBOARD);
 }
 
 pub(super) extern "x86-interrupt" fn cascade(_context: TrapContext) {
-    TRAP_STATS[super::CASCADE].inc();
+    generic_pic_interrupt(super::CASCADE);
 }
 
 pub(super) extern "x86-interrupt" fn com2(_context: TrapContext) {
-    TRAP_STATS[super::COM2].inc();
+    generic_pic_interrupt(super::COM2);
 }
 
 pub(super) extern "x86-interrupt" fn com1(_context: TrapContext) {
-    TRAP_STATS[super::COM1].inc();
+    generic_pic_interrupt(super::COM1);
 }
 
 pub(super) extern "x86-interrupt" fn lpt2(_context: TrapContext) {
-    TRAP_STATS[super::LPT2].inc();
+    generic_pic_interrupt(super::LPT2);
 }
 
 pub(super) extern "x86-interrupt" fn floppy_disk(_context: TrapContext) {
-    TRAP_STATS[super::FLOPPY_DISK].inc();
+    generic_pic_interrupt(super::FLOPPY_DISK);
 }
 
 pub(super) extern "x86-interrupt" fn lpt1(_context: TrapContext) {
-    TRAP_STATS[super::LPT1].inc();
+    generic_pic_interrupt(super::LPT1);
 }
 
 pub(super) extern "x86-interrupt" fn rtc(_context: TrapContext) {
-    TRAP_STATS[super::RTC].inc();
     rtc::interrupt();
+    generic_pic_interrupt(super::RTC);
 }
 
 pub(super) extern "x86-interrupt" fn free_29(_context: TrapContext) {
-    TRAP_STATS[super::FREE_29].inc();
+    generic_pic_interrupt(super::FREE_29);
 }
 
 pub(super) extern "x86-interrupt" fn free_2a(_context: TrapContext) {
-    TRAP_STATS[super::FREE_2A].inc();
+    generic_pic_interrupt(super::FREE_2A);
 }
 
 pub(super) extern "x86-interrupt" fn free_2b(_context: TrapContext) {
-    TRAP_STATS[super::FREE_2B].inc();
+    generic_pic_interrupt(super::FREE_2B);
 }
 
 pub(super) extern "x86-interrupt" fn ps2_mouse(_context: TrapContext) {
-    TRAP_STATS[super::PS2_MOUSE].inc();
+    generic_pic_interrupt(super::PS2_MOUSE);
 }
 
 pub(super) extern "x86-interrupt" fn coprocessor(_context: TrapContext) {
-    TRAP_STATS[super::COPROCESSOR].inc();
+    generic_pic_interrupt(super::COPROCESSOR);
 }
 
 pub(super) extern "x86-interrupt" fn ata0(_context: TrapContext) {
-    TRAP_STATS[super::ATA0].inc();
+    generic_pic_interrupt(super::ATA0);
 }
 
 pub(super) extern "x86-interrupt" fn ata1(_context: TrapContext) {
-    TRAP_STATS[super::ATA1].inc();
+    generic_pic_interrupt(super::ATA1);
+}
+
+fn generic_pic_interrupt(number: usize) {
+    TRAP_STATS[number].inc();
+    unsafe {
+        pic8259::end_of_interrupt(number - PIC_BASE);
+    }
 }

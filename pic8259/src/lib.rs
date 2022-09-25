@@ -12,9 +12,7 @@ const INTERRUPT_LINE_COUNT: u8 = 8;
 pub const PIC_INTERRUPT_COUNT: u8 = INTERRUPT_LINE_COUNT * 2;
 
 pub unsafe fn init(first_interrupt_index: u8) {
-    const PIC0_COMMAND: u16 = 0x20;
     const PIC0_DATA: u16 = PIC0_COMMAND + 1;
-    const PIC1_COMMAND: u16 = 0xA0;
     const PIC1_DATA: u16 = PIC1_COMMAND + 1;
 
     const ICW1_USE_ICW4: u8 = 0b_1 << 0;
@@ -67,3 +65,16 @@ pub unsafe fn init(first_interrupt_index: u8) {
     io::outb(PIC0_DATA, OCW1);
     io::outb(PIC1_DATA, OCW1);
 }
+
+pub unsafe fn end_of_interrupt(pic_interrupt_number: usize) {
+    const EOI: u8 = 0x20;
+
+    if pic_interrupt_number >= 8 {
+        io::outb(PIC1_COMMAND, EOI);
+    }
+
+    io::outb(PIC0_COMMAND, EOI);
+}
+
+const PIC0_COMMAND: u16 = 0x20;
+const PIC1_COMMAND: u16 = 0xA0;
