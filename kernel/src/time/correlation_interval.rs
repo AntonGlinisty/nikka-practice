@@ -1,3 +1,4 @@
+#![allow(rustdoc::private_intra_doc_links)]
 #![forbid(unsafe_code)]
 
 use chrono::{
@@ -75,6 +76,8 @@ impl<const TICKS_PER_SECOND: i64> CorrelationInterval<TICKS_PER_SECOND> {
         NaiveDateTime::from_timestamp(self.prev.count() / TICKS_PER_SECOND, 0) // TODO: remove before flight.
     }
 
+    /// Возвращает частоту процессора с точки зрения часов,
+    /// которые отслеживает этот [`CorrelationInterval`].
     fn tsc_per_second(&self) -> i64 {
         let elapsed_count = self.elapsed_count();
         if elapsed_count > 0 {
@@ -84,6 +87,8 @@ impl<const TICKS_PER_SECOND: i64> CorrelationInterval<TICKS_PER_SECOND> {
         }
     }
 
+    /// Возвращает количество тиков отслеживаемых часов между точками
+    /// [`CorrelationInterval::base`] и [`CorrelationInterval::prev`].
     fn elapsed_count(&self) -> i64 {
         if self.base.is_valid() && self.prev.is_valid() {
             self.prev.count() - self.base.count()
@@ -92,6 +97,8 @@ impl<const TICKS_PER_SECOND: i64> CorrelationInterval<TICKS_PER_SECOND> {
         }
     }
 
+    /// Возвращает количество тактов процессора между точками
+    /// [`CorrelationInterval::base`] и [`CorrelationInterval::prev`].
     fn elapsed_tsc(&self) -> i64 {
         assert!(self.base.is_valid());
         assert!(self.prev.is_valid());
@@ -100,15 +107,20 @@ impl<const TICKS_PER_SECOND: i64> CorrelationInterval<TICKS_PER_SECOND> {
     }
 }
 
-#[allow(rustdoc::private_intra_doc_links)]
 /// Конкурентное хранилище в памяти для [`CorrelationInterval`].
 #[derive(Debug, Default)]
 pub struct AtomicCorrelationInterval<const TICKS_PER_SECOND: i64> {
+    /// Значение [`AtomicCorrelationPoint`] в некоторый базовый момент времени,
+    /// когда тикнули отслеживаемые [`AtomicCorrelationInterval`] часы.
     base: AtomicCorrelationPoint,
+
+    /// Значение [`AtomicCorrelationPoint`] на момент последнего тика отслеживаемых часов.
     prev: AtomicCorrelationPoint,
 }
 
 impl<const TICKS_PER_SECOND: i64> AtomicCorrelationInterval<TICKS_PER_SECOND> {
+    /// Возвращает [`AtomicCorrelationInterval`], заполненную нулями.
+    /// Аналогична [`AtomicCorrelationInterval::default()`], но доступна в константном контексте.
     pub const fn new() -> Self {
         Self {
             base: AtomicCorrelationPoint::new(),
@@ -116,6 +128,7 @@ impl<const TICKS_PER_SECOND: i64> AtomicCorrelationInterval<TICKS_PER_SECOND> {
         }
     }
 
+    /// Читает значение [`CorrelationInterval`] из структуры [`AtomicCorrelationInterval`].
     pub fn load(&self) -> CorrelationInterval<TICKS_PER_SECOND> {
         CorrelationInterval {
             base: self.base.load(),
@@ -123,6 +136,8 @@ impl<const TICKS_PER_SECOND: i64> AtomicCorrelationInterval<TICKS_PER_SECOND> {
         }
     }
 
+    /// Инициализирует [`AtomicCorrelationInterval::base`] значением `base`,
+    /// если оно ещё не инициализировано.
     pub fn init_base(
         &self,
         base: CorrelationPoint,
@@ -132,6 +147,7 @@ impl<const TICKS_PER_SECOND: i64> AtomicCorrelationInterval<TICKS_PER_SECOND> {
         }
     }
 
+    /// Сохраняет `prev` в значение [`AtomicCorrelationInterval::prev`].
     pub fn store_prev(
         &self,
         prev: CorrelationPoint,
@@ -139,6 +155,8 @@ impl<const TICKS_PER_SECOND: i64> AtomicCorrelationInterval<TICKS_PER_SECOND> {
         self.prev.store(prev);
     }
 
+    /// Инкрементирует значение [`AtomicCorrelationInterval::prev`] и
+    /// привязывает его к тику `tsc` процессора.
     pub fn inc_prev(
         &self,
         tsc: i64,

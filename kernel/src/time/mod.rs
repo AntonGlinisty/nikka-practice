@@ -1,3 +1,6 @@
+#![warn(clippy::missing_docs_in_private_items)]
+#![warn(missing_docs)]
+
 /// Драйвер устаревшего таймера [Intel 8253/8254](https://en.wikipedia.org/wiki/Intel_8253) ([programmable interval timer, PIT](https://en.wikipedia.org/wiki/Programmable_interval_timer)). Не представляет большого интереса, так как [мы настроим](../../../lab/book/4-process-1-local-apic.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-1--%D0%B8%D0%BD%D0%B8%D1%86%D0%B8%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D1%8B-%D1%81-localapic) более современный [таймер в APIC](https://en.wikipedia.org/wiki/Advanced_Programmable_Interrupt_Controller#APIC_timer).
 mod pit8254;
 
@@ -18,6 +21,9 @@ use crate::log::info;
 
 pub use pit8254::Pit;
 
+/// Инициализирует
+/// таймер [Intel 8253/8254](https://en.wikipedia.org/wiki/Intel_8253) ([`pit8254`]) и
+/// [часы реального времени](https://en.wikipedia.org/wiki/Real-time_clock) ([`rtc`]).
 pub(super) fn init() {
     pit8254::init();
     rtc::init();

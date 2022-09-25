@@ -50,28 +50,36 @@ pub struct Tsc(i64);
 pub struct TscDuration(i64);
 
 impl Tsc {
+    /// Возвращает [`Tsc`] с номером текущего такта процессора.
     #[inline(always)]
     pub fn now() -> Self {
         Self(tsc())
     }
 
+    /// Возвращает [`TscDuration`] с количеством тактов процессора,
+    /// которое прошло от `self` до текущего момента.
     #[inline(always)]
     pub fn elapsed(&self) -> TscDuration {
         TscDuration(tsc() - self.0)
     }
 
+    /// Возвращает [`TscDuration`] с количеством тактов процессора,
+    /// которое прошло от `self` до текущего момента.
+    /// И записывает в `self` новый текущий номер такта процессора.
     #[inline(always)]
     pub fn lap(&mut self) -> TscDuration {
         let lap_end = tsc();
         TscDuration(lap_end - mem::replace(&mut self.0, lap_end))
     }
 
+    /// Возвращает номер такта процессора, записанный в [`Tsc`].
     pub(super) fn get(&self) -> i64 {
         self.0
     }
 }
 
 impl TscDuration {
+    /// Возвращает количество тактов процессора из [`TscDuration`] в виде [`f64`].
     pub fn into_f64(self) -> f64 {
         let tsc: u64 = self.0.try_into().expect("duration should not be negative");
         cast::cast(tsc).expect(U64_AS_F64_SHOULD_NOT_FAIL)
@@ -130,6 +138,12 @@ pub fn tsc() -> i64 {
     }
 }
 
+/// Переводит дробное значение `value` в более удобную для человека форму.
+///
+/// Возвращает отмасштабированное значение и суффикс масштаба:
+/// - [`m` --- милли-](https://en.wikipedia.org/wiki/Milli-),
+/// - [`u` --- микро-](https://en.wikipedia.org/wiki/Micro-) или
+/// - [`n` --- нано-](https://en.wikipedia.org/wiki/Nano-).
 fn fractional_prefix(value: f64) -> (f64, &'static str) {
     // Alas, `number_prefix` does not support fractional prefixes.
     iter::successors(Some(value), |x| Some(x * 1000.0))
@@ -138,6 +152,7 @@ fn fractional_prefix(value: f64) -> (f64, &'static str) {
         .unwrap()
 }
 
+/// Сообщение об ошибке при переводе [`u64`] в [`f64`], которая не должна возникать.
 const U64_AS_F64_SHOULD_NOT_FAIL: &str =
     "a cast from u64 to f64 can loose precision but should not fail";
 

@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use core::{
     hint,
     sync::atomic::{
@@ -19,6 +21,7 @@ pub struct CorrelationPoint {
 }
 
 impl CorrelationPoint {
+    /// Возвращает [`CorrelationPoint`], который соответствует тику `count`, и привязан к такту `tsc` процессора.
     fn new(
         count: i64,
         tsc: i64,
@@ -29,26 +32,34 @@ impl CorrelationPoint {
         Self { count, tsc }
     }
 
-    /// Возвращает [`CorrelationPoint`], который соответствует тику `count`, но не привязан ни к какому такту процессора.
+    /// Возвращает [`CorrelationPoint`], который соответствует тику `count`,
+    /// но не привязан ни к какому такту процессора.
     ///
-    /// Используется, когда значение структуры относится не к самому тику `count`, а к промежутку после него.
-    /// И может быть использовано как текущее время с низким разрешением --- частотой соответствующих часов.
+    /// Используется, когда значение структуры относится не к самому тику `count`,
+    /// а к промежутку после него.
+    /// И может быть использовано как текущее время с низким разрешением ---
+    /// частотой соответствующих часов.
     pub fn invalid(count: i64) -> Self {
         Self::new(count, 0)
     }
 
+    /// Возвращает [`CorrelationPoint`], который соответствует тику `count` и
+    /// привязан к текущему такту процессора.
     pub fn now(count: i64) -> Self {
         Self::new(count, tsc::tsc())
     }
 
+    /// Возвращает `true`, если `self` привязан к какому-нибудь такту процессора.
     pub fn is_valid(&self) -> bool {
         self.tsc != 0
     }
 
+    /// Значение счётчика тиков источника времени.
     pub fn count(&self) -> i64 {
         self.count
     }
 
+    /// Значение счётчика тактов процессора.
     pub fn tsc(&self) -> i64 {
         self.tsc
     }
@@ -61,7 +72,9 @@ impl CorrelationPoint {
 /// - в обработчике прерывания обновлять счётчики [`AtomicCorrelationPoint`];
 /// - а в обычном коде читать эти счётчики, чтобы "посмотреть на часы".
 ///
-/// Реализует [неблокирующую синхронизацию](https://en.wikipedia.org/wiki/Non-blocking_algorithm) для согласованного доступа к полям [`AtomicCorrelationPoint`], используя упрощённый [sequence lock](https://en.wikipedia.org/wiki/Seqlock).
+/// Реализует [неблокирующую синхронизацию](https://en.wikipedia.org/wiki/Non-blocking_algorithm)
+/// для согласованного доступа к полям [`AtomicCorrelationPoint`].
+/// Использует упрощённый [sequence lock](https://en.wikipedia.org/wiki/Seqlock).
 ///
 /// См. также:
 /// - [Writing a seqlock in Rust.](https://pitdicker.github.io/Writing-a-seqlock-in-Rust/)
@@ -88,6 +101,8 @@ pub struct AtomicCorrelationPoint {
 }
 
 impl AtomicCorrelationPoint {
+    /// Возвращает [`AtomicCorrelationPoint`], заполненную нулями.
+    /// Аналогична [`AtomicCorrelationPoint::default()`], но доступна в константном контексте.
     pub const fn new() -> Self {
         Self {
             count: AtomicI64::new(0),
@@ -96,6 +111,7 @@ impl AtomicCorrelationPoint {
         }
     }
 
+    /// Возвращает `true`, если `self` привязан к какому-нибудь такту процессора.
     pub fn is_valid(&self) -> bool {
         self.tsc.load(Ordering::Relaxed) != 0
     }

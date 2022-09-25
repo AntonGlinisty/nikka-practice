@@ -50,7 +50,7 @@ pub(crate) fn interrupt() {
 /// запрещает все [прерывания](https://en.wikipedia.org/wiki/Interrupt),
 /// в том числе [немаскируемые](https://en.wikipedia.org/wiki/Non-maskable_interrupt).
 /// Иначе она может остаться в
-/// [некоррекном состоянии](https://wiki.osdev.org/RTC#Avoiding_NMI_and_Other_Interrupts_While_Programming).
+/// [некорректном состоянии](https://wiki.osdev.org/RTC#Avoiding_NMI_and_Other_Interrupts_While_Programming).
 pub(super) fn init() {
     let mut old_settings = RegisterB::empty();
     let mut new_settings = RegisterB::empty();
@@ -160,7 +160,10 @@ bitflags! {
     }
 }
 
-/// Структура для хранения даты и времени, прочитанных из микросхемы [часов реального времени (Real-time clock, RTC)](https://en.wikipedia.org/wiki/Real-time_clock).
+/// Структура для хранения даты
+/// (по [григорианскому календарю](https://en.wikipedia.org/wiki/Gregorian_calendar))
+/// и времени, прочитанных из микросхемы
+/// [часов реального времени (Real-time clock, RTC)](https://en.wikipedia.org/wiki/Real-time_clock).
 #[derive(Clone, Copy, Default, Display, Eq, PartialEq)]
 #[display(
     fmt = "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
@@ -172,11 +175,22 @@ bitflags! {
     second
 )]
 struct Date {
+    /// Год по [григорианскому календарю](https://en.wikipedia.org/wiki/Gregorian_calendar).
     year: u16,
+
+    /// Месяц по [григорианскому календарю](https://en.wikipedia.org/wiki/Gregorian_calendar).
     month: u8,
+
+    /// День месяца по [григорианскому календарю](https://en.wikipedia.org/wiki/Gregorian_calendar).
     day: u8,
+
+    /// Час.
     hour: u8,
+
+    /// Минута.
     minute: u8,
+
+    /// Секунда.
     second: u8,
 }
 
