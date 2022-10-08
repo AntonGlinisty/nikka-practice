@@ -99,6 +99,7 @@ const NSECS_PER_SEC: i64 = 1_000_000_000;
 #[doc(hidden)]
 pub mod test_scaffolding {
     pub use super::{
+        correlation_interval::test_scaffolding::*,
         correlation_point::test_scaffolding::*,
         tsc::test_scaffolding::*,
     };

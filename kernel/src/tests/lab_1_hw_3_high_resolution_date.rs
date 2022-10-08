@@ -7,10 +7,17 @@ use chrono::{
 };
 use x86_64::instructions;
 
-use ku::time::{
+use ku::{
     self,
-    pit8254::TICKS_PER_SECOND,
-    test_scaffolding::forge_tsc,
+    time::{
+        self,
+        pit8254::TICKS_PER_SECOND,
+        test_scaffolding::{
+            datetime_with_resolution,
+            forge_tsc,
+            new_correlation_interval,
+        },
+    },
 };
 
 use kernel::{
@@ -58,6 +65,56 @@ fn points_beyond_interval() {
         assert!(left < right);
         assert!(difference > Duration::milliseconds(100));
         assert!(difference < Duration::seconds(30));
+    }
+}
+
+#[test_case]
+fn stress() {
+    stress::<1, 1_000_000>(2_000, 4_000, 3, 7);
+    stress::<1, 1_000_000>(2_000, 100, 1, 1);
+
+    fn stress<const TICKS_PER_SECOND: i64, const PARTS_PER_SECOND: i64>(
+        tsc_per_tick: i64,
+        tsc_end: i64,
+        base_tsc_step: usize,
+        tsc_step: usize,
+    ) {
+        let max_delta = Duration::seconds(30);
+        let min_delta = Duration::microseconds(100);
+
+        for base_tsc in (1 .. tsc_end).step_by(base_tsc_step) {
+            let correlation_interval =
+                new_correlation_interval::<TICKS_PER_SECOND>(base_tsc, base_tsc + tsc_per_tick);
+
+            let point_0 = datetime_with_resolution::<PARTS_PER_SECOND, TICKS_PER_SECOND>(
+                &correlation_interval,
+                forge_tsc(0),
+            );
+
+            for tsc in (-tsc_end .. tsc_end).step_by(tsc_step) {
+                if tsc == 0 {
+                    continue;
+                }
+
+                let point_tsc = datetime_with_resolution::<PARTS_PER_SECOND, TICKS_PER_SECOND>(
+                    &correlation_interval,
+                    forge_tsc(tsc),
+                );
+
+                let delta = if tsc < 0 {
+                    point_0 - point_tsc
+                } else {
+                    point_tsc - point_0
+                };
+
+                if delta < min_delta || max_delta < delta {
+                    let message =
+                        "delta between tsc = point_tsc and Tsc(0) = point_0 is out of bounds";
+                    debug!(%tsc, %point_tsc, %point_0, %delta, %min_delta, %max_delta, message);
+                    panic!("{}", message);
+                }
+            }
+        }
     }
 }
 

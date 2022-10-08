@@ -170,3 +170,33 @@ impl<const TICKS_PER_SECOND: i64> AtomicCorrelationInterval<TICKS_PER_SECOND> {
         self.load().tsc_per_second().try_into().ok().and_then(Hz::new)
     }
 }
+
+#[doc(hidden)]
+pub mod test_scaffolding {
+    use chrono::NaiveDateTime;
+
+    use super::{
+        super::{
+            Tsc,
+            correlation_point::test_scaffolding::new_point,
+        },
+        CorrelationInterval,
+    };
+
+    pub fn new_correlation_interval<const TICKS_PER_SECOND: i64>(
+        base_tsc: i64,
+        prev_tsc: i64,
+    ) -> CorrelationInterval<TICKS_PER_SECOND> {
+        CorrelationInterval {
+            base: new_point(0, base_tsc),
+            prev: new_point(1, prev_tsc),
+        }
+    }
+
+    pub fn datetime_with_resolution<const PARTS_PER_SECOND: i64, const TICKS_PER_SECOND: i64>(
+        correlation_interval: &CorrelationInterval<TICKS_PER_SECOND>,
+        tsc: Tsc,
+    ) -> NaiveDateTime {
+        correlation_interval.datetime_with_resolution::<PARTS_PER_SECOND>(tsc)
+    }
+}
