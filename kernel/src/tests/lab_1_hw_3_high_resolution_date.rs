@@ -9,13 +9,13 @@ use x86_64::instructions;
 
 use ku::time::{
     self,
+    pit8254::TICKS_PER_SECOND,
     test_scaffolding::forge_tsc,
 };
 
 use kernel::{
     Subsystems,
     log::debug,
-    time::test_scaffolding::TICKS_PER_SECOND,
     trap::{
         PIT,
         RTC,

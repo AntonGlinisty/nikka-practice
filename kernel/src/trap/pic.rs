@@ -1,5 +1,5 @@
 use crate::time::{
-    Pit,
+    pit8254,
     rtc,
 };
 
@@ -10,7 +10,7 @@ use super::{
 };
 
 pub(super) extern "x86-interrupt" fn pit(_context: TrapContext) {
-    Pit::interrupt();
+    pit8254::interrupt();
     generic_pic_interrupt(super::PIT);
 }
 

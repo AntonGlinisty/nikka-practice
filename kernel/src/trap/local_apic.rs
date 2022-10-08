@@ -4,13 +4,17 @@ use core::{
 };
 
 use bitflags::bitflags;
+use chrono::Duration;
 use static_assertions::const_assert;
+
+use ku::time;
 
 use crate::{
     error::{
         Error::InvalidArgument,
         Result,
     },
+    log::error,
     memory::{
         BASE_ADDRESS_SPACE,
         Frame,
@@ -44,7 +48,9 @@ pub(crate) struct LocalApic {
     eoi: Register,
     _2: [Register; 3],
     spurious: Register,
-    _3: [Register; 32],
+    _3: [Register; 23],
+    error_status_register: Register,
+    _4: [Register; 8],
     interrupt_command_lo: Register,
     interrupt_command_hi: Register,
     lvt_timer: Register,
@@ -55,9 +61,9 @@ pub(crate) struct LocalApic {
     lvt_error: Register,
     timer_initial_count: Register,
     timer_current_count: Register,
-    _4: [Register; 4],
+    _5: [Register; 4],
     timer_divide_configuration: Register,
-    _5: [Register; 1],
+    _6: [Register; 1],
 }
 
 const_assert!(mem::size_of::<LocalApic>() == Page::SIZE);
@@ -71,7 +77,9 @@ impl LocalApic {
             eoi: Register::zero(),
             _2: [Register::zero(); 3],
             spurious: Register::zero(),
-            _3: [Register::zero(); 32],
+            _3: [Register::zero(); 23],
+            error_status_register: Register::zero(),
+            _4: [Register::zero(); 8],
             interrupt_command_lo: Register::zero(),
             interrupt_command_hi: Register::zero(),
             lvt_timer: Register::zero(),
@@ -82,9 +90,9 @@ impl LocalApic {
             lvt_error: Register::zero(),
             timer_initial_count: Register::zero(),
             timer_current_count: Register::zero(),
-            _4: [Register::zero(); 4],
+            _5: [Register::zero(); 4],
             timer_divide_configuration: Register::zero(),
-            _5: [Register::zero(); 1],
+            _6: [Register::zero(); 1],
         }
     }
 
@@ -135,10 +143,17 @@ impl LocalApic {
         let local_apic = Self::get();
 
         let init_data = InterruptCommand::INIT | InterruptCommand::TRIGGER_MODE_LEVEL;
-        local_apic.send_ipi(id, (init_data | InterruptCommand::LEVEL_ASSERT).bits());
-        local_apic.send_ipi(id, (init_data | InterruptCommand::LEVEL_DEASSERT).bits());
 
-        local_apic.send_ipi(id, InterruptCommand::START_UP.bits() | boot_page);
+        local_apic.send_ipi(id, (init_data | InterruptCommand::LEVEL_ASSERT).bits());
+        time::delay(Duration::microseconds(200));
+
+        local_apic.send_ipi(id, (init_data | InterruptCommand::LEVEL_DEASSERT).bits());
+        time::delay(Duration::microseconds(200));
+
+        for _ in 0 .. 2 {
+            local_apic.send_ipi(id, InterruptCommand::START_UP.bits() | boot_page);
+            time::delay(Duration::microseconds(200));
+        }
 
         Ok(())
     }
@@ -154,6 +169,11 @@ impl LocalApic {
 
         while (self.interrupt_command_lo.get() & InterruptCommand::SEND_PENDING.bits()) != 0 {
             hint::spin_loop();
+        }
+
+        let error = self.error_status_register.get();
+        if error != 0 {
+            error!(cpu = id, data, error, "error sending IPI");
         }
     }
 

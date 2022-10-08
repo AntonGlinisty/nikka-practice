@@ -22,7 +22,8 @@ use super::{
     process::Pid,
     time::{
         AtomicCorrelationInterval,
-        rtc::TICKS_PER_SECOND,
+        pit8254,
+        rtc,
     },
 };
 
@@ -114,11 +115,14 @@ impl ProcessInfo {
 #[derive(Debug, Default)]
 #[repr(C, align(4096))]
 pub struct SystemInfo {
+    /// Счётчик тиков PIT.
+    pit: AtomicCorrelationInterval<{ pit8254::TICKS_PER_SECOND as i64 }>,
+
     /// Показания [часов реального времени](https://en.wikipedia.org/wiki/Real-time_clock)
     /// (Real-time clock, RTC).
     /// Позволяют в пространстве пользователя узнать текущее время
     /// с помощью функций модуля [`ku::time`].
-    rtc: AtomicCorrelationInterval<TICKS_PER_SECOND>,
+    rtc: AtomicCorrelationInterval<{ rtc::TICKS_PER_SECOND }>,
 }
 
 const_assert!(mem::align_of::<SystemInfo>() == Page::SIZE);
@@ -128,15 +132,21 @@ impl SystemInfo {
     /// Инициализирует [`SystemInfo`].
     pub const fn new() -> Self {
         Self {
+            pit: AtomicCorrelationInterval::new(),
             rtc: AtomicCorrelationInterval::new(),
         }
+    }
+
+    /// Счётчик тиков PIT.
+    pub fn pit(&self) -> &AtomicCorrelationInterval<{ pit8254::TICKS_PER_SECOND as i64 }> {
+        &self.pit
     }
 
     /// Показания [часов реального времени](https://en.wikipedia.org/wiki/Real-time_clock)
     /// (Real-time clock, RTC).
     /// Позволяют в пространстве пользователя узнать текущее время
     /// с помощью функций модуля [`ku::time`].
-    pub fn rtc(&self) -> &AtomicCorrelationInterval<TICKS_PER_SECOND> {
+    pub fn rtc(&self) -> &AtomicCorrelationInterval<{ rtc::TICKS_PER_SECOND }> {
         &self.rtc
     }
 }

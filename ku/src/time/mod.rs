@@ -10,16 +10,23 @@ mod correlation_point;
 /// Вспомогательная структура [`Hz`] для форматирования [частоты](https://en.wikipedia.org/wiki/Hertz) при журналировании.
 mod hz;
 
+/// Константы для драйвера устаревшего таймера [Intel 8253/8254](https://en.wikipedia.org/wiki/Intel_8253) ([programmable interval timer, PIT](https://en.wikipedia.org/wiki/Programmable_interval_timer)).
+pub mod pit8254;
+
 /// [Синглтон](https://en.wikipedia.org/wiki/Singleton_pattern) [`Rtc`], позволяющий узнать показания часов реального времени как из ядра, так и из [пространства пользователя](https://en.wikipedia.org/wiki/User_space_and_kernel_space).
 pub mod rtc;
 
 /// Структура [`Tsc`] для хранения показаний счётчика тактов процессора, который является одним из источников времени в компьютере. А также структура [`TscDuration`] для хранения интервалов времени в тактах процессора.
 mod tsc;
 
+use core::hint;
+
 use chrono::{
     DateTime,
+    Duration,
     Utc,
 };
+use x86_64::instructions;
 
 pub use correlation_interval::AtomicCorrelationInterval;
 pub use correlation_point::CorrelationPoint;
@@ -63,6 +70,24 @@ pub fn now_ms() -> DateTime<Utc> {
 #[inline(always)]
 pub fn timer() -> Tsc {
     Tsc::now()
+}
+
+/// Спин--задержка на заданный `duration`.
+pub fn delay(duration: Duration) {
+    let start = timer();
+
+    let mut tsc_duration = TscDuration::try_from(duration);
+
+    while tsc_duration.is_err() {
+        instructions::hlt();
+        tsc_duration = TscDuration::try_from(duration);
+    }
+
+    let tsc_duration = tsc_duration.unwrap();
+
+    while start.elapsed() < tsc_duration {
+        hint::spin_loop();
+    }
 }
 
 /// Количество миллисекунд в одной секунде.

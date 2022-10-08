@@ -24,7 +24,10 @@ use bootloader::{
     entry_point,
 };
 
-use ku::time::rtc::Rtc;
+use ku::time::{
+    pit8254::Pit,
+    rtc::Rtc,
+};
 use text::{
     Attribute,
     println,
@@ -36,7 +39,6 @@ use kernel::{
     Subsystems,
     log::debug,
     time,
-    time::Pit,
     trap::{
         RTC,
         TRAP_STATS,

@@ -55,6 +55,7 @@ pub use time::{
     Hz,
     Tsc,
     TscDuration,
+    delay,
     now,
     now_ms,
     timer,

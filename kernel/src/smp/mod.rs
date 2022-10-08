@@ -3,7 +3,10 @@ mod ap_init;
 mod cpu;
 mod local_apic;
 
-use core::mem;
+use core::{
+    cmp,
+    mem,
+};
 
 use bootloader::BootInfo;
 
@@ -62,7 +65,11 @@ fn init_smp(phys2virt: Page) -> Result<()> {
         return Err(Unimplemented);
     }
 
-    let cpu_count = 1 + acpi.ap_ids().len();
+    let max_cpu_id = cmp::max(
+        bootstrap_processor,
+        *acpi.ap_ids().iter().max().unwrap_or(&bootstrap_processor),
+    );
+    let cpu_count = usize::from(max_cpu_id) + 1;
     info!(cpu = current_cpu, cpu_count, %local_apic_address, "Local APIC init");
 
     let mut cpus = cpu::init(cpu_count, current_cpu)?;
@@ -70,8 +77,7 @@ fn init_smp(phys2virt: Page) -> Result<()> {
     info!(cpu = current_cpu, "Bootstrap Processor");
 
     for id in acpi.ap_ids() {
-        ap_init::boot_ap(phys2virt, &mut cpus[usize::from(*id)])
-            .unwrap_or_else(|_| panic!("failed to boot the Application Processor #{}", id));
+        ap_init::boot_ap(phys2virt, &mut cpus[usize::from(*id)])?;
     }
 
     // Intentionally leak Cpu stuctures as they should be 'static.

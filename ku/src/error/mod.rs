@@ -13,6 +13,8 @@ pub enum Error {
     Int(TryFromIntError),
     InvalidAlignment,
     InvalidArgument,
+    LocalApic,
+    NoData,
     NoFrame,
     NoPage,
     NoProcess,
@@ -22,6 +24,7 @@ pub enum Error {
     PermissionDenied,
     Pipe(pipe::Error),
     Postcard(postcard::Error),
+    Timeout,
     Unimplemented,
 }
 

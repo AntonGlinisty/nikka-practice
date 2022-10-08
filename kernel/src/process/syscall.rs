@@ -109,6 +109,8 @@ impl<T> From<Result<T>> for ResultCode {
                 Error::Pipe(_) => ResultCode::UNEXPECTED,
                 Error::Unimplemented => ResultCode::UNIMPLEMENTED,
                 Error::InvalidAlignment => ResultCode::INVALID_ALIGNMENT,
+
+                _ => ResultCode::UNEXPECTED,
             },
         }
     }

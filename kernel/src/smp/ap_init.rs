@@ -10,6 +10,7 @@ use core::{
     },
 };
 
+use chrono::Duration;
 use memoffset::offset_of;
 use x86::msr::IA32_EFER;
 use x86_64::{
@@ -25,9 +26,13 @@ use x86_64::{
 };
 
 use crate::{
-    error::Result,
+    error::{
+        Error::Timeout,
+        Result,
+    },
     log::{
         debug,
+        error,
         info,
     },
     memory::{
@@ -65,9 +70,14 @@ pub(super) fn boot_ap(
     let boot_code = prepare_boot_code(phys2virt, cpu, &initialized)?;
 
     LocalApic::send_init(cpu.id(), boot_code)?;
-    wait_initialized(&initialized);
 
-    info!(cpu = cpu.id(), duration = %timer.elapsed(), "boot Application Processor");
+    let message = "boot Application Processor";
+
+    if let Err(error) = wait_initialized(&initialized, Duration::seconds(1)) {
+        error!(cpu = cpu.id(), duration = %timer.elapsed(), ?error, message);
+    } else {
+        info!(cpu = cpu.id(), duration = %timer.elapsed(), message);
+    }
 
     Ok(())
 }
@@ -352,8 +362,18 @@ fn signal_initialized(initialized: &AtomicBool) {
         .expect("double or concurrent CPU initialization");
 }
 
-fn wait_initialized(initialized: &AtomicBool) {
-    while !initialized.load(Ordering::Acquire) {
+fn wait_initialized(
+    initialized: &AtomicBool,
+    timeout: Duration,
+) -> Result<()> {
+    let start = time::timer();
+
+    while !start.has_passed(timeout) {
+        if initialized.load(Ordering::Acquire) {
+            return Ok(());
+        }
         hint::spin_loop();
     }
+
+    Err(Timeout)
 }

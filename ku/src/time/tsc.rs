@@ -1,15 +1,11 @@
 use core::{
     arch::x86_64,
-    fmt::{
-        Debug,
-        Display,
-        Formatter,
-        Result,
-    },
+    fmt,
     iter,
     mem,
 };
 
+use chrono::Duration;
 use itertools::Itertools;
 use num_traits::cast;
 // FloatCore is used for a substitute of `f64::abs()`. `f64::abs()` is declared in `std` whilst this is a `#[no_std]` library.
@@ -23,7 +19,21 @@ use serde::{
     Serialize,
 };
 
-use super::rtc::Rtc;
+use crate::error::{
+    Error,
+    Error::{
+        NoData,
+        Overflow,
+    },
+    Result,
+};
+
+use super::{
+    MSECS_PER_SEC,
+    NSECS_PER_SEC,
+    pit8254::Pit,
+    rtc::Rtc,
+};
 
 /// Описывает момент времени, храня значение счётчика тактов процессора.
 ///
@@ -38,7 +48,7 @@ use super::rtc::Rtc;
 /// [`Tsc`] задаёт корректно определенную и монотонно возрастающую точку во времени только на текущем компьютере и только до его перезапуска.
 /// Её бессмысленно сохранять в персистентном хранилище вроде файла или посылать по сети.
 /// Типажи [`Serialize`] и [`Deserialize`] используются только для передачи [`Tsc`] между ядром и пространством пользователя.
-#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Tsc(i64);
 
 /// Описывает интервал между двумя моментами времени [`Tsc`].
@@ -46,7 +56,7 @@ pub struct Tsc(i64);
 /// Наивно предполагает, что используемый ею счётчик тактов процессора как минимум инвариантен и согласован между процессорами.
 /// Похожа на стандартную, но недоступную нам в `#[no_std]`--окружении структуру
 /// [`std::time::Duration`](https://doc.rust-lang.org/std/time/struct.Duration.html).
-#[derive(Clone, Copy, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TscDuration(i64);
 
 impl Tsc {
@@ -72,6 +82,18 @@ impl Tsc {
         TscDuration(lap_end - mem::replace(&mut self.0, lap_end))
     }
 
+    /// Возвращает `true` если одновременно:
+    /// - [`TscDuration`] уже можно преобразовать в [`Duration`].
+    /// То есть, если прошло как минимум два тика [`Rtc`] или [`Pit`],
+    /// см. [`TscDuration::try_from::<Duration>()`].
+    /// - С момента создания этого [`Tsc`] прошло не менее `duration` времени.
+    pub fn has_passed(
+        &self,
+        duration: Duration,
+    ) -> bool {
+        self.elapsed().try_into().unwrap_or_else(|_| Duration::seconds(0)) >= duration
+    }
+
     /// Возвращает номер такта процессора, записанный в [`Tsc`].
     pub(super) fn get(&self) -> i64 {
         self.0
@@ -86,11 +108,11 @@ impl TscDuration {
     }
 }
 
-impl Debug for TscDuration {
+impl fmt::Debug for TscDuration {
     fn fmt(
         &self,
-        formatter: &mut Formatter,
-    ) -> Result {
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
         match NumberPrefix::decimal(self.into_f64()) {
             NumberPrefix::Standalone(_) => {
                 write!(formatter, "{} tsc", self.0)
@@ -102,12 +124,12 @@ impl Debug for TscDuration {
     }
 }
 
-impl Display for TscDuration {
+impl fmt::Display for TscDuration {
     fn fmt(
         &self,
-        formatter: &mut Formatter,
-    ) -> Result {
-        if let Some(hz) = Rtc::tsc_per_second() {
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
+        if let Some(hz) = Rtc::tsc_per_second().or_else(Pit::tsc_per_second) {
             let hz: f64 = cast::cast(hz.get()).expect(U64_AS_F64_SHOULD_NOT_FAIL);
             let value = self.into_f64() / hz;
 
@@ -121,8 +143,52 @@ impl Display for TscDuration {
                 },
             }
         } else {
-            (self as &dyn Debug).fmt(formatter)
+            (self as &dyn fmt::Debug).fmt(formatter)
         }
+    }
+}
+
+impl TryFrom<Duration> for TscDuration {
+    type Error = Error;
+
+    /// Преобразует [`Duration`] в [`TscDuration`]:
+    /// - С помощью [`Rtc`], если уже прошло два тика [`Rtc`].
+    /// - Иначе, с помощью [`Pit`], если уже прошло два тика [`Pit`].
+    ///
+    /// Возвращает ошибку [`Error::NoData`], если пока ни [`Rtc`] ни [`Pit`] не тикнули дважды.
+    fn try_from(duration: Duration) -> Result<Self> {
+        let hz = Rtc::tsc_per_second().or_else(Pit::tsc_per_second).ok_or(NoData)?;
+        let hz: f64 = cast::cast(hz.get()).expect(U64_AS_F64_SHOULD_NOT_FAIL);
+
+        let tsc: f64 = if let Some(nanoseconds) = duration.num_nanoseconds() {
+            let nanoseconds: f64 = cast::cast(nanoseconds).expect(U64_AS_F64_SHOULD_NOT_FAIL);
+            hz * nanoseconds / cast::cast::<_, f64>(NSECS_PER_SEC).unwrap()
+        } else {
+            let milliseconds = duration.num_milliseconds();
+            let milliseconds: f64 = cast::cast(milliseconds).expect(U64_AS_F64_SHOULD_NOT_FAIL);
+            hz * milliseconds / cast::cast::<_, f64>(MSECS_PER_SEC).unwrap()
+        };
+
+        Ok(TscDuration(tsc as i64))
+    }
+}
+
+impl TryFrom<TscDuration> for Duration {
+    type Error = Error;
+
+    /// Преобразует [`TscDuration`] в [`Duration`]:
+    /// - С помощью [`Rtc`], если уже прошло два тика [`Rtc`].
+    /// - Иначе, с помощью [`Pit`], если уже прошло два тика [`Pit`].
+    ///
+    /// Возвращает ошибку [`Error::NoData`], если пока ни [`Rtc`] ни [`Pit`] не тикнули дважды.
+    fn try_from(tsc_duration: TscDuration) -> Result<Self> {
+        let hz = Rtc::tsc_per_second().or_else(Pit::tsc_per_second).ok_or(NoData)?;
+        let hz = i64::try_from(hz.get())?;
+
+        let seconds = Self::seconds(tsc_duration.0 / hz);
+        let nanoseconds = Self::nanoseconds((tsc_duration.0 % hz) * NSECS_PER_SEC / hz);
+
+        seconds.checked_add(&nanoseconds).ok_or(Overflow)
     }
 }
 
