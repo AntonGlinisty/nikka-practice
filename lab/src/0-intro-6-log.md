@@ -1,6 +1,6 @@
 ## Журналирование и файл журнала
 
-При обычном запуске сообщения журнала записываются в файл `kernel/serial.out`:
+При обычном запуске --- `make run` --- сообщения журнала записываются в файл `kernel/serial.out`:
 
 ```console
 $ make run
@@ -29,6 +29,34 @@ $ head -n20 kernel/serial.out
 15:08:28 0 I acpi = Acpi { local_apic_address: Phys(0pFEE00000), bsp_id: 0, ap_ids: [1, 2, 3] }
 15:08:28 0 I Local APIC init; cpu = 0; cpu_count = 4; local_apic_address = 0pFEE00000
 ```
+
+При запуске тестов --- `make test` или `(cd kernel; cargo test ...)`, ---
+а также при запуске без эмулируемого монитора --- `make nox` или `(cd kernel; cargo run)`, ---
+сообщения журнала пишутся в консоль.
+Для запуска через `cargo` это можно поменять в файле `kernel/Cargo.toml`:
+
+```toml
+[package.metadata.bootimage]
+    # Отвечает за `cargo run`.
+    run-args = [
+        ...
+        # Для перенаправления журнала в файл `kernel/serial.out` поменяйте опцию `-serial`:
+        # "-serial", "file:serial.out",
+        "-serial", "stdio",
+        # Опция `-display none` отключает окно с монитором эмулируемого компьютера.
+        "-display", "none",
+    ]
+
+    # Отвечает за `cargo test ...`.
+    test-args = [
+        ...
+        "-serial", "stdio",
+        "-display", "none",
+    ]
+```
+
+Здесь же можно поменять другие опции эмулятора `qemu`, если это понадобится.
+Для `make ...` это делается в `Makefile`.
 
 Для журналирования используйте макросы `error`, `warn`, `info`, `debug` и `trace` из файла [`kernel/src/log/mod.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/log/mod.rs).
 Это реэкспорты макросов библиотеки [tracing](https://docs.rs/tracing/).

@@ -36,6 +36,7 @@ pic8259 = { path = "../pic8259" }
 text = { path = "../text" }
 
 [package.metadata.bootimage]
+# Отвечает за `cargo run`.
 run-args = [
     "-m",
     "size=128M",
@@ -43,10 +44,16 @@ run-args = [
     "cpus=4",
     "-device",
     "isa-debug-exit,iobase=0xF4,iosize=0x04",
+    # Для перенаправления журнала в файл `kernel/serial.out` поменяйте опцию `-serial`:
+    # "-serial", "file:serial.out",
     "-serial",
-    "file:serial.out",
+    "stdio",
+    # Опция `-display none` отключает окно с монитором эмулируемого компьютера.
+    "-display",
+    "none",
 ]
 
+# Отвечает за `cargo test ...`.
 test-args = [
     "-m",
     "size=128M",
