@@ -135,9 +135,11 @@ impl Visit for LogEvent {
 }
 
 #[allow(unused)]
+#[derive(Eq, PartialEq)]
 enum Format {
     Compact,
     Full,
+    Timeless,
 }
 
 struct Log {
@@ -180,12 +182,15 @@ impl Log {
         level: &Level,
         metadata: LogMetadata,
     ) {
-        let timestamp = datetime_ms(metadata.timestamp());
+        if self.format != Format::Timeless {
+            let timestamp = datetime_ms(metadata.timestamp());
+            print!("{:?} ", timestamp.time());
+        }
+
+        print!(color(Self::CPU), "{} ", LocalApic::id());
 
         match self.format {
-            Format::Compact => {
-                print!("{:?} ", timestamp.time());
-                print!(color(Self::CPU), "{} ", LocalApic::id());
+            Format::Compact | Format::Timeless => {
                 print!(
                     color(Self::level_color(level)),
                     "{} ",
@@ -193,8 +198,6 @@ impl Log {
                 );
             },
             Format::Full => {
-                print!("{:?} ", timestamp);
-                print!(color(Self::CPU), "cpu={} ", LocalApic::id());
                 print!(color(Self::level_color(level)), "{} ", level);
                 print!(
                     color(Self::LOCATION),

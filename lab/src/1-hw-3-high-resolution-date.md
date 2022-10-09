@@ -129,6 +129,119 @@ fn CorrelationInterval::datetime_with_resolution<const PARTS_PER_SECOND: i64>(
 - [Високосные секунды](https://en.wikipedia.org/wiki/Leap_second) не поддерживаем.
 
 
+#### Зависание при журналировании
+
+Если попробовать добавить журналирование в метод
+[`CorrelationInterval::datetime_with_resolution()`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#method.datetime_with_resolution),
+то код зависнет.
+Журналирование само использует
+[`CorrelationInterval::datetime_with_resolution()`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#method.datetime_with_resolution),
+поэтому можно было бы ожидать, что возникнет бесконечная рекурсия:
+- `debug!()` или другой макрос журналирования вызывает `datetime_with_resolution()`.
+- Который вызывает `debug!()` или другой макрос журналирования.
+- Который вызывает `datetime_with_resolution()`.
+- ...
+- В конце-концов произошло бы исчерпание стека и падение ядра по Page Fault.
+
+Бесконечной рекурсии не происходит из-за дополнительной блокировки в журналировании --- поле
+[`kernel::log::LogCollector::log`](../../doc/kernel/log/struct.LogCollector.html#structfield.log)
+имеет тип
+[`spin::Mutex`](../../doc/spin/type.Mutex.html)`<`[`kernel::log::Log`](../../doc/kernel/log/struct.Log.html)`>`.
+Основное предназначение этой блокировки ---
+предотвратить перемешивание кусков сообщений от разных процессоров в системе.
+
+А вот бесконечную рекурсию она переводит во [взаимоблокировку](https://en.wikipedia.org/wiki/Deadlock).
+Когда происходит вызов журналирования, блокировка захватывается.
+С захваченной блокировкой происходит вызов
+[`CorrelationInterval::datetime_with_resolution()`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#method.datetime_with_resolution).
+Если он сам вызывает журналирование, то происходит попытка рекурсивного захвата уже захваченной блокировки.
+Она не поддерживает рекурсивный захват, поэтому происходит
+[взаимоблокировка](https://en.wikipedia.org/wiki/Deadlock),
+которая и проявляется как зависание.
+Факт [взаимоблокировки](https://en.wikipedia.org/wiki/Deadlock),
+какую конкретно блокировку и какая строка кода пытается захватить,
+легко узнать из `(gdb) backtrace`, прервав зависший код из `gdb` комбинацией `<Ctrl-C>`:
+
+```
+...
+0x000000000000fff0 in ?? ()
+(gdb) continue
+Continuing.
+^C
+Thread 1 received signal SIGINT, Interrupt.
+0x00000000002ecd9c in core::sync::atomic::atomic_load<u8> (dst=0x320b40 <kernel::log::LOG_COLLECTOR+8>, order=core::sync::atomic::Ordering::Relaxed) at src/sync/atomic.rs:2960
+2960	        match order {
+(gdb) backtrace
+#0  0x00000000002ecd9c in core::sync::atomic::atomic_load<u8> (dst=0x320b40 <kernel::log::LOG_COLLECTOR+8>,
+    order=core::sync::atomic::Ordering::Relaxed) at src/sync/atomic.rs:2960
+#1  0x000000000022a11f in core::sync::atomic::AtomicBool::load (self=0x320b40 <kernel::log::LOG_COLLECTOR+8>,
+    order=core::sync::atomic::Ordering::Relaxed)
+    at /.../.rustup/toolchains/nightly-2022-08-30-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/sync/atomic.rs:456
+#2  0x000000000025d49f in spin::mutex::spin::SpinMutex<kernel::log::Log, spin::relax::Spin>::is_locked<kernel::log::Log, spin::relax::Spin> (self=0x320b40 <kernel::log::LOG_COLLECTOR+8>)
+    at /.../.cargo/registry/src/github.com-1ecc6299db9ec823/spin-0.9.4/src/mutex/spin.rs:192
+#3  spin::mutex::spin::SpinMutex<kernel::log::Log, spin::relax::Spin>::lock<kernel::log::Log, spin::relax::Spin> (
+    self=0x320b40 <kernel::log::LOG_COLLECTOR+8>)
+    at /.../.cargo/registry/src/github.com-1ecc6299db9ec823/spin-0.9.4/src/mutex/spin.rs:171
+#4  spin::mutex::Mutex<kernel::log::Log, spin::relax::Spin>::lock<kernel::log::Log, spin::relax::Spin> (
+    self=0x320b40 <kernel::log::LOG_COLLECTOR+8>)
+    at /.../.cargo/registry/src/github.com-1ecc6299db9ec823/spin-0.9.4/src/mutex.rs:170
+#5  kernel::log::{impl#4}::event (self=0x320b38 <kernel::log::LOG_COLLECTOR>, event=0x10000200c10)
+    at kernel/src/log/mod.rs:241
+...
+#11 0x00000000002b85a2 in ku::time::correlation_interval::CorrelationInterval<1>::datetime_with_resolution<1, 1000> (
+    self=0x10000200fa8, tsc=...) at ku/src/time/correlation_interval.rs:61
+#12 0x00000000002b8059 in ku::time::correlation_interval::CorrelationInterval<1>::datetime<1, 1000> (
+    atomic_correlation_interval=0x344030 <kernel::SYSTEM_INFO+48>, tsc=...) at ku/src/time/correlation_interval.rs:46
+#13 0x00000000002b4d08 in ku::time::rtc::Rtc::datetime<1000> (tsc=...) at ku/src/time/rtc.rs:22
+#14 0x00000000002b4656 in ku::time::datetime_ms (tsc=...) at ku/src/time/mod.rs:49
+#15 0x000000000025cb47 in kernel::log::Log::log_metadata (self=0x320b41 <kernel::log::LOG_COLLECTOR+9>,
+    level=0x30c030 <kernel::kernel_main::CALLSITE::META+32>, metadata=...) at kernel/src/log/mod.rs:144
+#16 0x000000000025cabe in kernel::log::Log::log_event (self=0x320b41 <kernel::log::LOG_COLLECTOR+9>,
+    event=0x100002012b0, tsc=...) at kernel/src/log/mod.rs:133
+#17 0x000000000025d512 in kernel::log::{impl#4}::event (self=0x320b38 <kernel::log::LOG_COLLECTOR>,
+    event=0x100002012b0) at kernel/src/log/mod.rs:241
+...
+```
+
+Фрейм `#2` сообщает нам, что код крутится в `SpinMutex<kernel::log::Log>`, принадлежащей
+[`kernel::log::LOG_COLLECTOR`](../../doc/kernel/log/static.LOG_COLLECTOR.html):
+```
+#2  0x000000000025d49f in spin::mutex::spin::SpinMutex<kernel::log::Log, spin::relax::Spin>::is_locked<kernel::log::Log, spin::relax::Spin> (self=0x320b40 <kernel::log::LOG_COLLECTOR+8>)
+```
+Фрейм `#5` сообщает где вызывается повторный захват блокировки --- в строке `kernel/src/log/mod.rs:241` метода `event()`:
+```
+#5  kernel::log::{impl#4}::event (self=0x320b38 <kernel::log::LOG_COLLECTOR>, event=0x10000200c10)
+    at kernel/src/log/mod.rs:241
+```
+А по фрейму `#17` видно, что блокировка уже была захвачена той же строкой кода:
+```
+#17 0x000000000025d512 in kernel::log::{impl#4}::event (self=0x320b38 <kernel::log::LOG_COLLECTOR>,
+    event=0x100002012b0) at kernel/src/log/mod.rs:241
+```
+
+Отладить метод
+[`fn CorrelationInterval::datetime_with_resolution()`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#method.datetime_with_resolution).
+с помощью журналирования можно разорвав бесконечную рекурсию.
+Например, не вызывая функции времени из журналирования.
+Для этого служит формат
+[`kernel::log::Format::Timeless`](../../doc/kernel/log/enum.Format.html#variant.Timeless).
+Чтобы воспользоваться им, измените строку инициализации
+[`kernel::log::LOG_COLLECTOR`](../../doc/kernel/log/static.LOG_COLLECTOR.html)
+в конце файла
+[`kernel/src/log/mod.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/log/mod.rs):
+
+```rust
+static LOG_COLLECTOR: LogCollector = LogCollector::new(Format::Timeless, Level::DEBUG);
+```
+
+Также иногда можно убирать
+[`Mutex`](../../doc/spin/type.Mutex.html)
+из поля
+[`kernel::log::LogCollector::log`](../../doc/kernel/log/struct.LogCollector.html#structfield.log).
+Если на нём возникает [взаимоблокировка](https://en.wikipedia.org/wiki/Deadlock).
+А перемешивание записей журнала не мешает отладке или вообще не возникает при использования только одного процессора.
+
+
 ### Запуск тестов
 
 Тесты можно запустить командой `cargo test --test 1-hw-3-high-resolution-date` в директории `kernel` репозитория.
