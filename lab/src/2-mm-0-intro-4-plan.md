@@ -82,3 +82,15 @@ fn init(boot_info: &'static BootInfo) {
 [`MainFrameAllocator`](../../doc/kernel/memory/main_frame_allocator/struct.MainFrameAllocator.html),
 которую возвращает функция
 [`main_frame_allocator::init()`](../../doc/kernel/memory/main_frame_allocator/fn.init.html).
+
+`FrameAllocator::Boot` и `FrameAllocator::Main` --- это элементы перечисления
+
+```rust
+pub enum FrameAllocator {
+    Void,
+    Boot(BootFrameAllocator),
+    Main(MainFrameAllocator),
+}
+```
+
+Они позволяют понять, какой из аллокаторов физических фреймов используется в данный момент.

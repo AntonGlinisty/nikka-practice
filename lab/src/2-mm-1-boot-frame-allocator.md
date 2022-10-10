@@ -14,8 +14,8 @@
 Поле
 [`BootFrameAllocator::initial_block`](../../doc/kernel/memory/boot_frame_allocator/struct.BootFrameAllocator.html#structfield.initial_block)
 содержит копию стартового значение поля
-[`BootFrameAllocator::block`](../../doc/kernel/memory/boot_frame_allocator/struct.BootFrameAllocator.html#structfield.block)
-и не меняется при выделениях фреймов, в отличие от
+[`BootFrameAllocator::block`](../../doc/kernel/memory/boot_frame_allocator/struct.BootFrameAllocator.html#structfield.block).
+И не меняется при выделениях фреймов, в отличие от
 [`BootFrameAllocator::block`](../../doc/kernel/memory/boot_frame_allocator/struct.BootFrameAllocator.html#structfield.block).
 Оно используется в методе
 [`BootFrameAllocator::is_managed()`](../../doc/kernel/memory/boot_frame_allocator/struct.BootFrameAllocator.html#method.is_managed)
@@ -49,7 +49,7 @@
 скрывает от нас эти устаревшие интерфейсы и предоставляет готовую структуру
 [`bootloader::bootinfo::MemoryMap`](../../doc/bootloader/bootinfo/struct.MemoryMap.html),
 которая описывает карту доступной физической памяти.
-[`MemoryMap`](../../doc/bootloader/bootinfo/struct.MemoryMap.html)
+Структура [`MemoryMap`](../../doc/bootloader/bootinfo/struct.MemoryMap.html)
 [реализует](../../doc/bootloader/bootinfo/struct.MemoryMap.html#impl-Deref) типаж
 [`core::ops::Deref`](https://doc.rust-lang.org/nightly/core/ops/trait.Deref.html),
 [возвращая из него](../../doc/bootloader/bootinfo/struct.MemoryMap.html#associatedtype.Target)
@@ -83,10 +83,10 @@ impl BootFrameAllocator {
 [`bootloader::bootinfo::FrameRange`](../../doc/bootloader/bootinfo/struct.FrameRange.html),
 которое устроено аналогично
 [`Block<Frame>`](../../doc/ku/memory/block/struct.Block.html)
-с полями
+и содержит поля
 [`FrameRange::start_frame_number`](../../doc/bootloader/bootinfo/struct.FrameRange.html#structfield.start_frame_number) и
-[`FrameRange::end_frame_number`](../../doc/bootloader/bootinfo/struct.FrameRange.html#structfield.end_frame_number),
-которые соответствуют
+[`FrameRange::end_frame_number`](../../doc/bootloader/bootinfo/struct.FrameRange.html#structfield.end_frame_number).
+Они соответствуют
 [`Block::<Frame>::start`](../../doc/ku/memory/block/struct.Block.html#structfield.start) и
 [`Block::<Frame>::end`](../../doc/ku/memory/block/struct.Block.html#structfield.end).
 Из пары
@@ -218,7 +218,7 @@ pub fn tail(&mut self, count: usize) -> Option<Self> {
     ...
 }
 ```
-или просто
+или просто `None`, если это последнее выражение в функции:
 ```rust
 pub fn tail(&mut self, count: usize) -> Option<Self> {
     ...
@@ -253,7 +253,9 @@ $ (cd kernel; cargo test --test 2-mm-1-block)
 реализуйте [метод](../../doc/kernel/memory/boot_frame_allocator/struct.BootFrameAllocator.html#method.allocate_block)
 
 ```rust
-fn BootFrameAllocator::allocate_block(size: usize) -> Result<Block<Frame>>
+fn BootFrameAllocator::allocate_block(
+    size: usize,
+) -> Result<Block<Frame>>
 ```
 
 в файле [`kernel/src/memory/boot_frame_allocator.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/boot_frame_allocator.rs).
@@ -289,6 +291,11 @@ error[E0277]: the `?` operator can only be used in a method that returns `Result
 For more information about this error, try `rustc --explain E0277`.
 ```
 Аналогичная ошибка будет при применении оператора `?` к `Result`, если функция возвращает `Option`.
+
+Вам может пригодиться функция
+[`fn Frame::count_up(size: usize) -> usize`](../../doc/kernel/memory/frage/struct.Frage.html#method.count_up).
+Она реализует формулу \\( \lceil \frac{\texttt{size}}{\texttt{Frame::SIZE}} \rceil \\),
+возвращая количество фреймов, которое требуется для хранения `size` байт.
 
 Используя [`BootFrameAllocator::allocate_block()`](../../doc/kernel/memory/boot_frame_allocator/struct.BootFrameAllocator.html#method.allocate_block)
 реализуйте [метод](../../doc/kernel/memory/boot_frame_allocator/struct.BootFrameAllocator.html#method.allocate)

@@ -51,12 +51,13 @@ fn phys2virt::map(phys2virt: Page, address: Phys) -> Virt
 #### Отображение виртуальных страниц на физические фреймы
 
 Страничное преобразование устроено как показано на схеме.
-На ней стрелки ведут в целевые фреймы и целевой байт физических адресов, хранящихся в регистре
+Стрелки ведут из физических адресов, хранящихся в регистре
 [`CR3`](https://wiki.osdev.org/CPU_Registers_x86#CR3)
 и в элементах
 [`ku::memory::mmu::PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html)
 таблиц
-[`ku::memory::mmu::PageTable`](../../doc/ku/memory/mmu/type.PageTable.html).
+[`ku::memory::mmu::PageTable`](../../doc/ku/memory/mmu/type.PageTable.html),
+в целевые фреймы и целевой байт.
 А пунктиром показано какая часть битового представления виртуального адреса
 ([`Virt`](../../doc/ku/memory/addr/type.Virt.html))
 используется как индекс в одной из таблиц
@@ -133,6 +134,11 @@ unsafe fn Mapping::translate(
 Именно изменяемый `&mut FrameAllocator` нужен нам чтобы аллоцировать из него фреймы для промежуточных таблиц
 [`PageTable`](../../doc/ku/memory/mmu/type.PageTable.html),
 если это понадобится.
+Ещё один вариант --- использовать
+[`Option::as_deref_mut()`](https://doc.rust-lang.org/nightly/core/option/enum.Option.html#method.as_deref_mut)
+вместо
+[`Option::as_mut()`](https://doc.rust-lang.org/nightly/core/option/enum.Option.html#method.as_mut).
+
 Если во
 [`FrameAllocator`](../../doc/kernel/memory/frame_allocator/enum.FrameAllocator.html)
 не окажется свободных фреймов, он вернёт ошибку
@@ -288,7 +294,7 @@ fn duplicate(&self) -> Result<Self> {
     Ok(result)
 }
 ```
-Основную работу он перекладывает на рекурсивный статический метод
+Основную работу он перекладывает на рекурсивный метод
 [`Mapping::duplicate_subtree()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.duplicate_subtree),
 запуская корневой вызов рекурсии.
 

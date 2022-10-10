@@ -9,31 +9,12 @@ digraph diagram {
     edge [arrowhead = vee; fontname="Helvetica,Arial,sans-serif"]
 
     Virt
-
-    const_ptr [label = "*const T"]
-    const_ref [label = "&T"]
-    left_blank [style = invis]
     VirtAddr [label = "x86_64::VirtAddr"]
-
-    const_ref -> left_blank [constraint = false; style = invis]
-    left_blank -> VirtAddr [constraint = false; style = invis]
-
-    mut_ptr [label = "*mut T"]
-    mut_ref [label = "&mut T"]
-    mut_slice [label = "&mut [T]"]
     Page
 
-    const_ptr -> Virt [label = "Virt::from_ptr<T>()"; decorate=true]
-    const_ref -> Virt [label = "Virt::from_ref<T>()"; decorate=true]
-    Page -> Virt [constraint = false; label = "Page::address()"; decorate=true]
-    left_blank -> Virt [style = invis]
-    VirtAddr -> Virt [label = "Virt::from()"; decorate=true]
+    Page -> Virt [constraint = false; label = "Page::address()"]
+    VirtAddr -> Virt [label = "from()"]
 
-    Virt -> const_ptr [constraint = false; label = "Virt::try_into_ptr<T>()?"; decorate=true]
-    Virt -> const_ref [constraint = false; label = "Virt::try_into_ref<T>()?"; decorate=true]
-    Virt -> mut_ptr [label = "Virt::try_into_mut_ptr<T>()?"; decorate=true]
-    Virt -> mut_ref [label = "Virt::try_into_mut<T>()?"; decorate=true]
-    Virt -> mut_slice [label = "Virt::try_into_mut_slice<T>()?"; decorate=true]
-    Virt -> Page [label = "Page::new()"; labelangle=-10; labeldistance=12; decorate=true]
-    Virt -> VirtAddr [constraint = false; label = "Virt::into()"; decorate=true]
+    Virt -> Page [label = "Page::new()"]
+    Virt -> VirtAddr [constraint = false; label = "into()"]
 }

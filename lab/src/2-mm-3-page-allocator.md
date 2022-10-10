@@ -13,9 +13,32 @@
 Инициализировать же
 [`PageAllocator::block`](../../doc/kernel/memory/page_allocator/struct.PageAllocator.html#structfield.block)
 предлагается следующим способом.
-Пройдём по таблице страниц корневого уровня и найдём в ней самую длинную последовательность подряд идущих свободных записей.
-За каждой такой записью скрывается \\( 2^{9 + 9 + 9} \\) свободных виртуальных страниц, то есть 512 GiB адресного пространства.
-Почти все \\( 2^9 \\) записи корневого уровня свободны, а значит получаем почти 256 TiB свободного адресного пространства в [двух половинах](../../lab/book/2-mm-0-intro-1-types.html#%D0%94%D0%B2%D0%B5-%D0%BF%D0%BE%D0%BB%D0%BE%D0%B2%D0%B8%D0%BD%D1%8B-%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%B3%D0%BE-%D0%B0%D0%B4%D1%80%D0%B5%D1%81%D0%BD%D0%BE%D0%B3%D0%BE-%D0%BF%D1%80%D0%BE%D1%81%D1%82%D1%80%D0%B0%D0%BD%D1%81%D1%82%D0%B2%D0%B0) по 128 TiB.
+Пройдём по таблице страниц корневого уровня.
+Пусть, например, оказалось, что запись номер \\( 17 \\) корневого уровня свободна.
+Тогда свободны все виртуальные адреса в полуинтервале
+\\( [17 \cdot 2^{9 + 9 + 9 + 12}, 18 \cdot 2^{9 + 9 + 9 + 12}) \\).
+Это дает \\( 2^{9 + 9 + 9} \\) свободных виртуальных страниц,
+то есть 512 GiB адресного пространства на каждую такую запись.
+Действительно, каждая запись в узле таблицы страниц на уровне
+[`ku::memory::mmu::PAGE_TABLE_LEAF_LEVEL`](../../doc/ku/memory/mmu/constant.PAGE_TABLE_LEAF_LEVEL.html)`== 0`
+ссылается на виртуальную страницу, то есть ссылается на блок памяти размера 4KiB или \\( 2^{12} \\) байт.
+Каждая запись в узле более высокого уровня ссылается на
+[`ku::memory::mmu::PAGE_TABLE_ENTRY_COUNT`](../../doc/ku/memory/mmu/constant.PAGE_TABLE_ENTRY_COUNT.html)
+записей более низкого уровня.
+То есть через неё адресуется в
+[`ku::memory::mmu::PAGE_TABLE_ENTRY_COUNT`](../../doc/ku/memory/mmu/constant.PAGE_TABLE_ENTRY_COUNT.html)`== 512`,
+или в \\( 2^{9} \\),
+раз больше байт.
+Поэтому, если
+[`ku::memory::mmu::PAGE_TABLE_ROOT_LEVEL`](../../doc/ku/memory/mmu/constant.PAGE_TABLE_ROOT_LEVEL.html)`== 3`,
+то всего выходит 512 * 512 * 512 * 4KiB = 512 GiB, или \\( 2^{9 + 9 + 9 + 12} \\) байт.
+Найдем в таблице страниц корневого уровня самую длинную последовательность подряд идущих свободных записей ---
+добудем много подряд идущих свободных виртуальных страниц.
+Почти все \\( 2^9 \\) записи корневого уровня свободны,
+а значит получаем почти по 128 TiB непрерывного свободного адресного пространства в каждой из
+[двух половин](../../lab/book/2-mm-0-intro-1-types.html#%D0%94%D0%B2%D0%B5-%D0%BF%D0%BE%D0%BB%D0%BE%D0%B2%D0%B8%D0%BD%D1%8B-%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%B3%D0%BE-%D0%B0%D0%B4%D1%80%D0%B5%D1%81%D0%BD%D0%BE%D0%B3%D0%BE-%D0%BF%D1%80%D0%BE%D1%81%D1%82%D1%80%D0%B0%D0%BD%D1%81%D1%82%D0%B2%D0%B0).
+При этом рассматривать будем только записи корневого узла таблицы страниц,
+спускаться на следующие уровни не будем.
 
 Для простоты реализации
 [`PageAllocator`](../../doc/kernel/memory/page_allocator/struct.PageAllocator.html)
@@ -23,9 +46,10 @@
 [`BootFrameAllocator`](../../doc/kernel/memory/boot_frame_allocator/struct.BootFrameAllocator.html).
 Но в отличие от физических фреймов, виртуальных страниц гораздо больше --- сотни TiB, и они не потребляют память.
 Кроме того, адресное пространство будет отдельное на каждый процесс.
-И даже если процесс исчерпает все виртуальные страницы, на другие процессы это не повлияет.
-Поэтому с такой реализацией аллокатора страниц проблем не возникнет,
-в отличие от
+И даже если процесс исчерпает все виртуальные страницы своего адресного пространства,
+на другие процессы это не повлияет.
+Поэтому с такой реализацией аллокатора страниц проблем не возникнет.
+В отличие от
 [`BootFrameAllocator`](../../doc/kernel/memory/boot_frame_allocator/struct.BootFrameAllocator.html),
 который нам придётся заменить на
 [`MainFrameAllocator`](../../doc/kernel/memory/main_frame_allocator/struct.MainFrameAllocator.html).
@@ -60,8 +84,8 @@ fn PageAllocator::find_unused_block(page_table_root: &PageTable) -> Option<Block
 [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html)
 мы будем ещё много работать.
 Пока что скорее всего хватит её метода
-[`fn PageTableEntry::is_unused(&self) -> bool`](../../doc/ku/memory/mmu/struct.PageTableEntry.html#method.is_unused).
-Он возвращает `true`, если запись не используется.
+[`fn PageTableEntry::is_present(&self) -> bool`](../../doc/ku/memory/mmu/struct.PageTableEntry.html#method.is_present).
+Он возвращает `true`, если запись используется.
 
 Вам может пригодиться константа
 [`ku::memory::mmu::PAGE_TABLE_ROOT_LEVEL`](../../doc/ku/memory/mmu/constant.PAGE_TABLE_ROOT_LEVEL.html) ---

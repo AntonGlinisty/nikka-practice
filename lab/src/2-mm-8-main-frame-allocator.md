@@ -48,7 +48,6 @@ let frame_info = BASE_ADDRESS_SPACE
 fn MainFrameAllocator::init_frame_info(
     &mut self,
     memory_map: &MemoryMap,
-    frame_count: usize,
     boot_frame_allocator: &BootFrameAllocator,
 )
 ```
@@ -73,7 +72,6 @@ fn MainFrameAllocator::init_frame_info(
 
 - [`ku::memory::frage::Frame::from_index()`](../../doc/ku/memory/frage/struct.Frage.html#method.from_index).
 - [`ku::memory::size::from()`](../../doc/ku/memory/size/fn.from.html).
-- [`core::cmp::min()`](https://doc.rust-lang.org/nightly/core/cmp/fn.min.html).
 - [`core::mem::replace()`](https://doc.rust-lang.org/nightly/core/mem/fn.replace.html).
 
 
@@ -111,7 +109,7 @@ panic!("your {} message {:?}", ...);
 Реализуйте [метод](../../doc/kernel/memory/main_frame_allocator/struct.MainFrameAllocator.html#method.deallocate)
 
 ```rust
-unsafe fn MainFrameAllocator::deallocate(
+fn MainFrameAllocator::deallocate(
     &mut self,
     frame: Frame,
 )

@@ -81,3 +81,84 @@
       check:
         - cd kernel && cargo test --test 1-hw-3-high-resolution-date
 
+- group: lab-2-memory
+  start: 10-10-2022 18:00
+  deadline: 25-10-2022 23:59
+  second_deadline: 01-02-2023 23:59
+  enabled: true
+  tasks:
+    - task: boot-frame-allocator
+      score: 100
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-1-boot-frame-allocator.html
+      allow_list:
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/memory/block.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+      check:
+        - cd kernel && cargo test --test 2-mm-1-block --test 2-mm-1-boot-frame-allocator
+
+    - task: page-allocator
+      score: 100
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-2-address-space-1-allocation.html
+      allow_list:
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/memory/page_allocator.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/memory/block.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+      check:
+        - cd kernel && cargo test --test 2-mm-1-block --test 2-mm-2-page-allocator
+
+    - task: translate
+      score: 100
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-2-address-space-2-translate.html
+      allow_list:
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/memory/mapping.rs
+        - kernel/src/memory/page_allocator.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/memory/block.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+      check:
+        - cd kernel && cargo test --test 2-mm-4-translate
+
+    - task: map
+      score: 50
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-2-address-space-3-map.html
+      allow_list:
+        - kernel/src/memory/address_space.rs
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/memory/mapping.rs
+        - kernel/src/memory/page_allocator.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/memory/block.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+      check:
+        - cd kernel && cargo test --test 2-mm-5-map
+
+    - task: main-frame-allocator
+      score: 150
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-8-main-frame-allocator.html
+      allow_list:
+        - kernel/src/memory/address_space.rs
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/memory/main_frame_allocator.rs
+        - kernel/src/memory/mapping.rs
+        - kernel/src/memory/page_allocator.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/memory/block.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+      check:
+        - cd kernel && cargo test --test 2-mm-*
+

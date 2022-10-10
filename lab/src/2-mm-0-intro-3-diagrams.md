@@ -4,6 +4,8 @@
 
 ## Преобразования внутри виртуального пространства
 
+![](2-mm-0-intro-3-block-virt.svg)
+
 ![](2-mm-0-intro-3-virt.svg)
 
 ## Преобразования между Addr/Phys/Virt и Frage/Frame/Page
