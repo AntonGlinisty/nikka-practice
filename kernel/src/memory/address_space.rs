@@ -203,12 +203,13 @@ impl AddressSpace {
     /// Вызывающий код должен гарантировать, что инварианты управления памятью в Rust'е
     /// не будут нарушены.
     /// В частности, не осталось ссылок, которые ведут в удаляемую страницу.
+    #[allow(unused)] // TODO: remove before flight.
     pub unsafe fn unmap_page(
         &mut self,
         page: Page,
     ) -> Result<()> {
         // TODO: your code here.
-        unimplemented!();
+        Ok(()) // TODO: remove before flight.
     }
 
     /// Вспомогательный метод
@@ -525,4 +526,31 @@ lazy_static! {
     /// Все остальные адресные пространства получаются из него и его копий
     /// с помощью метода [`AddressSpace::duplicate()`].
     pub static ref BASE_ADDRESS_SPACE: Mutex<AddressSpace> = Mutex::new(AddressSpace::default());
+}
+
+#[doc(hidden)]
+pub(super) mod test_scaffolding {
+    use crate::error::Result;
+
+    use super::{
+        super::{
+            Block,
+            Page,
+            page_allocator::test_scaffolding::block,
+        },
+        AddressSpace,
+        Mapping,
+    };
+
+    pub fn duplicate(address_space: &AddressSpace) -> Result<AddressSpace> {
+        address_space.duplicate()
+    }
+
+    pub fn mapping(address_space: &mut AddressSpace) -> &mut Mapping {
+        &mut address_space.mapping
+    }
+
+    pub fn page_allocator_block(address_space: &AddressSpace) -> Block<Page> {
+        block(&address_space.page_allocator)
+    }
 }

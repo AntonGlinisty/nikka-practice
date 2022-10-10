@@ -58,6 +58,7 @@ pub use ku::memory::{
 };
 
 use crate::{
+    Subsystems,
     log::info,
     time,
 };
@@ -115,7 +116,10 @@ use self::{
 };
 
 /// Инициализация подсистемы памяти.
-pub(super) fn init(boot_info: &'static BootInfo) {
+pub(super) fn init(
+    boot_info: &'static BootInfo,
+    subsystems: Subsystems,
+) {
     let timer = time::timer();
 
     unsafe {
@@ -125,17 +129,42 @@ pub(super) fn init(boot_info: &'static BootInfo) {
     let phys2virt = phys2virt::phys2virt(boot_info);
     info!(?phys2virt);
 
-    *FRAME_ALLOCATOR.lock() = FrameAllocator::Boot(BootFrameAllocator::new(&boot_info.memory_map));
+    if subsystems.contains(Subsystems::PHYS_MEMORY) {
+        *FRAME_ALLOCATOR.lock() =
+            FrameAllocator::Boot(BootFrameAllocator::new(&boot_info.memory_map));
+    }
 
-    *BASE_ADDRESS_SPACE.lock() = AddressSpace::new(phys2virt);
+    if subsystems.contains(Subsystems::VIRT_MEMORY) {
+        *BASE_ADDRESS_SPACE.lock() = AddressSpace::new(phys2virt);
+    }
 
-    *FRAME_ALLOCATOR.lock() =
-        FrameAllocator::Main(main_frame_allocator::init(&boot_info.memory_map));
+    if subsystems.contains(Subsystems::MAIN_FRAME_ALLOCATOR) {
+        *FRAME_ALLOCATOR.lock() =
+            FrameAllocator::Main(main_frame_allocator::init(&boot_info.memory_map));
+    }
 
     info!(duration = %timer.elapsed(), "memory init");
 }
 
 #[doc(hidden)]
 pub mod test_scaffolding {
-    pub use super::frame_allocator::test_scaffolding::*;
+    use super::{
+        BootFrameAllocator,
+        FrameAllocator,
+    };
+
+    pub use super::{
+        address_space::test_scaffolding::*,
+        boot_frame_allocator::test_scaffolding::*,
+        frame_allocator::test_scaffolding::*,
+        mapping::test_scaffolding::*,
+        phys2virt::test_scaffolding::*,
+    };
+
+    pub fn get_boot(frame_allocator: &mut FrameAllocator) -> Option<&mut BootFrameAllocator> {
+        match frame_allocator {
+            FrameAllocator::Boot(boot_allocator) => Some(boot_allocator),
+            FrameAllocator::Main(..) | FrameAllocator::Void => None,
+        }
+    }
 }

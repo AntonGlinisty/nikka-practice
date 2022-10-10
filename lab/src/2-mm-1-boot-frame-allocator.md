@@ -98,7 +98,10 @@ impl BootFrameAllocator {
 [`Block::<Frame>::new_u64(start, end)`](../../doc/ku/memory/block/struct.Block.html#method.new_u64).
 
 
-### Задача 1 --- инициализация `BootFrameAllocator::new()`
+### Задача 1 --- [`BootFrameAllocator`](../../doc/kernel/memory/boot_frame_allocator/struct.BootFrameAllocator.html)
+
+
+#### Инициализация
 
 Напишите реализацию [метода](../../doc/kernel/memory/boot_frame_allocator/struct.BootFrameAllocator.html#method.new)
 
@@ -161,8 +164,24 @@ For more information about this error, try `rustc --explain E0282`.
 На этом примере также видно, что при инициализации поля структуры из переменной с таким же именем,
 [это имя можно не дублировать](https://doc.rust-lang.ru/book/ch05-01-defining-structs.html#%D0%98%D1%81%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5-%D1%81%D0%BE%D0%BA%D1%80%D0%B0%D1%89%D1%91%D0%BD%D0%BD%D0%BE%D0%B9-%D0%B8%D0%BD%D0%B8%D1%86%D0%B8%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D0%B8-%D0%BF%D0%BE%D0%BB%D1%8F).
 
+Теперь должен проходить тест `2_mm_1_boot_frame_allocator::sanity_check`, но не остальные тесты из `2-mm-1-boot-frame-allocator`:
 
-### Задача 2 --- аллокация фреймов
+```console
+$ (cd kernel; cargo test --test 2-mm-1-boot-frame-allocator)
+...
+2_mm_1_boot_frame_allocator::sanity_check-------------------
+17:20:21 0 D free_frames = 31290; min_free_frames = 28672; qemu_memory_frames = 32768
+17:20:21 0 D managed = 31290; used = 0
+2_mm_1_boot_frame_allocator::sanity_check---------- [passed]
+
+2_mm_1_boot_frame_allocator::allocate-----------------------
+panicked at 'not implemented', kernel/src/memory/boot_frame_allocator.rs:71:9
+--------------------------------------------------- [failed]
+17:20:21 0 I exit qemu; exit_code = FAILURE
+```
+
+
+#### Выделение физических фреймов
 
 Для выделения фреймов служат два метода:
 - [`fn BootFrameAllocator::allocate_block(size: usize) -> Result<Block<Frame>>`](../../doc/kernel/memory/boot_frame_allocator/struct.BootFrameAllocator.html#method.allocate_block) выделяет блок подряд идущих фреймов, достаточный для хранения объекта размером `size` **байт**.
@@ -207,15 +226,25 @@ pub fn tail(&mut self, count: usize) -> Option<Self> {
 }
 ```
 Проверьте свою реализацию запустив тест:
-```const
-$ (cd ku; cargo test memory::block)
-    Finished test [unoptimized + debuginfo] target(s) in 0.00s
-     Running unittests (target/debug/deps/ku-9711502391ec2b67)
-
-running 1 test
-test memory::block::test::block ... ok
-
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```console
+$ (cd kernel; cargo test --test 2-mm-1-block)
+...
+2_mm_1_block::block-----------------------------------------
+17:21:00 0 D start = 0; end = 0; block = [0v0, 0v0), size 0 B
+17:21:00 0 D start = 0; end = 33; block = [0v0, 0v21), size 33 B
+17:21:00 0 D start = 0; end = 66; block = [0v0, 0v42), size 66 B
+17:21:00 0 D start = 0; end = 99; block = [0v0, 0v63), size 99 B
+17:21:00 0 D start = 25; end = 33; block = [0v19, 0v21), size 8 B
+17:21:00 0 D start = 25; end = 66; block = [0v19, 0v42), size 41 B
+17:21:00 0 D start = 25; end = 99; block = [0v19, 0v63), size 74 B
+17:21:01 0 D start = 50; end = 66; block = [0v32, 0v42), size 16 B
+17:21:01 0 D start = 50; end = 99; block = [0v32, 0v63), size 49 B
+17:21:01 0 D start = 50; end = 132; block = [0v32, 0v84), size 82 B
+17:21:01 0 D start = 75; end = 99; block = [0v4B, 0v63), size 24 B
+17:21:01 0 D start = 75; end = 132; block = [0v4B, 0v84), size 57 B
+17:21:01 0 D start = 75; end = 165; block = [0v4B, 0vA5), size 90 B
+2_mm_1_block::block-------------------------------- [passed]
+17:21:01 0 I exit qemu; exit_code = SUCCESS
 ```
 
 Применив [`Block::tail()`](../../doc/ku/memory/block/struct.Block.html#method.tail)
@@ -271,7 +300,51 @@ fn BootFrameAllocator::allocate() -> Result<Frame>
 в файле [`kernel/src/memory/boot_frame_allocator.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/boot_frame_allocator.rs).
 
 
-## Использование аллокатора физических фреймов
+### Проверьте себя
+
+Запустите тесты:
+
+```console
+$ (cd kernel; cargo test --test 2-mm-1-block --test 2-mm-1-boot-frame-allocator)
+...
+2_mm_1_block::block-----------------------------------------
+17:38:22 0 D start = 0; end = 0; block = [0v0, 0v0), size 0 B
+17:38:22 0 D start = 0; end = 33; block = [0v0, 0v21), size 33 B
+17:38:22 0 D start = 0; end = 66; block = [0v0, 0v42), size 66 B
+17:38:22 0 D start = 0; end = 99; block = [0v0, 0v63), size 99 B
+17:38:22 0 D start = 25; end = 33; block = [0v19, 0v21), size 8 B
+17:38:22 0 D start = 25; end = 66; block = [0v19, 0v42), size 41 B
+17:38:22 0 D start = 25; end = 99; block = [0v19, 0v63), size 74 B
+17:38:23 0 D start = 50; end = 66; block = [0v32, 0v42), size 16 B
+17:38:23 0 D start = 50; end = 99; block = [0v32, 0v63), size 49 B
+17:38:23 0 D start = 50; end = 132; block = [0v32, 0v84), size 82 B
+17:38:23 0 D start = 75; end = 99; block = [0v4B, 0v63), size 24 B
+17:38:23 0 D start = 75; end = 132; block = [0v4B, 0v84), size 57 B
+17:38:23 0 D start = 75; end = 165; block = [0v4B, 0vA5), size 90 B
+2_mm_1_block::block-------------------------------- [passed]
+17:38:23 0 I exit qemu; exit_code = SUCCESS
+...
+2_mm_1_boot_frame_allocator::sanity_check-------------------
+17:38:25 0 D free_frames = 31306; min_free_frames = 28672; qemu_memory_frames = 32768
+17:38:25 0 D managed = 31306; used = 0
+2_mm_1_boot_frame_allocator::sanity_check---------- [passed]
+
+2_mm_1_boot_frame_allocator::allocate-----------------------
+17:38:25 0 D frames = [Frame(32735 @ 0p7FDF000), Frame(32734 @ 0p7FDE000)]
+2_mm_1_boot_frame_allocator::allocate-------------- [passed]
+
+2_mm_1_boot_frame_allocator::allocated_frames_are_unique----
+17:38:25 0 D free_frames = 31304
+17:38:25 0 D prev_frame = 32733 @ 0p7FDD000; frame = 32732 @ 0p7FDC000
+17:38:25 0 D prev_frame = 22733 @ 0p58CD000; frame = 22732 @ 0p58CC000
+17:38:26 0 D prev_frame = 12733 @ 0p31BD000; frame = 12732 @ 0p31BC000
+17:38:26 0 D prev_frame = 2733 @ 0pAAD000; frame = 2732 @ 0pAAC000
+2_mm_1_boot_frame_allocator::allocated_frames_are_unique [passed]
+17:38:26 0 I exit qemu; exit_code = SUCCESS
+```
+
+
+### Использование аллокатора физических фреймов
 
 Ядро выделяет физические фреймы с помощью глобальной переменной
 [`kernel::memory::FRAME_ALLOCATOR`](../../doc/kernel/memory/struct.FRAME_ALLOCATOR.html).

@@ -75,9 +75,15 @@ bitflags! {
 
 bitflags! {
     pub struct Subsystems: u8 {
-        const MEMORY = 1 << 0;
-        const SMP = 1 << 1;
-        const PROCESS = 1 << 2;
+        const PHYS_MEMORY = 1 << 0;
+        const VIRT_MEMORY = 1 << 1;
+        const MAIN_FRAME_ALLOCATOR = 1 << 2;
+
+        const MEMORY =
+            Self::PHYS_MEMORY.bits | Self::VIRT_MEMORY.bits | Self::MAIN_FRAME_ALLOCATOR.bits;
+
+        const SMP = 1 << 3;
+        const PROCESS = 1 << 4;
     }
 }
 
@@ -98,9 +104,11 @@ pub fn init_subsystems(
     gdt::init();
     trap::init();
 
-    if subsystems.contains(Subsystems::MEMORY) {
-        memory::init(boot_info);
+    if subsystems & Subsystems::MEMORY != Subsystems::empty() {
+        memory::init(boot_info, subsystems);
+    }
 
+    if subsystems.contains(Subsystems::MEMORY) {
         if let Err(error) = EXCEPTION_STACKS.lock().make_guard_zones() {
             warn!(?error, "failed to make guard zones in exception stacks")
         }

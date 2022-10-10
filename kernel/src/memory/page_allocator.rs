@@ -98,3 +98,18 @@ impl PageAllocator {
         unimplemented!();
     }
 }
+
+#[doc(hidden)]
+pub(super) mod test_scaffolding {
+    use super::{
+        super::{
+            Block,
+            Page,
+        },
+        PageAllocator,
+    };
+
+    pub(in super::super) fn block(page_allocator: &PageAllocator) -> Block<Page> {
+        page_allocator.block
+    }
+}

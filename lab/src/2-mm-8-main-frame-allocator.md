@@ -37,7 +37,10 @@ let frame_info = BASE_ADDRESS_SPACE
 их количество.
 
 
-### Задача 10 --- инициализация описателей фреймов
+### Задача 5 --- [`MainFrameAllocator`](../../doc/kernel/memory/main_frame_allocator/struct.MainFrameAllocator.html)
+
+
+#### Инициализация описателей фреймов
 
 Реализуйте [метод](../../doc/kernel/memory/main_frame_allocator/struct.MainFrameAllocator.html#method.init_frame_info)
 
@@ -74,7 +77,7 @@ fn MainFrameAllocator::init_frame_info(
 - [`core::mem::replace()`](https://doc.rust-lang.org/nightly/core/mem/fn.replace.html).
 
 
-### Задача 11 --- аллокация фрейма
+#### Выделение фрейма
 
 Реализуйте [метод](../../doc/kernel/memory/main_frame_allocator/struct.MainFrameAllocator.html#method.allocate)
 
@@ -103,7 +106,7 @@ panic!("your {} message {:?}", ...);
 ```
 
 
-### Задача 12 --- освобождение фрейма
+#### Освобождение фрейма
 
 Реализуйте [метод](../../doc/kernel/memory/main_frame_allocator/struct.MainFrameAllocator.html#method.deallocate)
 
@@ -163,7 +166,7 @@ unsafe fn MainFrameAllocator::deallocate(
 [`Absent`](../../doc/kernel/memory/main_frame_allocator/enum.FrameInfo.html#variant.Absent) записи.
 
 
-### Задача 13 --- увеличение счётчика использований фрейма
+#### Увеличение счётчика использований фрейма
 
 Реализуйте [метод](../../doc/kernel/memory/main_frame_allocator/struct.MainFrameAllocator.html#method.reference)
 
@@ -188,7 +191,7 @@ fn MainFrameAllocator::reference(
 это допустимая ситуация, в которой ничего делать не нужно.
 
 
-### Задача 13 --- перенесение свободных фреймов из `BootFrameAllocator` в `MainFrameAllocator`
+#### Перенесение свободных фреймов из [`BootFrameAllocator`](../../doc/kernel/memory/boot_frame_allocator/struct.BootFrameAllocator.html) в [`MainFrameAllocator`](../../doc/kernel/memory/main_frame_allocator/struct.MainFrameAllocator.html)
 
 Финальный штрих --- реализация [метода](../../doc/kernel/memory/main_frame_allocator/struct.MainFrameAllocator.html#method.move_free_frames)
 
@@ -228,6 +231,51 @@ fn MainFrameAllocator::move_free_frames(
 Так что Rust не даст случайно воспользоваться исходным `src`
 после вызова `move_free_frames(src, ...)`.
 В терминах C++ здесь работает семантика перемещения.
+
+
+### Проверьте себя
+
+Наконец можно проверить не только основной аллокатор фреймов,
+но также копирование и удаление виртуальных отображений и метод
+[`AddressSpace::unmap_slice()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.unmap_slice).
+Запустите тест:
+
+```console
+$ (cd kernel; cargo test --test 2-mm-8-main-frame-allocator)
+...
+2_mm_8_main_frame_allocator::sanity_check-------------------
+19:31:13 0 D free_frames = 31452; min_free_frames = 28672; qemu_memory_frames = 32768
+2_mm_8_main_frame_allocator::sanity_check---------- [passed]
+
+2_mm_8_main_frame_allocator::basic_frame_allocator_functions
+19:31:13 0 D frames = [Frame(32540 @ 0p7F1C000), Frame(32539 @ 0p7F1B000)]
+19:31:13 0 D reallocate_last_freed_frame = Frame(32540 @ 0p7F1C000)
+2_mm_8_main_frame_allocator::basic_frame_allocator_functions [passed]
+
+2_mm_8_main_frame_allocator::allocated_frames_are_unique----
+19:31:13 0 D free_frames = 31390
+19:31:13 0 D free_frames = 0
+19:31:15.579 0 D free_frames = 31390
+2_mm_8_main_frame_allocator::allocated_frames_are_unique [passed]
+
+2_mm_8_main_frame_allocator::shared_memory------------------
+19:31:15.613 0 D frame = Frame(32479 @ 0p7EDF000)
+19:31:15.617 0 D pages = [Page(34359738111 @ 0v7FFFFFEFF000), Page(34359738112 @ 0v7FFFFFF00000)]
+19:31:15.627 0 D write_ptr = 0x7ffffff00000; read_ptr = 0x7fffffeff000
+19:31:15.633 0 D write_value = 0; read_value = 0
+19:31:15.637 0 D write_value = 1; read_value = 1
+19:31:15.643 0 D write_value = 2; read_value = 2
+2_mm_8_main_frame_allocator::shared_memory--------- [passed]
+
+2_mm_8_main_frame_allocator::duplicate_and_drop_mapping-----
+19:31:15.695 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
+19:31:15.705 0 I duplicate; address_space = "process" @ 0p7EDF000
+19:31:15.709 0 D ptes = [PageTableEntry(2613347), PageTableEntry(2613347)]
+19:31:15.715 0 D pte_addresses = [Virt(0vFFFFF000005BB008), Virt(0vFFFFF00007EE7008)]
+19:31:15.725 0 I drop; address_space = "process" @ 0p7EDF000
+2_mm_8_main_frame_allocator::duplicate_and_drop_mapping [passed]
+19:31:15.761 0 I exit qemu; exit_code = SUCCESS
+```
 
 
 ### Ориентировочный объём работ этой части лабораторки

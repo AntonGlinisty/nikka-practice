@@ -45,7 +45,10 @@ fn phys2virt::map(phys2virt: Page, address: Phys) -> Virt
 - [Paging Implementation](https://os.phil-opp.com/paging-implementation/), [перевод](https://habr.com/ru/post/445618/).
 
 
-### Задача 5 --- отображение виртуальных страниц на физические фреймы
+### Задача 3 --- [`Mapping`](../../doc/kernel/memory/mapping/struct.Mapping.html)
+
+
+#### Отображение виртуальных страниц на физические фреймы
 
 Страничное преобразование устроено как показано на схеме.
 На ней стрелки ведут в целевые фреймы и целевой байт физических адресов, хранящихся в регистре
@@ -244,8 +247,34 @@ error[E0503]: cannot use `self.phys2virt` because it was mutably borrowed
    |                --- borrow later used here
 ```
 
+Теперь должен проходить тест
 
-### Задача 6 --- создание полной копии виртуального отображения
+```console
+$ (cd kernel; cargo test --test 2-mm-4-translate)
+...
+2_mm_4_translate::translate-----------------------------------
+18:27:12 0 D pte = PageTableEntry(2613347)
+18:27:12 0 D read_ptr = 0xfffff0000027e420; write_ptr = 0x10000201420
+18:27:12 0 D write_value = 0; read_value = 0; variable = 0
+18:27:12 0 D write_value = 1; read_value = 1; variable = 1
+18:27:12 0 D write_value = 2; read_value = 2; variable = 2
+18:27:12 0 D write_value = 3; read_value = 3; variable = 3
+18:27:12 0 D write_value = 4; read_value = 4; variable = 4
+2_mm_4_translate::translate-------------------------- [passed]
+
+2_mm_4_translate::map_intermediate----------------------------
+18:27:12 0 D page = Page(34359738366 @ 0v7FFFFFFFE000)
+18:27:12 0 D pte = PageTableEntry(0)
+2_mm_4_translate::map_intermediate------------------- [passed]
+18:27:12 0 I exit qemu; exit_code = SUCCESS
+```
+
+А вот для проверки копирования и удаления виртуальных отображений
+нам понадобится основной аллокатор физических фреймов.
+Поэтому тесты для них придётся отложить.
+
+
+#### Создание полной копии виртуального отображения
 
 В будущем, при создании нового процесса, нам понадобится скопировать существующий
 [`Mapping`](../../doc/kernel/memory/mapping/struct.Mapping.html)
@@ -326,7 +355,7 @@ Rust не даст скомпилировать такой код из-за на
 А [изменяемая ссылка и означает эксклюзивность заимствования](https://doc.rust-lang.ru/book/ch04-02-references-and-borrowing.html#%D0%98%D0%B7%D0%BC%D0%B5%D0%BD%D1%8F%D0%B5%D0%BC%D1%8B%D0%B5-%D1%81%D1%81%D1%8B%D0%BB%D0%BE%D1%87%D0%BD%D1%8B%D0%B5-%D0%BF%D0%B5%D1%80%D0%B5%D0%BC%D0%B5%D0%BD%D0%BD%D1%8B%D0%B5).
 
 
-### Задача 7 --- удаление виртуального отображения
+#### Удаление виртуального отображения
 
 Раз есть способ создать новое отображение, которое расходует физические фреймы, значит должен быть и способ удалить его, вернув эти фреймы в систему.
 Это делает реализация типажа [`core::ops::Drop`](https://doc.rust-lang.org/nightly/core/ops/trait.Drop.html):

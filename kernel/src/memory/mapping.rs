@@ -248,3 +248,15 @@ impl Drop for Mapping {
         }
     }
 }
+
+#[doc(hidden)]
+pub(super) mod test_scaffolding {
+    use super::{
+        super::Page,
+        Mapping,
+    };
+
+    pub fn phys2virt(mapping: &Mapping) -> Page {
+        mapping.phys2virt
+    }
+}

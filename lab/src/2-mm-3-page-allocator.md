@@ -31,7 +31,10 @@
 [`MainFrameAllocator`](../../doc/kernel/memory/main_frame_allocator/struct.MainFrameAllocator.html).
 
 
-### Задача 3 --- инициализация аллокатора страниц
+### Задача 2 --- [`PageAllocator`](../../doc/kernel/memory/page_allocator/struct.PageAllocator.html)
+
+
+#### Инициализация аллокатора страниц
 
 Реализуйте вспомогательную [функцию](../../doc/kernel/memory/page_allocator/struct.PageAllocator.html#method.find_unused_block)
 
@@ -71,6 +74,8 @@ fn PageAllocator::find_unused_block(page_table_root: &PageTable) -> Option<Block
 
 Вспомните про [две половины виртуального адресного пространства](2-mm-0-intro-1-types.html#%D0%94%D0%B2%D0%B5-%D0%BF%D0%BE%D0%BB%D0%BE%D0%B2%D0%B8%D0%BD%D1%8B-%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%B3%D0%BE-%D0%B0%D0%B4%D1%80%D0%B5%D1%81%D0%BD%D0%BE%D0%B3%D0%BE-%D0%BF%D1%80%D0%BE%D1%81%D1%82%D1%80%D0%B0%D0%BD%D1%81%D1%82%D0%B2%D0%B0).
 Используйте только одну из них.
+Учтите, что при выборе половины со старшими адресами --- `0vFFFF_...` --- читать адреса в сообщениях журнала
+может быть менее удобно.
 
 При инициализации ядра
 [`PageAllocator`](../../doc/kernel/memory/page_allocator/struct.PageAllocator.html)
@@ -80,7 +85,7 @@ fn PageAllocator::find_unused_block(page_table_root: &PageTable) -> Option<Block
 ```
 
 
-### Задача 4 --- выделение страниц
+#### Выделение виртуальных страниц
 
 Применив [`Block::tail()`](../../doc/ku/memory/block/struct.Block.html#method.tail)
 к полю
@@ -109,6 +114,49 @@ fn PageAllocator::allocate(&mut self, size: usize) -> Result<Block<Page>>
 [`PageAllocator::allocate()`](../../doc/kernel/memory/page_allocator/struct.PageAllocator.html#method.allocate)
 похож на уже реализованный вами
 [`BootFrameAllocator::allocate_block()`](../../doc/kernel/memory/boot_frame_allocator/struct.BootFrameAllocator.html#method.allocate_block).
+
+
+### Проверьте себя
+
+Запустите тесты:
+
+```console
+$ (cd kernel; cargo test --test 2-mm-1-block --test 2-mm-2-page-allocator)
+...
+2_mm_1_block::block-----------------------------------------
+18:00:54 0 D start = 0; end = 0; block = [0v0, 0v0), size 0 B
+18:00:54 0 D start = 0; end = 33; block = [0v0, 0v21), size 33 B
+18:00:54 0 D start = 0; end = 66; block = [0v0, 0v42), size 66 B
+18:00:54 0 D start = 0; end = 99; block = [0v0, 0v63), size 99 B
+18:00:54 0 D start = 25; end = 33; block = [0v19, 0v21), size 8 B
+18:00:54 0 D start = 25; end = 66; block = [0v19, 0v42), size 41 B
+18:00:54 0 D start = 25; end = 99; block = [0v19, 0v63), size 74 B
+18:00:55 0 D start = 50; end = 66; block = [0v32, 0v42), size 16 B
+18:00:55 0 D start = 50; end = 99; block = [0v32, 0v63), size 49 B
+18:00:55 0 D start = 50; end = 132; block = [0v32, 0v84), size 82 B
+18:00:55 0 D start = 75; end = 99; block = [0v4B, 0v63), size 24 B
+18:00:55 0 D start = 75; end = 132; block = [0v4B, 0v84), size 57 B
+18:00:55 0 D start = 75; end = 165; block = [0v4B, 0vA5), size 90 B
+2_mm_1_block::block-------------------------------- [passed]
+18:00:55 0 I exit qemu; exit_code = SUCCESS
+...
+2_mm_2_page_allocator::sanity_check-------------------------
+18:00:57 0 D page_allocator_block = [0v18000000000, 0v7FFFFFFFF000), size 126.500 TiB, Page[~1.500 TiB, ~128.000 TiB)
+2_mm_2_page_allocator::sanity_check---------------- [passed]
+
+2_mm_2_page_allocator::allocate_page------------------------
+18:00:57 0 D page = Page(34359738366 @ 0v7FFFFFFFE000)
+2_mm_2_page_allocator::allocate_page--------------- [passed]
+
+2_mm_2_page_allocator::allocate_two_pages-------------------
+18:00:57 0 D pages = [Page(34359738365 @ 0v7FFFFFFFD000), Page(34359738364 @ 0v7FFFFFFFC000)]
+2_mm_2_page_allocator::allocate_two_pages---------- [passed]
+
+2_mm_2_page_allocator::allocate_block-----------------------
+18:00:57 0 D requested_size = 38.000 KiB; block = [0v7FFFFFFF2000, 0v7FFFFFFFC000), size 40.000 KiB, Page[~128.000 TiB, ~128.000 TiB)
+2_mm_2_page_allocator::allocate_block-------------- [passed]
+18:00:57 0 I exit qemu; exit_code = SUCCESS
+```
 
 
 ### Ориентировочный объём работ этой части лабораторки

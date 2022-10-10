@@ -17,6 +17,9 @@ pub const MiB: usize = 1 << 20;
 #[allow(non_upper_case_globals)]
 pub const GiB: usize = 1 << 30;
 
+#[allow(non_upper_case_globals)]
+pub const TiB: usize = 1 << 40;
+
 pub fn from<T>(x: T) -> usize
 where
     u64: From<T>,
@@ -46,6 +49,7 @@ pub trait SizeOf {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 #[repr(transparent)]
 pub struct Size(usize);
 

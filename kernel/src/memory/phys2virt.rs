@@ -23,3 +23,19 @@ pub(crate) fn map(
 ) -> Virt {
     (phys2virt.address() + address.into_usize()).expect("bad Phys address for phys2virt::map()")
 }
+
+#[doc(hidden)]
+pub mod test_scaffolding {
+    use super::{
+        Page,
+        Phys,
+        Virt,
+    };
+
+    pub fn phys2virt_map(
+        phys2virt: Page,
+        address: Phys,
+    ) -> Virt {
+        super::map(phys2virt, address)
+    }
+}

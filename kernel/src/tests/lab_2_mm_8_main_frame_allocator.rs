@@ -1,21 +1,49 @@
 use core::slice;
 
+use ku::memory::size::MiB;
+
 use kernel::{
     Subsystems,
     log::debug,
     memory::{
+        AddressSpace,
         BASE_ADDRESS_SPACE,
         FRAME_ALLOCATOR,
         Frame,
         KERNEL_RW,
         Page,
-        test_scaffolding::forbid_frame_leaks,
+        Virt,
+        mmu::{
+            PageTableEntry,
+            PageTableFlags,
+        },
+        test_scaffolding::{
+            duplicate,
+            forbid_frame_leaks,
+            mapping,
+        },
     },
 };
 
 mod init;
 
 init!(Subsystems::MEMORY);
+
+#[test_case]
+fn sanity_check() {
+    let _guard = forbid_frame_leaks();
+
+    let frame_allocator = FRAME_ALLOCATOR.lock();
+    let free_frames = frame_allocator.count();
+
+    let qemu_memory_frames = 128 * MiB / Frame::SIZE;
+    let min_free_frames = qemu_memory_frames - 16 * MiB / Frame::SIZE;
+
+    debug!(free_frames, min_free_frames, qemu_memory_frames);
+
+    assert!(free_frames > min_free_frames);
+    assert!(free_frames < qemu_memory_frames);
+}
 
 #[test_case]
 fn basic_frame_allocator_functions() {
@@ -96,19 +124,6 @@ fn allocated_frames_are_unique() {
 }
 
 #[test_case]
-fn allocate_page() {
-    let page = BASE_ADDRESS_SPACE
-        .lock()
-        .allocate(Page::SIZE)
-        .unwrap()
-        .into_iter()
-        .next()
-        .unwrap();
-
-    debug!(?page);
-}
-
-#[test_case]
 fn shared_memory() {
     let _guard = forbid_frame_leaks();
 
@@ -157,5 +172,41 @@ fn shared_memory() {
         unsafe {
             address_space.unmap_page(page).unwrap();
         }
+    }
+}
+
+#[test_case]
+fn duplicate_and_drop_mapping() {
+    let _guard = forbid_frame_leaks();
+
+    let mut variable = 0;
+    let write_ptr: *mut u64 = &mut variable;
+
+    unsafe {
+        write_ptr.write_volatile(314159265);
+    }
+
+    let virt = Virt::from_ref(&variable);
+
+    let mut address_space_copy = duplicate(&BASE_ADDRESS_SPACE.lock()).unwrap();
+    let mut address_space = &mut BASE_ADDRESS_SPACE.lock();
+
+    let ptes = [
+        translate(&mut address_space, virt),
+        translate(&mut address_space_copy, virt),
+    ];
+    let pte_addresses = [Virt::from_ref(ptes[0]), Virt::from_ref(ptes[1])];
+
+    debug!(?ptes);
+    debug!(?pte_addresses);
+
+    assert_eq!(ptes[0], ptes[1]);
+    assert_ne!(pte_addresses[0], pte_addresses[1]);
+
+    fn translate(
+        address_space: &mut AddressSpace,
+        virt: Virt,
+    ) -> &mut PageTableEntry {
+        mapping(address_space).translate(virt, None, PageTableFlags::empty()).unwrap()
     }
 }

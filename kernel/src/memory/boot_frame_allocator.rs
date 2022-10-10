@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use bootloader::bootinfo::{
     MemoryMap,
     MemoryRegionType,
@@ -96,5 +98,27 @@ impl Drop for BootFrameAllocator {
         let leaked_frame_count = self.count();
         info!(frame_allocator = "boot", block = %self.block, leaked_frame_count, "drop");
         assert_eq!(leaked_frame_count, 0, "leaked some memory frames");
+    }
+}
+
+#[doc(hidden)]
+pub(super) mod test_scaffolding {
+    use super::{
+        super::Frame,
+        BootFrameAllocator,
+    };
+
+    pub fn is_managed(
+        allocator: &BootFrameAllocator,
+        frame: Frame,
+    ) -> bool {
+        allocator.is_managed(frame)
+    }
+
+    pub fn is_used(
+        allocator: &BootFrameAllocator,
+        frame: Frame,
+    ) -> bool {
+        allocator.is_used(frame)
     }
 }
