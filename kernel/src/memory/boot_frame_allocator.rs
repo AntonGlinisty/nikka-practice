@@ -103,10 +103,22 @@ impl Drop for BootFrameAllocator {
 
 #[doc(hidden)]
 pub(super) mod test_scaffolding {
+    use crate::error::Result;
+
     use super::{
-        super::Frame,
+        super::{
+            Block,
+            Frame,
+        },
         BootFrameAllocator,
     };
+
+    pub fn allocate_block(
+        allocator: &mut BootFrameAllocator,
+        size: usize,
+    ) -> Result<Block<Frame>> {
+        allocator.allocate_block(size)
+    }
 
     pub fn is_managed(
         allocator: &BootFrameAllocator,

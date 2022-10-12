@@ -1,4 +1,7 @@
-use ku::memory::size::MiB;
+use ku::memory::size::{
+    MiB,
+    Size,
+};
 
 use kernel::{
     Subsystems,
@@ -7,7 +10,9 @@ use kernel::{
         Block,
         FRAME_ALLOCATOR,
         Frame,
+        Phys,
         test_scaffolding::{
+            allocate_block,
             forbid_frame_leaks,
             get_boot,
             is_managed,
@@ -52,6 +57,25 @@ fn sanity_check() {
 
     assert_eq!(managed, free_frames);
     assert_eq!(used, 0);
+}
+
+#[test_case]
+fn allocate_block() {
+    let mut frame_allocator = FRAME_ALLOCATOR.lock();
+
+    for size in (0 ..= 3 * Frame::SIZE).filter(|x| (x + 3) % Frame::SIZE < 6) {
+        let free_frame_count = frame_allocator.count();
+        let allocated = allocate_block(get_boot(&mut frame_allocator).unwrap(), size).unwrap();
+        let allocated_frame_count = free_frame_count - frame_allocator.count();
+
+        debug!(requested = %Size::new::<Phys>(size), %allocated, allocated_frame_count);
+
+        assert!(
+            allocated.size() - size < Frame::SIZE,
+            "allocated excessive memory",
+        );
+        assert_eq!(allocated.count(), allocated_frame_count, "lost some frames");
+    }
 }
 
 #[test_case]
