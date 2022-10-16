@@ -81,25 +81,6 @@ fn free_process(pid: Pid) {
 }
 
 #[test_case]
-fn create_process() {
-    let _guard = forbid_frame_leaks();
-
-    let pid = make_process(LOOP_ELF).pid();
-
-    free_process(pid);
-}
-
-#[test_case]
-fn create_process_failure() {
-    let _guard = forbid_frame_leaks();
-
-    let bad_elf_file: &[u8] = &[];
-    let error = process::create(bad_elf_file).expect_err("created a process from a bad ELF file");
-
-    info!(?error, "expected a process creation failure");
-}
-
-#[test_case]
 fn syscall_exit() {
     let _guard = forbid_frame_leaks();
 

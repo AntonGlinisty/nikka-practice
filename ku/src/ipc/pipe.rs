@@ -26,7 +26,7 @@ const_assert!(mem::size_of::<RingBufferMemory>() % Page::SIZE == 0);
 
 /// Continuous Ring Buffer
 pub struct RingBuffer {
-    buf: &'static mut RingBufferRaw,
+    buf: Virt,
     head: AtomicUsize,
     tail: AtomicUsize,
     stats: [RingBufferStats; 2],
@@ -39,7 +39,16 @@ impl RingBuffer {
         Self::check_continuous_mapping(buf);
 
         Self {
-            buf,
+            buf: Virt::from_ref(buf),
+            head: AtomicUsize::new(0),
+            tail: AtomicUsize::new(0),
+            stats: [RingBufferStats::new(), RingBufferStats::new()],
+        }
+    }
+
+    pub fn zero() -> Self {
+        Self {
+            buf: Virt::default(),
             head: AtomicUsize::new(0),
             tail: AtomicUsize::new(0),
             stats: [RingBufferStats::new(), RingBufferStats::new()],
@@ -47,7 +56,11 @@ impl RingBuffer {
     }
 
     pub fn block(&self) -> Block<Virt> {
-        Block::from_ref(self.buf)
+        if self.buf == Virt::default() {
+            Block::default()
+        } else {
+            Block::from_ref(unsafe { self.buf.try_into_ref::<RingBufferRaw>().unwrap() })
+        }
     }
 
     pub fn read_tx(&mut self) -> RingBufferTx<'_, ReadTag> {
@@ -64,6 +77,14 @@ impl RingBuffer {
 
     pub fn write_stats(&self) -> &RingBufferStats {
         &self.stats[WriteTag::STATS_INDEX]
+    }
+
+    fn buf(&mut self) -> &mut RingBufferRaw {
+        if self.buf == Virt::default() {
+            panic!("the RingBuffer is not properly initialized");
+        } else {
+            unsafe { self.buf.try_into_mut().unwrap() }
+        }
     }
 
     fn tx<T: Tag>(&mut self) -> RingBufferTx<'_, T> {
