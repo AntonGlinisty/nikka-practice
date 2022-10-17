@@ -397,9 +397,9 @@ impl<T: Memory> fmt::Display for Block<T> {
     }
 }
 
-impl<T: Tag> IntoIterator for Block<Frage<T>> {
-    type Item = Frage<T>;
-    type IntoIter = IntoIter<Frage<T>>;
+impl<T: Memory> IntoIterator for Block<T> {
+    type Item = T;
+    type IntoIter = IntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
         IntoIter(self.start .. self.end, PhantomData)
@@ -411,13 +411,13 @@ impl<T: Tag> IntoIterator for Block<Frage<T>> {
 /// В качестве итератора нельзя использовать сам [`Block`], так как он реализует типаж [`Copy`].
 /// А делать итератор копируемым чревато ошибками.
 #[derive(Clone)]
-pub struct IntoIter<T>(Range<usize>, PhantomData<T>);
+pub struct IntoIter<T: Memory>(Range<usize>, PhantomData<T>);
 
-impl<T: Tag> Iterator for IntoIter<Frage<T>> {
-    type Item = Frage<T>;
+impl<T: Memory> Iterator for IntoIter<T> {
+    type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().and_then(|index| Frage::from_index(index).ok())
+        self.0.next().and_then(|index| T::from_index(index).ok())
     }
 }
 
@@ -440,6 +440,11 @@ pub trait Memory: Clone + Copy + SizeOf {
     /// - `Addr::new(index)` для `Addr`;
     /// - `Frage::address_by_index(index)` для `Frage`.
     fn address_by_index(index: usize) -> Result<Self::Address>;
+
+    /// Возвращает базовый элемент по его индексу `index`:
+    /// - `Addr::new(index)` для `Addr`;
+    /// - `Frage::from_index(index)` для `Frage`.
+    fn from_index(index: usize) -> Result<Self>;
 
     /// Возвращает индекс базового элемента `element`:
     /// - `element.into_usize()` для `Addr`;
@@ -469,6 +474,10 @@ impl<T: Tag> Memory for Addr<T> {
         Self::new(index)
     }
 
+    fn from_index(index: usize) -> Result<Self> {
+        Self::new(index)
+    }
+
     fn index(element: Self) -> usize {
         element.into_usize()
     }
@@ -492,6 +501,10 @@ impl<T: Tag> Memory for Frage<T> {
 
     fn address_by_index(index: usize) -> Result<Self::Address> {
         Self::address_by_index(index)
+    }
+
+    fn from_index(index: usize) -> Result<Self> {
+        Self::from_index(index)
     }
 
     fn index(element: Self) -> usize {
