@@ -536,11 +536,29 @@ pub(super) mod test_scaffolding {
         super::{
             Block,
             Page,
+            Virt,
+            mmu::PageTableFlags,
             page_allocator::test_scaffolding::block,
         },
         AddressSpace,
         Mapping,
     };
+
+    pub fn check_permission<T>(
+        address_space: &mut AddressSpace,
+        block: Block<Virt>,
+        flags: PageTableFlags,
+    ) -> Result<&'static [T]> {
+        address_space.check_permission(block, flags)
+    }
+
+    pub fn check_permission_mut<T>(
+        address_space: &mut AddressSpace,
+        block: Block<Virt>,
+        flags: PageTableFlags,
+    ) -> Result<&'static mut [T]> {
+        address_space.check_permission_mut(block, flags)
+    }
 
     pub fn duplicate(address_space: &AddressSpace) -> Result<AddressSpace> {
         address_space.duplicate()

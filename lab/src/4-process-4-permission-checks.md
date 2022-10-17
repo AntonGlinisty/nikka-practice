@@ -40,7 +40,7 @@ fn AddressSpace::check_permission_common(
 с флагами `PageTableFlags::PRESENT`, `PageTableFlags::USER_ACCESSIBLE` и заданными на вход `flags` одновременно.
 
 
-### Задача 6 --- проверка доступа к памяти
+### Задача 2 --- проверка доступа к памяти
 
 Реализуйте методы [`AddressSpace::check_permission_common()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.check_permission_common), [`AddressSpace::check_permission<T>()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.check_permission) и [`AddressSpace::check_permission_mut<T>()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.check_permission_mut) в файле [`kernel/src/memory/address_space.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/address_space.rs).
 
@@ -49,6 +49,32 @@ fn AddressSpace::check_permission_common(
 - Метод [`fn Block::<Virt>::enclosing() -> Block<Page>`](../../doc/ku/memory/block/struct.Block.html#method.enclosing), который для заданного блока виртуальных адресов возвращает минимальный содержащий его блок страниц виртуальной памяти.
 - Метод [`Mapping::translate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.translate).
 - Метод [`PageTableFlags::contains()`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#method.contains).
+
+
+### Проверьте себя
+
+Запустите тест `4-process-4-permission-checks` из файла
+[`kernel/tests/4-process-4-permission-checks.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/4-process-4-permission-checks.rs):
+
+```console
+$ (cd kernel; cargo test --test 4-process-4-permission-checks)
+...
+4_process_4_permission_checks::user_rw--------------------------
+19:41:36 0 D pages = [0v7FFFFFF3B000, 0v7FFFFFF3F000), size 16.000 KiB
+4_process_4_permission_checks::user_rw----------------- [passed]
+
+4_process_4_permission_checks::non_present----------------------
+19:41:36 0 D pages = [0v7FFFFFF37000, 0v7FFFFFF3B000), size 16.000 KiB
+4_process_4_permission_checks::non_present------------- [passed]
+
+4_process_4_permission_checks::stress---------------------------
+19:41:36 0 D pages = [0v7FFFFFF36000, 0v7FFFFFF37000), size 4.000 KiB
+19:41:37.093 0 D pages = [0v7FFFFFF34000, 0v7FFFFFF36000), size 8.000 KiB
+19:41:39.177 0 D pages = [0v7FFFFFF31000, 0v7FFFFFF34000), size 12.000 KiB
+19:41:48.835 0 D pages = [0v7FFFFFF2D000, 0v7FFFFFF31000), size 16.000 KiB
+4_process_4_permission_checks::stress------------------ [passed]
+19:42:18.721 0 I exit qemu; exit_code = SUCCESS
+```
 
 
 ### Ориентировочный объём работ этой части лабораторки
