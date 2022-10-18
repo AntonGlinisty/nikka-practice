@@ -51,15 +51,22 @@ fn basic_frame_allocator_functions() {
 
     let mut frame_allocator = FRAME_ALLOCATOR.lock();
     let start_free_frames = frame_allocator.count();
+    let frame_count = init::frame_count();
 
     let frames = [
         frame_allocator.allocate().unwrap(),
         frame_allocator.allocate().unwrap(),
     ];
 
-    debug!(?frames);
+    debug!(?frames, frame_count);
     assert_ne!(frames[0], frames[1]);
     assert_eq!(frame_allocator.count(), start_free_frames - 2);
+    for frame in frames {
+        assert!(
+            frame.index() < frame_count,
+            "allocated a frame outside of the physical memory of the current machine",
+        );
+    }
 
     frame_allocator.deallocate(frames[0]);
     assert_eq!(frame_allocator.count(), start_free_frames - 1);
@@ -87,6 +94,7 @@ fn allocated_frames_are_unique() {
     let _guard = forbid_frame_leaks();
 
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
+    let frame_count = init::frame_count();
     let frames = BASE_ADDRESS_SPACE
         .lock()
         .map_slice(start_free_frames, KERNEL_RW, Frame::default)
@@ -94,10 +102,15 @@ fn allocated_frames_are_unique() {
 
     let mut frame_allocator = FRAME_ALLOCATOR.lock();
     let free_frames = frame_allocator.count();
-    debug!(free_frames);
+    debug!(free_frames, frame_count);
 
     for frame in &mut frames[.. free_frames] {
         *frame = frame_allocator.allocate().unwrap();
+        assert!(
+            frame.index() < frame_count,
+            "allocated a frame {frame} outside of the physical memory of the current machine with \
+             only {frame_count} frames total",
+        );
     }
 
     debug!(free_frames = frame_allocator.count());

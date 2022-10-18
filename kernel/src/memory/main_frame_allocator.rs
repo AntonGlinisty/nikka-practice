@@ -203,3 +203,14 @@ impl Drop for MainFrameAllocator {
         panic!("can not drop MainFrameAllocator");
     }
 }
+
+#[doc(hidden)]
+pub(super) mod test_scaffolding {
+    use bootloader::bootinfo::MemoryMap;
+
+    use super::range;
+
+    pub fn frame_count(memory_map: &MemoryMap) -> usize {
+        range::physical(memory_map).count()
+    }
+}

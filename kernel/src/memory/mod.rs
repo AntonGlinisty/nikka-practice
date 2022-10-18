@@ -158,6 +158,7 @@ pub mod test_scaffolding {
         address_space::test_scaffolding::*,
         boot_frame_allocator::test_scaffolding::*,
         frame_allocator::test_scaffolding::*,
+        main_frame_allocator::test_scaffolding::*,
         mapping::test_scaffolding::*,
         phys2virt::test_scaffolding::*,
     };

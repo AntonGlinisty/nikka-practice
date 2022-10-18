@@ -82,29 +82,42 @@ fn allocate_block() {
 fn allocate() {
     let mut frame_allocator = FRAME_ALLOCATOR.lock();
     let start_free_frames = frame_allocator.count();
+    let frame_count = init::frame_count();
 
     let frames = [
         frame_allocator.allocate().unwrap(),
         frame_allocator.allocate().unwrap(),
     ];
 
-    debug!(?frames);
+    debug!(?frames, frame_count);
     assert_ne!(frames[0], frames[1]);
     assert_eq!(frame_allocator.count(), start_free_frames - 2);
+    for frame in frames {
+        assert!(
+            frame.index() < frame_count,
+            "allocated a frame outside of the physical memory of the current machine",
+        );
+    }
 }
 
 #[test_case]
 fn allocated_frames_are_unique() {
     let mut frame_allocator = FRAME_ALLOCATOR.lock();
     let free_frames = frame_allocator.count();
+    let frame_count = init::frame_count();
 
-    debug!(free_frames);
+    debug!(free_frames, frame_count);
 
     let mut direction = None;
     let mut prev_frame = None;
 
     for i in 0 .. free_frames {
         let frame = frame_allocator.allocate().unwrap();
+        assert!(
+            frame.index() < frame_count,
+            "allocated a frame {frame} outside of the physical memory of the current machine with \
+             only {frame_count} frames total",
+        );
 
         if let Some(prev_frame) = prev_frame {
             if i % 10_000 == 1 {
