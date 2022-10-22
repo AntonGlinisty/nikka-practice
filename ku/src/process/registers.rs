@@ -34,11 +34,16 @@ use crate::memory::size;
 pub struct RFlags(usize);
 
 impl RFlags {
+    /// Все допустимые флаги.
     pub const ALL: RFlags = RFlags(rflags::RFlags::all().bits() as usize);
 
+    /// [Разрешает внешние прерывания](https://en.wikipedia.org/wiki/Interrupt_flag).
     pub const INTERRUPT_FLAG: RFlags = RFlags(rflags::RFlags::INTERRUPT_FLAG.bits() as usize);
+
+    /// [Включает режим трассировки](https://en.wikipedia.org/wiki/Trap_flag).
     pub const TRAP_FLAG: RFlags = RFlags(rflags::RFlags::TRAP_FLAG.bits() as usize);
 
+    /// Проверяет, что все указанные в `flags` флаги включены в `self`.
     pub fn contains(
         &self,
         flags: RFlags,
@@ -46,14 +51,22 @@ impl RFlags {
         self.0 & flags.0 == flags.0
     }
 
+    /// Возвращает [Input/Output Privilege level](https://en.wikipedia.org/wiki/Protection_ring#IOPL)
+    pub fn iopl(&self) -> usize {
+        (self.0 >> 12) & 0b11
+    }
+
+    /// Возвращает содержимое `self` в виде [`usize`].
     pub fn into_usize(&self) -> usize {
         self.0
     }
 
+    /// Читает содержимое регистра флагов процессора.
     pub fn read() -> Self {
         Self(size::from(rflags::read_raw()))
     }
 
+    /// Записывает `self` в регистр флагов процессора.
     pub unsafe fn write(&self) {
         rflags::write_raw(size::into_u64(self.0));
     }
@@ -96,6 +109,10 @@ impl fmt::Display for RFlags {
                 write!(formatter, "{}{}", separator, FLAGS[i])?;
                 separator = " ";
             }
+        }
+
+        if self.iopl() != 0 {
+            write!(formatter, "{}IOPL-{}", separator, self.iopl())?;
         }
 
         Ok(())
