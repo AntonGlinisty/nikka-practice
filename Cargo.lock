@@ -311,6 +311,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "log_value"
+version = "0.2.0"
+dependencies = [
+ "ku",
+ "lib",
+]
+
+[[package]]
 name = "loop"
 version = "0.2.0"
 dependencies = [

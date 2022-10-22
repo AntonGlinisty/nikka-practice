@@ -10,6 +10,7 @@ members = [
     "user/eager_fork",
     "user/exit",
     "user/lib",
+    "user/log_value",
     "user/loop",
     "user/page_fault",
     "user/sched_yield",

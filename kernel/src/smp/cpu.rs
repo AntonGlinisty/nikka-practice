@@ -132,13 +132,19 @@ impl Cpu {
     }
 
     pub(crate) fn current_process() -> Result<Pid> {
-        let cpu = unsafe { Self::get() };
-        cpu.current_process.ok_or(NoProcess)
+        if super::test_scaffolding::is_initialized() {
+            let cpu = unsafe { Self::get() };
+            cpu.current_process.ok_or(NoProcess)
+        } else {
+            Ok(Pid::Current)
+        }
     }
 
     pub(crate) fn set_current_process(process: Option<Pid>) {
-        let cpu = unsafe { Self::get() };
-        cpu.current_process = process;
+        if super::test_scaffolding::is_initialized() {
+            let cpu = unsafe { Self::get() };
+            cpu.current_process = process;
+        }
     }
 
     pub(crate) fn kernel_context() -> ModeContext {
@@ -154,8 +160,12 @@ impl Cpu {
     }
 
     pub(crate) fn take_user_context() -> Option<ModeContext> {
-        let cpu = unsafe { Self::get() };
-        cpu.user_context.take()
+        if super::test_scaffolding::is_initialized() {
+            let cpu = unsafe { Self::get() };
+            cpu.user_context.take()
+        } else {
+            None
+        }
     }
 
     pub(super) fn id(&self) -> CpuId {

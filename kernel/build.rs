@@ -14,6 +14,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "cow_fork",
         "eager_fork",
         "exit",
+        "log_value",
         "loop",
         "page_fault",
         "sched_yield",

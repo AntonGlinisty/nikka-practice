@@ -235,7 +235,7 @@ fn kernel::process::syscall::sysret(
 Она
 
 - Записывает результат системного вызова `result` в регистры общего назначения, например в `RAX`, `RDI`, `RSI`, и т.д. Обратите внимание, что признак и код ошибки, если `result` содержит ошибку, нужно записать в один из регистров --- пользовательскому процессу он тоже важен.
-- Записывает в регистр `R11` состояние регистра флагов, которое должно быть в пространстве пользователя. Как минимум должен быть установлен [`RFlags::INTERRUPT_FLAG`](../../doc/ku/process/registers/struct.RFlags.html#associatedconstant.INTERRUPT_FLAG).
+- Записывает в регистр `R11` состояние регистра флагов, которое должно быть в пространстве пользователя. Как минимум должен быть установлен [`RFlags::INTERRUPT_FLAG`](../../doc/ku/process/registers/struct.RFlags.html#associatedconstant.INTERRUPT_FLAG), чтобы процесс не мог монополизировать процессор. Но пока что включение прерываний приведёт к нестабильности теста `4_process_6_syscall::syscall_log_value`. Поэтому предлагается отложить включение [`RFlags::INTERRUPT_FLAG`](../../doc/ku/process/registers/struct.RFlags.html#associatedconstant.INTERRUPT_FLAG) до следующей лабораторки, а пока выключить все флаги при возврате в режим пользователя --- [`RFlags::default()`](../../doc/ku/process/registers/struct.RFlags.html#method.default).
 - Записывает адрес возврата в код пользователя в регистр `RCX`. Функции [`syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html)/[`syscall()`](../../doc/kernel/process/syscall/fn.syscall.html) получили этот адрес в этом же регистре. И должны были его передать вместе с адресом стека пользователя в аргументе `context`.
 - Переключает регистр `RSP` на стек пользователя.
 - Зануляет все не использованные выше регистры общего назначения, чтобы предотвратить утечку информации из режима ядра в режим пользователя.
@@ -306,6 +306,54 @@ fn kernel::process::syscall::log_value(
 , если вы запишете в журнал `value` и в десятичном, и в шестнадцатеричном виде.
 После этого системный вызов возвращает управление.
 
+С помощью этого системного вызова тест `4-process-6-syscall` из файла
+[`kernel/tests/4-process-6-syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/4-process-6-syscall.rs)
+проверяет возможность чтения системного времени из непривилегированного режима пользователя.
+Код в файле
+[`user/log_value/src/main.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/user/log_value/src/main.rs)
+выполняет вызов `time::now()` и записывает полученное количество секунд с unix--эпохи в журнал:
+
+```rust
+let now = time::now();
+let timestamp = now.timestamp().try_into().unwrap();
+
+if syscall::log_value("user space can read the system time", timestamp).is_err() {
+    generate_page_fault();
+}
+```
+
+Должно записаться в журнал что-то подобное:
+
+```console
+$ (cd kernel; cargo test --test 4-process-6-syscall)
+...
+4_process_6_syscall::syscall_log_value------------------------
+...
+04:30:41 0 D entering the user mode; pid = 0:0; registers = { rax: 0x0, rdi: 0x7F7FFFFEB000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v10008BD0, ss:rsp: 0x001B:0v7F7FFFFFF000, rflags:  } }
+04:30:41 0 I user space can read the system time; value = 1666585841; hex_value = 0x635614F1; pid = 0:0
+...
+```
+
+Если в первой лабораторке вы попытались воспользоваться
+[приёмом "read-dont-modify-write"](https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf),
+то в режиме пользователя и вызов `time::delay()` из
+[`user/exit/src/main.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/user/exit/src/main.rs)
+и вызов `time::now()` из
+[`user/log_value/src/main.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/user/log_value/src/main.rs)
+получат Page Fault:
+
+```console
+$ (cd kernel; cargo test --test 4-process-6-syscall)
+...
+4_process_6_syscall::syscall_exit-----------------------------
+...
+04:55:08 0 D entering the user mode; pid = 0:0; registers = { rax: 0x0, rdi: 0x7F7FFFFEB000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v10007BB0, ss:rsp: 0x001B:0v7F7FFFFFF000, rflags:  } }
+04:55:08 0 D trap = "Page Fault"; context = { mode: user, cs:rip: 0x0023:0v1000E09C, ss:rsp: 0x001B:0v7F7FFFFFEA78, rflags: PF }; info = { code: 0b111 = protection violation | write | user, address: 0v7F7FFFFEC038 }
+04:55:08 0 D leaving the user mode; pid = 0:0
+panicked at 'if the Page Fault was in the kernel mode, probably the `syscall` instruction is not initialized or the kernel has not switched to its own stack; if it was in the user mode, maybe the time functions from the first lab use `read-dont-modify-write` construction', kernel/tests/4-process-6-syscall.rs:71:5
+--------------------------------------------------- [failed]
+```
+
 
 #### Пользовательская сторона системного вызова
 
@@ -339,36 +387,62 @@ fn lib::syscall::syscall(
 
 ### Проверьте себя
 
-Теперь должен заработать тест `syscall_exit()` в файле
-[`kernel/tests/process.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/process.rs):
+Запустите тест `4-process-6-syscall` из файла
+[`kernel/tests/4-process-6-syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/4-process-6-syscall.rs):
 
 ```console
-kernel::tests::process::syscall_exit------------------------
-15:08:29 0 I page allocator init; free_page_count = 33688649728; block = [2.000 TiB, 127.500 TiB), size 125.500 TiB
-15:08:29 0 I duplicate; address_space = "process" @ 0p30B0000
-15:08:29 0 I switch to; address_space = "process" @ 0p30B0000
-15:08:29 0 D extend mapping; block = [0x10000000, 0x10004e86), size 19.631 KiB; page_block = [0x10000, 0x10005), size 20.000 KiB; flags =   R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-15:08:29 0 D elf loadable program header; file_block = [0x268bf1, 0x26da77), size 19.631 KiB; memory_block = [0x10000000, 0x10004e86), size 19.631 KiB; flags =   R
-15:08:29 0 D extend mapping; block = [0x10005000, 0x1002ddd6), size 163.459 KiB; page_block = [0x10005, 0x1002e), size 164.000 KiB; flags = X R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-15:08:29 0 D elf loadable program header; file_block = [0x26da81, 0x2969c7), size 163.818 KiB; memory_block = [0x10004e90, 0x1002ddd6), size 163.818 KiB; flags = X R
-15:08:29 0 D elf loadable program header; file_block = [0x2969c9, 0x296ab9), size 240 B; memory_block = [0x1002ddd8, 0x1002dec8), size 240 B; flags =  WR
-15:08:29 0 D extend mapping; block = [0x1002e000, 0x10030960), size 10.344 KiB; page_block = [0x1002e, 0x10031), size 12.000 KiB; flags =  WR; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-15:08:29 0 D elf loadable program header; file_block = [0x296ab9, 0x299529), size 10.609 KiB; memory_block = [0x1002dec8, 0x10030960), size 10.648 KiB; flags =  WR
-15:08:29 0 I switch to; address_space = "base" @ 0p1000
-15:08:29 0 I loaded ELF file; context = { rip: 0v10004F30, rsp: 0v7F7FFFFFF000 }; file_size = 408.727 KiB; process = { pid: <current>, address_space: "process" @ 0p30B0000, { rip: 0v10004F30, rsp: 0v7F7FFFFFF000 } }
-15:08:29 0 I switch to; address_space = "0:1" @ 0p30B0000
-15:08:29 0 I allocate; slot = Process { pid: 0:1, address_space: "0:1" @ 0p30B0000, { rip: 0v10004F30, rsp: 0v7F7FFFFFF000 } }; process_count = 1
-15:08:29 0 I user process page table entry; entry_point = 0v10004F30; frame = Frame(12448 @ 0p30A0000); flags = PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY
-15:08:29 0 D process_frames = 90
-15:08:29 0 I switch to; address_space = "0:1" @ 0p30B0000
-15:08:29 0 D entering the user mode; pid = 0:1; registers = { rax: 0x0, rdi: 0x7F7FFFFEB000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v10004F30, ss:rsp: 0x001B:0v7F7FFFFFF000, rflags:  } }
-15:08:29 0 I free; slot = Process { pid: 0:1, address_space: "0:1" @ 0p30B0000, { rip: 0v10004EEC, rsp: 0v0 } }; process_count = 0
-15:08:29 0 I switch to; address_space = "base" @ 0p1000
-15:08:29 0 I drop the current address space; address_space = "0:1" @ 0p30B0000; switch_to = "base" @ 0p1000
-15:08:29 0 I syscall = "exit"; pid = 0:1; code = 3141592653589793238; reason = None
-15:08:29 0 D leaving the user mode; pid = 0:1
-kernel::tests::process::syscall_exit--------------- [passed]
+$ (cd kernel; cargo test --test 4-process-6-syscall)
+...
+4_process_6_syscall::syscall_exit-----------------------------
+05:13:26 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
+05:13:26 0 I duplicate; address_space = "process" @ 0p7F1B000
+05:13:26 0 I switch to; address_space = "process" @ 0p7F1B000
+05:13:26 0 D extend mapping; block = [0v10000000, 0v10007624), size 29.535 KiB; page_block = [0v10000000, 0v10008000), size 32.000 KiB; flags =   R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
+05:13:26 0 D elf loadable program header; file_block = [0v201741, 0v208D65), size 29.535 KiB; memory_block = [0v10000000, 0v10007624), size 29.535 KiB; flags =   R
+05:13:26 0 D extend mapping; block = [0v10008000, 0v100547AD), size 305.919 KiB; page_block = [0v10008000, 0v10055000), size 308.000 KiB; flags = X R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
+05:13:26 0 D elf loadable program header; file_block = [0v208D71, 0v255EEE), size 308.372 KiB; memory_block = [0v10007630, 0v100547AD), size 308.372 KiB; flags = X R
+05:13:26 0 D elf loadable program header; file_block = [0v255EF1, 0v255FE1), size 240 B; memory_block = [0v100547B0, 0v100548A0), size 240 B; flags =  WR
+05:13:26 0 D extend mapping; block = [0v10055000, 0v1005AAC0), size 22.688 KiB; page_block = [0v10055000, 0v1005B000), size 24.000 KiB; flags =  WR; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
+05:13:26 0 D elf loadable program header; file_block = [0v255FE1, 0v25C1D9), size 24.492 KiB; memory_block = [0v100548A0, 0v1005AAC0), size 24.531 KiB; flags =  WR
+05:13:26 0 I switch to; address_space = "base" @ 0p1000
+05:13:26 0 I loaded ELF file; context = { rip: 0v10007BA0, rsp: 0v7F7FFFFFF000 }; file_size = 5.372 MiB; process = { pid: <current>, address_space: "process" @ 0p7F1B000, { rip: 0v10007BA0, rsp: 0v7F7FFFFFF000 } }
+05:13:26 0 I user process page table entry; entry_point = 0v10007BA0; frame = Frame(32507 @ 0p7EFB000); flags = PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY
+05:13:26 0 I switch to; address_space = "0:0" @ 0p7F1B000
+05:13:26 0 D entering the user mode; pid = 0:0; registers = { rax: 0x0, rdi: 0x7F7FFFFEB000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v10007BA0, ss:rsp: 0x001B:0v7F7FFFFFF000, rflags:  } }
+05:13:26 0 I syscall = "exit"; pid = 0:0; code = 3141592653589793238; reason = None
+05:13:26 0 D leaving the user mode; pid = 0:0
+4_process_6_syscall::syscall_exit-------------------- [passed]
+
+4_process_6_syscall::syscall_log_value------------------------
+05:13:27 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
+05:13:27 0 I duplicate; address_space = "process" @ 0p7E93000
+05:13:27 0 I switch to; address_space = "process" @ 0p7E93000
+05:13:27 0 D extend mapping; block = [0v10000000, 0v100073F4), size 28.988 KiB; page_block = [0v10000000, 0v10008000), size 32.000 KiB; flags =   R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
+05:13:27 0 D elf loadable program header; file_block = [0v760E00, 0v7681F4), size 28.988 KiB; memory_block = [0v10000000, 0v100073F4), size 28.988 KiB; flags =   R
+05:13:27 0 D extend mapping; block = [0v10008000, 0v10052422), size 297.033 KiB; page_block = [0v10008000, 0v10053000), size 300.000 KiB; flags = X R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
+05:13:27 0 D elf loadable program header; file_block = [0v768200, 0v7B3222), size 300.033 KiB; memory_block = [0v10007400, 0v10052422), size 300.033 KiB; flags = X R
+05:13:27 0 D elf loadable program header; file_block = [0v7B3228, 0v7B3318), size 240 B; memory_block = [0v10052428, 0v10052518), size 240 B; flags =  WR
+05:13:27 0 D extend mapping; block = [0v10053000, 0v10058680), size 21.625 KiB; page_block = [0v10053000, 0v10059000), size 24.000 KiB; flags =  WR; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
+05:13:27 0 D elf loadable program header; file_block = [0v7B3318, 0v7B9458), size 24.312 KiB; memory_block = [0v10052518, 0v10058680), size 24.352 KiB; flags =  WR
+05:13:27 0 I switch to; address_space = "base" @ 0p1000
+05:13:27 0 I loaded ELF file; context = { rip: 0v10008BD0, rsp: 0v7F7FFFFFF000 }; file_size = 5.374 MiB; process = { pid: <current>, address_space: "process" @ 0p7E93000, { rip: 0v10008BD0, rsp: 0v7F7FFFFFF000 } }
+05:13:27 0 I drop; address_space = "0:0" @ 0p7F1B000
+05:13:27 0 I user process page table entry; entry_point = 0v10008BD0; frame = Frame(32370 @ 0p7E72000); flags = PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY
+05:13:27 0 I switch to; address_space = "0:0" @ 0p7E93000
+05:13:27 0 D entering the user mode; pid = 0:0; registers = { rax: 0x0, rdi: 0x7F7FFFFEB000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v10008BD0, ss:rsp: 0x001B:0v7F7FFFFFF000, rflags:  } }
+05:13:27 0 I user space can read the system time; value = 1666588407; hex_value = 0x63561EF7; pid = 0:0
+05:13:27 0 I ; value = 0; hex_value = 0x0; pid = 0:0
+05:13:27 0 W syscall failed; syscall = Some(LOG_VALUE); number = 1; arg0 = 1; arg1 = 1; arg2 = 0; arg3 = 0; arg4 = 1099513729752; error = PermissionDenied
+05:13:27 0 W syscall failed; syscall = Some(LOG_VALUE); number = 1; arg0 = 0; arg1 = 0; arg2 = 0; arg3 = 0; arg4 = 1099513729752; error = Null
+05:13:27 0 W syscall failed; syscall = Some(LOG_VALUE); number = 1; arg0 = 268437376; arg1 = 1; arg2 = 0; arg3 = 0; arg4 = 1099513729752; error = InvalidArgument
+05:13:27 0 W syscall failed; syscall = Some(LOG_VALUE); number = 1; arg0 = 65536; arg1 = 18446744069414584320; arg2 = 0; arg3 = 0; arg4 = 1099513729752; error = InvalidArgument
+05:13:27 0 W syscall failed; syscall = Some(LOG_VALUE); number = 1; arg0 = 18446744073709486080; arg1 = 1048576; arg2 = 0; arg3 = 0; arg4 = 1099513729752; error = Overflow
+05:13:27 0 I syscall = "exit"; pid = 0:0; code = 0; reason = Some(OK)
+05:13:27 0 D leaving the user mode; pid = 0:0
+4_process_6_syscall::syscall_log_value--------------- [passed]
+05:13:27 0 I exit qemu; exit_code = SUCCESS
 ```
+
 
 ### Ориентировочный объём работ этой части лабораторки
 

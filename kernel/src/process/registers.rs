@@ -4,6 +4,7 @@ use core::{
     mem,
 };
 
+use x86::msr::IA32_FS_BASE;
 use x86_64::structures::gdt::SegmentSelector;
 
 use ku::process::{
@@ -14,7 +15,10 @@ use ku::process::{
 use crate::{
     gdt::Gdt,
     memory::Virt,
-    smp::KERNEL_RSP_OFFSET_IN_CPU,
+    smp::{
+        self,
+        KERNEL_RSP_OFFSET_IN_CPU,
+    },
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -82,6 +86,8 @@ impl Registers {
     #[allow(named_asm_labels)]
     #[inline(never)] // For the named label to be a unique link symbol.
     pub(super) unsafe fn switch_to(registers: *mut Registers) {
+        // TODO: your code here.
+
         asm!(
             "
             // TODO: your code here.

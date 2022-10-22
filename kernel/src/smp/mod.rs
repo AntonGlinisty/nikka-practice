@@ -83,5 +83,25 @@ fn init_smp(phys2virt: Page) -> Result<()> {
     // Intentionally leak Cpu stuctures as they should be 'static.
     mem::forget(cpus);
 
+    test_scaffolding::set_initialized();
+
     Ok(())
+}
+
+#[doc(hidden)]
+pub mod test_scaffolding {
+    use core::sync::atomic::{
+        AtomicBool,
+        Ordering,
+    };
+
+    pub fn is_initialized() -> bool {
+        INITIALIZED.load(Ordering::Relaxed)
+    }
+
+    pub(super) fn set_initialized() {
+        INITIALIZED.store(true, Ordering::Relaxed);
+    }
+
+    static INITIALIZED: AtomicBool = AtomicBool::new(false);
 }

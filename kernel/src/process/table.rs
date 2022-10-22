@@ -71,12 +71,11 @@ impl Table {
 
     pub fn free(process: MutexGuard<Process>) {
         // TODO: your code here.
-        unimplemented!();
     }
 
     pub fn get(pid: Pid) -> Result<MutexGuard<'static, Process>> {
         // TODO: your code here.
-        unimplemented!();
+        test_scaffolding::process() // TODO: remove before flight.
     }
 }
 
@@ -95,4 +94,46 @@ unsafe fn forge_static_lifetime<T>(x: &T) -> &'static T {
 
 lazy_static! {
     pub(super) static ref TABLE: Mutex<Table> = Mutex::new(Table::default());
+}
+
+#[doc(hidden)]
+pub mod test_scaffolding {
+    use lazy_static::lazy_static;
+    use spin::{
+        Mutex,
+        MutexGuard,
+    };
+
+    use crate::error::{
+        Error::NoProcess,
+        Result,
+    };
+
+    use super::{
+        Pid,
+        Process,
+        TABLE,
+        forge_static_lifetime,
+    };
+
+    pub(super) fn process() -> Result<MutexGuard<'static, Process>> {
+        assert!(TABLE.lock().table.is_empty());
+
+        DUMMY_TABLE
+            .lock()
+            .as_ref()
+            .map(|process| unsafe { forge_static_lifetime(process).lock() })
+            .ok_or(NoProcess)
+    }
+
+    pub fn set_process(mut process: Process) {
+        assert!(TABLE.lock().table.is_empty());
+
+        process.set_pid(Pid::new(0));
+        *DUMMY_TABLE.lock() = Some(Mutex::new(process));
+    }
+
+    lazy_static! {
+        pub(super) static ref DUMMY_TABLE: Mutex<Option<Mutex<Process>>> = Mutex::new(None);
+    }
 }

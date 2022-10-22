@@ -82,8 +82,13 @@ bitflags! {
         const MEMORY =
             Self::PHYS_MEMORY.bits | Self::VIRT_MEMORY.bits | Self::MAIN_FRAME_ALLOCATOR.bits;
 
-        const SMP = 1 << 3;
-        const PROCESS = 1 << 4;
+        const SYSCALL = 1 << 4;
+        const PROCESS_TABLE = 1 << 5;
+        const SCHEDULER = 1 << 6;
+
+        const PROCESS = Self::SYSCALL.bits | Self::PROCESS_TABLE.bits | Self::SCHEDULER.bits;
+
+        const SMP = 1 << 7;
     }
 }
 
@@ -118,8 +123,8 @@ pub fn init_subsystems(
         smp::init(boot_info);
     }
 
-    if subsystems.contains(Subsystems::PROCESS) {
-        process::init();
+    if subsystems & Subsystems::PROCESS != Subsystems::empty() {
+        process::init(subsystems);
     }
 }
 

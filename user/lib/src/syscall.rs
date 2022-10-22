@@ -143,7 +143,7 @@ pub fn set_trap_handler(
 
 // Inline is needed for the correctness of exofork().
 #[inline(always)]
-fn syscall(
+pub fn syscall(
     number: usize,
     arg0: usize,
     arg1: usize,

@@ -8,12 +8,14 @@ use x86_64::registers::control::Cr2;
 use ku::{
     memory::{
         PageFaultInfo,
+        Virt,
         mmu::PageTableFlags,
         size,
     },
     process::{
         Info,
         MiniContext,
+        Pid,
         TrapInfo,
     },
 };
@@ -34,6 +36,7 @@ use crate::{
         warn,
     },
     process::{
+        ModeContext,
         Process,
         Table,
     },
@@ -52,12 +55,16 @@ fn generic_trap(
     info: Info,
     fatal: Fatal,
 ) {
-    debug!(trap = TRAP_STATS[number].name(), %context);
+    debug!(trap = TRAP_STATS[number].name(), %context, %info);
 
     TRAP_STATS[number].inc();
 
     if context.is_user_mode() {
         let pid = Cpu::current_process().expect("user mode without a process");
+        if pid == Pid::Current {
+            context.set(ModeContext::kernel_context(Virt::default()));
+            return;
+        }
         let mut process =
             Table::get(pid).expect("failed to find the current process in the process table");
 

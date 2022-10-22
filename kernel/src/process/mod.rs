@@ -19,6 +19,7 @@ use ku::{
 
 use crate::{
     SYSTEM_INFO,
+    Subsystems,
     error::{
         Error::NoPage,
         Result,
@@ -52,13 +53,20 @@ pub use table::Table;
 
 pub(crate) use registers::ModeContext;
 
-pub fn init() {
-    syscall::init();
+pub fn init(subsystems: Subsystems) {
+    if subsystems.contains(Subsystems::SYSCALL) {
+        syscall::init();
+    }
 
     const PROCESS_SLOT_COUNT: usize = 1 << 10;
-    *TABLE.lock() = Table::new(PROCESS_SLOT_COUNT);
 
-    Scheduler::init(PROCESS_SLOT_COUNT);
+    if subsystems.contains(Subsystems::PROCESS_TABLE) {
+        *TABLE.lock() = Table::new(PROCESS_SLOT_COUNT);
+    }
+
+    if subsystems.contains(Subsystems::SCHEDULER) {
+        Scheduler::init(PROCESS_SLOT_COUNT);
+    }
 }
 
 pub fn create(elf_file: &[u8]) -> Result<Pid> {
@@ -124,6 +132,7 @@ pub mod test_scaffolding {
     pub use super::{
         process::test_scaffolding::*,
         scheduler::test_scaffolding::*,
+        table::test_scaffolding::*,
     };
 
     use ku::RingBuffer;

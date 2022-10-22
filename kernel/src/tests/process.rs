@@ -23,7 +23,6 @@ use kernel::{
     },
     trap::{
         GENERAL_PROTECTION_FAULT,
-        INVALID_OPCODE,
         PAGE_FAULT,
         TRAP_STATS,
     },
@@ -81,31 +80,6 @@ fn free_process(pid: Pid) {
 }
 
 #[test_case]
-fn syscall_exit() {
-    let _guard = forbid_frame_leaks();
-
-    let mut process = make_process(EXIT_ELF);
-    let pid = process.pid();
-
-    test_scaffolding::disable_interrupts(&mut process);
-
-    Process::enter_user_mode(process);
-
-    assert_eq!(
-        TRAP_STATS[INVALID_OPCODE].count(),
-        0,
-        "probably the `syscall` instruction is not initialized",
-    );
-    assert_eq!(
-        TRAP_STATS[PAGE_FAULT].count(),
-        0,
-        "probably the kernel has not switched to its own stack",
-    );
-
-    Table::get(pid).expect_err("the exit() syscall has not freed the process slot");
-}
-
-#[test_case]
 fn syscall_sched_yield() {
     let _guard = forbid_frame_leaks();
 
@@ -136,28 +110,6 @@ fn syscall_sched_yield() {
 }
 
 #[test_case]
-fn user_mode_page_fault() {
-    let _guard = forbid_frame_leaks();
-
-    let mut process = make_process(PAGE_FAULT_ELF);
-    let pid = process.pid();
-
-    test_scaffolding::disable_interrupts(&mut process);
-
-    assert_eq!(TRAP_STATS[PAGE_FAULT].count(), 0);
-
-    Process::enter_user_mode(process);
-
-    assert_eq!(
-        TRAP_STATS[PAGE_FAULT].count(),
-        1,
-        "probably the user mode page faults are not handled or counted",
-    );
-
-    Table::get(pid).expect_err("the page fault handler has not freed the process slot");
-}
-
-#[test_case]
 fn preemption() {
     let _guard = forbid_frame_leaks();
 
@@ -168,39 +120,6 @@ fn preemption() {
 
     // If this does not happen and the test times out, the preemption is not working properly.
     debug!("returned from the user space");
-
-    free_process(pid);
-}
-
-#[test_case]
-fn user_context_saved() {
-    let _guard = forbid_frame_leaks();
-
-    let pid = make_process(LOOP_ELF).pid();
-
-    let mut user_mode_context_saved = false;
-
-    while !user_mode_context_saved {
-        let process = Table::get(pid).expect("failed to find the new process in the process table");
-        Process::enter_user_mode(process);
-
-        let process = Table::get(pid).expect("failed to find the new process in the process table");
-
-        let user_registers = test_scaffolding::registers(&process);
-
-        debug!(?user_registers);
-
-        user_mode_context_saved = true;
-        for (i, register_value) in user_registers.iter().enumerate() {
-            if *register_value != 77701 + i {
-                user_mode_context_saved = false;
-                break;
-            }
-        }
-    }
-
-    // If this does not happen and the test times out, the user space context was not saved properly.
-    debug!("the user context is saved properly");
 
     free_process(pid);
 }

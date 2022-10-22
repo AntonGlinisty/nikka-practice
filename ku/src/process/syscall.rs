@@ -50,3 +50,31 @@ impl From<ResultCode> for Result<()> {
         }
     }
 }
+
+impl<T> From<Result<T>> for ResultCode {
+    fn from(result: Result<T>) -> ResultCode {
+        match result {
+            Ok(_) => ResultCode::OK,
+
+            Err(error) => match error {
+                Error::Elf(_) => ResultCode::UNEXPECTED,
+                Error::Fmt(_) => ResultCode::UNEXPECTED,
+                Error::Int(_) => ResultCode::UNEXPECTED,
+                Error::InvalidArgument => ResultCode::INVALID_ARGUMENT,
+                Error::NoFrame => ResultCode::NO_FRAME,
+                Error::NoPage => ResultCode::NO_PAGE,
+                Error::NoProcess => ResultCode::NO_PROCESS,
+                Error::NoProcessSlot => ResultCode::NO_PROCESS_SLOT,
+                Error::Null => ResultCode::UNEXPECTED,
+                Error::Overflow => ResultCode::UNEXPECTED,
+                Error::PermissionDenied => ResultCode::PERMISSION_DENIED,
+                Error::Pipe(_) => ResultCode::UNEXPECTED,
+                Error::Postcard(_) => ResultCode::UNEXPECTED,
+                Error::Unimplemented => ResultCode::UNIMPLEMENTED,
+                Error::InvalidAlignment => ResultCode::UNEXPECTED,
+
+                _ => ResultCode::UNEXPECTED,
+            },
+        }
+    }
+}
