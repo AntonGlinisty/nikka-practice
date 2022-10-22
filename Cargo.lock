@@ -185,6 +185,7 @@ dependencies = [
 name = "exit"
 version = "0.2.0"
 dependencies = [
+ "chrono",
  "ku",
  "lib",
 ]

@@ -34,7 +34,7 @@ fn kernel::process::syscall::init()
 - Включает бит [`x86_64::registers::model_specific::EferFlags::SYSTEM_CALL_EXTENSIONS`](../../doc/x86_64/registers/model_specific/struct.EferFlags.html#associatedconstant.SYSTEM_CALL_EXTENSIONS) в регистре [`x86_64::registers::model_specific::Efer`](../../doc/x86_64/registers/model_specific/struct.Efer.html). А остальные биты оставляет в исходном состоянии.
 - Записывает в регистр [`x86_64::registers::model_specific::Star`](../../doc/x86_64/registers/model_specific/struct.Star.html) методом [`Star::write()`](../../doc/x86_64/registers/model_specific/struct.Star.html#method.write) селекторы кода и данных для режимов пользователя и ядра --- [`kernel::memory::gdt::Gdt::user_code()`](../../doc/kernel/memory/gdt/struct.SmpGdt.html#method.user_code), [`kernel::memory::gdt::Gdt::user_data()`](../../doc/kernel/memory/gdt/struct.SmpGdt.html#method.user_data), [`kernel::memory::gdt::Gdt::kernel_code()`](../../doc/kernel/memory/gdt/struct.SmpGdt.html#method.kernel_code), [`kernel::memory::gdt::Gdt::kernel_data()`](../../doc/kernel/memory/gdt/struct.SmpGdt.html#method.kernel_data).
 - Записывает в регистр [`x86_64::registers::model_specific::LStar`](../../doc/x86_64/registers/model_specific/struct.LStar.html) виртуальный адрес функции [`kernel::process::syscall::syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html).
-- Записывает в регистр [`x86_64::registers::model_specific::SFMask`](../../doc/x86_64/registers/model_specific/struct.SFMask.html) маску для регистра флагов `RFLAGS`, которая определяет какие флаги в `RFLAGS` будут сброшены при входе в системный вызов. Обычно сбрасывают флаг прерываний. Но предлагается сделать наоборот, --- флаг прерываний не сбрасывать. Nikka не сломается от получения прерывания в момент выполнения системного вызова. А сбросить все остальные флаги, просто для определённости состояния `RFLAGS` в момент системного вызова.
+- Записывает в регистр [`x86_64::registers::model_specific::SFMask`](../../doc/x86_64/registers/model_specific/struct.SFMask.html) маску для регистра флагов `RFLAGS`, которая определяет какие флаги в `RFLAGS` будут сброшены при входе в системный вызов. Нужно сбросить флаг прерываний. Так как если прерывание возникнет сразу после переключения в ядро и до того как ядро переключится в собственный стек, процессор сохранит контекст прерывания на пользовательский стек. А ему, как мы помним, доверять нельзя. Также предлагается сбросить все остальные флаги, просто для определённости состояния `RFLAGS` в момент системного вызова.
 
 
 #### Диспетчеризация системных вызовов
@@ -105,6 +105,64 @@ asm!(
 Адрес пользовательского стека --- старое значение `RSP` --- она должна передать в функцию
 [`syscall()`](../../doc/kernel/process/syscall/fn.syscall.html)
 в соответствующем [x86-64 C ABI](https://wiki.osdev.org/System_V_ABI#x86-64) регистре.
+
+Помните, что благодаря маске в регистре
+[`x86_64::registers::model_specific::SFMask`](../../doc/x86_64/registers/model_specific/struct.SFMask.html),
+процессор выключил прерывания в момент выполнения инструкции
+[`SYSCALL`](https://www.felixcloutier.com/x86/syscall)?
+Nikka сама по себе не сломается от получения прерывания в момент выполнения системного вызова,
+и мы уже на стеке ядра --- самое время включить прерывания с помощью инструкции
+[`STI`](https://www.felixcloutier.com/x86/sti).
+Если же не включить прерывания, можно например пропустить очередной тик RTC, пока будет выполняться системный вызов.
+И тогда в журнале может быть неверное время.
+Например, тут последовательные записи журнала выглядят как будто между ними прошло 15-16 секунд:
+
+```console
+10:48:24 0 D entering the user mode; pid = 0:4; registers = { rax: 0x0, rdi: 0x7F7FFFFAD000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v10007550, ss:rsp: 0x001B:0v7F7FFFFFF000, rflags: IF } }
+10:48:40.001 0 D leaving the user mode; pid = 0:4
+```
+
+А на самом деле было пропущено много RTC прерываний.
+Вообще, после инициализации RTC было получено только первое прерывание в 10:48:24.
+И подсистема времени всё ещё ориентируется на одну единственную базовую точку в
+[`SystemInfo::rtc`](../../doc/ku/info/struct.SystemInfo.html#structfield.rtc),
+которая этому первому прерыванию соответствует.
+И только в 10:48:40 было получено второе прерывание.
+А все промежуточные пропали из-за того, что во время исполнения системных вызовов прерывания были отключены.
+
+То что прерывания запрещены до переключения стека, проверяется в тесте `4-process-6-syscall` из файла
+[`kernel/tests/4-process-6-syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/4-process-6-syscall.rs)
+следующим образом.
+Код пользователя из файла
+[`user/exit/src/main.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/user/exit/src/main.rs)
+запускается при запрещённых прерываниях.
+Он ждёт 100 миллисекунд, этого должно быть достаточно чтобы накопилось несколько тиков
+[PIT](https://en.wikipedia.org/wiki/Programmable_interval_timer):
+```rust
+// Wait for some PIT ticks so an interrupt will be pending on the return to the kernel mode.
+// This test is run with interrupts disabled.
+// If the kernel enables interrupts before switching the stack it will receive a Page Fault.
+time::delay(Duration::milliseconds(100));
+```
+А значит, появился сигнал о прерывании.
+После этого код пользователя записывает `0` в `RSP` и делает системный вызов.
+Начинает исполняться код ядра.
+И как только он разрешит прерывания, то сразу же получит прерывание от
+[PIT](https://en.wikipedia.org/wiki/Programmable_interval_timer).
+
+Если стек ещё не был переключён, это приведёт к Page Fault из-за того что код пользователя испортил `RSP`:
+
+```console
+$ (cd kernel; cargo test --test 4-process-6-syscall)
+...
+4_process_6_syscall::syscall_exit-----------------------------
+...
+19:32:14 0 D entering the user mode; pid = 0:0; registers = { rax: 0x0, rdi: 0x7F7FFFFEB000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v10007BA0, ss:rsp: 0x001B:0v7F7FFFFFF000, rflags:  } }
+19:32:14 0 D trap = "Page Fault"; context = { mode: kernel, cs:rip: 0x0008:0v8648E4, ss:rsp: 0x0010:0v0, rflags: IF }; info = { code: 0b11 = protection violation | write | kernel, address: 0vFFFFFFFFFFFFFFF8 }
+19:32:14 0 E kernel mode trap; trap = "Page Fault"; number = 14; info = { code: 0b11 = protection violation | write | kernel, address: 0vFFFFFFFFFFFFFFF8 }; context = { mode: kernel, cs:rip: 0x0008:0v8648E4, ss:rsp: 0x0010:0v0, rflags: IF }
+panicked at 'kernel mode trap #14 - Page Fault, context: { mode: kernel, cs:rip: 0x0008:0v8648E4, ss:rsp: 0x0010:0v0, rflags: IF }', kernel/src/trap/mod.rs:411:13
+--------------------------------------------------- [failed]
+```
 
 Также учтите, что если вы сохранили `RSP` ядра и настроили базу сегментного регистра `FS` на него,
 как предлагалось в

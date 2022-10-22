@@ -9,6 +9,7 @@ use x86_64::registers::model_specific::{
     Efer,
     EferFlags,
     LStar,
+    SFMask,
     Star,
 };
 
@@ -146,6 +147,11 @@ extern "C" fn syscall(
     arg3: usize,
     arg4: usize,
 ) -> ! {
+    assert!(
+        RFlags::read().contains(RFlags::INTERRUPT_FLAG),
+        "enable the interrupts during the system calls",
+    );
+
     // TODO: your code here.
     unimplemented!();
 }

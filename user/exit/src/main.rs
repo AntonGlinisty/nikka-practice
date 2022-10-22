@@ -7,7 +7,12 @@
 
 use core::arch::asm;
 
-use ku::process::Syscall;
+use chrono::Duration;
+
+use ku::{
+    process::Syscall,
+    time,
+};
 
 use lib::entry;
 
@@ -18,6 +23,11 @@ fn main() {
 }
 
 fn exit(code: usize) -> ! {
+    // Wait for some PIT ticks so an interrupt will be pending on the return to the kernel mode.
+    // This test is run with interrupts disabled.
+    // If the kernel enables interrupts before switching the stack it will receive a Page Fault.
+    time::delay(Duration::milliseconds(100));
+
     unsafe {
         asm!(
             "
