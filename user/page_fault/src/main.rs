@@ -7,11 +7,20 @@
 
 use core::arch::asm;
 
+use chrono::Duration;
+
+use ku::time;
+
 use lib::entry;
 
 entry!(main);
 
 fn main() {
+    // Wait for some PIT ticks so an interrupt will be pending on the return to the kernel mode.
+    // This test is run with interrupts disabled.
+    // If the kernel enables interrupts before switching the stack it will receive a Page Fault.
+    time::delay(Duration::milliseconds(100));
+
     unsafe {
         asm!(
             "

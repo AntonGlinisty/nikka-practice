@@ -173,7 +173,7 @@ impl ModeContext {
             Gdt::kernel_code(),
             Gdt::kernel_data(),
             MiniContext::new(Virt::from_ptr(Registers::switch_from as *const ()), rsp),
-            RFlags::INTERRUPT_FLAG,
+            RFlags::default(),
         )
     }
 

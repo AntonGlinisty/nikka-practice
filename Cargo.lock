@@ -384,6 +384,8 @@ checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 name = "page_fault"
 version = "0.2.0"
 dependencies = [
+ "chrono",
+ "ku",
  "lib",
 ]
 
