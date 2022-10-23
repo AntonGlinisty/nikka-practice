@@ -164,6 +164,21 @@ impl MainFrameAllocator {
         unimplemented!();
     }
 
+    /// Возвращает количество ссылок на `frame`.
+    ///
+    /// - Если `frame` свободен, возвращается `0`.
+    /// - Если он отсутствует или зарезервирован --- [`Error::NoFrame`].
+    pub(super) fn reference_count(
+        &self,
+        frame: Frame,
+    ) -> Result<usize> {
+        match self.frame_info[frame.index()] {
+            FrameInfo::Absent => Err(NoFrame),
+            FrameInfo::Free { .. } => Ok(0),
+            FrameInfo::Used { reference_count } => Ok(reference_count),
+        }
+    }
+
     /// Проверяет, что заданный физический фрейм уже был выделен.
     pub(super) fn is_used(
         &self,

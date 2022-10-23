@@ -12,15 +12,22 @@ use kernel::{
         Frame,
         KERNEL_RW,
         Page,
+        USER_R,
         Virt,
         mmu::{
+            self,
+            PAGE_TABLE_ENTRY_COUNT,
+            PAGE_TABLE_ROOT_LEVEL,
             PageTableEntry,
             PageTableFlags,
         },
         test_scaffolding::{
             duplicate,
             forbid_frame_leaks,
+            map_page,
             mapping,
+            switch_to,
+            unmap_page,
         },
     },
 };
@@ -87,6 +94,83 @@ fn basic_frame_allocator_functions() {
     assert_eq!(frame_allocator.count(), start_free_frames - 1);
 
     frame_allocator.deallocate(frames[0]);
+}
+
+#[test_case]
+fn allocated_frames_are_not_used() {
+    let _guard = forbid_frame_leaks();
+
+    let max_frames_for_intermediates: usize = PAGE_TABLE_ROOT_LEVEL.try_into().unwrap();
+    let poison = 0xDEAD_BEEF_u32;
+
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+    let start_free_frames = FRAME_ALLOCATOR.lock().count();
+    let frame_count = init::frame_count();
+
+    let frames = address_space.map_slice(start_free_frames, KERNEL_RW, Frame::default).unwrap();
+
+    let page_block = address_space.allocate(Page::SIZE).unwrap();
+    let page = page_block.into_iter().next().unwrap();
+
+    let start_free_frames = FRAME_ALLOCATOR.lock().count();
+    debug!(start_free_frames, frame_count);
+
+    let mut frames_poisoned = 0;
+
+    loop {
+        let frame = FRAME_ALLOCATOR.lock().allocate();
+        if frame.is_err() {
+            break;
+        }
+        let frame = frame.unwrap();
+        FRAME_ALLOCATOR.lock().reference(frame);
+
+        assert!(
+            frame.index() < frame_count,
+            "allocated a frame {frame} outside of the physical memory of the current machine with \
+             only {frame_count} frames total",
+        );
+
+        frames[frames_poisoned] = frame;
+
+        unsafe {
+            address_space.map_page_to_frame(page, frame, KERNEL_RW).unwrap();
+            mmu::flush(page);
+            let slice = page_block.try_into_mut_slice().unwrap();
+            slice.fill(poison);
+
+            if frames_poisoned % 1000 == 0 {
+                debug!(
+                    frames_poisoned,
+                    %frame,
+                    poison = slice[frames_poisoned % slice.len()],
+                    "poisoning the free memory",
+                );
+            }
+        }
+
+        frames_poisoned += 1;
+    }
+
+    unsafe {
+        unmap_page(&mut address_space, page).unwrap();
+    }
+
+    let end_free_frames = FRAME_ALLOCATOR.lock().count();
+    debug!(start_free_frames, end_free_frames, frames_poisoned);
+    assert_eq!(end_free_frames, 0);
+    assert!(frames_poisoned >= start_free_frames - max_frames_for_intermediates);
+
+    for i in 0 .. frames_poisoned {
+        FRAME_ALLOCATOR.lock().deallocate(frames[i]);
+    }
+
+    debug!(free_frames = FRAME_ALLOCATOR.lock().count());
+    assert!(FRAME_ALLOCATOR.lock().count() >= start_free_frames - max_frames_for_intermediates);
+
+    unsafe {
+        address_space.unmap_slice(frames).unwrap();
+    }
 }
 
 #[test_case]
@@ -183,8 +267,41 @@ fn shared_memory() {
 
     for page in pages {
         unsafe {
-            address_space.unmap_page(page).unwrap();
+            unmap_page(&mut address_space, page).unwrap();
         }
+    }
+}
+
+#[test_case]
+fn garbage_after_map_intermediate() {
+    let mut frame_allocator = FRAME_ALLOCATOR.lock();
+    let start_free_frames = frame_allocator.count();
+
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+    let mapping = mapping(&mut address_space);
+
+    let virt = Virt::new(0x0000_4000_0000_0000).unwrap();
+    let pte = mapping
+        .translate(virt, Some(&mut frame_allocator), PageTableFlags::empty())
+        .unwrap();
+
+    let expected_pte = PageTableEntry::default();
+
+    debug!(?pte, ?expected_pte);
+    assert_eq!(*pte, expected_pte);
+
+    let end_free_frames = frame_allocator.count();
+
+    assert_ne!(start_free_frames, end_free_frames);
+
+    for neighbour in 1 .. PAGE_TABLE_ENTRY_COUNT {
+        let neighbour_virt = (virt + neighbour * Page::SIZE).unwrap();
+        let neighbour_pte =
+            mapping.translate(neighbour_virt, None, PageTableFlags::empty()).unwrap();
+        if *neighbour_pte != expected_pte {
+            debug!(?neighbour_pte, ?expected_pte);
+        }
+        assert_eq!(*neighbour_pte, expected_pte);
     }
 }
 
@@ -192,17 +309,21 @@ fn shared_memory() {
 fn duplicate_and_drop_mapping() {
     let _guard = forbid_frame_leaks();
 
-    let mut variable = 0;
-    let write_ptr: *mut u64 = &mut variable;
+    let variable =
+        unsafe { BASE_ADDRESS_SPACE.lock().map_slice_zeroed::<usize>(1, KERNEL_RW).unwrap() };
+    let virt = Virt::from_ref(&variable[0]);
+    let frame = translate(&mut BASE_ADDRESS_SPACE.lock(), virt).frame().unwrap();
 
-    unsafe {
-        write_ptr.write_volatile(314159265);
-    }
-
-    let virt = Virt::from_ref(&variable);
+    let reference_count = FRAME_ALLOCATOR.lock().reference_count(frame).unwrap();
+    debug!(%virt, %frame, %reference_count, "one address space");
+    assert_eq!(reference_count, 1);
 
     let mut address_space_copy = duplicate(&BASE_ADDRESS_SPACE.lock()).unwrap();
-    let mut address_space = &mut BASE_ADDRESS_SPACE.lock();
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+
+    let reference_count = FRAME_ALLOCATOR.lock().reference_count(frame).unwrap();
+    debug!(%virt, %frame, %reference_count, "two identical address spaces");
+    assert_eq!(reference_count, 2);
 
     let ptes = [
         translate(&mut address_space, virt),
@@ -216,10 +337,133 @@ fn duplicate_and_drop_mapping() {
     assert_eq!(ptes[0], ptes[1]);
     assert_ne!(pte_addresses[0], pte_addresses[1]);
 
-    fn translate(
-        address_space: &mut AddressSpace,
-        virt: Virt,
-    ) -> &mut PageTableEntry {
-        mapping(address_space).translate(virt, None, PageTableFlags::empty()).unwrap()
+    drop(address_space_copy);
+
+    let reference_count = FRAME_ALLOCATOR.lock().reference_count(frame).unwrap();
+    debug!(%virt, %frame, %reference_count, "back to one address space");
+    assert_eq!(reference_count, 1);
+
+    unsafe {
+        address_space.unmap_slice(variable).unwrap();
     }
+}
+
+#[test_case]
+fn garbage_in_duplicate() {
+    let virt = Virt::new(0x0000_3000_0000_0000).unwrap();
+    let page = Page::new(virt).unwrap();
+
+    unsafe {
+        map_page(&mut BASE_ADDRESS_SPACE.lock(), page, KERNEL_RW).unwrap();
+    }
+
+    let _guard = forbid_frame_leaks();
+
+    let mut address_space_copy = duplicate(&BASE_ADDRESS_SPACE.lock()).unwrap();
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+
+    let ptes = [
+        translate(&mut address_space, virt),
+        translate(&mut address_space_copy, virt),
+    ];
+    let pte_addresses = [Virt::from_ref(ptes[0]), Virt::from_ref(ptes[1])];
+
+    debug!(?ptes);
+    debug!(?pte_addresses);
+
+    assert_eq!(ptes[0], ptes[1]);
+    assert_ne!(pte_addresses[0], pte_addresses[1]);
+
+    for neighbour in 1 .. PAGE_TABLE_ENTRY_COUNT {
+        let neighbour_virt = (virt + neighbour * Page::SIZE).unwrap();
+        let expected_neighbour_pte = translate(&mut address_space, neighbour_virt);
+        let neighbour_pte = translate(&mut address_space_copy, neighbour_virt);
+        if *neighbour_pte != *expected_neighbour_pte {
+            debug!(?neighbour_pte, ?expected_neighbour_pte);
+        }
+        assert_eq!(*neighbour_pte, *expected_neighbour_pte);
+    }
+
+    drop(address_space_copy);
+}
+
+#[test_case]
+fn duplicate_only_kernel() {
+    let page = BASE_ADDRESS_SPACE
+        .lock()
+        .allocate(Page::SIZE)
+        .unwrap()
+        .into_iter()
+        .next()
+        .unwrap();
+    let virt = page.address();
+
+    debug!(?page);
+
+    unsafe {
+        map_page(&mut BASE_ADDRESS_SPACE.lock(), page, USER_R).unwrap();
+    }
+
+    let mut address_space_copy = duplicate(&BASE_ADDRESS_SPACE.lock()).unwrap();
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+
+    let ptes = [
+        translate(&mut address_space, virt),
+        translate(&mut address_space_copy, virt),
+    ];
+    debug!(?ptes);
+    assert!(ptes[0].is_present());
+    assert!(!ptes[1].is_present(), "do not copy mappings to user pages");
+
+    drop(address_space_copy);
+
+    unsafe {
+        unmap_page(&mut address_space, page).unwrap();
+    }
+}
+
+#[test_case]
+fn duplicate_works() {
+    let _guard = forbid_frame_leaks();
+
+    let variable =
+        unsafe { BASE_ADDRESS_SPACE.lock().map_slice_zeroed::<usize>(1, KERNEL_RW).unwrap() };
+    variable[0] = 0;
+    debug!(
+        variable = variable[0],
+        "original address space initializes the variable",
+    );
+
+    let address_space_copy = duplicate(&BASE_ADDRESS_SPACE.lock()).unwrap();
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+
+    switch_to(&address_space_copy);
+
+    debug!("inside the duplicate address space");
+    variable[0] = 1;
+    debug!(
+        variable = variable[0],
+        "duplicate address space modifies the variable",
+    );
+
+    switch_to(&address_space);
+
+    drop(address_space_copy);
+
+    debug!(
+        variable = variable[0],
+        "original address space reads the variable",
+    );
+    assert_eq!(variable[0], 1);
+
+    unsafe {
+        address_space.unmap_slice(variable).unwrap();
+    }
+}
+
+fn translate(
+    address_space: &mut AddressSpace,
+    virt: Virt,
+) -> &mut PageTableEntry {
+    mapping(address_space).translate(virt, None, PageTableFlags::empty()).unwrap()
 }

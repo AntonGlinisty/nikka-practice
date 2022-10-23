@@ -85,6 +85,25 @@ impl FrameAllocator {
         }
     }
 
+    /// Возвращает количество ссылок на `frame`.
+    ///
+    /// - Если `frame` свободен, возвращается `0`.
+    /// - Если он отсутствует или зарезервирован --- [`Error::NoFrame`].
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если в данный момент за выделение физических фреймов
+    /// отвечает не [`MainFrameAllocator`].
+    pub fn reference_count(
+        &self,
+        frame: Frame,
+    ) -> Result<usize> {
+        match self {
+            FrameAllocator::Main(main_allocator) => main_allocator.reference_count(frame),
+            _ => panic!("can not get the reference count without the main frame allocator"),
+        }
+    }
+
     /// Проверяет, что заданный физический фрейм уже был выделен.
     ///
     /// # Panics

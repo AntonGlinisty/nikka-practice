@@ -544,6 +544,21 @@ pub(super) mod test_scaffolding {
         Mapping,
     };
 
+    pub unsafe fn map_page(
+        address_space: &mut AddressSpace,
+        page: Page,
+        flags: PageTableFlags,
+    ) -> Result<()> {
+        address_space.map_page(page, flags)
+    }
+
+    pub unsafe fn unmap_page(
+        address_space: &mut AddressSpace,
+        page: Page,
+    ) -> Result<()> {
+        address_space.unmap_page(page)
+    }
+
     pub fn check_permission<T>(
         address_space: &mut AddressSpace,
         block: Block<Virt>,
@@ -577,5 +592,9 @@ pub(super) mod test_scaffolding {
 
     pub fn page_allocator_block(address_space: &AddressSpace) -> Block<Page> {
         block(&address_space.page_allocator)
+    }
+
+    pub fn switch_to(address_space: &AddressSpace) {
+        address_space.switch_to();
     }
 }
