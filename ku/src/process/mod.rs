@@ -11,6 +11,7 @@ pub use syscall::{
     ExitCode,
     ResultCode,
     Syscall,
+    SyscallResult,
 };
 pub use trap_info::{
     Info,
