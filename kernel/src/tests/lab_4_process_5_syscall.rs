@@ -9,7 +9,6 @@ use kernel::{
         mmu::PageTableFlags,
     },
     process::{
-        self,
         Pid,
         Process,
         Table,
@@ -31,7 +30,7 @@ const LOG_VALUE_ELF: &[u8] = include_bytes!("../../target/kernel/user/log_value"
 
 fn make_process(file: &[u8]) -> MutexGuard<'static, Process> {
     test_scaffolding::set_process(
-        process::create_process(file).expect("failed to create the test process"),
+        test_scaffolding::create_process(file).expect("failed to create the test process"),
     );
     let mut process =
         Table::get(Pid::Current).expect("failed to find the new process in the process table");

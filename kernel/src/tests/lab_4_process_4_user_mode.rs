@@ -16,7 +16,6 @@ use kernel::{
         test_scaffolding::forbid_frame_leaks,
     },
     process::{
-        self,
         Process,
         test_scaffolding,
     },
@@ -35,7 +34,8 @@ const PAGE_FAULT_ELF: &[u8] = include_bytes!("../../target/kernel/user/page_faul
 fn make_process(file: &[u8]) -> Process {
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
 
-    let mut process = process::create_process(file).expect("failed to create the test process");
+    let mut process =
+        test_scaffolding::create_process(file).expect("failed to create the test process");
 
     let entry_point = Virt::new_u64(ElfFile::new(file).unwrap().header.pt2.entry_point()).unwrap();
 

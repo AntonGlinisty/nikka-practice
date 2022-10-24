@@ -73,7 +73,7 @@ pub fn create(elf_file: &[u8]) -> Result<Pid> {
     Table::allocate(create_process(elf_file)?)
 }
 
-pub fn create_process(elf_file: &[u8]) -> Result<Process> {
+fn create_process(elf_file: &[u8]) -> Result<Process> {
     let mut address_space = BASE_ADDRESS_SPACE.lock().duplicate()?;
 
     address_space.switch_to();
@@ -140,7 +140,12 @@ pub mod test_scaffolding {
     use crate::{
         error::Result,
         memory::AddressSpace,
+        process::Process,
     };
+
+    pub fn create_process(elf_file: &[u8]) -> Result<Process> {
+        super::create_process(elf_file)
+    }
 
     pub fn map_log(address_space: &mut AddressSpace) -> Result<RingBuffer> {
         super::map_log(address_space)

@@ -12,8 +12,11 @@ use kernel::{
         mmu::PageTableFlags,
         test_scaffolding::forbid_frame_leaks,
     },
-    process,
-    process::Process,
+    process::{
+        self,
+        Process,
+        test_scaffolding,
+    },
 };
 
 mod init;
@@ -25,7 +28,8 @@ const LOOP_ELF: &[u8] = include_bytes!("../../target/kernel/user/loop");
 fn make_process(file: &[u8]) -> Process {
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
 
-    let mut process = process::create_process(file).expect("failed to create the test process");
+    let mut process =
+        test_scaffolding::create_process(file).expect("failed to create the test process");
 
     let entry_point = Virt::new_u64(ElfFile::new(file).unwrap().header.pt2.entry_point()).unwrap();
 
