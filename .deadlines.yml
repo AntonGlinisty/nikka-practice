@@ -162,3 +162,85 @@
       check:
         - cd kernel && cargo test --test 2-mm-*
 
+- group: lab-4-process
+  start: 24-10-2022 18:00
+  deadline: 08-11-2022 23:59
+  second_deadline: 01-02-2023 23:59
+  enabled: true
+  tasks:
+    - task: elf
+      score: 100
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-3-elf.html
+      allow_list:
+        - kernel/src/memory/address_space.rs
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/memory/main_frame_allocator.rs
+        - kernel/src/memory/mapping.rs
+        - kernel/src/memory/page_allocator.rs
+        - kernel/src/process/elf.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/memory/block.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+      check:
+        - cd kernel && cargo test --test 2-mm-* --test 4-process-3-elf
+
+    - task: permission-checks
+      score: 50
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-4-permission-checks.html
+      allow_list:
+        - kernel/src/memory/address_space.rs
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/memory/main_frame_allocator.rs
+        - kernel/src/memory/mapping.rs
+        - kernel/src/memory/page_allocator.rs
+        - kernel/src/process/elf.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/memory/block.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+      check:
+        - cd kernel && cargo test --test 2-mm-* --test 4-process-4-permission-checks
+
+    - task: user-mode
+      score: 150
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-5-user-mode.html
+      allow_list:
+        - kernel/src/memory/address_space.rs
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/memory/main_frame_allocator.rs
+        - kernel/src/memory/mapping.rs
+        - kernel/src/memory/page_allocator.rs
+        - kernel/src/process/elf.rs
+        - kernel/src/process/registers.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/memory/block.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+      check:
+        - cd kernel && cargo test --test 2-mm-* --test 4-process-5-user-mode
+
+    - task: syscall
+      score: 200
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-6-syscall.html
+      allow_list:
+        - kernel/src/memory/address_space.rs
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/memory/main_frame_allocator.rs
+        - kernel/src/memory/mapping.rs
+        - kernel/src/memory/page_allocator.rs
+        - kernel/src/process/elf.rs
+        - kernel/src/process/registers.rs
+        - kernel/src/process/syscall.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/memory/block.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+        - user/lib/src/syscall.rs
+      check:
+        - cd kernel && cargo test --test 2-mm-* --test 4-process-6-syscall
+
