@@ -21,6 +21,7 @@ use crate::{
     },
 };
 
+/// Состояние регистров пользовательского процесса.
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub(crate) struct Registers {
@@ -33,6 +34,10 @@ pub(crate) struct Registers {
 }
 
 impl Registers {
+    /// Создаёт регистры процесса с заданным начальным минимальным `context` и передаёт ему `arg0`
+    /// как регистре, отведённом под первый аргумент функции в
+    /// [System V ABI](https://wiki.osdev.org/System_V_ABI#x86-64).
+    /// Остальные регистры заполняет нулями.
     pub(super) fn new(
         context: MiniContext,
         rdi: usize,
@@ -49,6 +54,7 @@ impl Registers {
         }
     }
 
+    /// Дублирует регистры, заменяя в копии значения `rax`, `rdi` и `rsi`.
     pub(super) fn duplicate(
         &self,
         rax: usize,
@@ -65,10 +71,12 @@ impl Registers {
         }
     }
 
+    /// Возвращает минимальный контекст процесса.
     pub(super) fn mini_context(&self) -> MiniContext {
         self.user_context.mini_context()
     }
 
+    /// Устанавливает минимальный контекст процесса.
     pub(super) fn set_mini_context(
         &mut self,
         context: MiniContext,
@@ -76,6 +84,7 @@ impl Registers {
         self.user_context.set_mini_context(context);
     }
 
+    /// Устанавливает расширенный контекст процесса с уровнем привилегий и регистром флагов.
     pub(super) fn set_mode_context(
         &mut self,
         context: ModeContext,
@@ -83,6 +92,12 @@ impl Registers {
         self.user_context = context;
     }
 
+    /// Переключается в процесс, заданный регистрами `Registers`.
+    ///
+    /// Сохраняет контекст ядра и переключается в контекст пользователя.
+    /// При этом текущий уровень привилегий меняется с уровня ядра на уровень пользователя.
+    /// После возвращения из режима пользователя сохраняет контекст пользователя и
+    /// восстанавливает ранее сохранённый контекст ядра.
     #[allow(named_asm_labels)]
     #[inline(never)] // For the named label to be a unique link symbol.
     pub(super) unsafe fn switch_to(registers: *mut Registers) {
@@ -107,11 +122,27 @@ impl Registers {
         );
     }
 
+    /// Вытесняет текущий исполняющийся процесс с процессора по его собственному запросу.
+    ///
+    /// Не сохраняет контекст процесса пользователя,
+    /// он должен сохранить его сам в процедуре системного вызова `syscall::sched_yield()`.
+    /// Возвращается в контекст ядра, из которого этот процесс был запущен.
+    /// Текущий контекст ядра уничтожается.
     #[naked]
     pub(super) unsafe extern "C" fn sched_yield() -> ! {
         asm!("jmp switch_to_kernel_mode", options(noreturn));
     }
 
+    /// Вытесняет текущий исполняющийся процесс с процессора принудительно.
+    ///
+    /// Сохраняет контекст процесса пользователя,
+    /// так как он не готов к вытеснению и порче регистров.
+    /// Возвращается в контекст ядра, из которого этот процесс был запущен.
+    /// Текущий контекст ядра уничтожается.
+    ///
+    /// Реализация прыгает внутрь метода [`Registers::switch_to()`] на метку,
+    /// с которой начинается сохранение контекста пользователя и
+    /// восстановление контекста ядра.
     #[naked]
     pub(super) unsafe extern "C" fn switch_from() -> ! {
         asm!("jmp store_user_mode_context", options(noreturn));
@@ -131,19 +162,31 @@ impl fmt::Display for Registers {
     }
 }
 
-/// `iret` instruction layout.
-/// It is the minimal register context that is necessary for switching between the kernel mode and the user mode.
+/// Контекст исполнения, позволяющий задать уровень привилегий --- ядра или пользователя.
+///
+/// Имеет в памяти ровно такое представление, какого требует инструкция
+/// [iret](https://www.felixcloutier.com/x86/iret:iretd:iretq).
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct ModeContext {
+    /// [Instruction Pointer](https://wiki.osdev.org/CPU_Registers_x86-64#Pointer_Registers)
     rip: Virt,
+
+    /// [Code Segment](https://wiki.osdev.org/CPU_Registers_x86-64#Segment_Registers)
     cs: usize,
+
+    /// [RFLAGS Register](https://wiki.osdev.org/CPU_Registers_x86-64#RFLAGS_Register)
     rflags: RFlags,
+
+    /// [Stack Pointer](https://wiki.osdev.org/CPU_Registers_x86-64#General_Purpose_Registers)
     rsp: Virt,
+
+    /// [Stack Segment](https://wiki.osdev.org/CPU_Registers_x86-64#Segment_Registers)
     ss: usize,
 }
 
 impl ModeContext {
+    /// Собирает [`ModeContext`] из его частей.
     fn new(
         code: SegmentSelector,
         data: SegmentSelector,
@@ -159,6 +202,7 @@ impl ModeContext {
         }
     }
 
+    /// Возвращает [`ModeContext`] для заданного `context` с привилегиями пользователя.
     fn user_context(context: MiniContext) -> Self {
         Self::new(
             Gdt::user_code(),
@@ -168,6 +212,9 @@ impl ModeContext {
         )
     }
 
+    /// Возвращает [`ModeContext`] для заданного `rsp` с привилегиями пользователя.
+    /// В качестве `rip` использует функцию [`Registers::switch_from()`],
+    /// то есть при переходе в этот контекст будет запущена именно она.
     pub(crate) fn kernel_context(rsp: Virt) -> Self {
         Self::new(
             Gdt::kernel_code(),
@@ -177,10 +224,12 @@ impl ModeContext {
         )
     }
 
+    /// Возвращает [`MiniContext`].
     pub fn mini_context(&self) -> MiniContext {
         MiniContext::new(self.rip, self.rsp)
     }
 
+    /// Устанавливает [`MiniContext`].
     pub fn set_mini_context(
         &mut self,
         context: MiniContext,
@@ -189,6 +238,7 @@ impl ModeContext {
         self.rsp = context.rsp();
     }
 
+    /// Возвращает `true`, если контекст имеет привилегии пользователя.
     pub fn is_user_mode(&self) -> bool {
         assert_eq!(
             Self::is_user_mode_segment(self.cs),
@@ -198,10 +248,12 @@ impl ModeContext {
         Self::is_user_mode_segment(self.cs)
     }
 
-    fn is_user_mode_segment(segment_register: usize) -> bool {
-        segment_register & Self::CPL_MASK != Self::RING_0
+    /// Возвращает `true`, если селектор сегмента `segment_selector` имеет привилегии пользователя.
+    fn is_user_mode_segment(segment_selector: usize) -> bool {
+        segment_selector & Self::CPL_MASK != Self::RING_0
     }
 
+    /// Возвращает текстовое имя режима контекста --- `"kernel"` или `"user"`.
     fn mode(&self) -> &'static str {
         if self.is_user_mode() {
             "user"
@@ -210,7 +262,13 @@ impl ModeContext {
         }
     }
 
+    /// Маска уровня привилегий ([кольца защиты](https://en.wikipedia.org/wiki/Protection_ring))
+    /// записанного в селекторе сегмента.
+    ///
+    /// (Current Privilege Level, если селектор записан в регистр сегмента кода CS.)
     const CPL_MASK: usize = 0x3;
+
+    /// Уровень привилегий ([кольцо защиты](https://en.wikipedia.org/wiki/Protection_ring)) ядра.
     const RING_0: usize = 0x0;
 }
 
@@ -232,6 +290,7 @@ impl fmt::Display for ModeContext {
     }
 }
 
+#[doc(hidden)]
 pub(super) mod test_scaffolding {
     use super::{
         RFlags,

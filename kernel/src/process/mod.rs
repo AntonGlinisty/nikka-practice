@@ -1,9 +1,20 @@
+/// Загружает [ELF--файлы](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format)
+/// пользовательских процессов и их адресные пространства.
 mod elf;
+
+/// Содержит структуру пользовательского процесса [`Process`].
 #[allow(clippy::module_inception)]
 mod process;
+
+/// Описывает состояние регистров процесса [`Registers`] и
+/// контекст исполнения содержащий уровень привилегий [`ModeContext`].
 mod registers;
+
 mod scheduler;
+
+/// Реализует системные вызовы.
 mod syscall;
+
 mod table;
 
 use core::mem;
@@ -53,6 +64,11 @@ pub use table::Table;
 
 pub(crate) use registers::ModeContext;
 
+// Used in docs.
+#[allow(unused)]
+use registers::Registers;
+
+/// Инициализация подсистемы процессов.
 pub fn init(subsystems: Subsystems) {
     if subsystems.contains(Subsystems::SYSCALL) {
         syscall::init();
@@ -69,10 +85,18 @@ pub fn init(subsystems: Subsystems) {
     }
 }
 
+/// Создаёт процесс для заданного
+/// [ELF--файла](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format)
+/// `elf_file`,
+/// вставляет его в таблицу процессов и
+/// возвращает его идентификатор.
 pub fn create(elf_file: &[u8]) -> Result<Pid> {
     Table::allocate(create_process(elf_file)?)
 }
 
+/// Создаёт процесс для заданного
+/// [ELF--файла](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format)
+/// `elf_file` и возвращает его.
 fn create_process(elf_file: &[u8]) -> Result<Process> {
     let mut address_space = BASE_ADDRESS_SPACE.lock().duplicate()?;
 
@@ -94,6 +118,9 @@ fn create_process(elf_file: &[u8]) -> Result<Process> {
     Ok(process)
 }
 
+/// Создаёт для процесса отображение в его адресное пространство `address_space`
+/// страниц с общей информацией о системе и с информацией о самом процессе.
+/// См. [`SystemInfo`] и [`ProcessInfo`].
 fn map_process_info(address_space: &mut AddressSpace) -> Result<&'static mut ProcessInfo> {
     let log = map_log(address_space)?;
     let recursive_mapping = address_space.mapping().make_recursive_mapping()?;
@@ -103,16 +130,23 @@ fn map_process_info(address_space: &mut AddressSpace) -> Result<&'static mut Pro
     })
 }
 
+/// Создаёт для процесса отображение в его адресное пространство `address_space`
+/// циклического буфера для журналирования.
+/// См. [`RingBuffer`].
 fn map_log(address_space: &mut AddressSpace) -> Result<RingBuffer> {
     // TODO: your code here.
     Ok(RingBuffer::zero()) // TODO: remove before flight.
 }
 
+/// Создаёт для процесса отображение в его адресное пространство `address_space`
+/// страницы с общей информацией о системе.
+/// См. [`SystemInfo`].
 fn map_system_info(address_space: &mut AddressSpace) -> Result<*const SystemInfo> {
     let system_info_frame = address_space
         .mapping()
         .translate(Virt::from_ref(&SYSTEM_INFO), None, PageTableFlags::empty())?
         .frame()?;
+
     let system_info_page = address_space
         .allocate(mem::size_of_val(&SYSTEM_INFO))?
         .into_iter()
@@ -128,6 +162,7 @@ fn map_system_info(address_space: &mut AddressSpace) -> Result<*const SystemInfo
     system_info_page.address().try_into_ptr()
 }
 
+#[doc(hidden)]
 pub mod test_scaffolding {
     pub use super::{
         process::test_scaffolding::*,

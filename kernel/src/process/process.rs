@@ -32,25 +32,49 @@ use super::{
     registers::Registers,
 };
 
+/// Состояние пользовательского процесса.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum State {
+    /// Процесс только что создан и не готов к запуску.
     Exofork,
+
+    /// Процесс готов к вытеснению, но не выполняется в данный момент.
     Runnable,
+
+    /// Процесс выполняется в данный момент.
     Running,
 }
 
+/// Описывает пользовательский процесс.
 #[derive(Debug)]
 pub struct Process {
+    /// Виртуальное адресное пространство процесса.
     address_space: AddressSpace,
+
+    /// Блок памяти, через который ядро предоставляет процессу информацию о нём.
+    /// В этом блоке находится структура типа [`ProcessInfo`].
     info: Block<Virt>,
+
+    /// Идентификатор процесса--родителя, который создал данный процесс.
     parent: Option<Pid>,
+
+    /// Идентификатор процесса.
     pid: Pid,
+
+    /// Состояние регистров процесса.
     registers: Registers,
+
+    /// Состояние процесса.
     state: State,
+
+    /// Контекст пользователя, в который передаются исключения и прерывания,
+    /// относящиеся к данному процессу.
+    /// Например, Page Fault при некорректном доступе к памяти в коде пользователя.
     trap_handler_context: TrapHandlerContext,
 }
 
 impl Process {
+    /// Создаёт новый процесс.
     pub(super) fn new(
         address_space: AddressSpace,
         context: MiniContext,
@@ -69,6 +93,7 @@ impl Process {
         }
     }
 
+    /// Дублирует существующий процесс.
     pub(super) fn duplicate(
         &self,
         rax: usize,
@@ -91,10 +116,12 @@ impl Process {
         })
     }
 
+    /// Возвращает виртуальное адресное пространство процесса.
     pub fn address_space(&mut self) -> &mut AddressSpace {
         &mut self.address_space
     }
 
+    /// Устанавливает минимальный контекст процесса.
     pub(super) fn set_context(
         &mut self,
         context: MiniContext,
@@ -102,6 +129,8 @@ impl Process {
         self.registers.set_mini_context(context);
     }
 
+    /// Возвращает ссылку на структуру [`ProcessInfo`],
+    /// через которую ядро предоставляет процессу информацию о нём.
     unsafe fn info(&mut self) -> Result<&mut ProcessInfo> {
         let info = self.address_space.check_permission_mut::<ProcessInfo>(self.info, USER_RW)?;
 
@@ -112,6 +141,7 @@ impl Process {
         }
     }
 
+    /// Возвращает [`RingBuffer`] в который код пользователя записывает свои сообщения журнала.
     pub fn log(&mut self) -> Result<&mut RingBuffer> {
         let info = unsafe { self.info()? };
         let log = Block::from_ref(info.log());
@@ -126,10 +156,12 @@ impl Process {
         }
     }
 
+    /// Возвращает идентификатор процесса--родителя, который создал данный процесс.
     pub fn parent(&self) -> Option<Pid> {
         self.parent
     }
 
+    /// Возвращает идентификатор процесса.
     pub fn pid(&self) -> Pid {
         assert_ne!(
             self.pid,
@@ -139,6 +171,7 @@ impl Process {
         self.pid
     }
 
+    /// Устанавливает идентификатор процесса.
     pub(super) fn set_pid(
         &mut self,
         pid: Pid,
@@ -151,10 +184,12 @@ impl Process {
         }
     }
 
+    /// Возвращает состояние процесса.
     pub(super) fn state(&self) -> State {
         self.state
     }
 
+    /// Устанавливает состояние процесса.
     pub(super) fn set_state(
         &mut self,
         state: State,
@@ -162,10 +197,16 @@ impl Process {
         self.state = state
     }
 
+    /// Возвращает контекст пользователя, в который передаются исключения и прерывания,
+    /// относящиеся к данному процессу.
+    /// Например, Page Fault при некорректном доступе к памяти в коде пользователя.
     pub(crate) fn trap_handler_context(&self) -> TrapHandlerContext {
         self.trap_handler_context
     }
 
+    /// Устанавливает контекст пользователя, в который передаются исключения и прерывания,
+    /// относящиеся к данному процессу.
+    /// Например, Page Fault при некорректном доступе к памяти в коде пользователя.
     pub(super) fn set_trap_handler_context(
         &mut self,
         trap_handler_context: TrapHandlerContext,
@@ -173,6 +214,9 @@ impl Process {
         self.trap_handler_context = trap_handler_context;
     }
 
+    /// Переходит в режим пользователя.
+    /// Возвращает `true` если возврат из режима пользователя
+    /// был совершён принудительно (по прерыванию таймера `trap::timer()`).
     pub fn enter_user_mode(mut process: MutexGuard<Process>) -> bool {
         let pid = process.pid;
 
@@ -204,8 +248,12 @@ impl Process {
         false // TODO: remove before flight.
     }
 
-    /// Switches into the kernel context in which `enter_user_mode()` was called.
-    /// The current kernel context is destroyed.
+    /// Вытесняет текущий исполняющийся процесс с процессора принудительно.
+    ///
+    /// Сохраняет контекст процесса пользователя,
+    /// так как он не готов к вытеснению и порче регистров.
+    /// Возвращается в контекст ядра, из которого этот процесс был запущен.
+    /// Текущий контекст ядра уничтожается.
     pub(crate) extern "C" fn leave_user_mode() -> ! {
         unsafe {
             assert!(Cpu::current_process().is_ok());
@@ -214,6 +262,12 @@ impl Process {
         }
     }
 
+    /// Вытесняет текущий исполняющийся процесс с процессора по его собственному запросу.
+    ///
+    /// Не сохраняет контекст процесса пользователя, пользователь должен
+    /// сохранить его сам в процедуре системного вызова `syscall::sched_yield()`.
+    /// Возвращается в контекст ядра, из которого этот процесс был запущен.
+    /// Текущий контекст ядра уничтожается.
     pub(crate) extern "C" fn sched_yield() -> ! {
         unsafe {
             assert!(Cpu::current_process().is_ok());
@@ -238,13 +292,21 @@ impl fmt::Display for Process {
     }
 }
 
+/// Контекст пользователя, в который передаются исключения и прерывания,
+/// относящиеся к данному процессу.
+/// Например, Page Fault при некорректном доступе к памяти в коде пользователя.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct TrapHandlerContext {
+    /// Контекст пользовательского обработчика исключений и прерываний.
     mini_context: MiniContext,
+
+    /// Блок памяти, отведённый под стек для
+    /// пользовательского обработчика исключений и прерываний.
     stack: Block<Virt>,
 }
 
 impl TrapHandlerContext {
+    /// Создаёт контекст пользовательского обработчика исключений и прерываний.
     pub(super) fn new(
         rip: Virt,
         stack: Block<Virt>,
@@ -255,6 +317,8 @@ impl TrapHandlerContext {
         })
     }
 
+    /// Возвращает `true` если указатель стека `rsp` указывает в стек
+    /// пользовательского обработчика исключений и прерываний.
     pub(crate) fn contains(
         &self,
         rsp: Virt,
@@ -262,10 +326,12 @@ impl TrapHandlerContext {
         self.stack.contains_address(rsp)
     }
 
+    /// Возвращает `true` если пользователь установил свой обработчик исключений.
     pub(crate) fn is_valid(&self) -> bool {
         self.stack != Block::default()
     }
 
+    /// Возвращает контекст пользовательского обработчика исключений и прерываний.
     pub(crate) fn mini_context(&self) -> MiniContext {
         self.mini_context
     }
@@ -284,6 +350,7 @@ impl fmt::Display for TrapHandlerContext {
     }
 }
 
+#[doc(hidden)]
 pub(super) mod test_scaffolding {
     use super::{
         super::registers::test_scaffolding,

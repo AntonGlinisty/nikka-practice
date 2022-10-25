@@ -66,11 +66,19 @@ use super::{
     TrapHandlerContext,
 };
 
+/// Инициализация системных вызовов.
+/// Подготавливает процессор к выполнению инструкций
+/// [syscall](https://www.felixcloutier.com/x86/syscall) и
+/// [sysret](https://www.felixcloutier.com/x86/sysret).
 pub(crate) fn init() {
     // TODO: your code here.
     unimplemented!();
 }
 
+/// Получает управление при выполнении инструкции
+/// [syscall](https://www.felixcloutier.com/x86/syscall).
+/// Переключает стек на стек ядра, разрешает прерывания и
+/// передаёт управление в функцию [`syscall()`].
 #[naked]
 extern "C" fn syscall_trampoline() -> ! {
     unsafe {
@@ -88,6 +96,12 @@ extern "C" fn syscall_trampoline() -> ! {
     }
 }
 
+/// Выполняет диспетчеризацию системных вызовов по аргументу `number` --- номеру системного вызова.
+/// Передаёт в функции, реализующие конкретные системные вызовы,
+/// нужную часть аргументов `arg0`–`arg4`.
+/// После выполнения функции конкретного системного вызова,
+/// с помощью функции [`sysret()`] возвращает управление в контекст пользователя,
+/// задаваемый `rip` и `rsp`.
 extern "C" fn syscall(
     // https://wiki.osdev.org/System_V_ABI#x86-64:
     // Parameters to functions are passed in the registers rdi, rsi, rdx, rcx, r8, r9, and further values are passed on the stack in reverse order.
@@ -110,6 +124,10 @@ extern "C" fn syscall(
     unimplemented!();
 }
 
+/// С помощью инструкции [sysret](https://www.felixcloutier.com/x86/sysret)
+/// возвращает управление в контекст пользователя `context`.
+/// Передаёт пользователю результат системного вызова в виде кода успеха или ошибки `result` и
+/// полезной нагрузки `res`.
 fn sysret(
     context: MiniContext,
     result: Result<SyscallResult>,
@@ -131,6 +149,9 @@ fn sysret(
     }
 }
 
+/// Выполняет системный вызов `syscall::exit(code)`.
+/// Освобождает слот таблицы процессов и возвращается в контекст ядра,
+/// из которого пользовательский процесс был запущен.
 fn exit(
     process: MutexGuard<Process>,
     code: usize,
@@ -139,6 +160,8 @@ fn exit(
     unimplemented!();
 }
 
+/// Выполняет системный вызов `syscall::log_value(string, value)`.
+/// Записывает в журнал строку типа `&str`, заданную началом `start` и длиной `len`, а также число `value`.
 #[allow(unused_mut)] // TODO: remove before flight.
 fn log_value(
     mut process: MutexGuard<Process>,
