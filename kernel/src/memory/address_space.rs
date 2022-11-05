@@ -1,4 +1,5 @@
 use core::{
+    alloc::Layout,
     any,
     fmt,
     mem,
@@ -9,10 +10,17 @@ use core::{
 use lazy_static::lazy_static;
 use spin::Mutex;
 
+use ku::allocator::{
+    AtomicInfo,
+    BigAllocator,
+    Info,
+};
+
 use crate::{
     error::{
         Error::{
             InvalidAlignment,
+            InvalidArgument,
             PermissionDenied,
         },
         Result,
@@ -27,6 +35,7 @@ use crate::{
 
 use super::{
     FRAME_ALLOCATOR,
+    KERNEL_RW,
     Virt,
     block::Block,
     frage::{
@@ -49,6 +58,9 @@ use crate::error::Error;
 /// Структура для работы с виртуальным адресным пространством.
 #[derive(Debug, Default)]
 pub struct AddressSpace {
+    /// Статистика аллокатора общего назначения.
+    info: AtomicInfo,
+
     /// Тип виртуального адресного пространства для записи в журнал:
     /// - [`Kind::Invalid`] --- некорректное;
     /// - [`Kind::Base`] --- базовое;
@@ -76,6 +88,7 @@ impl AddressSpace {
             PageAllocator::new(unsafe { mapping.page_table_ref(mapping.page_table_root()) });
 
         let address_space = Self {
+            info: AtomicInfo::new(),
             kind: Kind::Base,
             mapping,
             page_allocator,
@@ -96,6 +109,7 @@ impl AddressSpace {
             PageAllocator::new(unsafe { mapping.page_table_ref(mapping.page_table_root()) });
 
         let address_space = Self {
+            info: AtomicInfo::new(),
             kind: Kind::Process,
             mapping,
             page_allocator,
@@ -105,6 +119,11 @@ impl AddressSpace {
         info!(%address_space, "duplicate");
 
         Ok(address_space)
+    }
+
+    /// Статистика аллокатора общего назначения.
+    pub(crate) fn info(&self) -> Info {
+        self.info.load()
     }
 
     /// Возвращает страничное отображение данного виртуального адресного пространства.
@@ -503,6 +522,55 @@ impl fmt::Display for AddressSpace {
                 None => write!(formatter, "\"process\" @ {page_table_root}"),
             },
         }
+    }
+}
+
+unsafe impl BigAllocator for AddressSpace {
+    fn reserve(
+        &mut self,
+        layout: Layout,
+    ) -> Result<Block<Page>> {
+        if layout.align() > Page::SIZE {
+            warn!(?layout, page_size = %Page::SIZE, "can not handle alignments greater than the page size");
+            return Err(InvalidAlignment);
+        }
+
+        let block = self.page_allocator.allocate(layout.size())?;
+        self.info.allocation(block.size(), block.size(), block.count());
+
+        Ok(block)
+    }
+
+    unsafe fn unreserve(
+        &mut self,
+        block: Block<Page>,
+    ) -> Result<()> {
+        self.info.deallocation(block.size(), block.size(), block.count());
+
+        Ok(())
+    }
+
+    unsafe fn map(
+        &mut self,
+        block: Block<Page>,
+    ) -> Result<()> {
+        self.map_block(block, KERNEL_RW)
+    }
+
+    unsafe fn unmap(
+        &mut self,
+        block: Block<Page>,
+    ) -> Result<()> {
+        self.unmap_block(block)
+    }
+
+    unsafe fn remap(
+        &mut self,
+        old_block: Block<Page>,
+        new_block: Block<Page>,
+    ) -> Result<()> {
+        // TODO: your code here.
+        unimplemented!();
     }
 }
 

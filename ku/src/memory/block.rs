@@ -8,6 +8,7 @@ use core::{
     mem,
     ops::Range,
     option::Option,
+    ptr::NonNull,
 };
 
 use crate::error::{
@@ -303,6 +304,23 @@ where
         } else {
             Err(InvalidArgument)
         }
+    }
+
+    /// Преобразует `Block<Virt>` или `Block<Page>` в [`NonNull<[Q]>`].
+    /// Размер среза вычисляется из размера блока и размера типа `Q`.
+    ///
+    /// Возвращает ошибки:
+    /// - [`Error::InvalidArgument`] если блок не соответствует типу `Q` по размеру.
+    /// - [`Error::InvalidAlignment`] если блок не соответствует типу `Q` по выравниванию.
+    /// - [`Error::Null`] если адрес блока нулевой.
+    ///
+    /// # Safety
+    ///
+    /// Вызывающая сторона должна гарантировать,
+    /// что не будут нарушены инварианты управления памятью в Rust,
+    /// которые не относятся к возвращаемым ошибкам.
+    pub unsafe fn try_into_non_null_slice<Q>(self) -> Result<NonNull<[Q]>> {
+        Ok(self.try_into_mut_slice()?.into())
     }
 }
 

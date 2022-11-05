@@ -7,6 +7,7 @@
 #![deny(warnings)]
 #![feature(abi_x86_interrupt)]
 #![feature(alloc_error_handler)]
+#![feature(allocator_api)]
 #![feature(asm_const)]
 #![feature(asm_sym)]
 #![feature(const_refs_to_cell)]
@@ -14,13 +15,17 @@
 #![feature(maybe_uninit_slice)]
 #![feature(naked_functions)]
 #![feature(panic_info_message)]
+#![feature(slice_ptr_get)]
+#![feature(strict_provenance)]
 #![no_std]
 #![reexport_test_harness_main = "test_main"]
 #![test_runner(crate::test_runner)]
 
 extern crate alloc;
 
+/// Аллокаторы памяти общего назначения.
 pub mod allocator;
+
 pub mod error;
 pub mod log;
 

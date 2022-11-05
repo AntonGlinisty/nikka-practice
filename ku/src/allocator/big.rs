@@ -1,0 +1,197 @@
+use core::{
+    alloc::Layout,
+    cmp,
+    ptr::NonNull,
+};
+
+use crate::{
+    error::Result,
+    memory::{
+        Block,
+        Page,
+        Virt,
+        size::SizeOf,
+    },
+};
+
+use super::{
+    DryAllocator,
+    Initialize,
+};
+
+// Used in docs.
+#[allow(unused)]
+use {
+    crate::error::Error,
+    core::alloc::Allocator,
+};
+
+/// Интерфейс аллокатора памяти общего назначения,
+/// который умеет выдавать только выровненные на границу страниц блоки памяти.
+///
+/// # Safety
+///
+/// Код, который реализует этот типаж должен гарантировать,
+/// что инварианты управления памятью в Rust'е не будут нарушены.
+/// В частности, [`BigAllocator::reserve()`] не должен выдавать
+/// занятые в данный момент блоки виртуальных адресов.
+pub unsafe trait BigAllocator {
+    /// Выделяет новый блок подряд идущих виртуальных страниц.
+    /// Достаточный для хранения объекта, размер и выравнивание которого описывается `layout`.
+    /// Ни выделения физической памяти, ни создания отображения станиц, не происходит.
+    ///
+    /// Возвращает ошибки:
+    ///   - [`Error::NoPage`] если выделить заданный размер виртуальной памяти не удалось.
+    ///   - [`Error::InvalidAlignment`] если заданный `layout` имеет выравнивание
+    ///     больше размера страницы.
+    fn reserve(
+        &mut self,
+        layout: Layout,
+    ) -> Result<Block<Page>>;
+
+    /// Освобождает блок виртуальных страниц `block`.
+    ///
+    /// # Safety
+    ///
+    /// - `block` должен был быть ранее выделен с помощью [`BigAllocator::reserve()`].
+    /// - Отображения этих станиц в физическую память уже не должно быть.
+    /// - Вызывающий код должен гарантировать,
+    ///   что инварианты управления памятью в Rust'е не будут нарушены.
+    ///   В частности, не осталось ссылок, которые ведут в `block`.
+    unsafe fn unreserve(
+        &mut self,
+        block: Block<Page>,
+    ) -> Result<()>;
+
+    /// Выделяет нужное количество физических фреймов
+    /// и отображает в них заданный блок виртуальных страниц `block`.
+    ///
+    /// Возвращает ошибку:
+    ///   - [`Error::NoFrame`] если свободных физических фреймов не осталось.
+    ///
+    /// # Safety
+    ///
+    /// - `block` должен был быть ранее выделен с помощью [`BigAllocator::reserve()`].
+    /// - Вызывающий код должен гарантировать, что инварианты управления памятью в Rust'е
+    ///   не будут нарушены.
+    ///   В частности, не осталось ссылок, которые ведут в `block`.
+    unsafe fn map(
+        &mut self,
+        block: Block<Page>,
+    ) -> Result<()>;
+
+    /// Удаляет отображение заданного блока виртуальных страниц `block`.
+    /// Физические фреймы, на которые не осталось других ссылок, освобождаются.
+    ///
+    /// # Safety
+    ///
+    /// - `block` должен был быть ранее отображён с помощью [`BigAllocator::map()`]
+    ///   или [`BigAllocator::remap()`].
+    /// - Вызывающий код должен гарантировать, что инварианты управления памятью в Rust'е
+    ///   не будут нарушены.
+    ///   В частности, не осталось ссылок, которые ведут в `block`.
+    unsafe fn unmap(
+        &mut self,
+        block: Block<Page>,
+    ) -> Result<()>;
+
+    /// Перемещает отображение физических фреймов из `old_block` в `new_block`.
+    /// Если изначально `new_block` содержал отображённые страницы,
+    /// их отображение удаляется.
+    /// Физические фреймы, на которые не осталось других ссылок, освобождаются.
+    /// После работы [`BigAllocator::remap()`] виртуальные адреса `old_block`
+    /// становятся недоступны.
+    /// А содержимое памяти, которое ранее было доступно через `old_block`,
+    /// становится доступным через `new_block`.
+    /// Флаги доступа при этом не меняются.
+    ///
+    /// Возвращает ошибку:
+    ///   - [`Error::InvalidArgument`] если `old_block` и `new_block`
+    ///     имеют разный размер или пересекаются.
+    ///
+    /// # Safety
+    ///
+    /// - `old_block` должен был быть ранее отображён с помощью [`BigAllocator::map()`]
+    ///   или [`BigAllocator::remap()`].
+    /// - `new_block` должен был быть ранее выделен
+    ///   с помощью [`BigAllocator::reserve()`].
+    /// - Вызывающий код должен гарантировать, что инварианты управления памятью в Rust'е
+    ///   не будут нарушены.
+    ///   В частности, не осталось ссылок, которые ведут в `old_block`.
+    unsafe fn remap(
+        &mut self,
+        old_block: Block<Page>,
+        new_block: Block<Page>,
+    ) -> Result<()>;
+}
+
+unsafe impl<T: BigAllocator> DryAllocator for T {
+    fn dry_allocate(
+        &mut self,
+        layout: Layout,
+        initialize: Initialize,
+    ) -> Result<NonNull<[u8]>> {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    unsafe fn dry_deallocate(
+        &mut self,
+        ptr: NonNull<u8>,
+        layout: Layout,
+    ) {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    unsafe fn dry_grow(
+        &mut self,
+        ptr: NonNull<u8>,
+        old_layout: Layout,
+        new_layout: Layout,
+        initialize: Initialize,
+    ) -> Result<NonNull<[u8]>> {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    unsafe fn dry_shrink(
+        &mut self,
+        ptr: NonNull<u8>,
+        old_layout: Layout,
+        new_layout: Layout,
+    ) -> Result<NonNull<[u8]>> {
+        // TODO: your code here.
+        unimplemented!();
+    }
+}
+
+/// Преобразует `ptr` и `layout` в соответствующий блок страниц.
+///
+/// Возвращает ошибки:
+///   - [`Error::InvalidAlignment`], если `ptr` не выровнен на границу страницы.
+///   - [`Error::Overflow`] или [`Error::InvalidArgument`], если получающийся блок
+///     пересекает границу одной из половин адресного пространства.
+fn try_into_block(
+    ptr: NonNull<u8>,
+    layout: Layout,
+) -> Result<Block<Page>> {
+    // TODO: your code here.
+    unimplemented!();
+}
+
+/// Инициализирует `block` так, как предписывает `initialize`.
+///
+/// # Safety
+///
+/// - `block` должен быть отображён в память.
+/// - Вызывающий код должен гарантировать,
+///   что инварианты управления памятью в Rust'е не будут нарушены.
+///   В частности, нет ссылок, которые ведут в `block`.
+unsafe fn initialize_block(
+    block: Block<Page>,
+    initialize: Initialize,
+) -> Result<()> {
+    // TODO: your code here.
+    unimplemented!();
+}

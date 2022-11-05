@@ -11,8 +11,8 @@ use core::{
 
 use crate::memory::{
     Page,
+    Size,
     Virt,
-    size::Size,
 };
 
 /// Статистика аллокатора общего назначения.
@@ -96,7 +96,7 @@ pub struct AtomicInfo {
 }
 
 impl AtomicInfo {
-    pub(crate) const fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             allocated: AtomicCounter::new(),
             allocations: AtomicCounter::new(),
@@ -106,7 +106,7 @@ impl AtomicInfo {
         }
     }
 
-    pub(crate) fn allocation(
+    pub fn allocation(
         &self,
         requested: usize,
         allocated: usize,
@@ -122,7 +122,7 @@ impl AtomicInfo {
         self.sequence.fetch_add(1, Ordering::Release);
     }
 
-    pub(crate) fn deallocation(
+    pub fn deallocation(
         &self,
         requested: usize,
         allocated: usize,
@@ -138,7 +138,7 @@ impl AtomicInfo {
         self.sequence.fetch_add(1, Ordering::Release);
     }
 
-    pub(crate) fn load(&self) -> Info {
+    pub fn load(&self) -> Info {
         let mut allocated;
         let mut allocations;
         let mut pages;

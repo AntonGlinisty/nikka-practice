@@ -1,32 +1,51 @@
-mod info;
-mod paged;
+#![warn(clippy::missing_docs_in_private_items)]
+#![warn(missing_docs)]
+
+/// Аллокатор памяти общего назначения внутри [`AddressSpace`].
+mod memory_allocator;
 
 use core::{
     alloc::{
+        Allocator,
         GlobalAlloc,
         Layout,
     },
-    ptr,
+    ptr::{
+        self,
+        NonNull,
+    },
 };
 
-use crate::log::{
-    info,
-    trace,
-};
+use ku::allocator::Info;
 
-pub use info::{
-    AtomicInfo,
-    Info,
-};
+use crate::memory::BASE_ADDRESS_SPACE;
 
-unsafe impl GlobalAlloc for paged::PagedAllocator {
+pub(crate) use memory_allocator::MemoryAllocator;
+
+// Used in docs.
+#[allow(unused)]
+use crate::memory::AddressSpace;
+
+/// Глобальный аллокатор памяти общего назначения для ядра.
+/// Выделяет память и отображает её внутри [`struct@BASE_ADDRESS_SPACE`].
+struct GlobalAllocator;
+
+impl GlobalAllocator {
+    /// Статистика аллокатора общего назначения.
+    fn info(&self) -> Info {
+        BASE_ADDRESS_SPACE.lock().info()
+    }
+}
+
+unsafe impl GlobalAlloc for GlobalAllocator {
     unsafe fn alloc(
         &self,
         layout: Layout,
     ) -> *mut u8 {
-        let ptr = self.allocate_pages(layout).unwrap_or(ptr::null_mut());
-        trace!(?ptr, ?layout, "alloc");
-        ptr
+        MemoryAllocator::new(&BASE_ADDRESS_SPACE)
+            .allocate(layout)
+            .map(|x| x.as_non_null_ptr().as_ptr())
+            .unwrap_or(ptr::null_mut())
     }
 
     unsafe fn dealloc(
@@ -34,31 +53,54 @@ unsafe impl GlobalAlloc for paged::PagedAllocator {
         ptr: *mut u8,
         layout: Layout,
     ) {
-        trace!(?ptr, ?layout, "dealloc");
-        self.deallocate_pages(ptr, layout)
+        MemoryAllocator::new(&BASE_ADDRESS_SPACE).deallocate(NonNull::new(ptr).unwrap(), layout);
+    }
+
+    unsafe fn alloc_zeroed(
+        &self,
+        layout: Layout,
+    ) -> *mut u8 {
+        MemoryAllocator::new(&BASE_ADDRESS_SPACE)
+            .allocate_zeroed(layout)
+            .map(|x| x.as_non_null_ptr().as_ptr())
+            .unwrap_or(ptr::null_mut())
+    }
+
+    unsafe fn realloc(
+        &self,
+        ptr: *mut u8,
+        layout: Layout,
+        new_size: usize,
+    ) -> *mut u8 {
+        let allocator = MemoryAllocator::new(&BASE_ADDRESS_SPACE);
+        let ptr = NonNull::new(ptr).unwrap();
+
+        if let Ok(new_layout) = Layout::from_size_align(new_size, layout.align()) {
+            let new_ptr = if layout.size() < new_layout.size() {
+                allocator.grow(ptr, layout, new_layout)
+            } else {
+                allocator.shrink(ptr, layout, new_layout)
+            };
+
+            new_ptr.map(|x| x.as_non_null_ptr().as_ptr()).unwrap_or(ptr::null_mut())
+        } else {
+            ptr::null_mut()
+        }
     }
 }
 
+/// Глобальный аллокатор памяти общего назначения для ядра.
+/// Выделяет память и отображает её внутри [`struct@BASE_ADDRESS_SPACE`].
 #[global_allocator]
-static ALLOCATOR: paged::PagedAllocator = paged::PagedAllocator::new();
+static GLOBAL_ALLOCATOR: GlobalAllocator = GlobalAllocator;
 
-pub fn info() -> Info {
-    let info = ALLOCATOR.info();
+#[doc(hidden)]
+pub mod test_scaffolding {
+    use ku::allocator::Info;
 
-    info!(
-        allocations = info.allocations(),
-        deallocations = info.deallocations(),
-        current_allocations = info.current_allocations(),
-        allocated_pages = info.allocated_pages(),
-        deallocated_pages = info.deallocated_pages(),
-        current_pages = info.current_pages(),
-        requested = info.requested(),
-        allocated = info.allocated(),
-        fragmentation_loss = info.fragmentation_loss(),
-        fragmentation_loss_percentage =
-            format_args!("{:.3}%", info.fragmentation_loss_percentage()),
-        "allocator info",
-    );
+    use super::GLOBAL_ALLOCATOR;
 
-    info
+    pub fn info() -> Info {
+        GLOBAL_ALLOCATOR.info()
+    }
 }

@@ -4,11 +4,17 @@
 
 #![allow(clippy::missing_safety_doc)]
 #![deny(warnings)]
+#![feature(allocator_api)]
 #![feature(cell_update)]
 #![feature(const_size_of_val)]
+#![feature(slice_ptr_get)]
+#![feature(strict_provenance)]
 #![no_std]
 
 extern crate rlibc;
+
+/// Аллокаторы памяти общего назначения.
+pub mod allocator;
 
 pub mod error;
 

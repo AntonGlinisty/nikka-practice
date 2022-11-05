@@ -8,7 +8,7 @@ use core::mem;
 
 use kernel::{
     Subsystems,
-    allocator,
+    allocator::test_scaffolding,
     memory::Page,
 };
 
@@ -18,7 +18,7 @@ init!(Subsystems::MEMORY);
 
 #[test_case]
 fn basic() {
-    let start_info = allocator::info();
+    let start_info = test_scaffolding::info();
 
     {
         let mut a = Box::new(1_i64);
@@ -28,17 +28,16 @@ fn basic() {
         }
         assert_eq!(*a, 2);
 
-        let info = allocator::info();
+        let info = test_scaffolding::info();
         let requested = mem::size_of_val(&*a);
         assert_eq!(info.allocations() - start_info.allocations(), 1);
         assert_eq!(info.deallocations() - start_info.deallocations(), 0);
-        assert_eq!(info.requested() - start_info.requested(), requested);
         assert!(info.allocated() - start_info.allocated() >= requested);
         assert_eq!(info.allocated_pages() - start_info.allocated_pages(), 1);
         assert_eq!(info.deallocated_pages() - start_info.deallocated_pages(), 0);
     }
 
-    let info = allocator::info();
+    let info = test_scaffolding::info();
     assert_eq!(info.allocations() - start_info.allocations(), 1);
     assert_eq!(info.deallocations() - start_info.deallocations(), 1);
     assert_eq!(info.requested() - start_info.requested(), 0);
@@ -57,7 +56,7 @@ fn basic() {
 
 #[test_case]
 fn realloc() {
-    let start_info = allocator::info();
+    let start_info = test_scaffolding::info();
 
     let mut vec = Vec::new();
     let mut sum = 0;
@@ -70,7 +69,7 @@ fn realloc() {
 
     assert!(vec.iter().sum::<usize>() == sum);
 
-    let info = allocator::info();
+    let info = test_scaffolding::info();
     let requested = vec.capacity() * mem::size_of_val(&sum);
     assert_eq!(info.requested() - start_info.requested(), requested);
     assert_eq!(info.allocated() - start_info.allocated(), requested);
