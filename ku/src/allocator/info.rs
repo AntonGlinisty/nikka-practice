@@ -3,16 +3,23 @@ use core::{
     fmt,
     hint,
     mem,
+    ops::Sub,
     sync::atomic::{
         AtomicUsize,
         Ordering,
     },
 };
 
-use crate::memory::{
-    Page,
-    Size,
-    Virt,
+use crate::{
+    error::{
+        Error::Overflow,
+        Result,
+    },
+    memory::{
+        Page,
+        Size,
+        Virt,
+    },
 };
 
 /// Статистика аллокатора общего назначения.
@@ -73,6 +80,22 @@ impl Info {
             self.requested.balance() <= self.allocated.balance() &&
             self.requested.negative() <= self.allocated.negative() &&
             self.allocated.balance() <= self.pages.balance() * Page::SIZE
+    }
+}
+
+impl Sub<Info> for Info {
+    type Output = Result<Self>;
+
+    fn sub(
+        self,
+        rhs: Info,
+    ) -> Self::Output {
+        Ok(Self {
+            allocated: (self.allocated - rhs.allocated)?,
+            allocations: (self.allocations - rhs.allocations)?,
+            pages: (self.pages - rhs.pages)?,
+            requested: (self.requested - rhs.requested)?,
+        })
     }
 }
 
@@ -234,6 +257,20 @@ impl fmt::Display for Counter {
         } else {
             write!(formatter, "error")
         }
+    }
+}
+
+impl Sub<Counter> for Counter {
+    type Output = Result<Self>;
+
+    fn sub(
+        self,
+        rhs: Counter,
+    ) -> Self::Output {
+        let negative = self.negative.checked_sub(rhs.negative).ok_or(Overflow)?;
+        let positive = self.positive.checked_sub(rhs.positive).ok_or(Overflow)?;
+
+        Ok(Self { negative, positive })
     }
 }
 

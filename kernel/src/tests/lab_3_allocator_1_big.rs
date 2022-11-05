@@ -37,33 +37,30 @@ fn basic() {
 
         let info = test_scaffolding::info();
         let requested = mem::size_of_val(&*a);
+        let info_diff = (info - start_info).unwrap();
         debug!(%info);
-        assert_eq!(info.allocations() - start_info.allocations(), 1);
-        assert_eq!(info.deallocations() - start_info.deallocations(), 0);
-        assert!(info.allocated() - start_info.allocated() >= requested);
-        assert_eq!(info.allocated_pages() - start_info.allocated_pages(), 1);
-        assert_eq!(info.deallocated_pages() - start_info.deallocated_pages(), 0);
+        debug!(%info_diff);
+
+        assert_eq!(info_diff.allocations(), 1);
+        assert_eq!(info_diff.deallocations(), 0);
+        assert!(info_diff.allocated() >= requested);
+        assert_eq!(info_diff.allocated_pages(), 1);
+        assert_eq!(info_diff.deallocated_pages(), 0);
     }
 
     let end_info = test_scaffolding::info();
+    let end_info_diff = (end_info - start_info).unwrap();
     debug!(%end_info);
-    assert_eq!(end_info.allocations() - start_info.allocations(), 1);
-    assert_eq!(end_info.deallocations() - start_info.deallocations(), 1);
-    assert_eq!(end_info.requested() - start_info.requested(), 0);
-    assert_eq!(end_info.allocated() - start_info.allocated(), 0);
-    assert_eq!(end_info.allocated_pages() - start_info.allocated_pages(), 1);
-    assert_eq!(
-        end_info.deallocated_pages() - start_info.deallocated_pages(),
-        1,
-    );
-    assert_eq!(
-        end_info.fragmentation_loss() - start_info.fragmentation_loss(),
-        0,
-    );
-    assert_eq!(
-        end_info.fragmentation_loss_percentage() - start_info.fragmentation_loss_percentage(),
-        0.0,
-    );
+    debug!(%end_info_diff);
+
+    assert_eq!(end_info_diff.allocations(), 1);
+    assert_eq!(end_info_diff.deallocations(), 1);
+    assert_eq!(end_info_diff.requested(), 0);
+    assert_eq!(end_info_diff.allocated(), 0);
+    assert_eq!(end_info_diff.allocated_pages(), 1);
+    assert_eq!(end_info_diff.deallocated_pages(), 1);
+    assert_eq!(end_info_diff.fragmentation_loss(), 0);
+    assert_eq!(end_info_diff.fragmentation_loss_percentage(), 0.0);
 
     assert_eq!(end_info.current_allocations(), 0);
     assert_eq!(end_info.current_pages(), 0);
@@ -90,14 +87,11 @@ fn grow_and_shrink() {
     assert_eq!(contents_sum, push_sum);
 
     let info = test_scaffolding::info();
+    let info_diff = (info - start_info).unwrap();
     debug!(%info);
-    assert_eq!(
-        info.fragmentation_loss() - start_info.fragmentation_loss(),
-        0,
-    );
-    assert!(
-        info.fragmentation_loss_percentage() - start_info.fragmentation_loss_percentage() <= 0.0,
-    );
+    debug!(%info_diff);
+    assert_eq!(info_diff.fragmentation_loss(), 0);
+    assert!(info_diff.fragmentation_loss_percentage() <= 0.0);
 
     let mut pop_sum = 0;
 
