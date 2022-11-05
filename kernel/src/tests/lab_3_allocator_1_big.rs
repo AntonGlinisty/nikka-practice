@@ -41,11 +41,11 @@ fn basic() {
         debug!(%info);
         debug!(%info_diff);
 
-        assert_eq!(info_diff.allocations(), 1);
-        assert_eq!(info_diff.deallocations(), 0);
-        assert!(info_diff.allocated() >= requested);
-        assert_eq!(info_diff.allocated_pages(), 1);
-        assert_eq!(info_diff.deallocated_pages(), 0);
+        assert_eq!(info_diff.allocations().positive(), 1);
+        assert_eq!(info_diff.allocations().negative(), 0);
+        assert!(info_diff.allocated().balance() >= requested);
+        assert_eq!(info_diff.pages().positive(), 1);
+        assert_eq!(info_diff.pages().negative(), 0);
     }
 
     let end_info = test_scaffolding::info();
@@ -53,17 +53,17 @@ fn basic() {
     debug!(%end_info);
     debug!(%end_info_diff);
 
-    assert_eq!(end_info_diff.allocations(), 1);
-    assert_eq!(end_info_diff.deallocations(), 1);
-    assert_eq!(end_info_diff.requested(), 0);
-    assert_eq!(end_info_diff.allocated(), 0);
-    assert_eq!(end_info_diff.allocated_pages(), 1);
-    assert_eq!(end_info_diff.deallocated_pages(), 1);
+    assert_eq!(end_info_diff.allocations().positive(), 1);
+    assert_eq!(end_info_diff.allocations().negative(), 1);
+    assert_eq!(end_info_diff.requested().balance(), 0);
+    assert_eq!(end_info_diff.allocated().balance(), 0);
+    assert_eq!(end_info_diff.pages().positive(), 1);
+    assert_eq!(end_info_diff.pages().negative(), 1);
     assert_eq!(end_info_diff.fragmentation_loss(), 0);
     assert_eq!(end_info_diff.fragmentation_loss_percentage(), 0.0);
 
-    assert_eq!(end_info.current_allocations(), 0);
-    assert_eq!(end_info.current_pages(), 0);
+    assert_eq!(end_info.allocations().balance(), 0);
+    assert_eq!(end_info.pages().balance(), 0);
     assert_eq!(end_info.fragmentation_loss(), 0);
 }
 
@@ -106,7 +106,7 @@ fn grow_and_shrink() {
 
     let end_info = test_scaffolding::info();
     debug!(%end_info);
-    assert_eq!(end_info.current_allocations(), 0);
-    assert_eq!(end_info.current_pages(), 0);
+    assert_eq!(end_info.allocations().balance(), 0);
+    assert_eq!(end_info.pages().balance(), 0);
     assert_eq!(end_info.fragmentation_loss(), 0);
 }

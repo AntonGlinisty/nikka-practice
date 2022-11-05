@@ -32,44 +32,28 @@ pub struct Info {
 }
 
 impl Info {
-    pub fn allocated(&self) -> usize {
-        self.allocated.balance()
+    pub fn allocated(&self) -> Counter {
+        self.allocated
     }
 
-    pub fn allocations(&self) -> usize {
-        self.allocations.positive()
+    pub fn allocations(&self) -> Counter {
+        self.allocations
     }
 
-    pub fn deallocations(&self) -> usize {
-        self.allocations.negative()
+    pub fn pages(&self) -> Counter {
+        self.pages
     }
 
-    pub fn current_allocations(&self) -> usize {
-        self.allocations.balance()
-    }
-
-    pub fn allocated_pages(&self) -> usize {
-        self.pages.positive()
-    }
-
-    pub fn deallocated_pages(&self) -> usize {
-        self.pages.negative()
-    }
-
-    pub fn current_pages(&self) -> usize {
-        self.pages.balance()
-    }
-
-    pub fn requested(&self) -> usize {
-        self.requested.balance()
+    pub fn requested(&self) -> Counter {
+        self.requested
     }
 
     pub fn fragmentation_loss(&self) -> usize {
-        self.allocated() - self.requested()
+        self.allocated.balance() - self.requested.balance()
     }
 
     pub fn fragmentation_loss_percentage(&self) -> f64 {
-        self.fragmentation_loss() as f64 / cmp::max(self.allocated(), 1) as f64 * 100.0
+        self.fragmentation_loss() as f64 / cmp::max(self.allocated.balance(), 1) as f64 * 100.0
     }
 
     fn is_valid(&self) -> bool {
@@ -222,21 +206,21 @@ impl fmt::Display for Info {
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-struct Counter {
+pub struct Counter {
     negative: usize,
     positive: usize,
 }
 
 impl Counter {
-    fn negative(&self) -> usize {
+    pub fn negative(&self) -> usize {
         self.negative
     }
 
-    fn positive(&self) -> usize {
+    pub fn positive(&self) -> usize {
         self.positive
     }
 
-    fn balance(&self) -> usize {
+    pub fn balance(&self) -> usize {
         self.positive.checked_sub(self.negative).expect("negative balance detected")
     }
 
