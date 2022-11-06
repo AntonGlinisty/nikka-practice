@@ -1,6 +1,9 @@
 use core::fmt;
 
-use spin::MutexGuard;
+use spin::{
+    Mutex,
+    MutexGuard,
+};
 
 use ku::{
     ProcessInfo,
@@ -9,6 +12,7 @@ use ku::{
 };
 
 use crate::{
+    allocator::MemoryAllocator,
     error::{
         Error::InvalidArgument,
         Result,
@@ -49,7 +53,7 @@ pub(super) enum State {
 #[derive(Debug)]
 pub struct Process {
     /// Виртуальное адресное пространство процесса.
-    address_space: AddressSpace,
+    address_space: Mutex<AddressSpace>,
 
     /// Блок памяти, через который ядро предоставляет процессу информацию о нём.
     /// В этом блоке находится структура типа [`ProcessInfo`].
@@ -83,7 +87,7 @@ impl Process {
         let info = Block::from_ref(info);
 
         Self {
-            address_space,
+            address_space: Mutex::new(address_space),
             info,
             parent: None,
             pid: Pid::Current,
@@ -99,14 +103,14 @@ impl Process {
         rax: usize,
         rdi: usize,
     ) -> Result<Self> {
-        let mut address_space = self.address_space.duplicate()?;
+        let mut address_space = self.address_space.lock().duplicate()?;
 
         address_space.switch_to();
         let info = Block::from_ref(super::map_process_info(&mut address_space)?);
-        self.address_space.switch_to();
+        self.address_space.lock().switch_to();
 
         Ok(Self {
-            address_space,
+            address_space: Mutex::new(address_space),
             info,
             parent: Some(self.pid),
             pid: Pid::Current,
@@ -118,7 +122,20 @@ impl Process {
 
     /// Возвращает виртуальное адресное пространство процесса.
     pub fn address_space(&mut self) -> &mut AddressSpace {
-        &mut self.address_space
+        self.address_space.get_mut()
+    }
+
+    /// Захватывает и возвращает блокировку на виртуальное адресное пространство процесса.
+    /// В отличие от [`Process::address_space()`] не требует эксклюзивную ссылку на [`Process`].
+    /// Это позволяет одновременно держать ссылки и на адресное пространство процесса и
+    /// на его аллокатор памяти [`MemoryAllocator`].
+    pub(super) fn lock_address_space(&self) -> MutexGuard<'_, AddressSpace> {
+        self.address_space.lock()
+    }
+
+    /// Возвращает аллокатор памяти общего назначения внутри адресного пространства процесса.
+    pub(super) fn allocator(&self) -> MemoryAllocator {
+        MemoryAllocator::new(&self.address_space)
     }
 
     /// Устанавливает минимальный контекст процесса.
@@ -132,7 +149,10 @@ impl Process {
     /// Возвращает ссылку на структуру [`ProcessInfo`],
     /// через которую ядро предоставляет процессу информацию о нём.
     unsafe fn info(&mut self) -> Result<&mut ProcessInfo> {
-        let info = self.address_space.check_permission_mut::<ProcessInfo>(self.info, USER_RW)?;
+        let info = self
+            .address_space
+            .get_mut()
+            .check_permission_mut::<ProcessInfo>(self.info, USER_RW)?;
 
         if info.len() == 1 {
             Ok(&mut info[0])
@@ -145,11 +165,12 @@ impl Process {
     pub fn log(&mut self) -> Result<&mut RingBuffer> {
         let info = unsafe { self.info()? };
         let log = Block::from_ref(info.log());
+        let address_space = self.address_space.get_mut();
 
-        let log = self.address_space.check_permission_mut::<RingBuffer>(log, USER_RW)?;
+        let log = address_space.check_permission_mut::<RingBuffer>(log, USER_RW)?;
 
         if log.len() == 1 {
-            self.address_space.check_permission_mut::<u8>(log[0].block(), USER_RW)?;
+            address_space.check_permission_mut::<u8>(log[0].block(), USER_RW)?;
             Ok(&mut log[0])
         } else {
             Err(InvalidArgument)
@@ -178,7 +199,7 @@ impl Process {
     ) {
         if let Pid::Id { .. } = pid {
             self.pid = pid;
-            self.address_space.set_pid(pid);
+            self.address_space.get_mut().set_pid(pid);
         } else {
             panic!("assignment of a wrong pid to a process");
         }
@@ -220,7 +241,7 @@ impl Process {
     pub fn enter_user_mode(mut process: MutexGuard<Process>) -> bool {
         let pid = process.pid;
 
-        process.address_space.switch_to();
+        process.address_space.get_mut().switch_to();
 
         if let Ok(info) = unsafe { process.info() } {
             info.set_pid(pid);
@@ -286,7 +307,7 @@ impl fmt::Display for Process {
             formatter,
             "{{ pid: {}, address_space: {}, {} }}",
             self.pid,
-            self.address_space,
+            self.address_space.lock(),
             self.registers.mini_context(),
         )
     }
