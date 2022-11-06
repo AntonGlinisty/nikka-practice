@@ -4,15 +4,30 @@ use alloc::{
     boxed::Box,
     vec::Vec,
 };
-use core::mem;
+use core::{
+    cmp,
+    mem,
+};
+
+use static_assertions::const_assert_eq;
 
 use kernel::{
     Subsystems,
     allocator::test_scaffolding,
     log::debug,
     memory::{
+        BASE_ADDRESS_SPACE,
+        Block,
+        FRAME_ALLOCATOR,
         Page,
-        test_scaffolding::forbid_frame_leaks,
+        mmu::{
+            PageTableEntry,
+            PageTableFlags,
+        },
+        test_scaffolding::{
+            forbid_frame_leaks,
+            mapping,
+        },
     },
 };
 
@@ -109,4 +124,69 @@ fn grow_and_shrink() {
     assert_eq!(end_info.allocations().balance(), 0);
     assert_eq!(end_info.pages().balance(), 0);
     assert_eq!(end_info.fragmentation_loss(), 0);
+}
+
+#[test_case]
+fn paged_realloc_is_cheap() {
+    let _guard = forbid_frame_leaks();
+
+    #[repr(C, align(4096))]
+    pub struct PagedType(u8);
+
+    const_assert_eq!(mem::align_of::<PagedType>(), Page::SIZE);
+    const_assert_eq!(mem::size_of::<PagedType>(), Page::SIZE);
+
+    let mut vec = Vec::new();
+    let mut prev_frames = Vec::new();
+
+    for _ in 0 .. 5 {
+        vec.push(PagedType(0));
+        while vec.len() < vec.capacity() {
+            vec.push(PagedType(0));
+        }
+
+        prev_frames = check_frames(&vec, prev_frames);
+    }
+
+    while !vec.is_empty() {
+        vec.pop().unwrap();
+        vec.shrink_to_fit();
+
+        prev_frames = check_frames(&vec, prev_frames);
+    }
+
+    assert!(prev_frames.is_empty());
+}
+
+fn check_frames<T>(
+    vec: &Vec<T>,
+    prev_frames: Vec<PageTableEntry>,
+) -> Vec<PageTableEntry> {
+    let block = Block::from_slice(vec.as_slice()).enclosing();
+    let frames: Vec<_> = block.into_iter().map(translate).collect();
+    debug!(%block, ?frames);
+
+    for pte in &frames {
+        let reference_count = FRAME_ALLOCATOR.lock().reference_count(pte.frame().unwrap()).unwrap();
+        assert_eq!(
+            reference_count, 1,
+            "after a reallocation the frames should not be shared",
+        );
+    }
+
+    let len = cmp::min(frames.len(), prev_frames.len());
+
+    assert_eq!(
+        frames[.. len],
+        prev_frames[.. len],
+        "the paged allocator should reuse existing frames on reallocations",
+    );
+
+    frames
+}
+
+fn translate(page: Page) -> PageTableEntry {
+    *mapping(&mut BASE_ADDRESS_SPACE.lock())
+        .translate(page.address(), None, PageTableFlags::empty())
+        .unwrap()
 }

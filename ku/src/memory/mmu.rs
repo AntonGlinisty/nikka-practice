@@ -1,5 +1,6 @@
 use core::{
     arch::asm,
+    fmt,
     mem,
 };
 
@@ -25,7 +26,7 @@ use super::{
 /// Запись таблицы страниц.
 ///
 /// Аналогична [`x86_64::structures::paging::page_table::PageTableEntry`].
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Default, Eq, PartialEq)]
 #[repr(transparent)]
 pub struct PageTableEntry(usize);
 
@@ -89,6 +90,39 @@ impl PageTableEntry {
 
     /// Маска адреса физического фрейма, на который указывает эта запись.
     const ADDRESS_MASK: usize = ((1 << Phys::BITS) - 1) & !((1 << PAGE_OFFSET_BITS) - 1);
+}
+
+impl fmt::Debug for PageTableEntry {
+    fn fmt(
+        &self,
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
+        if let Ok(frame) = self.frame() {
+            let flags = self.flags();
+            write!(
+                formatter,
+                "{} {}{}{}",
+                frame,
+                if flags.contains(PageTableFlags::USER_ACCESSIBLE) {
+                    'U'
+                } else {
+                    '-'
+                },
+                if flags.contains(PageTableFlags::WRITABLE) {
+                    'W'
+                } else {
+                    '-'
+                },
+                if flags.contains(PageTableFlags::PRESENT) {
+                    'P'
+                } else {
+                    '-'
+                },
+            )
+        } else {
+            write!(formatter, "<non-present>")
+        }
+    }
 }
 
 /// Читает из регистра `CR3` физический адрес корневого узла текущей таблицы страниц.
