@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use core::{
     arch::asm,
     str,
@@ -43,6 +44,7 @@ use crate::{
         warn,
     },
     memory::{
+        AddressSpace,
         Block,
         FRAME_ALLOCATOR,
         Frame,
@@ -216,6 +218,18 @@ fn copy_mapping(
     unimplemented!();
 }
 
+#[allow(unused_mut)] // TODO: remove before flight.
+fn do_copy_mapping(
+    src: &MutexGuard<Process>,
+    mut dst_address_space: MutexGuard<AddressSpace>,
+    src_block: Block<Page>,
+    dst_block: Block<Page>,
+    flags: PageTableFlags,
+) -> Result<()> {
+    // TODO: your code here.
+    unimplemented!();
+}
+
 fn set_state(
     process: MutexGuard<Process>,
     dst_pid: usize,
@@ -245,7 +259,7 @@ fn check_block(
 }
 
 fn check_frame(
-    process: &mut MutexGuard<Process>,
+    process: &MutexGuard<Process>,
     page: Page,
     flags: PageTableFlags,
 ) -> Result<Frame> {
