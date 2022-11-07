@@ -8,6 +8,7 @@ use crate::error::Result;
 use super::{
     AddressSpace,
     BASE_ADDRESS_SPACE,
+    Block,
     Page,
     Virt,
     mmu::PageTableFlags,
@@ -55,6 +56,13 @@ impl Stack {
     /// Возвращает указатель на вершину пустого стека.
     pub(crate) fn pointer(&self) -> Virt {
         Virt::from_ptr(self.0.as_ptr_range().end)
+    }
+
+    /// Возвращает разбивку стека на защитный блок памяти и блок для данных в стеке.
+    pub(crate) fn zones(&self) -> (Block<Virt>, Block<Virt>) {
+        let zones = &self.0.split_at(GUARD_ZONE_SIZE);
+
+        (Block::from_slice(zones.0), Block::from_slice(zones.1))
     }
 
     /// Создаёт в стеке не отображённый блок памяти,
@@ -132,7 +140,7 @@ lazy_static! {
 /// Размер не отображённой в память защитной области стека.
 /// Которая служит для обнаружения переполнения стека и
 /// не допускает перезапись других данных в этом случае.
-pub const GUARD_ZONE_SIZE: usize = Page::SIZE;
+pub(super) const GUARD_ZONE_SIZE: usize = Page::SIZE;
 
 /// Размер стеков, включая не отображённую в память защитную область.
 const STACK_SIZE: usize = 32 * Page::SIZE;

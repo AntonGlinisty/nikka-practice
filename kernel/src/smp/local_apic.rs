@@ -284,3 +284,18 @@ bitflags! {
 }
 
 static mut LOCAL_APIC: LocalApic = LocalApic::zero();
+
+#[doc(hidden)]
+pub mod test_scaffolding {
+    use ku::memory::Virt;
+
+    use super::LocalApic;
+
+    pub fn local_apic() -> Virt {
+        Virt::from_ref(LocalApic::get())
+    }
+
+    pub fn id() -> u8 {
+        LocalApic::id()
+    }
+}

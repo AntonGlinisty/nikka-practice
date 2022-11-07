@@ -3,14 +3,15 @@ mod ap_init;
 mod cpu;
 mod local_apic;
 
-use core::{
-    cmp,
-    mem,
-};
+use alloc::vec::Vec;
+use core::cmp;
 
 use bootloader::BootInfo;
+use lazy_static::lazy_static;
+use spin::Mutex;
 
 use crate::{
+    Subsystems,
     error::{
         Error::Unimplemented,
         Result,
@@ -37,18 +38,28 @@ pub(crate) use local_apic::{
     LocalApic,
 };
 
-pub(super) fn init(boot_info: &'static BootInfo) {
+pub(super) fn init(
+    boot_info: &'static BootInfo,
+    subsystems: Subsystems,
+) {
     let timer = time::timer();
     let phys2virt = phys2virt::phys2virt(boot_info);
 
-    if let Err(error) = init_smp(phys2virt) {
+    if let Err(error) = init_smp(phys2virt, subsystems) {
         warn!(?error, duration = %timer.elapsed(), "SMP init");
     } else {
         info!(duration = %timer.elapsed(), "SMP init");
     }
 }
 
-fn init_smp(phys2virt: Page) -> Result<()> {
+fn init_smp(
+    phys2virt: Page,
+    subsystems: Subsystems,
+) -> Result<()> {
+    if !subsystems.contains(Subsystems::LOCAL_APIC) {
+        return Err(Unimplemented);
+    }
+
     let acpi = Acpi::new(phys2virt)?;
     let local_apic_address = acpi.local_apic_address();
 
@@ -72,20 +83,32 @@ fn init_smp(phys2virt: Page) -> Result<()> {
     let cpu_count = usize::from(max_cpu_id) + 1;
     info!(cpu = current_cpu, cpu_count, %local_apic_address, "Local APIC init");
 
+    if !subsystems.contains(Subsystems::CPUS) {
+        return Err(Unimplemented);
+    }
+
     let mut cpus = cpu::init(cpu_count, current_cpu)?;
+
+    assert_eq!(cpus.len(), cpu_count);
 
     info!(cpu = current_cpu, "Bootstrap Processor");
 
-    for id in acpi.ap_ids() {
-        ap_init::boot_ap(phys2virt, &mut cpus[usize::from(*id)])?;
+    if subsystems.contains(Subsystems::BOOT_APS) {
+        for id in acpi.ap_ids() {
+            ap_init::boot_ap(phys2virt, &mut cpus[usize::from(*id)])?;
+        }
     }
 
-    // Intentionally leak Cpu stuctures as they should be 'static.
-    mem::forget(cpus);
+    *CPUS.lock() = cpus;
 
     test_scaffolding::set_initialized();
 
     Ok(())
+}
+
+lazy_static! {
+    /// Структуры [`Cpu`] для всех процессоров в системе.
+    static ref CPUS: Mutex<Vec<Cpu>> = Mutex::new(Vec::<Cpu>::default());
 }
 
 #[doc(hidden)]
@@ -95,8 +118,28 @@ pub mod test_scaffolding {
         Ordering,
     };
 
+    use crate::memory::{
+        Block,
+        Virt,
+    };
+
+    use super::CPUS;
+
+    pub use super::{
+        cpu::test_scaffolding::*,
+        local_apic::test_scaffolding::*,
+    };
+
+    pub fn cpu_count() -> usize {
+        CPUS.lock().len()
+    }
+
     pub fn is_initialized() -> bool {
         INITIALIZED.load(Ordering::Relaxed)
+    }
+
+    pub fn kernel_stack_zones(cpu: usize) -> (Block<Virt>, Block<Virt>) {
+        CPUS.lock()[cpu].kernel_stack().zones()
     }
 
     pub(super) fn set_initialized() {

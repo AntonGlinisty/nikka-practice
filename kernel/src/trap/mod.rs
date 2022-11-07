@@ -79,5 +79,8 @@ pub(super) fn init() {
 }
 
 pub mod test_scaffolding {
-    pub use super::idt::test_scaffolding::*;
+    pub use super::{
+        idt::test_scaffolding::*,
+        local_apic::test_scaffolding::*,
+    };
 }

@@ -202,3 +202,13 @@ impl Drop for Cpu {
         panic!("a Cpu has been dropped");
     }
 }
+
+#[doc(hidden)]
+pub mod test_scaffolding {
+    use super::Cpu;
+
+    pub fn cpu_id() -> u8 {
+        let cpu = unsafe { Cpu::get() };
+        cpu.id()
+    }
+}

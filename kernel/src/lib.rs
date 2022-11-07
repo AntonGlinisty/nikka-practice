@@ -81,7 +81,7 @@ bitflags! {
 }
 
 bitflags! {
-    pub struct Subsystems: u8 {
+    pub struct Subsystems: usize {
         const PHYS_MEMORY = 1 << 0;
         const VIRT_MEMORY = 1 << 1;
         const MAIN_FRAME_ALLOCATOR = 1 << 2;
@@ -95,7 +95,11 @@ bitflags! {
 
         const PROCESS = Self::SYSCALL.bits | Self::PROCESS_TABLE.bits | Self::SCHEDULER.bits;
 
-        const SMP = 1 << 7;
+        const LOCAL_APIC = 1 << 7;
+        const CPUS = 1 << 8;
+        const BOOT_APS = 1 << 9;
+
+        const SMP = Self::LOCAL_APIC.bits | Self::CPUS.bits | Self::BOOT_APS.bits;
     }
 }
 
@@ -126,8 +130,8 @@ pub fn init_subsystems(
         }
     }
 
-    if subsystems.contains(Subsystems::SMP) {
-        smp::init(boot_info);
+    if subsystems & Subsystems::SMP != Subsystems::empty() {
+        smp::init(boot_info, subsystems);
     }
 
     if subsystems & Subsystems::PROCESS != Subsystems::empty() {
