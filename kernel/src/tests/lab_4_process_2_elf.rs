@@ -53,6 +53,10 @@ fn make_process(file: &[u8]) -> Process {
         pte.flags().contains(PageTableFlags::USER_ACCESSIBLE),
         "the ELF file is not accessible from the user space",
     );
+    assert!(
+        !pte.flags().contains(PageTableFlags::NO_EXECUTE),
+        "the entry point is not executable",
+    );
 
     let process_frames = start_free_frames - FRAME_ALLOCATOR.lock().count();
     debug!(process_frames);
