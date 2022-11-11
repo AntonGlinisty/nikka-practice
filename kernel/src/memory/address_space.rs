@@ -550,6 +550,20 @@ unsafe impl BigAllocator for AddressSpace {
         Ok(())
     }
 
+    unsafe fn rereserve(
+        &mut self,
+        old_block: Block<Page>,
+        sub_block: Block<Page>,
+    ) -> Result<()> {
+        if old_block.contains_block(sub_block) {
+            self.info.allocation(sub_block.size(), sub_block.size(), sub_block.count());
+            self.info.deallocation(old_block.size(), old_block.size(), old_block.count());
+            Ok(())
+        } else {
+            Err(InvalidArgument)
+        }
+    }
+
     unsafe fn map(
         &mut self,
         block: Block<Page>,

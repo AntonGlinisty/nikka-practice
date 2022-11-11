@@ -1,6 +1,7 @@
 extern crate alloc;
 
 use alloc::{
+    alloc::Layout,
     boxed::Box,
     vec::Vec,
 };
@@ -10,6 +11,11 @@ use core::{
 };
 
 use static_assertions::const_assert_eq;
+
+use ku::allocator::{
+    DryAllocator,
+    Initialize,
+};
 
 use kernel::{
     Subsystems,
@@ -80,6 +86,31 @@ fn basic() {
     assert_eq!(end_info.allocations().balance(), 0);
     assert_eq!(end_info.pages().balance(), 0);
     assert_eq!(end_info.fragmentation_loss(), 0);
+}
+
+#[test_case]
+fn shrink_is_not_a_noop() {
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+
+    let old_layout = Layout::from_size_align(4 * Page::SIZE, Page::SIZE).unwrap();
+    let old_allocation = address_space.dry_allocate(old_layout, Initialize::Garbage).unwrap();
+    let old_block = Block::from_slice(unsafe { old_allocation.as_uninit_slice() });
+
+    let new_layout = Layout::from_size_align(3 * Page::SIZE, Page::SIZE).unwrap();
+    let new_allocation = unsafe {
+        address_space
+            .dry_shrink(old_allocation.as_non_null_ptr(), old_layout, new_layout)
+            .unwrap()
+    };
+    let new_block = Block::from_slice(unsafe { new_allocation.as_uninit_slice() });
+
+    assert_ne!(old_block.count(), new_block.count());
+
+    debug!(%old_block, %new_block, no_remap_on_shrink = old_block.contains_block(new_block));
+
+    unsafe {
+        address_space.dry_deallocate(new_allocation.as_non_null_ptr(), new_layout);
+    }
 }
 
 #[test_case]
