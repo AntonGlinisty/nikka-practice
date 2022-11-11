@@ -11,15 +11,12 @@ use kernel::{
         FRAME_ALLOCATOR,
         Virt,
         mmu::PageTableFlags,
-        test_scaffolding::forbid_frame_leaks,
     },
     process::{
         self,
-        Pid,
         Process,
         Scheduler,
         Table,
-        test_scaffolding,
     },
     trap::{
         GENERAL_PROTECTION_FAULT,
@@ -34,10 +31,6 @@ init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::PROCESS);
 
 const COW_FORK_ELF: &[u8] = include_bytes!("../../target/kernel/user/cow_fork");
 const EAGER_FORK_ELF: &[u8] = include_bytes!("../../target/kernel/user/eager_fork");
-const EXIT_ELF: &[u8] = include_bytes!("../../target/kernel/user/exit");
-const LOOP_ELF: &[u8] = include_bytes!("../../target/kernel/user/loop");
-const PAGE_FAULT_ELF: &[u8] = include_bytes!("../../target/kernel/user/page_fault");
-const SCHED_YIELD_ELF: &[u8] = include_bytes!("../../target/kernel/user/sched_yield");
 
 fn make_process(file: &[u8]) -> MutexGuard<'static, Process> {
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
@@ -72,71 +65,6 @@ fn make_process(file: &[u8]) -> MutexGuard<'static, Process> {
     assert!(process_frames > 0, "created process uses no memory");
 
     process
-}
-
-fn free_process(pid: Pid) {
-    let process = Table::get(pid).expect("failed to find the new process in the process table");
-    Table::free(process);
-}
-
-#[test_case]
-fn syscall_sched_yield() {
-    let _guard = forbid_frame_leaks();
-
-    let mut process = make_process(SCHED_YIELD_ELF);
-    let pid = process.pid();
-
-    test_scaffolding::disable_interrupts(&mut process);
-
-    Process::enter_user_mode(process);
-
-    assert_eq!(
-        TRAP_STATS[PAGE_FAULT].count(),
-        0,
-        "maybe the read-dont-modify-write construction was used for reading the RTC time from the \
-         user space",
-    );
-
-    for _ in 0 .. 2 {
-        let process = Table::get(pid).expect("failed to find the new process in the process table");
-
-        let user_registers = test_scaffolding::registers(&process);
-        debug!(?user_registers, "returned from the user space");
-
-        Process::enter_user_mode(process);
-    }
-
-    free_process(pid);
-}
-
-#[test_case]
-fn preemption() {
-    let _guard = forbid_frame_leaks();
-
-    let pid = make_process(LOOP_ELF).pid();
-
-    let process = Table::get(pid).expect("failed to find the new process in the process table");
-    Process::enter_user_mode(process);
-
-    // If this does not happen and the test times out, the preemption is not working properly.
-    debug!("returned from the user space");
-
-    free_process(pid);
-}
-
-#[test_case]
-fn scheduler() {
-    let exit_pid = make_process(EXIT_ELF).pid();
-    let page_fault_pid = make_process(PAGE_FAULT_ELF).pid();
-
-    Scheduler::enqueue(exit_pid);
-    Scheduler::enqueue(page_fault_pid);
-
-    while Scheduler::run_one() {}
-
-    Table::get(exit_pid).expect_err("the 'exit' process was not run up to its completion");
-    Table::get(page_fault_pid)
-        .expect_err("the 'page_fault' process was not run up to its completion");
 }
 
 #[test_case]

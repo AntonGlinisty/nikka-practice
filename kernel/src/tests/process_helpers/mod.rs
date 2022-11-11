@@ -14,6 +14,7 @@ use kernel::{
         mmu::PageTableFlags,
     },
     process::{
+        self,
         Pid,
         Process,
         Table,
@@ -47,6 +48,26 @@ pub(super) fn dummy_allocate(file: &[u8]) -> MutexGuard<'static, Process> {
     check(file, &mut process);
 
     process
+}
+
+pub(super) fn allocate(file: &[u8]) -> MutexGuard<'static, Process> {
+    let start_free_frames = FRAME_ALLOCATOR.lock().count();
+
+    let pid = process::create(file).expect("failed to create the test process");
+    let mut process = Table::get(pid).expect("failed to find the new process in the process table");
+
+    check(file, &mut process);
+
+    let process_frames = start_free_frames - FRAME_ALLOCATOR.lock().count();
+    debug!(process_frames);
+    assert!(process_frames > 0, "created process uses no memory");
+
+    process
+}
+
+pub(super) fn free(pid: Pid) {
+    let process = Table::get(pid).expect("failed to find the new process in the process table");
+    Table::free(process);
 }
 
 fn check(
