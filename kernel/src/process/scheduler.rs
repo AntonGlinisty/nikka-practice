@@ -33,7 +33,7 @@ impl Scheduler {
     }
 
     pub(crate) fn run() -> ! {
-        test_scaffolding::scheduler_wait();
+        test_scaffolding::run_handler();
 
         let cpu = LocalApic::id();
 
@@ -63,18 +63,38 @@ lazy_static! {
 }
 
 pub mod test_scaffolding {
-    use core::sync::atomic::{
-        AtomicBool,
-        Ordering,
+    use core::{
+        mem,
+        sync::atomic::{
+            AtomicBool,
+            AtomicPtr,
+            Ordering,
+        },
     };
 
+    use static_assertions::const_assert;
     use x86_64::instructions;
 
     pub fn scheduler_enable() {
         ENABLED.store(true, Ordering::Release);
     }
 
-    pub(super) fn scheduler_wait() {
+    pub fn set_handler(handler: fn()) {
+        HANDLER.store(handler as *mut _, Ordering::Relaxed);
+    }
+
+    pub(super) fn run_handler() {
+        let handler = HANDLER.load(Ordering::Relaxed);
+        if !handler.is_null() {
+            unsafe {
+                const_assert!(mem::size_of::<*const ()>() == mem::size_of::<fn()>());
+                let handler = mem::transmute::<*const (), fn()>(handler);
+                (handler)();
+            }
+        }
+    }
+
+    fn scheduler_wait() {
         loop {
             if ENABLED.load(Ordering::Acquire) {
                 return;
@@ -85,4 +105,5 @@ pub mod test_scaffolding {
     }
 
     static ENABLED: AtomicBool = AtomicBool::new(false);
+    static HANDLER: AtomicPtr<()> = AtomicPtr::new(scheduler_wait as *mut _);
 }

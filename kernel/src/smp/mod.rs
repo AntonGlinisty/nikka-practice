@@ -118,9 +118,14 @@ pub mod test_scaffolding {
         Ordering,
     };
 
-    use crate::memory::{
-        Block,
-        Virt,
+    use crate::{
+        Subsystems,
+        error::Result,
+        memory::{
+            Block,
+            Page,
+            Virt,
+        },
     };
 
     use super::CPUS;
@@ -132,6 +137,13 @@ pub mod test_scaffolding {
 
     pub fn cpu_count() -> usize {
         CPUS.lock().len()
+    }
+
+    pub fn init_smp(
+        phys2virt: Page,
+        subsystems: Subsystems,
+    ) -> Result<()> {
+        super::init_smp(phys2virt, subsystems)
     }
 
     pub fn is_initialized() -> bool {
