@@ -25,37 +25,58 @@ use crate::{
 /// Статистика аллокатора общего назначения.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Info {
+    /// Сколько памяти в байтах было выделено аллокатором.
     allocated: Counter,
+
+    /// Количество запросов к аллокатору.
     allocations: Counter,
+
+    /// Количество виртуальных страниц, которые аллокатор выделил для удовлетворения запросов.
     pages: Counter,
+
+    /// Сколько памяти в байтах было запрошено у аллокатора.
     requested: Counter,
 }
 
 impl Info {
+    /// Сколько памяти в байтах было выделено аллокатором.
     pub fn allocated(&self) -> Counter {
         self.allocated
     }
 
+    /// Количество запросов к аллокатору.
     pub fn allocations(&self) -> Counter {
         self.allocations
     }
 
+    /// Количество виртуальных страниц, которые аллокатор выделил для удовлетворения запросов.
     pub fn pages(&self) -> Counter {
         self.pages
     }
 
+    /// Сколько памяти в байтах было запрошено у аллокатора.
     pub fn requested(&self) -> Counter {
         self.requested
     }
 
+    /// Сколько памяти в байтах потеряно на фрагментацию в текущий момент времени.
+    /// Равно `allocated().balance() - requested().balance()`.
     pub fn fragmentation_loss(&self) -> usize {
         self.allocated.balance() - self.requested.balance()
     }
 
+    /// Сколько памяти в процентах потеряно на фрагментацию в текущий момент времени.
+    /// Равно `100.0 * fragmentation_loss() / allocated().balance()`.
     pub fn fragmentation_loss_percentage(&self) -> f64 {
         self.fragmentation_loss() as f64 / cmp::max(self.allocated.balance(), 1) as f64 * 100.0
     }
 
+    /// Проверка, соблюдены ли ожидаемые инварианты:
+    /// - Количество и объёмы освобождений памяти не должны превосходить
+    /// соответствующие величины для выделений памяти.
+    /// - Реально выделенный объём памяти не может быть меньше запрошенного.
+    /// - Текущий объём выделенной память не может быть больше суммарного объёма
+    /// текущих выделенных страниц.
     fn is_valid(&self) -> bool {
         self.allocated.is_valid() &&
             self.allocations.is_valid() &&
@@ -95,14 +116,33 @@ impl Sub<Info> for Info {
 /// - [Crate seqlock.](https://docs.rs/seqlock/0.1.2/seqlock/)
 #[derive(Debug, Default)]
 pub struct AtomicInfo {
+    /// Сколько памяти в байтах было выделено аллокатором.
     allocated: AtomicCounter,
+
+    /// Количество запросов к аллокатору.
     allocations: AtomicCounter,
+
+    /// Количество виртуальных страниц, которые аллокатор выделил для удовлетворения запросов.
     pages: AtomicCounter,
+
+    /// Сколько памяти в байтах было запрошено у аллокатора.
     requested: AtomicCounter,
+
+    /// - Нечётное значение в [`AtomicInfo::sequence`] означает,
+    /// что писатель начал обновлять структуру [`AtomicInfo`], но ещё не закончил.
+    /// Если читатель обнаруживает структуру в таком состоянии,
+    /// он должен подождать пока писатель закончит обновление.
+    /// - Чётное значение в [`AtomicInfo::sequence`] означает,
+    /// что значение структуры [`AtomicInfo`] согласованно.
+    /// И читатель может его использовать при дополнительном условии,
+    /// что чтение [`AtomicInfo::sequence`] вернуло один и тот же результат
+    /// до чтения и после чтения остальных полей.
     sequence: AtomicUsize,
 }
 
 impl AtomicInfo {
+    /// Возвращает [`AtomicInfo`], заполненную нулями.
+    /// Аналогична [`AtomicInfo::default()`], но доступна в константном контексте.
     pub const fn new() -> Self {
         Self {
             allocated: AtomicCounter::new(),
@@ -113,6 +153,10 @@ impl AtomicInfo {
         }
     }
 
+    /// Добавляет в счётчики одну операцию выделения памяти:
+    /// - Запрошено `requested` байт.
+    /// - Реально выделено `allocated` байт.
+    /// - Для операции дополнительно пришлось выделить `allocated_pages` виртуальных страниц.
     pub fn allocation(
         &self,
         requested: usize,
@@ -129,22 +173,27 @@ impl AtomicInfo {
         self.sequence.fetch_add(1, Ordering::Release);
     }
 
+    /// Добавляет в счётчики одну операцию освобождения памяти:
+    /// - Запрошено освобождение `requested` байт.
+    /// - Реально освобождено `deallocated` байт.
+    /// - При этом освободились `deallocated_pages` виртуальных страниц.
     pub fn deallocation(
         &self,
         requested: usize,
-        allocated: usize,
+        deallocated: usize,
         deallocated_pages: usize,
     ) {
         self.sequence.fetch_add(1, Ordering::Acquire);
         self.allocations.sub(1);
         self.requested.sub(requested);
-        self.allocated.sub(allocated);
+        self.allocated.sub(deallocated);
         if deallocated_pages > 0 {
             self.pages.sub(deallocated_pages);
         }
         self.sequence.fetch_add(1, Ordering::Release);
     }
 
+    /// Загрузить структуру [`Info`] из атомарного хранилища [`AtomicInfo`].
     pub fn load(&self) -> Info {
         let mut allocated;
         let mut allocations;
@@ -159,10 +208,12 @@ impl AtomicInfo {
                 sequence = self.sequence.load(Ordering::Acquire);
             }
 
-            allocated = self.allocated.load();
-            allocations = self.allocations.load();
-            pages = self.pages.load();
-            requested = self.requested.load();
+            unsafe {
+                allocated = self.allocated.load();
+                allocations = self.allocations.load();
+                pages = self.pages.load();
+                requested = self.requested.load();
+            }
 
             // Use the 'read-dont-modify-write' trick to be able to `Release`
             // the read section of the sequence lock.
@@ -205,25 +256,38 @@ impl fmt::Display for Info {
     }
 }
 
+/// Счётчик для каждой из отслеживаемых величин,
+/// разбитый на положительную часть для операций выделения памяти и
+/// отрицательную часть для операций освобождения памяти.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Counter {
+    /// Суммарный размер соответствующего параметра для операций освобождения памяти.
     negative: usize,
+
+    /// Суммарный размер соответствующего параметра для операций выделения памяти.
     positive: usize,
 }
 
 impl Counter {
+    /// Суммарный размер соответствующего параметра для операций освобождения памяти.
     pub fn negative(&self) -> usize {
         self.negative
     }
 
+    /// Суммарный размер соответствующего параметра для операций выделения памяти.
     pub fn positive(&self) -> usize {
         self.positive
     }
 
+    /// Баланс счётчика --- значение отслеживаемой величины в текущий момент.
+    /// Равен разнице между положительной и отрицательной частью счётчика.
     pub fn balance(&self) -> usize {
         self.positive.checked_sub(self.negative).expect("negative balance detected")
     }
 
+    /// Проверка, соблюдены ли ожидаемые инварианты.
+    /// А именно, количество и объёмы выделений памяти не должны превосходить
+    /// соответствующие величины для освобождений памяти.
     fn is_valid(&self) -> bool {
         self.negative <= self.positive
     }
@@ -258,13 +322,22 @@ impl Sub<Counter> for Counter {
     }
 }
 
+/// Атомарный счётчик для каждой из отслеживаемых величин,
+/// разбитый на положительную часть для операций выделения памяти и
+/// отрицательную часть для операций освобождения памяти.
 #[derive(Debug, Default)]
 struct AtomicCounter {
+    /// Суммарный размер соответствующего параметра для операций освобождения памяти.
     negative: AtomicUsize,
+
+    /// Суммарный размер соответствующего параметра для операций выделения памяти.
     positive: AtomicUsize,
 }
 
 impl AtomicCounter {
+    /// Создаёт атомарный счётчик для каждой из отслеживаемых величин,
+    /// имеющий нулевые положительную и отрицательную компоненты.
+    /// Аналогична [`AtomicCounter::default()`], но доступна в константном контексте.
     const fn new() -> Self {
         Self {
             positive: AtomicUsize::new(0),
@@ -272,21 +345,30 @@ impl AtomicCounter {
         }
     }
 
-    fn load(&self) -> Counter {
+    /// Загрузить значение из счётчика.
+    ///
+    /// # Safety
+    ///
+    /// Не гарантирует атомарность между положительной и отрицательной частями счётчика.
+    /// Об этом должен позаботиться вызывающий код.
+    unsafe fn load(&self) -> Counter {
         Counter {
             positive: self.positive(),
             negative: self.negative(),
         }
     }
 
+    /// Суммарный размер соответствующего параметра для операций освобождения памяти.
     fn negative(&self) -> usize {
         self.negative.load(Ordering::Relaxed)
     }
 
+    /// Суммарный размер соответствующего параметра для операций выделения памяти.
     fn positive(&self) -> usize {
         self.positive.load(Ordering::Relaxed)
     }
 
+    /// Добавить к счётчику величину `value`.
     fn add(
         &self,
         value: usize,
@@ -294,6 +376,7 @@ impl AtomicCounter {
         self.positive.fetch_add(value, Ordering::Relaxed);
     }
 
+    /// Вычесть из счётчика величину `value`.
     fn sub(
         &self,
         value: usize,
@@ -302,6 +385,7 @@ impl AtomicCounter {
     }
 }
 
+/// Вспомогательная структура для удобного форматирования счётчиков, отслеживающих байты.
 struct SizeCounter(Counter);
 
 impl fmt::Display for SizeCounter {

@@ -1,3 +1,6 @@
+#![warn(clippy::missing_docs_in_private_items)]
+#![warn(missing_docs)]
+
 /// Интерфейс аллокатора памяти [`BigAllocator`],
 /// который умеет выдавать только выровненные на границу страниц блоки памяти.
 pub mod big;
