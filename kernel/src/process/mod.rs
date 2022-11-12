@@ -74,8 +74,6 @@ pub fn init(subsystems: Subsystems) {
         syscall::init();
     }
 
-    const PROCESS_SLOT_COUNT: usize = 1 << 10;
-
     if subsystems.contains(Subsystems::PROCESS_TABLE) {
         *TABLE.lock() = Table::new(PROCESS_SLOT_COUNT);
     }
@@ -162,6 +160,8 @@ fn map_system_info(address_space: &mut AddressSpace) -> Result<*const SystemInfo
     system_info_page.address().try_into_ptr()
 }
 
+const PROCESS_SLOT_COUNT: usize = 1 << 8;
+
 #[doc(hidden)]
 pub mod test_scaffolding {
     pub use super::{
@@ -170,19 +170,48 @@ pub mod test_scaffolding {
         table::test_scaffolding::*,
     };
 
-    use ku::RingBuffer;
+    use ku::{
+        RingBuffer,
+        process::{
+            MiniContext,
+            Pid,
+        },
+    };
 
     use crate::{
         error::Result,
-        memory::AddressSpace,
-        process::Process,
+        memory::{
+            AddressSpace,
+            BASE_ADDRESS_SPACE,
+        },
+        process::{
+            Process,
+            Table,
+        },
     };
 
     pub fn create_process(elf_file: &[u8]) -> Result<Process> {
         super::create_process(elf_file)
     }
 
+    pub fn dummy_process() -> Result<Pid> {
+        let mut address_space = BASE_ADDRESS_SPACE.lock().duplicate()?;
+
+        address_space.switch_to();
+
+        let process_info = super::map_process_info(&mut address_space)?;
+
+        BASE_ADDRESS_SPACE.lock().switch_to();
+
+        let context = MiniContext::default();
+        let process = Process::new(address_space, context, process_info);
+
+        Table::allocate(process)
+    }
+
     pub fn map_log(address_space: &mut AddressSpace) -> Result<RingBuffer> {
         super::map_log(address_space)
     }
+
+    pub const PROCESS_SLOT_COUNT: usize = super::PROCESS_SLOT_COUNT;
 }
