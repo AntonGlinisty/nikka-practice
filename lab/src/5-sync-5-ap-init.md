@@ -38,6 +38,17 @@ BSP должен передать AP код загрузчика, слепок �
 [`kernel::smp::ap_init::BootStack`](../../doc/kernel/smp/ap_init/struct.BootStack.html),
 которая определена в файле [`kernel/src/smp/ap_init.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/smp/ap_init.rs).
 
+> В этой структуре есть поле
+> [`BootStack::small_gdt`](../../doc/kernel/smp/ap_init/struct.BootStack.html#structfield.small_gdt).
+> Оно нужно по техническим причинам --- в реальном режиме нужно чтобы адрес GDT был 24-битным.
+> Чтобы не накладывать такое ограничение на основную GDT ядра, в
+> [`kernel::smp::ap_init::BootStack`](../../doc/kernel/smp/ap_init/struct.BootStack.html)
+> и кладётся минимальная `small_gdt`, которая нужна только в функции
+> [`switch_from_real_mode_to_long_mode()`](../../doc/kernel/smp/ap_init/fn.switch_from_real_mode_to_long_mode.html).
+> Далее в
+> [`kernel::smp::ap_init::ap_kernel_main()`](../../doc/kernel/smp/ap_init/fn.ap_kernel_main.html)
+> Application Processor переключится на основную GDT ядра.
+
 Подготовку кода и стека выполняет функция
 [`kernel::smp::ap_init::prepare_boot_code()`](../../doc/kernel/smp/ap_init/fn.prepare_boot_code.html).
 Копирование кода она делегирует функции
@@ -57,7 +68,7 @@ BSP должен передать AP код загрузчика, слепок �
 [`switch_from_real_mode_to_long_mode()`](../../doc/kernel/smp/ap_init/fn.switch_from_real_mode_to_long_mode.html)
 переводит процессор в защищённый режим, настраивает сегменты кода и данных ядра и виртуальную память, необходимую для перехода к выполнению кода на языке Rust.
 После этого она переключается с временного стека в стек ядра, который мы подготовили в
-[задаче 5](../../lab/book/4-process-2-cpus.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-5--%D0%98%D0%BD%D0%B8%D1%86%D0%B8%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-%D0%B2%D0%B5%D0%BA%D1%82%D0%BE%D1%80%D0%B0-%D1%81%D1%82%D1%80%D1%83%D0%BA%D1%82%D1%83%D1%80-kernelsmpcpucpu).
+[предыдущей задаче](../../lab/book/4-process-2-cpus.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-3--%D0%B2%D0%B5%D0%BA%D1%82%D0%BE%D1%80-%D1%81%D1%82%D1%80%D1%83%D0%BA%D1%82%D1%83%D1%80-kernelsmpcpucpu).
 И переходит в функцию
 [`kernel::smp::ap_init::ap_kernel_main()`](../../doc/kernel/smp/ap_init/fn.ap_kernel_main.html)
 из [`kernel/src/smp/acpi.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/smp/acpi.rs),
@@ -108,7 +119,7 @@ fn switch_from_real_mode_to_long_mode() -> !
 - Инициализирует системные регистры, переданные через временный стек. В частности, страничное отображение и GDT.
 - После инициализации GDT, переинициализирует сегментные регистры селекторами новой GDT. Для переинициализации `CS` можно использовать `far ret`. Использовать `far jmp` не получится, так как для него селектор сегмента кода должен быть константой, а нам хочется передать селектор кода переменной. Она записана в поле [`BootStack::kernel_code`](../../doc/kernel/smp/ap_init/struct.BootStack.html#structfield.kernel_code).
 - Далее, забирает с временного стека аргументы для функции [`ap_kernel_main()`](../../doc/kernel/smp/ap_init/fn.ap_kernel_main.html). И помещает их в регистры, в соответствии с [x86-64 C ABI](https://wiki.osdev.org/System_V_ABI#x86-64).
-- Финальным аккордом переключается в выделенный данному CPU в [задаче 5](../../lab/book/4-process-2-cpus.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-5--%D0%98%D0%BD%D0%B8%D1%86%D0%B8%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-%D0%B2%D0%B5%D0%BA%D1%82%D0%BE%D1%80%D0%B0-%D1%81%D1%82%D1%80%D1%83%D0%BA%D1%82%D1%83%D1%80-kernelsmpcpucpu) стек ядра и передаёт управление в функцию [`ap_kernel_main()`](../../doc/kernel/smp/ap_init/fn.ap_kernel_main.html).
+- Финальным аккордом переключается в выделенный данному CPU в [предыдущей задаче](../../lab/book/4-process-2-cpus.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-3--%D0%B2%D0%B5%D0%BA%D1%82%D0%BE%D1%80-%D1%81%D1%82%D1%80%D1%83%D0%BA%D1%82%D1%83%D1%80-kernelsmpcpucpu) стек ядра и передаёт управление в функцию [`ap_kernel_main()`](../../doc/kernel/smp/ap_init/fn.ap_kernel_main.html).
 
 Поля в
 [`BootStack`](../../doc/kernel/smp/ap_init/struct.BootStack.html)
@@ -152,9 +163,54 @@ fn switch_from_real_mode_to_long_mode() -> !
 Однако, будьте готовы к тому что на написание и отладку этой задачи может потребоваться много времени.
 
 
+### Проверьте себя
+
+Запустите тест `5-sync-5-ap-init` из файла
+[`kernel/tests/5-sync-5-ap-init.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/5-sync-5-ap-init.rs).
+Сразу после отметки времени, журналирование печатает номер текущего процессора.
+Теперь их у нас четыре:
+
+```console
+$ (cd kernel; cargo test --test 5-sync-5-ap-init)
+...
+5_sync_5_ap_init::ap_init----------------------------
+20:26:45 0 I acpi = Acpi { local_apic_address: Phys(0pFEE00000), bsp_id: 0, ap_ids: [1, 2, 3] }
+20:26:45 0 I Local APIC init; cpu = 0; cpu_count = 4; local_apic_address = 0pFEE00000
+20:26:46 0 D set FS register to Cpu structure address; cpu = 0; fs = 0v7FFFFFEB8000
+20:26:46 0 I Bootstrap Processor; cpu = 0
+20:26:46 0 D boot_stack = { efer: 0xD01, cr4: 0x20, cr3: 0x1000, cr0: 0x80010011, gdt: { base: 0p007FD8, limit: 0x0027 }, kernel_code: SegmentSelector { index: 1, rpl: Ring0 }, kernel_data: SegmentSelector { index: 2, rpl: Ring0 }, set_cs_rip_to_64bit: 0p7035, kernel_stack: 0v7FFFFFEE9000, cpu: 0v7FFFFFEB8100, initialized: 0v10000200418 }
+20:26:46 1 D set FS register to Cpu structure address; cpu = 1; fs = 0v7FFFFFEB8100
+20:26:46 1 I report for duty; cpu = 1
+20:26:46 0 I cpu = 1; duration = 30.504 ms; "boot Application Processor"
+20:26:46 1 I arrived at the barrier; cpu = 1; cpu_count = 4; cpus_waiting = 0; last = false
+20:26:46 0 D boot_stack = { efer: 0xD01, cr4: 0x20, cr3: 0x1000, cr0: 0x80010011, gdt: { base: 0p007FD8, limit: 0x0027 }, kernel_code: SegmentSelector { index: 1, rpl: Ring0 }, kernel_data: SegmentSelector { index: 2, rpl: Ring0 }, set_cs_rip_to_64bit: 0p7035, kernel_stack: 0v7FFFFFF09000, cpu: 0v7FFFFFEB8200, initialized: 0v10000200418 }
+20:26:46 2 D set FS register to Cpu structure address; cpu = 2; fs = 0v7FFFFFEB8200
+20:26:46 2 I report for duty; cpu = 2
+20:26:46 0 I cpu = 2; duration = 30.957 ms; "boot Application Processor"
+20:26:46 2 I arrived at the barrier; cpu = 2; cpu_count = 4; cpus_waiting = 1; last = false
+20:26:46 0 D boot_stack = { efer: 0xD01, cr4: 0x20, cr3: 0x1000, cr0: 0x80010011, gdt: { base: 0p007FD8, limit: 0x0027 }, kernel_code: SegmentSelector { index: 1, rpl: Ring0 }, kernel_data: SegmentSelector { index: 2, rpl: Ring0 }, set_cs_rip_to_64bit: 0p7035, kernel_stack: 0v7FFFFFF29000, cpu: 0v7FFFFFEB8300, initialized: 0v10000200418 }
+20:26:46 3 D set FS register to Cpu structure address; cpu = 3; fs = 0v7FFFFFEB8300
+20:26:46 3 I report for duty; cpu = 3
+20:26:46 0 I cpu = 3; duration = 30.971 ms; "boot Application Processor"
+20:26:46 3 I arrived at the barrier; cpu = 3; cpu_count = 4; cpus_waiting = 2; last = false
+20:26:46 0 I arrived at the barrier; cpu = 0; cpu_count = 4; cpus_waiting = 3; last = true
+20:26:46 1 I all CPUs have arrived at the barrier; cpu = 1; cpu_count = 4
+20:26:46 3 I all CPUs have arrived at the barrier; cpu = 3; cpu_count = 4
+20:26:46 0 I all CPUs have arrived at the barrier; cpu = 0; cpu_count = 4
+20:26:46 2 I all CPUs have arrived at the barrier; cpu = 2; cpu_count = 4
+20:26:47.485 1 I AP halted; cpu = 1
+20:26:47.491 3 I AP halted; cpu = 3
+20:26:47.495 0 I racy_counter = 14031486; race_free_counter = 20000000
+5_sync_5_ap_init::ap_init------------------- [passed]
+20:26:47.503 0 I exit qemu; exit_code = SUCCESS
+```
+
+> Попробуйте реализовать `RACY_COUNTER` из теста без `unsafe`.
+
+
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/smp/ap_init.rs |   42 ++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 40 insertions(+), 2 deletions(-)
+ kernel/src/smp/ap_init.rs |   55 +++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 52 insertions(+), 3 deletions(-)
 ```

@@ -15,7 +15,7 @@
 
 - Стек ядра [`Cpu::kernel_stack`](../../doc/kernel/smp/cpu/struct.Cpu.html#structfield.kernel_stack). Процессоры обрабатывают системные вызовы и прерывания независимо, так что у каждого должен быть свой стек для этого.
 - Также полезен дополнительный стек [`Cpu::page_fault_stack`](../../doc/kernel/smp/cpu/struct.Cpu.html#structfield.page_fault_stack), который используется во время обработки Page Fault. Он позволяет напечатать диагностику возникшего исключения даже в случае, когда оно вызвано исчерпанием основного стека ядра.
-- Task State Segment [`Cpu::tss`](../../doc/kernel/smp/cpu/struct.Cpu.html#structfield.tss). В TSS описано, где находится стек ядра для текущего процессора. Разумеется, раз стеки разные, то и TSS тоже должны быть разные.
+- [Task State Segment](https://en.wikipedia.org/wiki/Task_state_segment) [`Cpu::tss`](../../doc/kernel/smp/cpu/struct.Cpu.html#structfield.tss). В TSS описано, где находится стек ядра для текущего процессора. Разумеется, раз стеки разные, то и TSS тоже должны быть разные.
 - Исполняющийся на данном CPU в текущий момент пользовательский процесс [`Cpu::current_process`](../../doc/kernel/smp/cpu/struct.Cpu.html#structfield.current_process). Пользовательские процессы выполняются независимо на разных ядрах. Следовательно, у каждого ядра текущий процесс должен быть своим.
 - Системные регистры. У каждого процессора свои системные регистры. Так что функции их инициализации должны быть вызваны для каждого CPU. Явно в структуре [`Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html) регистры не хранятся.
   - [`GDTR`](https://wiki.osdev.org/GDT#GDTR) --- Global Descriptor Table Register, содержит адрес [`kernel::memory::gdt::Gdt`](../../doc/kernel/memory/gdt/type.Gdt.html).
@@ -163,9 +163,17 @@ unsafe fn Cpu::get() -> &'static mut Cpu
 [диспетчеризации системных вызовов](../../lab/book/4-process-6-syscall.html#%D0%94%D0%B8%D1%81%D0%BF%D0%B5%D1%82%D1%87%D0%B5%D1%80%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D0%BD%D1%8B%D1%85-%D0%B2%D1%8B%D0%B7%D0%BE%D0%B2%D0%BE%D0%B2)
 и был добавлен в соответствующей
 [задаче](../../lab/book/4-process-6-syscall.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-4--%D0%BF%D0%BE%D0%B4%D0%B4%D0%B5%D1%80%D0%B6%D0%BA%D0%B0-%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D0%BD%D1%8B%D1%85-%D0%B2%D1%8B%D0%B7%D0%BE%D0%B2%D0%BE%D0%B2).
+Теперь `RSP` нужно писать не в стек, а по адресу `FS:offset`, где `offset` --- смещение `RSP` ядра в структуре
+[`Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html).
+Для этого смещения есть константа
+[`kernel::smp::cpu::KERNEL_RSP_OFFSET_IN_CPU`](../../doc/kernel/smp/cpu/constant.KERNEL_RSP_OFFSET_IN_CPU.html).
 А запись `RSP` в стек и его сохранение в
 [`syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html)
 нужно будет удалить.
+Обратите внимание, что в ассемблере всё также нужно использовать запись `FS:offset`.
+Высокоуровневые методы вроде
+[`Cpu::get()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.get)
+доступны только для Rust--кода --- до переключения стека невозможно корректно позвать Rust--функцию.
 
 
 #### Инициализация вектора структур [`kernel::smp::cpu::Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html)
@@ -207,16 +215,16 @@ fn init_cpu_vec(cpu_count: usize) -> Result<Vec<Cpu>>
 $ (cd kernel; cargo test --test 4-process-2-cpus)
 ...
 4_process_2_cpus::initialized---------------------------
-19:57:54 0 I cpu = 0; local_apic_id = 0
-19:57:54 0 I cpu = 0; kernel_stack = 0v7FFFFFEB8000; frame = Frame(32427 @ 0p7EAB000); flags = PRESENT | WRITABLE | ACCESSED | DIRTY | NO_EXECUTE
+20:26:42 0 I cpu = 0; local_apic_id = 0
+20:26:42 0 I cpu = 0; kernel_stack = 0v7FFFFFEB8000; frame = Frame(32427 @ 0p7EAB000); flags = PRESENT | WRITABLE | ACCESSED | DIRTY | NO_EXECUTE
 4_process_2_cpus::initialized------------------ [passed]
-19:57:54 0 I exit qemu; exit_code = SUCCESS
+20:26:43 0 I exit qemu; exit_code = SUCCESS
 ```
 
 
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/smp/cpu.rs |   32 ++++++++++++++++++++++++++++----
- 1 file changed, 28 insertions(+), 4 deletions(-)
+ kernel/src/smp/cpu.rs |   54 ++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 46 insertions(+), 8 deletions(-)
 ```

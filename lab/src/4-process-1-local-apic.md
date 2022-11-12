@@ -77,8 +77,8 @@ fn LocalApic::map(address: Phys) -> Result<()>
 $ (cd kernel; cargo test --test 4-process-1-local-apic)
 ...
 4_process_1_local_apic::mapped_properly-----------------
-19:45:48 0 I Local APIC; local_apic = 0v322000; frame = Frame(1043968 @ 0pFEE00000); flags = PRESENT | WRITABLE | WRITE_THROUGH | NO_CACHE | ACCESSED | DIRTY | NO_EXECUTE
-19:45:48 0 I cpu = 0
+20:26:39 0 I Local APIC; local_apic = 0v334000; frame = Frame(1043968 @ 0pFEE00000); flags = PRESENT | WRITABLE | WRITE_THROUGH | NO_CACHE | ACCESSED | DIRTY | NO_EXECUTE
+20:26:39 0 I cpu = 0
 4_process_1_local_apic::mapped_properly-------- [passed]
 ```
 
@@ -86,6 +86,6 @@ $ (cd kernel; cargo test --test 4-process-1-local-apic)
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/smp/local_apic.rs |   17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+ kernel/src/smp/local_apic.rs |   19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)
 ```
