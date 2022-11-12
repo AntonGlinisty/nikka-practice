@@ -8,7 +8,7 @@ use crate::process::ModeContext;
 pub struct TrapContext(ModeContext);
 
 impl TrapContext {
-    pub(super) fn is_user_mode(&self) -> bool {
+    pub(crate) fn is_user_mode(&self) -> bool {
         self.0.is_user_mode()
     }
 
@@ -16,7 +16,7 @@ impl TrapContext {
         self.0
     }
 
-    pub(super) fn set(
+    pub(crate) fn set(
         &mut self,
         context: ModeContext,
     ) {

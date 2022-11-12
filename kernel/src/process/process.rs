@@ -28,6 +28,7 @@ use crate::{
         Virt,
     },
     smp::Cpu,
+    trap::TrapContext,
 };
 
 use super::{
@@ -267,6 +268,17 @@ impl Process {
 
         // TODO: your code here.
         false // TODO: remove before flight.
+    }
+
+    /// Выполняет переключение текущего контекста исполнения `context`
+    /// на контекст ядра в случае, если текущий контекст исполняется в режиме пользователя.
+    /// Текущий контекст пользователя сохраняет в структуре `Cpu` текущего процессора.
+    ///
+    /// Этот метод вызывается из функции обработки прерывания от таймера `trap::timer()`.
+    #[allow(unused_mut)] // TODO: remove before flight.
+    #[inline(always)]
+    pub(crate) fn preempt(context: &mut TrapContext) {
+        // TODO: your code here.
     }
 
     /// Вытесняет текущий исполняющийся процесс с процессора принудительно.

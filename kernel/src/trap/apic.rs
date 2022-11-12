@@ -1,6 +1,6 @@
-use crate::smp::{
-    Cpu,
-    LocalApic,
+use crate::{
+    process::Process,
+    smp::LocalApic,
 };
 
 use super::{
@@ -9,7 +9,7 @@ use super::{
 };
 
 pub(super) extern "x86-interrupt" fn timer(mut context: TrapContext) {
-    // TODO: your code here.
+    Process::preempt(&mut context);
 
     generic_apic_interrupt(super::TIMER);
 }
