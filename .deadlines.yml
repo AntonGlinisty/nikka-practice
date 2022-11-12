@@ -244,3 +244,184 @@
       check:
         - cd kernel && cargo test --test 2-mm-* --test 4-process-6-syscall
 
+- group: lab-4-concurrency
+  start: 07-11-2022 18:00
+  deadline: 23-11-2022 23:59
+  second_deadline: 01-02-2023 23:59
+  enabled: true
+  tasks:
+    - task: memory-allocator
+      score: 100
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-1-big.html
+      allow_list:
+        - kernel/src/memory/address_space.rs
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/memory/main_frame_allocator.rs
+        - kernel/src/memory/mapping.rs
+        - kernel/src/memory/page_allocator.rs
+        - kernel/src/process/elf.rs
+        - kernel/src/process/registers.rs
+        - kernel/src/process/syscall.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/allocator/big.rs
+        - ku/src/memory/block.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+        - user/lib/src/syscall.rs
+      check:
+        - cd kernel && cargo test --test 2-mm-* --test 3-allocator-1-big
+
+    - task: local-apic
+      score: 50
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-1-local-apic.html
+      allow_list:
+        - kernel/src/memory/address_space.rs
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/memory/main_frame_allocator.rs
+        - kernel/src/memory/mapping.rs
+        - kernel/src/memory/page_allocator.rs
+        - kernel/src/process/elf.rs
+        - kernel/src/process/registers.rs
+        - kernel/src/process/syscall.rs
+        - kernel/src/smp/local_apic.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/allocator/big.rs
+        - ku/src/memory/block.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+        - user/lib/src/syscall.rs
+      check:
+        - cd kernel && cargo test --test 2-mm-* --test 4-process-1-local-apic
+
+    - task: cpus
+      score: 50
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-2-cpus.html
+      allow_list:
+        - kernel/src/memory/address_space.rs
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/memory/main_frame_allocator.rs
+        - kernel/src/memory/mapping.rs
+        - kernel/src/memory/page_allocator.rs
+        - kernel/src/process/elf.rs
+        - kernel/src/process/registers.rs
+        - kernel/src/process/syscall.rs
+        - kernel/src/smp/cpu.rs
+        - kernel/src/smp/local_apic.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/allocator/big.rs
+        - ku/src/memory/block.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+        - user/lib/src/syscall.rs
+      check:
+        - cd kernel && cargo test --test 2-mm-* --test 4-process-2-cpus
+
+    - task: ap-init
+      score: 150
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-5-ap-init.html
+      allow_list:
+        - kernel/src/memory/address_space.rs
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/memory/main_frame_allocator.rs
+        - kernel/src/memory/mapping.rs
+        - kernel/src/memory/page_allocator.rs
+        - kernel/src/process/elf.rs
+        - kernel/src/process/registers.rs
+        - kernel/src/process/syscall.rs
+        - kernel/src/smp/ap_init.rs
+        - kernel/src/smp/cpu.rs
+        - kernel/src/smp/local_apic.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/allocator/big.rs
+        - ku/src/memory/block.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+        - user/lib/src/syscall.rs
+      check:
+        - cd kernel && cargo test --test 2-mm-* --test 5-sync-5-ap-init
+
+    - task: table
+      score: 100
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-7-table.html
+      allow_list:
+        - kernel/src/memory/address_space.rs
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/memory/main_frame_allocator.rs
+        - kernel/src/memory/mapping.rs
+        - kernel/src/memory/page_allocator.rs
+        - kernel/src/process/elf.rs
+        - kernel/src/process/registers.rs
+        - kernel/src/process/syscall.rs
+        - kernel/src/process/table.rs
+        - kernel/src/smp/ap_init.rs
+        - kernel/src/smp/cpu.rs
+        - kernel/src/smp/local_apic.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/allocator/big.rs
+        - ku/src/memory/block.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+        - user/lib/src/syscall.rs
+      check:
+        - cd kernel && cargo test --test 2-mm-* --test 4-process-3-elf --test 4-process-7-table
+
+    - task: preemption
+      score: 50
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-8-preemption.html
+      allow_list:
+        - kernel/src/memory/address_space.rs
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/memory/main_frame_allocator.rs
+        - kernel/src/memory/mapping.rs
+        - kernel/src/memory/page_allocator.rs
+        - kernel/src/process/elf.rs
+        - kernel/src/process/process.rs
+        - kernel/src/process/registers.rs
+        - kernel/src/process/syscall.rs
+        - kernel/src/process/table.rs
+        - kernel/src/smp/ap_init.rs
+        - kernel/src/smp/cpu.rs
+        - kernel/src/smp/local_apic.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/allocator/big.rs
+        - ku/src/memory/block.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+        - user/lib/src/syscall.rs
+      check:
+        - cd kernel && cargo test --test 2-mm-* --test 4-process-3-elf --test 4-process-8-preemption
+
+    - task: scheduler
+      score: 50
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-9-scheduler.html
+      allow_list:
+        - kernel/src/memory/address_space.rs
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/memory/main_frame_allocator.rs
+        - kernel/src/memory/mapping.rs
+        - kernel/src/memory/page_allocator.rs
+        - kernel/src/process/elf.rs
+        - kernel/src/process/process.rs
+        - kernel/src/process/registers.rs
+        - kernel/src/process/scheduler.rs
+        - kernel/src/process/syscall.rs
+        - kernel/src/process/table.rs
+        - kernel/src/smp/ap_init.rs
+        - kernel/src/smp/cpu.rs
+        - kernel/src/smp/local_apic.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/allocator/big.rs
+        - ku/src/memory/block.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+        - user/lib/src/syscall.rs
+      check:
+        - cd kernel && cargo test --test 2-mm-* --test 4-process-3-elf --test 4-process-9-scheduler
+
