@@ -2,6 +2,7 @@ use std::{
     env,
     error::Error,
     process::Command,
+    str,
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -24,13 +25,23 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("cargo:rerun-if-changed=../user/{bin}/Cargo.toml");
         println!("cargo:rerun-if-changed=../user/{bin}/src");
 
-        Command::new("cargo")
+        let terminate = || panic!("failed to build user binary {bin}");
+
+        let output = Command::new("cargo")
             .args(["build", "--profile", "user"])
             .current_dir(format!("../user/{bin}"))
             .env_clear()
             .env("PATH", env::var("PATH")?)
             .output()
-            .unwrap_or_else(|_| panic!("failed to build user binary {bin}"));
+            .unwrap_or_else(|_| terminate());
+
+        if !output.status.success() {
+            println!(
+                "cargo:warning=\n{}",
+                str::from_utf8(output.stderr.as_slice()).unwrap_or("<some invalid UTF-8>"),
+            );
+            terminate();
+        }
     }
 
     Ok(())
