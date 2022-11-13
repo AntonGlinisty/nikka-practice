@@ -35,6 +35,8 @@ pub mod memory;
 /// Здесь находится часть работы с процессами, которая происходит только в ядре.
 pub mod process;
 
+/// Поддержка симметричной многопроцессорности
+/// ([Symmetric multiprocessing](https://en.wikipedia.org/wiki/Symmetric_multiprocessing), SMP).
 pub mod smp;
 
 /// Здесь находится часть работы со временем, которая происходит только в ядре.

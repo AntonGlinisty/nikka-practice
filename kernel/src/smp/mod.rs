@@ -1,6 +1,19 @@
+#![warn(clippy::missing_docs_in_private_items)]
+#![warn(missing_docs)]
+
+/// Обвязка внешней библиотеки [`acpi`], которая используется для получения
+/// информации о конфигурации оборудования из таблиц, предоставляемых BIOS.
 mod acpi;
+
+/// Код инициализации Application Processors.
 mod ap_init;
+
+/// Код для работы с вектором структур [`Cpu`],
+/// каждая из которых принадлежит своему процессору системы.
 mod cpu;
+
+/// Код работы с
+/// local [APIC](https://en.wikipedia.org/wiki/Advanced_Programmable_Interrupt_Controller).
 mod local_apic;
 
 use alloc::vec::Vec;
@@ -38,6 +51,8 @@ pub(crate) use local_apic::{
     LocalApic,
 };
 
+/// Инициализация симметричной многопроцессорности
+/// ([Symmetric multiprocessing](https://en.wikipedia.org/wiki/Symmetric_multiprocessing), SMP).
 pub(super) fn init(
     boot_info: &'static BootInfo,
     subsystems: Subsystems,
@@ -52,6 +67,9 @@ pub(super) fn init(
     }
 }
 
+/// Инициализация симметричной многопроцессорности
+/// ([Symmetric multiprocessing](https://en.wikipedia.org/wiki/Symmetric_multiprocessing), SMP).
+/// Внутренняя функция, которая выполняет всю работу.
 fn init_smp(
     phys2virt: Page,
     subsystems: Subsystems,

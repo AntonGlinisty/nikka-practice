@@ -62,11 +62,10 @@ pub use process::Process;
 pub use scheduler::Scheduler;
 pub use table::Table;
 
-pub(crate) use registers::ModeContext;
-
-// Used in docs.
-#[allow(unused)]
-use registers::Registers;
+pub(crate) use registers::{
+    ModeContext,
+    Registers,
+};
 
 /// Инициализация подсистемы процессов.
 pub fn init(subsystems: Subsystems) {

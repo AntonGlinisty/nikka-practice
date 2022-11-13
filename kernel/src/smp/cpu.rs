@@ -44,6 +44,14 @@ use super::{
     LocalApic,
 };
 
+// Used in docs.
+#[allow(unused)]
+use crate::process::Registers;
+
+/// Инициализирует вектор структур [`Cpu`] размера `cpu_count` и
+/// регистры [`FS`](https://wiki.osdev.org/CPU_Registers_x86-64#FS.base.2C_GS.base) и
+/// [`TR`](https://wiki.osdev.org/CPU_Registers_x86-64#TR)
+/// для `current_cpu` (Bootstrap Processor).
 pub(super) fn init(
     cpu_count: usize,
     current_cpu: CpuId,
@@ -63,37 +71,47 @@ fn init_cpu_vec(cpu_count: usize) -> Result<Vec<Cpu>> {
     unimplemented!();
 }
 
+/// Смещение внутри [`Cpu`], по которому нужно сохранять `rsp` ядра,
+/// чтобы процессор переключал стек на него при возникновении прерываний в ненулевом
+/// кольце защиты.
+/// Ядро сохраняет там свой `rsp`, когда переключается в режим пользователя
+/// и восстанавливает свой `rsp` оттуда, когда возвращается из режима пользователя
+/// или получает он него системный вызов.
 pub(crate) const KERNEL_RSP_OFFSET_IN_CPU: usize = offset_of!(Cpu, tss) +
     offset_of!(TaskStateSegment, privilege_stack_table) +
     PrivilegeLevel::Ring0 as usize * mem::size_of::<VirtAddr>();
 
-/// CPU-local storage.
+/// CPU--local storage.
 /// Aligned on the cache line size to avoid false sharing.
 /// [Why align on 128 bytes instead of 64?](https://docs.rs/crossbeam/latest/crossbeam/utils/struct.CachePadded.html#size-and-alignment)
 #[repr(align(128))]
 pub(crate) struct Cpu {
     /// Исполняющийся на данном CPU в текущий момент пользовательский процесс.
     ///
-    /// Пользовательские процессы выполняются независимо на разных ядрах. Следовательно, у каждого ядра текущий процесс должен быть своим.
+    /// Пользовательские процессы выполняются независимо на разных ядрах,
+    /// следовательно у каждого ядра текущий процесс должен быть своим.
     current_process: Option<Pid>,
 
-    /// Идентификатор данного CPU, содержит копию идентификатора его Local APIC --- [`LocalApic::id()`].
+    /// Идентификатор данного CPU, копия идентификатора его local APIC --- [`LocalApic::id()`].
     id: CpuId,
 
     /// Стек ядра данного CPU.
     ///
-    /// Процессоры обрабатывают системные вызовы и прерывания независимо, так что у каждого должен быть свой стек для этого.
+    /// Процессоры обрабатывают системные вызовы и прерывания независимо,
+    /// так что у каждого должен быть свой стек для этого.
     kernel_stack: &'static Stack,
 
-    /// Дополнительный стек, который используется во время обработки Page Fault.
+    /// Дополнительный стек, который используется во время обработки
+    /// [Page Fault](https://en.wikipedia.org/wiki/Page_fault).
     ///
-    /// Он позволяет напечатать диагностику возникшего исключения даже в случае, когда оно вызвано исчерпанием основного стека ядра.
+    /// Он позволяет напечатать диагностику возникшего исключения даже в случае,
+    /// когда оно вызвано исчерпанием основного стека ядра.
     page_fault_stack: &'static Stack,
 
     /// Адрес структуры [`Cpu`] для данного CPU.
     this: Virt,
 
-    /// Task State Segment (TSS) для данного CPU.
+    /// [Task State Segment](https://en.wikipedia.org/wiki/Task_state_segment) (TSS) данного CPU.
     ///
     /// В TSS описано, где находится стек ядра для текущего процессора.
     /// Стеки у разных CPU разные, поэтому и TSS тоже должны быть разные.
@@ -104,6 +122,9 @@ pub(crate) struct Cpu {
 }
 
 impl Cpu {
+    /// Заполняет структуру [`Cpu`] для процессора номер `id` с двумя заданными
+    /// стеками `stacks` для обычного кода ядра и для обработчика
+    /// [Page Fault](https://en.wikipedia.org/wiki/Page_fault).
     pub fn new(
         id: CpuId,
         stacks: &'static [Stack],
@@ -131,6 +152,10 @@ impl Cpu {
         result
     }
 
+    /// Возвращает исполняющийся на данном CPU в текущий момент пользовательский процесс.
+    ///
+    /// Пользовательские процессы выполняются независимо на разных ядрах,
+    /// следовательно у каждого ядра текущий процесс должен быть своим.
     pub(crate) fn current_process() -> Result<Pid> {
         if super::test_scaffolding::is_initialized() {
             let cpu = unsafe { Self::get() };
@@ -140,6 +165,10 @@ impl Cpu {
         }
     }
 
+    /// Устанавливает исполняющийся на данном CPU в текущий момент пользовательский процесс.
+    ///
+    /// Пользовательские процессы выполняются независимо на разных ядрах,
+    /// следовательно у каждого ядра текущий процесс должен быть своим.
     pub(crate) fn set_current_process(process: Option<Pid>) {
         if super::test_scaffolding::is_initialized() {
             let cpu = unsafe { Self::get() };
@@ -147,6 +176,9 @@ impl Cpu {
         }
     }
 
+    /// Возвращает контекст ядра для данного [`Cpu`], то есть с его стеком.
+    /// В качестве `rip` использует функцию [`Registers::switch_from()`],
+    /// то есть при переходе в этот контекст будет запущена именно она.
     pub(crate) fn kernel_context() -> ModeContext {
         let cpu = unsafe { Self::get() };
         ModeContext::kernel_context(
@@ -154,11 +186,14 @@ impl Cpu {
         )
     }
 
+    /// Записывает в [`Cpu`] контекст принудительно вытесненного с этого CPU процесса.
     pub(crate) fn set_user_context(user_context: ModeContext) {
         let cpu = unsafe { Self::get() };
         cpu.user_context = Some(user_context);
     }
 
+    /// Вытаскивает из [`Cpu`] контекст принудительно вытесненного с этого CPU процесса.
+    /// После выполнения этой функции в соответствующем поле [`Cpu`] будет храниться [`None`].
     pub(crate) fn take_user_context() -> Option<ModeContext> {
         if super::test_scaffolding::is_initialized() {
             let cpu = unsafe { Self::get() };
@@ -168,21 +203,29 @@ impl Cpu {
         }
     }
 
+    /// Идентификатор данного CPU, копия идентификатора его local APIC --- [`LocalApic::id()`].
     pub(super) fn id(&self) -> CpuId {
         self.id
     }
 
+    /// Стек ядра данного CPU.
+    ///
+    /// Процессоры обрабатывают системные вызовы и прерывания независимо,
+    /// так что у каждого должен быть свой стек для этого.
     pub(super) fn kernel_stack(&self) -> &'static Stack {
         self.kernel_stack
     }
 
-    /// Инициализация регистра `FS` текущего CPU.
+    /// Инициализация регистра
+    /// [`FS`](https://wiki.osdev.org/CPU_Registers_x86-64#FS.base.2C_GS.base)
+    /// текущего CPU.
     pub(super) fn set_fs(&mut self) {
         // TODO: your code here.
         unimplemented!();
     }
 
-    /// Инициализация TSS и регистра TR текущего CPU.
+    /// Инициализация [Task State Segment](https://en.wikipedia.org/wiki/Task_state_segment)
+    /// и регистра [`TR`](https://wiki.osdev.org/CPU_Registers_x86-64#TR) текущего CPU.
     pub(super) fn set_tss(&self) {
         // TODO: your code here.
         unimplemented!();
@@ -194,6 +237,9 @@ impl Cpu {
         unimplemented!();
     }
 
+    /// Каждому CPU нужно два стека:
+    /// - для обычного кода ядра и
+    /// - для обработчика [Page Fault](https://en.wikipedia.org/wiki/Page_fault).
     const STACKS_PER_CPU: usize = 2;
 }
 

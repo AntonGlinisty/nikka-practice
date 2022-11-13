@@ -57,7 +57,14 @@ use super::{
     cpu::Cpu,
 };
 
-/// Запуск Application Processor из Bootstrap Processor.
+// Used in docs.
+#[allow(unused)]
+use crate::error::Error;
+
+/// Запуск Application Processor с Bootstrap Processor.
+/// Аргумент `phys2virt` --- виртуальная страница, с которой начинается линейное отображение
+/// всей физической памяти в виртуальную, см. [`phys2virt::map()`].
+/// Аргумент `cpu` задаёт структуру [`Cpu`] для запускаемого Application Processor.
 ///
 /// MultiProcessor Specification 4.1 part B.4 "Application Processor Startup"
 pub(super) fn boot_ap(
@@ -83,6 +90,12 @@ pub(super) fn boot_ap(
 }
 
 /// Подготовка кода и стека начальной инициализации Application Processor.
+/// Возвращает физический адрес, куда сохранён код и стек инициализации.
+/// Аргумент `phys2virt` --- виртуальная страница, с которой начинается линейное отображение
+/// всей физической памяти в виртуальную, см. [`phys2virt::map()`].
+/// Аргумент `cpu` задаёт структуру [`Cpu`] для запускаемого Application Processor.
+/// Через `initialized` запускаемый Application Processor сигнализирует
+/// запускающему Bootstrap Processor, что инициализация AP завершена.
 fn prepare_boot_code(
     phys2virt: Page,
     cpu: &mut Cpu,
@@ -108,11 +121,19 @@ fn prepare_boot_code(
     Ok(Frame::new(boot_code).expect("boot code should be aligned on frame boundary"))
 }
 
+/// Адрес, куда релоцируется код функции [`switch_from_real_mode_to_long_mode()`].
+/// Чтобы он был доступен из реального режима работы, в котором стартует Application Processor.
 const BOOT_CODE: usize = 7 * Page::SIZE;
+
+/// Адрес структуры [`BootStack`] с параметрами для кода инициализации
+/// [`switch_from_real_mode_to_long_mode()`].
 const BOOT_STACK: usize = BOOT_CODE + BOOT_CODE_PLUS_STACK_SIZE - mem::size_of::<BootStack>();
+
+/// Размер в памяти, который должны занимать код инициализации
+/// [`switch_from_real_mode_to_long_mode()`] и необходимые ему параметры [`BootStack`].
 const BOOT_CODE_PLUS_STACK_SIZE: usize = Page::SIZE;
 
-/// Стек с дополнительной информацией для загрузки AP.
+/// Стек с дополнительной информацией для загрузки Application Processor.
 ///
 /// Через этот стек в [`switch_from_real_mode_to_long_mode()`] передаётся дополнительная информация,
 /// необходимая для загрузки AP.
@@ -135,26 +156,61 @@ const BOOT_CODE_PLUS_STACK_SIZE: usize = Page::SIZE;
 struct BootStack {
     /// <https://wiki.osdev.org/CPU_Registers_x86-64#IA32_EFER>
     efer: u32,
+
     /// <https://wiki.osdev.org/CPU_Registers_x86-64#CR4>
     cr4: u32,
+
     /// <https://wiki.osdev.org/CPU_Registers_x86-64#CR3>
     cr3: u32,
+
     /// <https://wiki.osdev.org/CPU_Registers_x86-64#CR0>
     cr0: u32,
+
+    /// Дескриптор, описывающий адрес и размер промежуточной
+    /// [Global Descriptor Table](https://en.wikipedia.org/wiki/Global_Descriptor_Table) (GDT),
+    /// которую использует ассемблерный код.
+    /// Сама промежуточная GDT хранится тут же, в поле [`BootStack::gdt`].
     gdt_pseudo_descriptor: RealModePseudoDescriptor,
+
+    /// Селектор сегмента данных ядра.
     kernel_data: SegmentSelector,
-    /// `kernel_code:set_cs_rip_to_64bit` is a 16 bit far pointer for a far return `retf` instruction.
+
+    /// Релоцированный адрес метки `set_cs_rip_to_64bit:`.
+    ///
+    /// [`BootStack::set_cs_rip_to_64bit`] и [`BootStack::kernel_code`] лежат так, что образуют
+    /// [far pointer](https://en.wikipedia.org/wiki/Far_pointer)
+    /// `kernel_code:set_cs_rip_to_64bit`, который может быть использован инструкцией `retf` как есть.
     set_cs_rip_to_64bit: u16,
+
+    /// Селектор сегмента кода ядра.
     kernel_code: SegmentSelector,
+
+    /// Выравнивание для следующего поля --- [`BootStack::cpu`].
     _padding: u32,
+
+    /// Указатель на структуру [`Cpu`] запускаемого Application Processor.
     cpu: Virt,
+
+    /// Указатель на атомарный булев флаг, через который запускаемый
+    /// Application Processor сигнализирует запускающему Bootstrap Processor,
+    /// что инициализация AP завершена.
     initialized: Virt,
+
+    /// Стек ядра для запускаемого Application Processor.
     kernel_stack: Virt,
+
+    /// Промежуточная
+    /// [Global Descriptor Table](https://en.wikipedia.org/wiki/Global_Descriptor_Table) (GDT),
+    /// которую использует ассемблерный код.
     gdt: SmallGdt,
 }
 
 impl BootStack {
     /// Подготавливает временный стек для функции [`switch_from_real_mode_to_long_mode()`].
+    /// Аргумент `boot_stack_phys` указывает физический адрес, куда будет помещён этот стек.
+    /// Аргумент `cpu` задаёт структуру [`Cpu`] для запускаемого Application Processor.
+    /// Через `initialized` запускаемый Application Processor сигнализирует
+    /// запускающему Bootstrap Processor, что инициализация AP завершена.
     fn new(
         boot_stack_phys: Phys,
         cpu: &mut Cpu,
@@ -279,7 +335,10 @@ extern "C" fn switch_from_real_mode_to_long_mode() -> ! {
     }
 }
 
-/// Завершает инициализацию AP.
+/// Завершает инициализацию Application Processor.
+/// Аргумент `cpu` задаёт структуру [`Cpu`] для запускаемого Application Processor.
+/// Через `initialized` запускаемый Application Processor сигнализирует
+/// запускающему Bootstrap Processor, что инициализация AP завершена.
 #[cold]
 #[inline(never)]
 extern "C" fn ap_kernel_main(
@@ -303,7 +362,9 @@ extern "C" fn ap_kernel_main(
     Scheduler::run();
 }
 
-/// Релоцирует код начальной загрузки Application Processor, расположенный в функции [`switch_from_real_mode_to_long_mode()`] в заданный адрес `boot_code_address`.
+/// Релоцирует код начальной загрузки Application Processor,
+/// расположенный в функции [`switch_from_real_mode_to_long_mode()`]
+/// в заданный адрес `boot_code_address`.
 fn copy_switch_mode_code(boot_code_address: Virt) -> Result<()> {
     let switch_mode_code_address = Virt::from_ptr(switch_from_real_mode_to_long_mode as *const ());
     let switch_mode_code_slice =
@@ -316,7 +377,8 @@ fn copy_switch_mode_code(boot_code_address: Virt) -> Result<()> {
     Ok(())
 }
 
-/// Вычисляет размер кода начальной загрузки Application Processor, расположенного в функции [`switch_from_real_mode_to_long_mode()`].
+/// Вычисляет размер кода начальной загрузки Application Processor,
+/// расположенного в функции [`switch_from_real_mode_to_long_mode()`].
 fn switch_mode_code_size() -> usize {
     let switch_mode_start: usize;
     let switch_mode_end: usize;
@@ -342,6 +404,7 @@ fn switch_mode_code_size() -> usize {
 /// # Panics
 ///
 /// Паникует, если адрес не влезает в 32 бита и потому не будет доступен в 32-битном режиме.
+/// Добавляет `what` в сообщение паники.
 fn real_mode_address(
     address: usize,
     what: &'static str,
@@ -356,12 +419,16 @@ fn real_mode_address(
     Phys::new_u64(address.into()).expect("any u32 value should be a valid physical address")
 }
 
+/// Сигнализирует запускающему процессору Bootstrap Processor,
+/// что Application Processor закончил свою инициализацию.
 fn signal_initialized(initialized: &AtomicBool) {
     initialized
         .compare_exchange(false, true, Ordering::AcqRel, Ordering::Relaxed)
         .expect("double or concurrent CPU initialization");
 }
 
+/// Ждёт пока запускаемый Application Processor не завершит свою инициализацию.
+/// Если этого не произойдёт за отведённый `timeout`, возвращает ошибку [`Error::Timeout`].
 fn wait_initialized(
     initialized: &AtomicBool,
     timeout: Duration,
