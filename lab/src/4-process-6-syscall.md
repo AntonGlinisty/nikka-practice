@@ -14,6 +14,11 @@
 переносимы, в отличие от похожих инструкций
 [`sysenter` и `sysexit`](https://wiki.osdev.org/SYSENTER#INTEL:_SYSENTER.2FSYSEXIT).
 
+Прежде чем приступать, изучите документацию производителя процессоров на нужные инструкции:
+- [`syscall`](https://www.felixcloutier.com/x86/syscall) и
+- [`sysretq`](https://www.felixcloutier.com/x86/sysret),
+- а также [`sti`](https://www.felixcloutier.com/x86/sti).
+
 
 ### Задача 4 --- поддержка системных вызовов
 
@@ -47,7 +52,7 @@ extern "C" fn syscall_trampoline() -> !
 
 в файле [`kernel/src/process/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/syscall.rs).
 
-Она получает управление при выполнении инструкции `syscall` и должна передать управление в
+Она получает управление при выполнении инструкции `syscall` и должна передать управление в написанную на Rust
 [функцию](../../doc/kernel/process/syscall/fn.syscall.html)
 
 ```rust
@@ -66,7 +71,7 @@ extern "C" fn kernel::process::syscall::syscall(
 ) -> !
 ```
 
-написанную на Rust.
+Указание
 [`extern "C"`](https://doc.rust-lang.ru/book/ch19-01-unsafe-rust.html#%D0%98%D1%81%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5-extern-%D1%84%D1%83%D0%BD%D0%BA%D1%86%D0%B8%D0%B9-%D0%B4%D0%BB%D1%8F-%D0%B2%D1%8B%D0%B7%D0%BE%D0%B2%D0%B0-%D0%B2%D0%BD%D0%B5%D1%88%D0%BD%D0%B5%D0%B3%D0%BE-%D0%BA%D0%BE%D0%B4%D0%B0)
 в её сигнатуре означает, что она подчиняется соглашениям
 [C ABI](https://wiki.osdev.org/System_V_ABI#x86-64) текущей архитектуры.
@@ -201,9 +206,17 @@ panicked at 'kernel mode trap #14 - Page Fault, context: { mode: kernel, cs:rip:
 [`syscall()`](../../doc/kernel/process/syscall/fn.syscall.html).
 Так как
 [`syscall()`](../../doc/kernel/process/syscall/fn.syscall.html)
-не возвращается, сохранять адрес возврата в стеке инструкцией [`call`](https://www.felixcloutier.com/x86/call) не обязательно, можно сделать [`jmp`](https://www.felixcloutier.com/x86/jmp).
-Но если вы предпочли вариант с [`jmp`](https://www.felixcloutier.com/x86/jmp), то скорректируйте значение регистра `RSP`, так как вызываемая функция при
-поиске части аргументов передаваемых через стек пропускает в нём адрес возврата, считая что он был сохранён инструкцией [`call`](https://www.felixcloutier.com/x86/call).
+не возвращается, сохранять адрес возврата в стеке инструкцией
+[`call`](https://www.felixcloutier.com/x86/call)
+не обязательно, можно сделать
+[`jmp`](https://www.felixcloutier.com/x86/jmp).
+Но если вы предпочли вариант с
+[`jmp`](https://www.felixcloutier.com/x86/jmp),
+то скорректируйте значение регистра `RSP`.
+Так как вызываемая функция при поиске аргументов, передаваемых через стек,
+пропускает в нём место с адресом возврата.
+То есть, считает что адрес возврата был сохранён инструкцией
+[`call`](https://www.felixcloutier.com/x86/call).
 
 Реализуйте функцию [`syscall()`](../../doc/kernel/process/syscall/fn.syscall.html).
 Она выполняет диспетчеризацию системных вызовов по аргументу `number`,
@@ -262,9 +275,21 @@ fn kernel::process::syscall::exit(
 [`kernel::process::table::Table::free()`](../../doc/kernel/process/table/struct.Table.html#method.free)
 и возврате в контекст ядра, из которого пользовательский процесс был запущен.
 Это делается статическим методом
-[`kernel::process::process::Process::leave_user_mode()`](../../doc/kernel/process/process/struct.Process.html#method.leave_user_mode),
-который не возвращает управление, как и сама функция
+[`kernel::process::process::Process::sched_yield()`](../../doc/kernel/process/process/struct.Process.html#method.sched_yield),
+который не возвращают управление, как и сама функция
 [`kernel::process::syscall::exit()`](../../doc/kernel/process/syscall/fn.exit.html).
+
+Различие между
+[`kernel::process::process::Process::leave_user_mode()`](../../doc/kernel/process/process/struct.Process.html#method.leave_user_mode)
+и
+[`kernel::process::process::Process::sched_yield()`](../../doc/kernel/process/process/struct.Process.html#method.sched_yield)
+состоит в том, что первая сохраняет контекст пользователя.
+Пользовательский код готов к системному вызову и тому что тот испортит регистры.
+Поэтому контракт такой, что всё нужное ему состояние при системных вызовах он сохраняет сам.
+А
+[`kernel::process::process::Process::leave_user_mode()`](../../doc/kernel/process/process/struct.Process.html#method.leave_user_mode)
+пригодится чтобы принудительно вытеснять процесс в произвольные моменты времени,
+когда он к этому не готов.
 
 
 #### Системный вызов `log_value`
@@ -379,7 +404,7 @@ fn lib::syscall::syscall(
 - Передать свои аргументы через регистры, в которых их ожидают функции
 [`kernel::process::syscall::syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html) и
 [`kernel::process::syscall::syscall()`](../../doc/kernel/process/syscall/fn.syscall.html).
-- Запустить инструкцию `syscall`, которая выполнит требуемый системный вызов.
+- Запустить инструкцию [`syscall`](https://www.felixcloutier.com/x86/syscall), которая выполнит требуемый системный вызов.
 - Восстановить `RBX` и `RBP`.
 - Вернуть наружу результаты системного вызова из регистров, в которые их сохранила функция [`kernel::process::syscall::sysret()`](../../doc/kernel/process/syscall/fn.sysret.html).
 - Неиспользованные регистры общего назначения она должна пометить как испорченные уже знакомой конструкцией `lateout(...) _,`.
