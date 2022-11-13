@@ -3,7 +3,7 @@
 Код таблицы процессов находится в файле [`kernel/src/process/table.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/table.rs).
 
 
-### Идентификаторы процессов `Pid`
+### Идентификаторы процессов [`ku::process::pid::Pid`](../../doc/ku/process/pid/enum.Pid.html)
 
 В файле [`ku/src/process/pid.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/process/pid.rs) описана структура
 
@@ -18,28 +18,40 @@ pub enum Pid {
 }
 ```
 
-Она позволяет отдельно указывать `Pid::Current` --- текущий процесс,
-это удобно для использования тех системных вызовов, что принимают на вход `Pid`.
-Либо конкретный процесс `Pid::Id`, идентификатор которого состоит из номера слота в таблице процессов `slot`
-и эпохи этого слота `epoch`.
-`slot` позволяет быстро находить процесс по его идентификатору в таблице процессов, ---
+Она позволяет отдельно указывать либо
+[`Pid::Current`](../../doc/ku/process/pid/enum.Pid.html#variant.Current) ---
+текущий процесс, это удобно для использования тех системных вызовов, что принимают на вход
+[`Pid`](../../doc/ku/process/pid/enum.Pid.html).
+Либо конкретный процесс
+[`Pid::Id`](../../doc/ku/process/pid/enum.Pid.html#variant.Id),
+идентификатор которого состоит из номера слота в таблице процессов
+[`slot`](../../doc/ku/process/pid/enum.Pid.html#variant.Id.field.slot)
+и эпохи этого слота
+[`epoch`](../../doc/ku/process/pid/enum.Pid.html#variant.Id.field.epoch).
+Поле [`slot`](../../doc/ku/process/pid/enum.Pid.html#variant.Id.field.slot) позволяет быстро находить процесс по его идентификатору в таблице процессов, ---
 она может быть устроена как вектор, а не как хеш-таблица.
-А `epoch` позволяет сделать идентификаторы процессов уникальными на протяжении всего времени работы системы.
+А [`epoch`](../../doc/ku/process/pid/enum.Pid.html#variant.Id.field.epoch) позволяет сделать идентификаторы процессов уникальными на протяжении всего времени работы системы.
+
 Например, в Unix есть гонка, из-за того что одно и то же значение `pid_t` может в разное время ссылаться на разные процессы.
 Если вы хотите что-то сделать с определённым процессом, и записали его `pid_t` себе,
 то конкурентно он может прекратить своё исполнение, а ядро выдаст то же самое значение `pid_t` новому процессу.
 Теперь вы что-то делаете с процессом по сохранённому у себя `pid_t`, например, посылаете ему сигнал `SIGKILL`, но это уже другой процесс.
 Реализации пытаются уменьшить вероятность таких гонок за счёт выдачи `pid_t` по кругу.
-В Nikka для избежания гонки, каждый раз, когда новый процесс получает тот же `slot`, он получает на 1 большее значение `epoch`, за это отвечает метод `Pid::next_epoch()`.
+В Nikka для избежания гонки, каждый раз, когда новый процесс получает тот же
+[`slot`](../../doc/ku/process/pid/enum.Pid.html#variant.Id.field.slot),
+он получает на единицу большее значение
+[`epoch`](../../doc/ku/process/pid/enum.Pid.html#variant.Id.field.epoch).
+За это отвечает метод
+[`Pid::next_epoch()`](../../doc/ku/process/pid/enum.Pid.html#method.next_epoch).
 
-Другие методы `Pid`:
+Другие методы [`Pid`](../../doc/ku/process/pid/enum.Pid.html):
 
-- `Pid::new(slot)` создаёт `pid` с начальным значением `epoch` для заданного `slot`.
-- `Pid::slot()` возвращает значение `slot`.
-- `Pid::into_usize()` и `Pid::from_usize()` позволяют сериализовать `Pid` в регистр для передачи в системные вызовы.
+- [`Pid::new(slot)`](../../doc/ku/process/pid/enum.Pid.html#method.new) создаёт [`Pid`](../../doc/ku/process/pid/enum.Pid.html) с начальным значением [`epoch`](../../doc/ku/process/pid/enum.Pid.html#variant.Id.field.epoch) для заданного `slot`.
+- [`Pid::slot()`](../../doc/ku/process/pid/enum.Pid.html#method.slot) возвращает значение [`slot`](../../doc/ku/process/pid/enum.Pid.html#variant.Id.field.slot).
+- [`Pid::into_usize()`](../../doc/ku/process/pid/enum.Pid.html#method.into_usize) и [`Pid::from_usize()`](../../doc/ku/process/pid/enum.Pid.html#method.from_usize) позволяют сериализовать [`Pid`](../../doc/ku/process/pid/enum.Pid.html) в регистр для передачи в системные вызовы.
 
 
-### Слоты таблицы процессов
+### Слот таблицы процессов [`kernel::process::table::Slot`](../../doc/kernel/process/table/enum.Slot.html)
 
 Таблица процессов состоит из фиксированного количества слотов
 
@@ -55,20 +67,34 @@ enum Slot {
 }
 ```
 
-Каждый из которых либо свободен --- `Slot::Free`, либо занят --- `Slot::Used`.
+Каждый из которых либо свободен ---
+[`Slot::Free`](../../doc/kernel/process/table/enum.Slot.html#variant.Free),
+либо занят ---
+[`Slot::Used`](../../doc/kernel/process/table/enum.Slot.html#variant.Used).
 
-Свободные слоты содержат `pid` для того, что помнить эпоху последнего процесса, занимавшего этот слот.
-И выдать следующему процессу, который попадёт в тот же слот, номер эпохи на 1 больше.
-Также свободные слоты провязаны в список, чтобы удобнее было за O(1) находить какой-нибудь свободный слот под новый процесс.
+Свободные слоты содержат поле
+[`pid`](../../doc/kernel/process/table/enum.Slot.html#variant.Free.field.pid)
+для того, что помнить эпоху последнего процесса, занимавшего этот слот.
+И выдать следующему процессу, который попадёт в тот же слот, номер эпохи на единицу больше.
+Также свободные слоты провязаны в список, чтобы удобнее было за \\(O(1)\\)
+находить какой-нибудь свободный слот под новый процесс.
 
-Занятые слоты содержат мьютекс `process`.
-Когда нам понадобится обратиться к процессу, нужно будет захватить его мьютекс, чтобы избежать несогласованного конкурентного изменения структуры `Process`.
+Занятые слоты содержат спинлок
+[`process`](../../doc/kernel/process/table/enum.Slot.html#variant.Used.field.process).
+Когда нам понадобится обратиться к процессу, нужно будет захватить его спинлок,
+чтобы избежать несогласованного конкурентного изменения структуры
+[`kernel::process::process::Process`](../../doc/kernel/process/process/struct.Process.html).
 Чтобы обратиться с самой таблице процессов
 [`static ref kernel::process::table::TABLE: Mutex<Table>`](../../doc/kernel/process/table/struct.TABLE.html),
-конечно тоже нужно захватить её общий мьютекс.
-Но не хочется держать захваченным мьютекс всей таблицы, пока мы работаем со структурой `Process` одного её процесса.
-Поэтому, таблица будет по идентификатору процесса `Pid` фактически обменивать захваченный мьютекс `Mutex<Table>` на захваченный мьютекс процесса `Mutex<Process>`.
-После чего вызывающий код сможет работать с процессом конкурентно другому коду, который сможет захватить уже освободившийся `Mutex<Table>`.
+конечно тоже нужно захватить её общий спинлок.
+Но не хочется держать захваченной спин-блокировку всей таблицы, пока мы работаем со структурой
+[`kernel::process::process::Process`](../../doc/kernel/process/process/struct.Process.html)
+одного её процесса.
+Поэтому, таблица будет по идентификатору процесса
+[`Pid`](../../doc/ku/process/pid/enum.Pid.html)
+фактически обменивать захваченную спин-блокировку `Mutex<Table>` на захваченную спин-блокировку процесса `Mutex<Process>`.
+После чего вызывающий код сможет работать с процессом конкурентно другому коду,
+который сможет захватить уже освободившийся `Mutex<Table>`.
 
 
 ### Задача 5 --- таблица процессов
@@ -76,7 +102,7 @@ enum Slot {
 
 #### Инициализация таблицы
 
-Реализуйте метод
+Реализуйте [метод](../../doc/kernel/process/struct.Table.html#method.new)
 
 ```rust
 fn Table::new(len: usize) -> Self
@@ -96,18 +122,25 @@ fn Table::new(len: usize) -> Self
 
 #### Выделение слота под процесс
 
-Реализуйте метод
+Реализуйте [метод](../../doc/kernel/process/struct.Table.html#method.allocate)
 
 ```rust
 fn Table::allocate(mut process: Process) -> Result<Pid>
 ```
 
 Он должен выделить новому процессу `process` свободный слот таблицы.
-Слот возьмите из головы списка свободных `Table::free`.
-Запишите в него `process`, а `Pid` слота запишите в структуру процесса `process` методом `Process::set_pid()`.
-Если же свободного слота нет, верните ошибку `Error::NoProcessSlot`.
+Слот возьмите из головы списка свободных
+[`Table::free`](../../doc/kernel/process/struct.Table.html#structfield.free).
+Запишите в него `process`, а
+[`pid`](../../doc/kernel/process/table/enum.Slot.html#variant.Free.field.pid)
+слота запишите в структуру процесса `process` методом
+[`Process::set_pid()`](../../doc/kernel/process/process/struct.Process.html#method.set_pid).
+Если же свободного слота нет, верните ошибку
+[`Error::NoProcessSlot`](../../doc/kernel/error/enum.Error.html#variant.NoProcessSlot).
 В этом случае при выходе из метода, `process` будет автоматически уничтожен, а все его ресурсы освобождены.
-Так как по сигнатуре `Table::allocate(process: Process)` поглощает свой аргумент.
+Так как по сигнатуре
+[`Table::allocate(process: Process)`](../../doc/kernel/process/struct.Table.html#method.allocate)
+поглощает свой аргумент.
 Этот и все последующие методы --- статические, они оперируют с глобальным
 [синглтоном](https://en.wikipedia.org/wiki/Singleton_pattern)
 [`static ref TABLE: Mutex<Table>`](../../doc/kernel/process/table/struct.TABLE.html),
@@ -118,38 +151,63 @@ fn Table::allocate(mut process: Process) -> Result<Pid>
 
 #### Получение процесса по его идентификатору
 
-Реализуйте метод
+Реализуйте [метод](../../doc/kernel/process/struct.Table.html#method.get)
 
 ```rust
 fn Table::get(pid: Pid) -> Result<MutexGuard<'static, Process>>
 ```
 
-Он возвращает захваченный мьютекс `MutexGuard` со структурой `Process`, соответствующей идентификатору `pid`.
-Верните ошибку `Error::NoProcess`, если процесса по указанному `pid` нет.
-То есть, если либо не занят `pid.slot()`, либо в этом слоте другое значение поля `Slot::pid` (значит у него другая эпоха `Pid::epoch`, так как слот `Pid::slot` должен совпадать).
-Вытащить значение `epoch` тип `Pid` не позволяет, но зато он позволяет сравнивать два своих значения на равенство за счёт реализации `#[derive(..., Eq, PartialEq)]`.
+Он возвращает захваченную спин-блокировку
+[`spin::mutex::MutexGuard`](../../doc/spin/mutex/struct.MutexGuard.html)
+со структурой
+[`kernel::process::process::Process`](../../doc/kernel/process/process/struct.Process.html),
+соответствующей идентификатору `pid`.
+Верните ошибку
+[`Error::NoProcess`](../../doc/kernel/error/enum.Error.html#variant.NoProcess),
+если процесса по указанному `pid` нет.
+То есть, если либо не занят `pid.slot()`, либо в этом слоте у процесса другое значение
+[`kernel::process::process::Process::pid()`](../../doc/kernel/process/process/struct.Process.html#method.pid)
+(значит у него другая эпоха
+[`Pid::epoch`](../../doc/ku/process/pid/enum.Pid.html#variant.Id.field.epoch),
+так как слот
+[`Pid::slot`](../../doc/ku/process/pid/enum.Pid.html#variant.Id.field.slot)
+должен совпадать).
+Вытащить значение
+[`epoch`](../../doc/ku/process/pid/enum.Pid.html#variant.Id.field.epoch) тип
+[`Pid`](../../doc/ku/process/pid/enum.Pid.html)
+не позволяет, но зато он позволяет сравнивать два своих значения на равенство за счёт реализации
+`#[derive(..., Eq, PartialEq)]`.
 
 Так как размер таблицы процессов
 [`static ref TABLE: Mutex<Table>`](../../doc/kernel/process/table/struct.TABLE.html)
-после инициализации мы никогда не меняем, и в частности не уменьшаем, время жизни каждого её слота --- практически `'static`.
-Который и указан в результирующем типе метода `Table::get()`.
+после инициализации мы никогда не меняем, и в частности не уменьшаем,
+время жизни каждого её слота --- практически `'static`.
+Который и указан в результирующем типе метода
+[`Table::get()`](../../doc/kernel/process/struct.Table.html#method.get).
 Но Rust не может проверить это самостоятельно.
-Нам придётся пообещать ему это с помощью unsafe--функции
+Нам придётся пообещать ему это с помощью
+[unsafe--функции](../../doc/kernel/process/table/fn.forge_static_lifetime.html)
 
 ```rust
 unsafe fn forge_static_lifetime<T>(x: &T) -> &'static T
 ```
 
-Естественно, чтобы вернуть `MutexGuard` нужно заблокировать процесс в слоте методом `Mutex::lock()`.
-Мьютекс же самой `TABLE` будет автоматически разблокирован аналогичным гардом при выходе из функции.
-Получается, что она в начале захватывает низкогранулярную блокировку на всю таблицу `TABLE`,
+Естественно, чтобы вернуть
+[`MutexGuard`](../../doc/spin/mutex/struct.MutexGuard.html)
+нужно заблокировать процесс в слоте методом
+[`Mutex::lock()`](../../doc/spin/mutex/struct.Mutex.html#method.lock).
+Спинлок же самой
+[`TABLE`](../../doc/kernel/process/table/struct.TABLE.html)
+будет автоматически разблокирован аналогичным гардом при выходе из функции.
+Получается, что она в начале захватывает низкогранулярную блокировку на всю таблицу
+[`TABLE`](../../doc/kernel/process/table/struct.TABLE.html),
 а потом улучшает гранулярность этой блокировки до блокировки одного слота таблицы.
 И вызывающая функции в дальнейшем работает уже с высокогранулярной блокировкой.
 
 
 #### Освобождение слота с уничтожением процесса
 
-Реализуйте метод
+Реализуйте [метод](../../doc/kernel/process/struct.Table.html#method.free)
 
 ``` rust
 fn Table::free(process: MutexGuard<Process>)
@@ -159,9 +217,10 @@ fn Table::free(process: MutexGuard<Process>)
 
 - Удаляет процесс `process`.
 - Инкрементирует эпоху в освободившемся слоте.
-- Вставляет слот в голову списка свободных слотов `Table::free`.
+- Вставляет слот в голову списка свободных слотов [`Table::free`](../../doc/kernel/process/struct.Table.html#structfield.free).
 
-Вам могут пригодиться функции `drop()` и
+Вам могут пригодиться функции
+[`drop()`](https://doc.rust-lang.org/nightly/core/mem/fn.drop.html) и
 [`core::mem::replace()`](https://doc.rust-lang.org/nightly/core/mem/fn.replace.html).
 
 

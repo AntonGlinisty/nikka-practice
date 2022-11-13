@@ -1,34 +1,50 @@
 ## Round-robin планировщик
 
-Планировщик процессов расположен в файле [`kernel/src/process/scheduler.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/scheduler.rs) и реализует простейшее
+Планировщик процессов
+[`kernel::process::scheduler::Scheduler`](../../doc/kernel/process/scheduler/struct.Scheduler.html)
+расположен в файле
+[`kernel/src/process/scheduler.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/scheduler.rs)
+и реализует простейшее
 [циклическое исполнение процессов](https://en.wikipedia.org/wiki/Round-robin_scheduling).
-Он содержит очередь процессов `Scheduler::queue` такой же ёмкости, как таблица процессов.
+Он содержит очередь процессов
+[`Scheduler::queue`](../../doc/kernel/process/scheduler/struct.Scheduler.html#structfield.queue)
+такой же ёмкости, как таблица процессов.
 И, так же как и таблица процессов, является [синглтоном](https://en.wikipedia.org/wiki/Singleton_pattern)
-`static ref SCHEDULER: Mutex<Scheduler>`.
+[`static ref SCHEDULER: Mutex<Scheduler>`](../../doc/kernel/process/scheduler/struct.SCHEDULER.html).
+
 
 ### Задача 7 --- планировщик
 
 #### Реализуйте методы планировщика
 
-- `fn Scheduler::enqueue(pid: Pid)` ставит процесс, заданный идентификатором `pid` в очередь исполнения.
-- `fn Scheduler::dequeue() -> Option<Pid>` достаёт из очереди первый процесс.
-- `fn Scheduler::run_one() -> bool` выполняет один цикл работы --- берёт первый процесс из очереди и исполняет его пользовательский код. Если метод `Process::enter_user_mode()` вернёт `true`, то есть процесс был снят с CPU принудительно по прерыванию таймера, `run_one()` перепланирует исполнение процесса, ставя его в конец очереди. `run_one()` возвращает `true` если в очереди на исполнение нашёлся хотя бы один процесс.
+- [`fn Scheduler::enqueue(pid: Pid)`](../../doc/kernel/process/scheduler/struct.Scheduler.html#method.enqueue) ставит процесс, заданный идентификатором `pid`, в очередь исполнения.
+- [`fn Scheduler::dequeue() -> Option<Pid>`](../../doc/kernel/process/scheduler/struct.Scheduler.html#method.dequeue) достаёт из очереди первый процесс.
+- [`fn Scheduler::run_one() -> bool`](../../doc/kernel/process/scheduler/struct.Scheduler.html#method.run_one) выполняет один цикл работы --- берёт первый процесс из очереди и исполняет его пользовательский код. Если метод [`Process::enter_user_mode()`](../../doc/kernel/process/process/struct.Process.html#method.enter_user_mode) вернёт `true`, то есть процесс был снят с CPU принудительно по прерыванию таймера, [`Scheduler::run_one()`](../../doc/kernel/process/scheduler/struct.Scheduler.html#method.run_one) перепланирует исполнение процесса, ставя его в конец очереди. Метод [`Scheduler::run_one()`](../../doc/kernel/process/scheduler/struct.Scheduler.html#method.run_one) возвращает `true` если в очереди на исполнение нашёлся хотя бы один процесс.
 
-Метод `fn Scheduler::run() -> !` уже реализован.
-Он в вечном цикле выполняет `Scheduler::run_one()`.
-Если в очереди на исполнение, процессов не нашлось,
+Метод
+[`fn Scheduler::run() -> !`](../../doc/kernel/process/scheduler/struct.Scheduler.html#method.run)
+уже реализован.
+Он в вечном цикле выполняет
+[`Scheduler::run_one()`](../../doc/kernel/process/scheduler/struct.Scheduler.html#method.run_one).
+Если в очереди на исполнение процессов не нашлось,
 то он выключает процессор до прихода следующего прерывания, самое долгое --- до следующего тика таймера
 
 ```rust
 extern "x86-interrupt" fn timer(mut context: TrapContext)
 ```
 
-Для этого служит специальная инструкция `hlt` ---
+Для этого служит специальная инструкция
+[`hlt`](https://www.felixcloutier.com/x86/hlt),
+которая зовётся через функцию
 [`x86_64::instructions::hlt()`](../../doc/x86_64/instructions/fn.hlt.html).
 
-Добавьте вызов `Scheduler::run()` в конец функции
+Добавьте вызов
+[`Scheduler::run()`](../../doc/kernel/process/scheduler/struct.Scheduler.html#method.run)
+в конец функции
 [`ap_kernel_main()`](../../doc/kernel/smp/ap_init/fn.ap_kernel_main.html)
-в файле [`kernel/src/smp/ap_init.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/smp/ap_init.rs), чтобы все CPU занялись исполнением процессов.
+в файле
+[`kernel/src/smp/ap_init.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/smp/ap_init.rs),
+чтобы все CPU занялись исполнением процессов.
 
 
 #### Системный вызов [`kernel::process::syscall::sched_yield()`](../../doc/kernel/process/syscall/fn.sched_yield.html)

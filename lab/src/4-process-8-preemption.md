@@ -18,55 +18,85 @@ fn Process::preempt(context: &mut TrapContext)
 
 в файле [`kernel/src/process/process.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/process.rs).
 
-Он должен выполнить переключение текущего контекста исполнения `context` на контекст ядра в случае, если текущий контекст исполняется в режиме пользователя.
-Текущий контекст пользователя нужно будет сохранить в структуре `Process`.
-Но чтобы до неё добраться, нужно блокировать мьютекс в таблице процессов.
-А блокировать мьютексы из обработчиков прерываний не стоит.
+Он должен выполнить переключение текущего контекста исполнения `context` на контекст ядра в случае,
+если текущий контекст исполняется в режиме пользователя.
+Текущий контекст пользователя нужно будет сохранить в структуре
+[`Process`](../../doc/kernel/process/process/struct.Process.html).
+Но чтобы до неё добраться, нужно блокировать спинлок в таблице процессов.
+А брать блокировки из обработчиков прерываний не стоит.
 Поэтому для начала в самом прерывании сохраним контекст пользователя в промежуточном месте ---
-в CPU--локальной структуре `Cpu`.
-Захватывать блокировку для доступа ней не нужно, так как она не разделяется между разными CPU и доступ к ней не будет конкурентным.
+в CPU--локальной структуре
+[`kernel::smp::cpu::Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html).
+Захватывать блокировку для доступа ней не нужно, так как она не разделяется между разными CPU
+и доступ к ней не будет конкурентным.
 
-Этот метод вызывается из функции обработки прерывания от таймера
+Метод
+[`Process::preempt`](../../doc/kernel/process/process/struct.Process.html#method.preempt)
+вызывается из
+[функции обработки прерывания от таймера](../../doc/kernel/trap/apic/fn.timer.html)
 ```rust
 extern "x86-interrupt" fn timer(mut context: TrapContext)
 ```
 находящейся в файле
 [`kernel/src/trap/mod.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/trap/mod.rs).
 
-`TrapContext` --- обёртка для уже знакомого `ModeContext`.
-Она помечает запись в него как `Volatile`, чтобы компилятор такую операцию записи не выкинул.
-Дело в том, что `TrapContext` формально является изменяемым аргументом `timer()`,
+[`kernel::trap::TrapContext`](../../doc/kernel/trap/struct.TrapContext.html) ---
+обёртка для уже знакомого
+[`kernel::process::registers::ModeContext`](../../doc/kernel/process/registers/struct.ModeContext.html).
+Она помечает запись в него как
+[`volatile::Volatile`](../../doc/volatile/struct.Volatile.html),
+чтобы компилятор такую операцию записи не выкинул.
+Дело в том, что
+[`TrapContext`](../../doc/kernel/trap/struct.TrapContext.html)
+формально является изменяемым аргументом
+[`timer()`](../../doc/kernel/trap/apic/fn.timer.html),
 а не изменяемой ссылкой.
 Если бы функция была обычной, запись в `context` сделанную последней, никто снаружи функции бы не заметил.
 А значит, компилятор мог бы её выкинуть.
-В нашем случае `timer()` --- `extern "x86-interrupt"` и эту запись увидит инструкция процессора `iret`.
+В нашем случае
+[`timer()`](../../doc/kernel/trap/apic/fn.timer.html) ---
+[`extern "x86-interrupt"`](https://github.com/rust-lang/rust/issues/40180)
+и эту запись увидит инструкция процессора
+[`iretq`](https://www.felixcloutier.com/x86/iret:iretd:iretq).
 Чтобы предотвратить выкидывание оптимизатором команд записи в `context` и нужен `Volatile`.
 
-В методе
+В [методе](../../doc/kernel/process/process/struct.Process.html#method.enter_user_mode)
+
 ```rust
 fn Process::enter_user_mode(mut process: MutexGuard<Process>) -> bool
 ```
 
 в файле [`kernel/src/process/process.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/process.rs)
-после возвращения из режима пользователя, то есть после возвращения из `Registers::switch_to()`,
-добавьте проверку, что в `Cpu` есть сохранённый контекст пользователя.
+после возвращения из режима пользователя, то есть после возвращения из
+[`Registers::switch_to()`](../../doc/kernel/process/registers/struct.Registers.html#method.switch_to),
+добавьте проверку, что в
+[`Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html)
+есть сохранённый контекст пользователя.
 Если его нет, то процесс вернулся из режима пользователя синхронно, например через системный вызов
 `exit()` или `sched_yield()`, и дополнительно ничего делать не нужно.
-Если же в `Cpu` сохранён контекст пользователя, то его нужно перенести в структуру `Process`.
-Для этого, по идентификатору `Pid` текущего процесса, получите из `Table` его захваченную мьютексом структуру
-`Process`. И запишите пользовательский контекст в неё.
+Если же в
+[`Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html)
+сохранён контекст пользователя, то его нужно перенести в структуру
+[`Process`](../../doc/kernel/process/process/struct.Process.html).
+Для этого, по идентификатору
+[`Pid`](../../doc/ku/process/pid/enum.Pid.html)
+текущего процесса, получите из
+[`Table`](../../doc/kernel/process/struct.Table.html)
+его захваченную спин-блокировкой структуру
+[`Process`](../../doc/kernel/process/process/struct.Process.html).
+И запишите пользовательский контекст в неё.
 Верните из этого метода `true`, если процесс был вытеснен.
 
 Вам пригодятся
 
-- `TrapContext::is_user_mode()`,
-- `TrapContext::get()`,
-- `TrapContext::set()`,
-- `Cpu::kernel_context()`,
-- `Cpu::set_user_context()`,
-- `Cpu::take_user_context()`,
-- `Table::get()`,
-- `Registers::set_mode_context()`.
+- [`TrapContext::is_user_mode()`](../../doc/kernel/trap/struct.TrapContext.html#method.is_user_mode),
+- [`TrapContext::get()`](../../doc/kernel/trap/struct.TrapContext.html#method.get),
+- [`TrapContext::set()`](../../doc/kernel/trap/struct.TrapContext.html#method.set),
+- [`Cpu::kernel_context()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.kernel_context),
+- [`Cpu::set_user_context()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.set_user_context),
+- [`Cpu::take_user_context()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.take_user_context),
+- [`Table::get()`](../../doc/kernel/process/struct.Table.html#method.get),
+- [`Registers::set_mode_context()`](../../doc/kernel/process/registers/struct.Registers.html#method.set_mode_context).
 
 
 ### Проверьте себя

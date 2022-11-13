@@ -28,11 +28,11 @@ BSP должен передать AP код загрузчика, слепок �
 [`switch_from_real_mode_to_long_mode()`](../../doc/kernel/smp/ap_init/fn.switch_from_real_mode_to_long_mode.html)
 передаётся дополнительная информация, необходимая для загрузки AP.
 Например, дескриптор описывающий GDT, который можно передать инструкции `lgdt` как есть.
-Или адрес корневой таблицы страниц, который можно как есть записать в `CR3`.
+Или адрес корневой таблицы страниц, который можно записать в `CR3` как есть.
 Это сделано, чтобы:
 
 - Не нужно было в функции [`switch_from_real_mode_to_long_mode()`](../../doc/kernel/smp/ap_init/fn.switch_from_real_mode_to_long_mode.html) на 16-битном ассемблере строить GDT, таблицы страниц и т.д. То есть для максимального упрощения ассемблерной части кода.
-- Содержимое системных регистров процессора на всех AP совпадало с аналогичными регистрами BSP. То есть, чтобы можно было один раз правильно настроить системные регистры BSP, и автоматически получить правильные и согласованные по системе в целом настройки всех процессоров. Естественно, исключая те системные регистры, которые должны быть разными и настраиваются в предыдущих задачах в [`kernel::smp::cpu::Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html).
+- Содержимое системных регистров процессора на всех AP гарантированно совпадало с аналогичными регистрами BSP. То есть, чтобы можно было один раз правильно настроить системные регистры BSP, и автоматически получить правильные и согласованные по системе в целом настройки всех процессоров. Естественно, исключая те системные регистры, которые должны быть разными и настраиваются в предыдущих задачах в [`kernel::smp::cpu::Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html).
 
 Вся эта информация передаётся в виде структуры
 [`kernel::smp::ap_init::BootStack`](../../doc/kernel/smp/ap_init/struct.BootStack.html),
@@ -92,7 +92,7 @@ BSP должен передать AP код загрузчика, слепок �
 [`kernel::smp::acpi::usable_aps()`](../../doc/kernel/smp/acpi/fn.usable_aps.html).
 А функция
 [`ap_kernel_main()`](../../doc/kernel/smp/ap_init/fn.ap_kernel_main.html)
-перед выходом ждёт когда запущенный им AP завершит свою инициализацию и сигнализирует об этом через
+перед выходом ждёт когда запущенный ею AP завершит свою инициализацию и сигнализирует об этом через
 [`core::sync::atomic::AtomicBool`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicBool.html).
 Этот
 [`AtomicBool`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicBool.html)
@@ -114,7 +114,7 @@ fn switch_from_real_mode_to_long_mode() -> !
 
 Она:
 
-- Запускается в [16-битном реальном режиме](https://en.wikipedia.org/wiki/Real_mode) и в процессе работы переключается в [64-битный режим](https://en.wikipedia.org/wiki/Long_mode) напрямую, минуя [32-х битный защищённый режим](https://en.wikipedia.org/wiki/Protected_mode). Это делается аналогично [статье](https://wiki.osdev.org/Entering_Long_Mode_Directly), но гораздо проще, так как все нужные структуры и значения регистров код на Rust копирует с BSP.
+- Запускается в [16-битном реальном режиме](https://en.wikipedia.org/wiki/Real_mode) и в процессе работы переключается в [64-битный режим](https://en.wikipedia.org/wiki/Long_mode) напрямую, минуя [32-х битный защищённый режим](https://en.wikipedia.org/wiki/Protected_mode). Это делается аналогично статье [Entering Long Mode Directly](https://wiki.osdev.org/Entering_Long_Mode_Directly). Но гораздо проще, так как все нужные структуры и значения регистров код на Rust копирует с BSP в [`kernel::smp::ap_init::BootStack`](../../doc/kernel/smp/ap_init/struct.BootStack.html).
 - Должна настроить сегментные регистры и переключиться на временный стек по адресу записанному в константе [`kernel::smp::ap_init::BOOT_STACK`](../../doc/kernel/smp/ap_init/constant.BOOT_STACK.html).
 - Инициализирует системные регистры, переданные через временный стек. В частности, страничное отображение и GDT.
 - После инициализации GDT, переинициализирует сегментные регистры селекторами новой GDT. Для переинициализации `CS` можно использовать `far ret`. Использовать `far jmp` не получится, так как для него селектор сегмента кода должен быть константой, а нам хочется передать селектор кода переменной. Она записана в поле [`BootStack::kernel_code`](../../doc/kernel/smp/ap_init/struct.BootStack.html#structfield.kernel_code).
@@ -131,6 +131,7 @@ fn switch_from_real_mode_to_long_mode() -> !
 метки `set_cs_rip_to_64bit:` лежат так, что образуют
 [far pointer](https://en.wikipedia.org/wiki/Far_pointer)
 `kernel_code:set_cs_rip_to_64bit`, который может быть использован инструкцией `far ret` как есть.
+Вы можете менять порядок полей и их состав, так как удобнее вам.
 
 Для передачи управления в функцию
 [`ap_kernel_main()`](../../doc/kernel/smp/ap_init/fn.ap_kernel_main.html)
@@ -143,7 +144,9 @@ fn switch_from_real_mode_to_long_mode() -> !
 А `jmp` предпочтительнее чем `call`, так как возвращаться функция
 [`ap_kernel_main()`](../../doc/kernel/smp/ap_init/fn.ap_kernel_main.html)
 не будет.
-Это видно по возвращаемому [типу *никогда*](https://doc.rust-lang.ru/book/ch19-04-advanced-types.html#%D0%A2%D0%B8%D0%BF-never-%D0%BA%D0%BE%D1%82%D0%BE%D1%80%D1%8B%D0%B9-%D0%BD%D0%B8%D0%BA%D0%BE%D0%B3%D0%B4%D0%B0-%D0%BD%D0%B5-%D0%B2%D0%BE%D0%B7%D0%B2%D1%80%D0%B0%D1%89%D0%B0%D0%B5%D1%82%D1%81%D1%8F) в её сигнатуре.
+Это видно по возвращаемому
+[типу *никогда*](https://doc.rust-lang.ru/book/ch19-04-advanced-types.html#%D0%A2%D0%B8%D0%BF-never-%D0%BA%D0%BE%D1%82%D0%BE%D1%80%D1%8B%D0%B9-%D0%BD%D0%B8%D0%BA%D0%BE%D0%B3%D0%B4%D0%B0-%D0%BD%D0%B5-%D0%B2%D0%BE%D0%B7%D0%B2%D1%80%D0%B0%D1%89%D0%B0%D0%B5%D1%82%D1%81%D1%8F) ---
+`!` --- в её сигнатуре.
 А значит, адрес возврата просто съел бы место в стеке ядра.
 Для получения абсолютного адреса определённой в том же исходном файле метки, и в том числе функции,
 в ассемблере можно использовать выражение `OFFSET ap_kernel_main`.
