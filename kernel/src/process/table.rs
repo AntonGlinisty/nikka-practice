@@ -27,13 +27,25 @@ use super::{
     Process,
 };
 
+// Used in docs.
+#[allow(unused)]
+use crate::error::Error;
+
+/// Слот таблицы процессов.
 #[allow(clippy::large_enum_variant)]
 enum Slot {
+    /// Слот свободен.
     Free {
+        /// Хранит эпоху последнего процесса, занимавшего этот слот.
         pid: Pid,
+
+        /// Провязывает свободные слоты в интрузивный список.
         next: Option<Pid>,
     },
+
+    /// Слот занят.
     Used {
+        /// Процесс, находящийся в этом слоте таблицы процессов.
         process: Mutex<Process>,
     },
 }
@@ -50,29 +62,48 @@ impl fmt::Display for Slot {
     }
 }
 
+/// Таблица процессов.
 #[derive(Default)]
 pub struct Table {
+    /// Голова списка свободных слотов таблицы.
     free: Option<Pid>,
+
+    /// Количество процессов в таблице.
     process_count: usize,
+
+    /// Слоты таблицы процессов.
     table: Vec<Slot>,
 }
 
 impl Table {
+    /// Он создаёт таблицу процессов [`Table`] размера `len` элементов, заполняя её
+    /// пустыми слотами [`Slot::Free`] с соответствующими индексам слотов полями [`Pid::Id::slot`].
+    /// Эти пустые слоты провязывает в односвязный список с головой в поле [`Table::free`].
     pub(super) fn new(len: usize) -> Self {
         // TODO: your code here.
         unimplemented!();
     }
 
+    /// Выделяет процессу `process` свободный слот таблицы и возвращает соответствующий [`Pid`].
+    /// Если свободного слота нет, возвращает ошибку [`Error::NoProcessSlot`].
     #[allow(unused_mut)] // TODO: remove before flight.
     pub(super) fn allocate(mut process: Process) -> Result<Pid> {
         // TODO: your code here.
         unimplemented!();
     }
 
+    /// Удаляет процесс `process`.
+    /// При этом:
+    /// - Инкрементирует эпоху в освободившемся слоте.
+    /// - Вставляет слот в голову списка свободных слотов [`Table::free`].
     pub fn free(process: MutexGuard<Process>) {
         // TODO: your code here.
     }
 
+    /// Возвращает захваченную спин-блокировку [`MutexGuard`] со структурой [`Process`],
+    /// соответствующей идентификатору `pid`.
+    /// Если процесса по указанному `pid` нет или тот же слот занят уже другим процессом,
+    /// возвращает ошибку [`Error::NoProcess`].
     pub fn get(pid: Pid) -> Result<MutexGuard<'static, Process>> {
         // TODO: your code here.
         test_scaffolding::process() // TODO: remove before flight.
@@ -88,11 +119,17 @@ impl Drop for Table {
     }
 }
 
+/// Обещает Rust, что слоты таблицы процессов [`Table`] имеют время жизни `'static`,
+/// так как Rust не может проверить это самостоятельно.
+///
+/// Так как размер таблицы процессов [`Table`] после инициализации мы никогда не меняем,
+/// и в частности не уменьшаем, время жизни каждого её слота --- практически `'static`.
 unsafe fn forge_static_lifetime<T>(x: &T) -> &'static T {
     &*(x as *const T) as &'static T
 }
 
 lazy_static! {
+    /// Таблица процессов.
     pub(super) static ref TABLE: Mutex<Table> = Mutex::new(Table::default());
 }
 

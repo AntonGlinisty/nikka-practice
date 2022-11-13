@@ -15,23 +15,36 @@ use super::{
     table::Table,
 };
 
+/// Планировщик процессов.
+/// Реализует простейшее
+/// [циклическое исполнение процессов](https://en.wikipedia.org/wiki/Round-robin_scheduling).
 pub struct Scheduler {
+    /// Очередь готовых к исполнению процессов.
     queue: VecDeque<Pid>,
 }
 
 impl Scheduler {
+    /// Инициализирует глобальный планировщик процессов с очередью на `count` процессов.
     pub fn init(count: usize) {
         *SCHEDULER.lock() = Scheduler {
             queue: VecDeque::with_capacity(count),
         }
     }
 
+    /// Выполняет один цикл работы --- берёт первый процесс из очереди и исполняет его пользовательский код.
+    /// Если в процессе выполнения пользовательского кода процесс был снят с CPU принудительно,
+    /// перепланирует исполнение процесса, ставя его в конец очереди.
+    /// Возвращает `true` если в очереди на исполнение нашёлся хотя бы один процесс.
     pub fn run_one() -> bool {
         // TODO: your code here.
 
         false
     }
 
+    /// В вечном цикле выполняет готовые процессы методом [`Scheduler::run_one()`].
+    /// Если в очереди на исполнение процессов не нашлось,
+    /// выключает процессор до прихода следующего прерывания,
+    /// самое долгое --- до следующего тика таймера.
     pub(crate) fn run() -> ! {
         test_scaffolding::run_handler();
 
@@ -45,11 +58,13 @@ impl Scheduler {
         }
     }
 
+    /// Ставит процесс, заданный идентификатором `pid`, в очередь исполнения.
     pub fn enqueue(pid: Pid) {
         // TODO: your code here.
         unimplemented!();
     }
 
+    /// Достаёт из очереди первый готовый к исполнению процесс.
     fn dequeue() -> Option<Pid> {
         // TODO: your code here.
         unimplemented!();
@@ -57,11 +72,15 @@ impl Scheduler {
 }
 
 lazy_static! {
+    /// Планировщик процессов.
+    /// Реализует простейшее
+    /// [циклическое исполнение процессов](https://en.wikipedia.org/wiki/Round-robin_scheduling).
     static ref SCHEDULER: Mutex<Scheduler> = Mutex::new(Scheduler {
-        queue: VecDeque::new()
+        queue: VecDeque::new(),
     });
 }
 
+#[doc(hidden)]
 pub mod test_scaffolding {
     use core::{
         mem,

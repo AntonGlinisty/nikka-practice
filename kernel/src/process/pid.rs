@@ -10,21 +10,35 @@ use crate::error::{
     Result,
 };
 
+/// Идентификатор процесса.
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum Pid {
+    /// Текущий процесс, это удобно для использования тех системных вызовов,
+    /// что принимают на вход [`Pid`].
     Current,
+
+    /// Конкретный процесс, идентификатор которого состоит из
+    /// номера слота в таблице процессов и эпохи этого слота.
     Id {
+        /// Эпоха слота в таблице процессов.
+        /// Позволяет сделать идентификаторы процессов уникальными
+        /// на протяжении всего времени работы системы.
         epoch: u32,
+
+        /// Номер слота в таблице процессов.
+        /// Позволяет быстро находить процесс по его идентификатору в таблице процессов.
         slot: u16,
     },
 }
 
 impl Pid {
+    /// Максимальное поддерживаемое [`Pid`] количество одновременно работающих процессов.
     pub const MAX_COUNT: usize = (1 << Self::EPOCH_SHIFT);
 
     const EPOCH_SHIFT: u32 = u16::BITS;
     const SLOT_MASK: usize = Self::MAX_COUNT - 1;
 
+    /// Создаёт [`Pid`] с начальным значением [`Pid::Id::epoch`] для заданного `slot`.
     pub fn new(slot: usize) -> Self {
         Self::Id {
             epoch: 0,
@@ -32,6 +46,7 @@ impl Pid {
         }
     }
 
+    /// Позволяет десериализовать [`Pid`] из регистра при передаче в системные вызовы.
     pub fn from_usize(pid: usize) -> Result<Self> {
         if pid == usize::MAX - 1 {
             Ok(Self::Current)
@@ -49,6 +64,7 @@ impl Pid {
         }
     }
 
+    /// Позволяет сериализовать [`Pid`] в регистр при передаче в системные вызовы.
     pub fn into_usize(&self) -> usize {
         const_assert!(mem::size_of::<Pid>() <= mem::size_of::<usize>());
         const_assert!(mem::size_of::<Option<Pid>>() <= mem::size_of::<usize>());
@@ -59,6 +75,8 @@ impl Pid {
         }
     }
 
+    /// Номер слота в таблице процессов.
+    /// Позволяет быстро находить процесс по его идентификатору в таблице процессов.
     pub fn slot(&self) -> usize {
         let pid = match self {
             Self::Current => {
@@ -77,6 +95,7 @@ impl Pid {
         }
     }
 
+    /// Инкрементирует номер эпохи [`Pid::Id::epoch`] слота в таблице процессов.
     pub fn next_epoch(&mut self) {
         if let Self::Id { epoch, .. } = self {
             *epoch = epoch.checked_add(1).expect("epoch overflow");

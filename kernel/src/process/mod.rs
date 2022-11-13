@@ -1,3 +1,6 @@
+#![warn(clippy::missing_docs_in_private_items)]
+#![warn(missing_docs)]
+
 /// Загружает [ELF--файлы](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format)
 /// пользовательских процессов и их адресные пространства.
 mod elf;
@@ -10,11 +13,15 @@ mod process;
 /// контекст исполнения содержащий уровень привилегий [`ModeContext`].
 mod registers;
 
+/// Планировщик процессов.
+/// Реализует простейшее
+/// [циклическое исполнение процессов](https://en.wikipedia.org/wiki/Round-robin_scheduling).
 mod scheduler;
 
 /// Реализует системные вызовы.
 mod syscall;
 
+/// Таблица процессов.
 mod table;
 
 use core::mem;
@@ -159,6 +166,7 @@ fn map_system_info(address_space: &mut AddressSpace) -> Result<*const SystemInfo
     system_info_page.address().try_into_ptr()
 }
 
+/// Максимальное количество одновременно работающих процессов.
 const PROCESS_SLOT_COUNT: usize = 1 << 8;
 
 #[doc(hidden)]
