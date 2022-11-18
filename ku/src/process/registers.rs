@@ -13,7 +13,16 @@ use derive_more::{
 };
 use x86_64::registers::rflags;
 
-use crate::memory::size;
+use crate::{
+    error::{
+        Error::{
+            self,
+            InvalidArgument,
+        },
+        Result,
+    },
+    memory::size,
+};
 
 /// [Регистр флагов](https://en.wikipedia.org/wiki/FLAGS_register).
 #[derive(
@@ -120,9 +129,28 @@ impl fmt::Display for RFlags {
 }
 
 impl From<RFlags> for rflags::RFlags {
-    fn from(rflags: RFlags) -> rflags::RFlags {
-        rflags::RFlags::from_bits(size::into_u64(rflags.0))
-            .expect("an incorrect flag is set in RFlags")
+    fn from(rflags: RFlags) -> Self {
+        Self::from_bits(size::into_u64(rflags.0)).expect("an incorrect flag is set in RFlags")
+    }
+}
+
+impl From<RFlags> for usize {
+    fn from(rflags: RFlags) -> Self {
+        size::from(rflags::RFlags::from(rflags).bits())
+    }
+}
+
+impl From<rflags::RFlags> for RFlags {
+    fn from(rflags: rflags::RFlags) -> Self {
+        Self(size::from(rflags.bits()))
+    }
+}
+
+impl TryFrom<usize> for RFlags {
+    type Error = Error;
+
+    fn try_from(rflags: usize) -> Result<Self> {
+        Ok(rflags::RFlags::from_bits(size::into_u64(rflags)).ok_or(InvalidArgument)?.into())
     }
 }
 
