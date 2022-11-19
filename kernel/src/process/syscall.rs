@@ -23,6 +23,7 @@ use ku::process::{
 };
 
 use crate::{
+    allocator::MemoryAllocator,
     error::{
         Error::{
             InvalidAlignment,
@@ -44,7 +45,6 @@ use crate::{
         warn,
     },
     memory::{
-        AddressSpace,
         Block,
         FRAME_ALLOCATOR,
         Frame,
@@ -263,16 +263,29 @@ fn copy_mapping(
     unimplemented!();
 }
 
-/// Выполняет копирование отображения `src_block` в `dst_block` с флагами `flags`
-/// из адресного пространства процесса `src` в адресное пространство `dst_address_space`.
-#[allow(unused_mut)] // TODO: remove before flight.
-fn do_copy_mapping(
-    src: &MutexGuard<Process>,
-    mut dst_address_space: MutexGuard<AddressSpace>,
-    src_block: Block<Page>,
-    dst_block: Block<Page>,
+/// Проверяет, что заданный блок виртуальных страниц `block` отображён в
+/// адресное пространство процесса `process` с корректно заданными флагами `flags`.
+/// Возвращает вектор физических фреймов, в которые отображены эти страницы.
+fn check_frames<'a>(
+    process: &'a MutexGuard<Process>,
+    block: Block<Page>,
+    flags: PageTableFlags,
+) -> Result<Vec<Frame, MemoryAllocator<'a>>> {
+    // TODO: your code here.
+    unimplemented!();
+}
+
+/// Выполняет отображение `src_frames` в `dst_pages` с флагами `flags`
+/// в адресное пространство процесса `process`.
+/// Количества элементов в `src_frames` и `dst_pages` должны совпадать.
+fn map_pages_to_frames(
+    process: &MutexGuard<Process>,
+    src_frames: Vec<Frame, MemoryAllocator>,
+    dst_pages: Block<Page>,
     flags: PageTableFlags,
 ) -> Result<()> {
+    assert_eq!(src_frames.len(), dst_pages.count());
+
     // TODO: your code here.
     unimplemented!();
 }
