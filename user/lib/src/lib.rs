@@ -3,10 +3,17 @@
 #![allow(unused_variables)]
 
 #![allow(clippy::missing_safety_doc)]
+#![feature(alloc_error_handler)]
+#![feature(allocator_api)]
 #![feature(asm_const)]
 #![feature(asm_sym)]
 #![feature(naked_functions)]
+#![feature(slice_ptr_get)]
 #![no_std]
+
+/// Аллокатор памяти общего назначения в пространстве пользователя, реализованный через
+/// системные вызовы [`syscall::map()`], [`syscall::unmap()`] и [`syscall::copy_mapping()`].
+pub mod allocator;
 
 pub mod memory;
 pub mod syscall;

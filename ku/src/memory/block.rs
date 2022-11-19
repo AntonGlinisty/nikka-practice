@@ -122,6 +122,16 @@ impl<T: Memory> Block<T> {
         self.count() * T::SIZE_OF
     }
 
+    /// Индекс первого элемента в блоке.
+    pub fn start(&self) -> usize {
+        self.start
+    }
+
+    /// Индекс следующего за последним элементом в блоке.
+    pub fn end(&self) -> usize {
+        self.end
+    }
+
     /// Возвращает адрес первого элемента в блоке.
     pub fn start_address(&self) -> T::Address {
         T::address_by_index(self.start).unwrap()
