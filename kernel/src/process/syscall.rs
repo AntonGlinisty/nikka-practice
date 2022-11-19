@@ -388,4 +388,34 @@ pub mod test_scaffolding {
     ) -> Result<SyscallResult> {
         super::log_value(process, start, len, value)
     }
+
+    pub fn map(
+        process: MutexGuard<Process>,
+        dst_pid: usize,
+        dst_address: usize,
+        dst_size: usize,
+        flags: usize,
+    ) -> Result<SyscallResult> {
+        super::map(process, dst_pid, dst_address, dst_size, flags)
+    }
+
+    pub fn unmap(
+        process: MutexGuard<Process>,
+        dst_pid: usize,
+        dst_address: usize,
+        dst_size: usize,
+    ) -> Result<SyscallResult> {
+        super::unmap(process, dst_pid, dst_address, dst_size)
+    }
+
+    pub fn copy_mapping(
+        process: MutexGuard<Process>,
+        dst_pid: usize,
+        src_address: usize,
+        dst_address: usize,
+        dst_size: usize,
+        flags: usize,
+    ) -> Result<SyscallResult> {
+        super::copy_mapping(process, dst_pid, src_address, dst_address, dst_size, flags)
+    }
 }
