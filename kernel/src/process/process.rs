@@ -387,6 +387,7 @@ impl fmt::Display for TrapHandlerContext {
 pub(super) mod test_scaffolding {
     use super::{
         super::registers::test_scaffolding,
+        Pid,
         Process,
     };
 
@@ -396,5 +397,12 @@ pub(super) mod test_scaffolding {
 
     pub fn registers(process: &Process) -> [usize; 15] {
         test_scaffolding::registers(&process.registers)
+    }
+
+    pub fn set_pid(
+        process: &mut Process,
+        pid: Pid,
+    ) {
+        process.set_pid(pid);
     }
 }

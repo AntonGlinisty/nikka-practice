@@ -369,3 +369,23 @@ fn check_process_permissions(
     // TODO: your code here.
     unimplemented!();
 }
+
+#[doc(hidden)]
+pub mod test_scaffolding {
+    use spin::MutexGuard;
+
+    use ku::process::SyscallResult;
+
+    use crate::error::Result;
+
+    use super::super::Process;
+
+    pub fn log_value(
+        process: MutexGuard<Process>,
+        start: usize,
+        len: usize,
+        value: usize,
+    ) -> Result<SyscallResult> {
+        super::log_value(process, start, len, value)
+    }
+}

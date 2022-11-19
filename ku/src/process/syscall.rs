@@ -27,7 +27,7 @@ bitflags! {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SyscallResult(pub usize);
 
 bitflags! {

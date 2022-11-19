@@ -174,6 +174,7 @@ pub mod test_scaffolding {
     pub use super::{
         process::test_scaffolding::*,
         scheduler::test_scaffolding::*,
+        syscall::test_scaffolding::*,
         table::test_scaffolding::*,
     };
 
