@@ -3,4 +3,4 @@ rustflags = ["--codegen", "link-args=--image-base=0x10000000"]
 target = "../kernel/kernel.json"
 
 [unstable]
-build-std = ["core"]
+build-std = ["alloc", "core"]

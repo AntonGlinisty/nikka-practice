@@ -12,6 +12,7 @@ members = [
     "user/lib",
     "user/log_value",
     "user/loop",
+    "user/memory_syscalls",
     "user/page_fault",
     "user/sched_yield",
 ]

@@ -26,6 +26,11 @@ pub(crate) use memory_allocator::MemoryAllocator;
 #[allow(unused)]
 use crate::memory::AddressSpace;
 
+/// Статистика глобального аллокатора памяти общего назначения для ядра.
+pub fn info() -> Info {
+    GLOBAL_ALLOCATOR.info()
+}
+
 /// Глобальный аллокатор памяти общего назначения для ядра.
 /// Выделяет память и отображает её внутри [`struct@BASE_ADDRESS_SPACE`].
 struct GlobalAllocator;
@@ -93,14 +98,3 @@ unsafe impl GlobalAlloc for GlobalAllocator {
 /// Выделяет память и отображает её внутри [`struct@BASE_ADDRESS_SPACE`].
 #[global_allocator]
 static GLOBAL_ALLOCATOR: GlobalAllocator = GlobalAllocator;
-
-#[doc(hidden)]
-pub mod test_scaffolding {
-    use ku::allocator::Info;
-
-    use super::GLOBAL_ALLOCATOR;
-
-    pub fn info() -> Info {
-        GLOBAL_ALLOCATOR.info()
-    }
-}
