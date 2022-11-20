@@ -52,13 +52,17 @@ fn main() {
     let mut name = String::<MAX_NAME>::new();
     name.push_str("cow_fork ").unwrap();
 
-    fork_tree(&mut pedigree, &mut name, '*');
+    let trap_handler_stack = Block::default(); // TODO: remove before flight.
+    // TODO: your code here.
+
+    fork_tree(&mut pedigree, &mut name, '*', trap_handler_stack);
 }
 
 fn fork_tree(
     pedigree: &mut Vec<Pid, DEPTH>,
     name: &mut String<MAX_NAME>,
     suffix: char,
+    trap_handler_stack: Block<Page>,
 ) {
     name.push(suffix).unwrap();
     pedigree.push(process::pid()).unwrap();
@@ -71,13 +75,15 @@ fn fork_tree(
     );
 
     for child in '0' .. '3' {
-        if pedigree.len() < pedigree.capacity() && cow_fork().expect("failed to cow_fork()") {
-            fork_tree(pedigree, name, child);
+        if pedigree.len() < pedigree.capacity() &&
+            cow_fork(trap_handler_stack).expect("failed to cow_fork()")
+        {
+            fork_tree(pedigree, name, child, trap_handler_stack);
         }
     }
 }
 
-fn cow_fork() -> Result<bool> {
+fn cow_fork(trap_handler_stack: Block<Page>) -> Result<bool> {
     // TODO: your code here.
     unimplemented!();
 }
