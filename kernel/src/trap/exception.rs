@@ -88,7 +88,7 @@ fn generic_trap(
 
         if fatal == Fatal::Yes {
             Table::free(process);
-            Process::leave_user_mode();
+            Process::sched_yield();
         }
     } else {
         error!(

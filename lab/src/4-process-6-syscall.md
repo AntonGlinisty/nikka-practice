@@ -279,18 +279,6 @@ fn kernel::process::syscall::exit(
 который не возвращают управление, как и сама функция
 [`kernel::process::syscall::exit()`](../../doc/kernel/process/syscall/fn.exit.html).
 
-Различие между
-[`kernel::process::process::Process::leave_user_mode()`](../../doc/kernel/process/process/struct.Process.html#method.leave_user_mode)
-и
-[`kernel::process::process::Process::sched_yield()`](../../doc/kernel/process/process/struct.Process.html#method.sched_yield)
-состоит в том, что первая сохраняет контекст пользователя.
-Пользовательский код готов к системному вызову и тому что тот испортит регистры.
-Поэтому контракт такой, что всё нужное ему состояние при системных вызовах он сохраняет сам.
-А
-[`kernel::process::process::Process::leave_user_mode()`](../../doc/kernel/process/process/struct.Process.html#method.leave_user_mode)
-пригодится чтобы принудительно вытеснять процесс в произвольные моменты времени,
-когда он к этому не готов.
-
 
 #### Системный вызов `log_value`
 
