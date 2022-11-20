@@ -57,10 +57,7 @@ use crate::{
     },
 };
 
-use process::{
-    State,
-    TrapHandlerContext,
-};
+use process::TrapHandlerContext;
 use table::TABLE;
 
 pub use ku::process::Pid;

@@ -8,7 +8,10 @@ use spin::{
 use ku::{
     ProcessInfo,
     RingBuffer,
-    process::MiniContext,
+    process::{
+        MiniContext,
+        State,
+    },
 };
 
 use crate::{
@@ -36,19 +39,6 @@ use super::{
     Table,
     registers::Registers,
 };
-
-/// Состояние пользовательского процесса.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum State {
-    /// Процесс только что создан и не готов к запуску.
-    Exofork,
-
-    /// Процесс готов к вытеснению, но не выполняется в данный момент.
-    Runnable,
-
-    /// Процесс выполняется в данный момент.
-    Running,
-}
 
 /// Описывает пользовательский процесс.
 #[derive(Debug)]
@@ -93,7 +83,7 @@ impl Process {
             parent: None,
             pid: Pid::Current,
             registers: Registers::new(context, info.start_address().into_usize()),
-            state: State::Runnable,
+            state: State::RUNNABLE,
             trap_handler_context: TrapHandlerContext::default(),
         }
     }
@@ -116,7 +106,7 @@ impl Process {
             parent: Some(self.pid),
             pid: Pid::Current,
             registers: self.registers.duplicate(rax, rdi, info.start_address().into_usize()),
-            state: State::Exofork,
+            state: State::EXOFORK,
             trap_handler_context: TrapHandlerContext::default(),
         })
     }
@@ -252,7 +242,7 @@ impl Process {
 
         let registers = &mut process.registers as *mut Registers;
 
-        process.state = State::Running;
+        process.state = State::RUNNING;
 
         debug!(%pid, registers = %process.registers, "entering the user mode");
 

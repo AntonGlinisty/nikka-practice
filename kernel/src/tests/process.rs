@@ -30,7 +30,6 @@ mod init;
 init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::PROCESS);
 
 const COW_FORK_ELF: &[u8] = include_bytes!("../../target/kernel/user/cow_fork");
-const EAGER_FORK_ELF: &[u8] = include_bytes!("../../target/kernel/user/eager_fork");
 
 fn make_process(file: &[u8]) -> MutexGuard<'static, Process> {
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
@@ -65,23 +64,6 @@ fn make_process(file: &[u8]) -> MutexGuard<'static, Process> {
     assert!(process_frames > 0, "created process uses no memory");
 
     process
-}
-
-#[test_case]
-fn eager_fork() {
-    let start_page_fault_count = TRAP_STATS[PAGE_FAULT].count();
-
-    let pid = make_process(EAGER_FORK_ELF).pid();
-
-    Scheduler::enqueue(pid);
-
-    while Scheduler::run_one() {}
-
-    assert_eq!(
-        TRAP_STATS[PAGE_FAULT].count(),
-        start_page_fault_count,
-        "eager_fork should not page fault",
-    );
 }
 
 #[test_case]

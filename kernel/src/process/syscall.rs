@@ -18,6 +18,7 @@ use ku::process::{
     MiniContext,
     RFlags,
     ResultCode,
+    State,
     Syscall,
     SyscallResult,
 };
@@ -63,7 +64,6 @@ use super::{
     Pid,
     Process,
     Scheduler,
-    State,
     Table,
     TrapHandlerContext,
 };
@@ -293,7 +293,7 @@ fn map_pages_to_frames(
 /// Выполняет системный вызов `syscall::set_state(dst_pid, state)`.
 ///
 /// Переводит целевой процесс, заданный идентификатором `dst_pid`, в заданное состояние `state`.
-/// Ставит его в очередь планировщика в случае [`State::Runnable`].
+/// Ставит его в очередь планировщика в случае [`State::RUNNABLE`].
 fn set_state(
     process: MutexGuard<Process>,
     dst_pid: usize,
@@ -389,6 +389,10 @@ pub mod test_scaffolding {
         super::log_value(process, start, len, value)
     }
 
+    pub fn exofork(process: MutexGuard<Process>) -> Result<SyscallResult> {
+        super::exofork(process)
+    }
+
     pub fn map(
         process: MutexGuard<Process>,
         dst_pid: usize,
@@ -417,5 +421,13 @@ pub mod test_scaffolding {
         flags: usize,
     ) -> Result<SyscallResult> {
         super::copy_mapping(process, dst_pid, src_address, dst_address, dst_size, flags)
+    }
+
+    pub fn set_state(
+        process: MutexGuard<Process>,
+        dst_pid: usize,
+        state: usize,
+    ) -> Result<SyscallResult> {
+        super::set_state(process, dst_pid, state)
     }
 }

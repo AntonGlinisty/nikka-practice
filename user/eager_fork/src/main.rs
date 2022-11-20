@@ -27,8 +27,11 @@ use ku::{
             USER_RW,
         },
     },
-    process,
-    process::Pid,
+    process::{
+        self,
+        Pid,
+        State,
+    },
 };
 
 use lib::{

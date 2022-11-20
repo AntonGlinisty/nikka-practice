@@ -17,6 +17,7 @@ use ku::{
         Pid,
         RSP_OFFSET_IN_TRAP_INFO,
         ResultCode,
+        State,
         Syscall,
         TrapInfo,
     },
@@ -117,8 +118,19 @@ pub fn copy_mapping(
     }
 }
 
-pub fn set_state(dst_pid: Pid) -> Result<()> {
-    syscall(Syscall::SET_STATE.bits(), dst_pid.into_usize(), 0, 0, 0, 0).map(|_| ())
+pub fn set_state(
+    dst_pid: Pid,
+    state: State,
+) -> Result<()> {
+    syscall(
+        Syscall::SET_STATE.bits(),
+        dst_pid.into_usize(),
+        state.bits(),
+        0,
+        0,
+        0,
+    )
+    .map(|_| ())
 }
 
 pub fn set_trap_handler(
