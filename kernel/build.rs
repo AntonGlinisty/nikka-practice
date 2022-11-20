@@ -12,6 +12,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo:rerun-if-changed=../ku/Cargo.toml");
 
     let binaries = vec![
+        "lib",
         "cow_fork",
         "eager_fork",
         "exit",
