@@ -1,13 +1,11 @@
 #![feature(custom_test_frameworks)]
+#![feature(slice_group_by)]
 #![no_main]
 #![no_std]
 #![reexport_test_harness_main = "test_main"]
 #![test_runner(kernel::test_runner)]
 
-use core::{
-    fmt,
-    str,
-};
+use core::fmt;
 
 use rand::{
     Rng,
@@ -82,7 +80,7 @@ fn read(
 
     match read_ops.quality {
         Quality::Debuggable => trace!(
-            data = str::from_utf8(data).unwrap(),
+            data = %RunLengthEncoding(data),
             len = data.len(),
             "read_tx"
         ),
@@ -254,7 +252,7 @@ impl<'a> Operation<'a> {
     }
 }
 
-impl<'a> fmt::Display for Operation<'a> {
+impl fmt::Display for Operation<'_> {
     fn fmt(
         &self,
         formatter: &mut fmt::Formatter,
@@ -264,9 +262,9 @@ impl<'a> fmt::Display for Operation<'a> {
                 formatter,
                 "{:?} x {}, {}",
                 if self.data.is_empty() {
-                    ""
+                    ' '
                 } else {
-                    str::from_utf8(&self.data[.. 1]).unwrap()
+                    self.data[0] as char
                 },
                 self.data.len(),
                 if self.commit {
@@ -286,6 +284,29 @@ impl<'a> fmt::Display for Operation<'a> {
                 },
             ),
         }
+    }
+}
+
+struct RunLengthEncoding<'a>(&'a [u8]);
+
+impl fmt::Display for RunLengthEncoding<'_> {
+    fn fmt(
+        &self,
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
+        let mut block_count = 0;
+        let mut total_len = 0;
+
+        for block in self.0.group_by(|a, b| a == b) {
+            write!(formatter, "{:?} x {}, ", block[0] as char, block.len())?;
+            block_count += 1;
+            total_len += block.len();
+        }
+
+        write!(
+            formatter,
+            "block_count = {block_count}, total_len = {total_len}",
+        )
     }
 }
 
