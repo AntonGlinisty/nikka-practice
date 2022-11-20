@@ -4,7 +4,10 @@ use core::{
     mem,
 };
 
-use x86::msr::IA32_FS_BASE;
+use x86::{
+    bits64::registers,
+    msr::IA32_FS_BASE,
+};
 use x86_64::structures::gdt::SegmentSelector;
 
 use ku::process::{
@@ -13,6 +16,7 @@ use ku::process::{
 };
 
 use crate::{
+    error::Result,
     gdt::Gdt,
     memory::Virt,
     smp::{
@@ -112,6 +116,8 @@ impl Registers {
     #[allow(named_asm_labels)]
     #[inline(never)] // For the named label to be a unique link symbol.
     pub(super) unsafe fn switch_to(registers: *mut Registers) {
+        let old_kernel_rsp = rsp();
+
         // TODO: your code here.
 
         asm!(
@@ -130,6 +136,21 @@ impl Registers {
             ",
 
             // TODO: your code here.
+        );
+
+        let new_kernel_rsp = rsp();
+
+        assert!(
+            old_kernel_rsp.is_ok() && new_kernel_rsp.is_ok(),
+            "check that the kernel RSP is saved and restored correctly",
+        );
+
+        assert_eq!(
+            old_kernel_rsp, new_kernel_rsp,
+            concat!(
+                "check that the kernel RSP is saved and restored correctly and the code ",
+                "pushes to the stack the same amount of information as it pops from it",
+            ),
         );
     }
 
@@ -299,6 +320,11 @@ impl fmt::Display for ModeContext {
             self.rflags,
         )
     }
+}
+
+/// Возвращает текущее значение регистра `RSP`.
+fn rsp() -> Result<Virt> {
+    Virt::new_u64(registers::rsp())
 }
 
 #[doc(hidden)]
