@@ -91,20 +91,21 @@ fn generic_trap(
             Process::sched_yield();
         }
     } else {
-        error!(
-            trap = TRAP_STATS[number].name(),
-            number,
-            %info,
-            %context,
-            "kernel mode trap",
-        );
-
         if fatal == Fatal::Yes {
             panic!(
-                "kernel mode trap #{} - {}, context: {}",
+                "kernel mode trap #{} - {}, context: {}, info: {}",
                 number,
                 TRAP_STATS[number].name(),
                 context,
+                info,
+            );
+        } else {
+            error!(
+                trap = TRAP_STATS[number].name(),
+                number,
+                %info,
+                %context,
+                "kernel mode trap",
             );
         }
     }
