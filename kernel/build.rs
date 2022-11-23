@@ -21,6 +21,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "memory_syscalls",
         "page_fault",
         "sched_yield",
+        "trap_handler",
     ];
 
     for bin in binaries {

@@ -670,6 +670,14 @@ version = "0.2.0"
 source = "git+https://github.com/tokio-rs/tracing#f09bc43c3f13e6df856b809d47544e7e846a6192"
 
 [[package]]
+name = "trap_handler"
+version = "0.2.0"
+dependencies = [
+ "ku",
+ "lib",
+]
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
