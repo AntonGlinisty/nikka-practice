@@ -9,6 +9,7 @@ repository = "https://gitlab.com/sergey-v-galtsev/nikka-public"
 version = "0.2.0"
 
 [dependencies]
+static_assertions = "*"
 tracing-core = { git = "https://github.com/tokio-rs/tracing", version = "*", default-features = false }
 
 ku = { path = "../../ku" }

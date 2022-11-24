@@ -1,4 +1,14 @@
-use core::arch::asm;
+use core::{
+    arch::asm,
+    mem,
+    ptr,
+    sync::atomic::{
+        AtomicPtr,
+        Ordering,
+    },
+};
+
+use static_assertions::const_assert;
 
 use ku::{
     error::{
@@ -138,9 +148,7 @@ pub fn set_trap_handler(
     trap_handler: fn(&TrapInfo),
     trap_handler_stack: Block<Page>,
 ) -> Result<()> {
-    unsafe {
-        TRAP_HANDLER = trap_handler;
-    }
+    TRAP_HANDLER.store(trap_handler as *mut _, Ordering::Relaxed);
 
     syscall(
         Syscall::SET_TRAP_HANDLER.bits(),
@@ -195,16 +203,22 @@ extern "C" fn trap_handler_trampoline() -> ! {
 
 #[cold]
 #[inline(never)]
-extern "C" fn trap_handler_invoker(info: &mut TrapInfo, // rdi
+extern "C" fn trap_handler_invoker(
+    // rdi
+    info: &mut TrapInfo,
 ) {
-    unsafe {
-        TRAP_HANDLER(info);
+    let trap_handler = TRAP_HANDLER.load(Ordering::Relaxed);
+    if !trap_handler.is_null() {
+        unsafe {
+            const_assert!(mem::size_of::<*const ()>() == mem::size_of::<fn(&TrapInfo)>());
+            let trap_handler = mem::transmute::<*const (), fn(&TrapInfo)>(trap_handler);
+            (trap_handler)(info);
+        }
+    }
 
+    unsafe {
         info.prepare_for_ret().unwrap();
     }
 }
 
-fn dummy_trap_handler(_info: &TrapInfo) {
-}
-
-static mut TRAP_HANDLER: fn(&TrapInfo) = dummy_trap_handler;
+static TRAP_HANDLER: AtomicPtr<()> = AtomicPtr::new(ptr::null_mut());
