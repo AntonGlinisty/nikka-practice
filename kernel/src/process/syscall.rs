@@ -37,7 +37,6 @@ use crate::{
         Result,
     },
     gdt::Gdt,
-    log,
     log::{
         debug,
         error,

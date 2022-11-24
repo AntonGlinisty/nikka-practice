@@ -23,6 +23,7 @@ use crate::{
         Result,
     },
     log::{
+        self,
         debug,
         info,
         trace,
@@ -304,8 +305,22 @@ impl Process {
         number: usize,
         info: Info,
     ) -> bool {
+        self.flush_log();
+
         // TODO: your code here.
         false // TODO: remove before flight.
+    }
+
+    /// Сбрасывает буферизованные записи из пользовательского пространства в журнал.
+    pub(super) fn flush_log(&mut self) {
+        let pid = self.pid;
+
+        if let Ok(log) = self.log() {
+            log::user_events(pid, log);
+            trace!(read_stats = ?log.read_stats(), write_stats = ?log.write_stats());
+        } else {
+            warn!(%pid, "log is not mapped properly");
+        }
     }
 }
 
