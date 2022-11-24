@@ -9,8 +9,10 @@ use ku::{
     ProcessInfo,
     RingBuffer,
     process::{
+        Info,
         MiniContext,
         State,
+        TrapInfo,
     },
 };
 
@@ -23,6 +25,8 @@ use crate::{
     log::{
         debug,
         info,
+        trace,
+        warn,
     },
     memory::{
         AddressSpace,
@@ -31,7 +35,10 @@ use crate::{
         Virt,
     },
     smp::Cpu,
-    trap::TrapContext,
+    trap::{
+        TRAP_STATS,
+        TrapContext,
+    },
 };
 
 use super::{
@@ -212,7 +219,7 @@ impl Process {
     /// Возвращает контекст пользователя, в который передаются исключения и прерывания,
     /// относящиеся к данному процессу.
     /// Например, Page Fault при некорректном доступе к памяти в коде пользователя.
-    pub(crate) fn trap_handler_context(&self) -> TrapHandlerContext {
+    pub(super) fn trap_handler_context(&self) -> TrapHandlerContext {
         self.trap_handler_context
     }
 
@@ -284,6 +291,22 @@ impl Process {
             Registers::sched_yield();
         }
     }
+
+    /// Подготавливает контекст `context` к вызову
+    /// пользовательского обработчика исключения или прерывания номер `number`, если он установлен.
+    ///
+    /// Возвращает `true`, если пользовательский обработчик установлен и
+    /// информация об исключении или прерывании успешно записана в его стек.
+    #[allow(unused_mut)] // TODO: remove before flight.
+    pub(crate) fn trap(
+        &mut self,
+        context: &mut TrapContext,
+        number: usize,
+        info: Info,
+    ) -> bool {
+        // TODO: your code here.
+        false // TODO: remove before flight.
+    }
 }
 
 impl fmt::Display for Process {
@@ -305,7 +328,7 @@ impl fmt::Display for Process {
 /// относящиеся к данному процессу.
 /// Например, Page Fault при некорректном доступе к памяти в коде пользователя.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub(crate) struct TrapHandlerContext {
+pub(super) struct TrapHandlerContext {
     /// Контекст пользовательского обработчика исключений и прерываний.
     mini_context: MiniContext,
 
@@ -328,7 +351,7 @@ impl TrapHandlerContext {
 
     /// Возвращает `true` если указатель стека `rsp` указывает в стек
     /// пользовательского обработчика исключений и прерываний.
-    pub(crate) fn contains(
+    fn contains(
         &self,
         rsp: Virt,
     ) -> bool {
@@ -336,12 +359,12 @@ impl TrapHandlerContext {
     }
 
     /// Возвращает `true` если пользователь установил свой обработчик исключений.
-    pub(crate) fn is_valid(&self) -> bool {
+    fn is_valid(&self) -> bool {
         self.stack != Block::default()
     }
 
     /// Возвращает контекст пользовательского обработчика исключений и прерываний.
-    pub(crate) fn mini_context(&self) -> MiniContext {
+    fn mini_context(&self) -> MiniContext {
         self.mini_context
     }
 }

@@ -1,22 +1,16 @@
 use lazy_static::lazy_static;
-use spin::{
-    Mutex,
-    MutexGuard,
-};
+use spin::Mutex;
 use x86_64::registers::control::Cr2;
 
 use ku::{
     memory::{
         PageFaultInfo,
         Virt,
-        mmu::PageTableFlags,
         size,
     },
     process::{
         Info,
-        MiniContext,
         Pid,
-        TrapInfo,
     },
 };
 
@@ -26,7 +20,6 @@ use super::{
 };
 
 use crate::{
-    error::Result,
     log,
     log::{
         debug,
@@ -75,7 +68,9 @@ fn generic_trap(
             warn!(%pid, "log is not mapped properly");
         }
 
-        // TODO: your code here.
+        if process.trap(context, number, info) {
+            return;
+        }
 
         info!(
             trap = TRAP_STATS[number].name(),
@@ -109,16 +104,6 @@ fn generic_trap(
             );
         }
     }
-}
-
-fn user_trap_handler(
-    process: &mut MutexGuard<Process>,
-    original_context: &mut TrapContext,
-    number: usize,
-    info: Info,
-) -> Result<()> {
-    // TODO: your code here.
-    unimplemented!();
 }
 
 pub(super) extern "x86-interrupt" fn divide_error(mut context: TrapContext) {
