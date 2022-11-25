@@ -28,11 +28,23 @@ use ku::{
 
 use super::syscall;
 
+// Used in docs.
+#[allow(unused)]
+use crate as lib;
+
+/// Заводит в адресном пространстве страницу памяти для временных нужд.
+/// Использует системный вызов [`lib::syscall::map()`].
 pub fn temp_page() -> Result<Page> {
     // TODO: your code here.
     unimplemented!();
 }
 
+/// Копирует содержимое страницы `src` в страницу `dst` с помощью
+/// [`core::ptr::copy_nonoverlapping()`].
+///
+/// # Safety
+///
+/// Страницы должны быть отображены в память и различны.
 pub unsafe fn copy_page(
     src: Page,
     dst: Page,
@@ -41,6 +53,8 @@ pub unsafe fn copy_page(
     unimplemented!();
 }
 
+/// Пользуясь рекурсивной записью таблицы страниц, выдаёт ссылку
+/// на таблицу страниц заданного уровня `level` для заданного виртуального адреса `virt`.
 pub unsafe fn page_table(
     virt: Virt,
     level: u32,
@@ -49,6 +63,8 @@ pub unsafe fn page_table(
     unimplemented!();
 }
 
+/// Пользуясь рекурсивной записью таблицы страниц, возвращает
+/// `PageTableEntry` листьевого уровня для заданного виртуального адреса `virt`.
 pub unsafe fn pte(virt: Virt) -> PageTableEntry {
     // TODO: your code here.
     unimplemented!();

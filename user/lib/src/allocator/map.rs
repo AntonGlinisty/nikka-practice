@@ -46,6 +46,7 @@ impl MapAllocator {
         MapAllocator
     }
 
+    /// Статистика аллокатора общего назначения.
     pub fn info(&self) -> Info {
         INFO.load()
     }
@@ -169,4 +170,5 @@ unsafe impl Allocator for MapAllocator {
     }
 }
 
+/// Статистика аллокатора общего назначения.
 static INFO: AtomicInfo = AtomicInfo::new();

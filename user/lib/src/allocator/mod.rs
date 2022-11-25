@@ -30,6 +30,7 @@ pub fn info() -> Info {
     GLOBAL_ALLOCATOR.info()
 }
 
+/// Обработчик ошибок глобального аллокатора памяти общего назначения.
 #[alloc_error_handler]
 #[cold]
 #[inline(never)]

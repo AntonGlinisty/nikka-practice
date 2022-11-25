@@ -33,12 +33,23 @@ use ku::{
     },
 };
 
+// Used in docs.
+#[allow(unused)]
+use crate::syscall;
+
+/// Системный вызов [`syscall::exit()`].
+///
+/// Освобождает слот таблицы процессов и возвращается в контекст ядра,
+/// из которого пользовательский процесс был запущен.
 pub fn exit(code: usize) -> ! {
     syscall(Syscall::EXIT.bits(), code, 0, 0, 0, 0).unwrap();
 
     unreachable!();
 }
 
+/// Системный вызов [`syscall::log_value()`].
+///
+/// Записывает в журнал строку `message` и число `value`.
 pub fn log_value(
     message: &str,
     value: usize,
@@ -56,11 +67,23 @@ pub fn log_value(
     .map(|_| ())
 }
 
+/// Системный вызов [`syscall::sched_yield()`].
+///
+/// Перепланирует процесс в конец очереди готовых к исполнению процессов и
+/// забирает у него CPU.
 #[allow(unused_must_use)]
 pub fn sched_yield() {
     syscall(Syscall::SCHED_YIELD.bits(), 0, 0, 0, 0, 0);
 }
 
+/// Системный вызов [`syscall::exofork()`].
+///
+/// Создаёт копию вызывающего процесса и возвращает исходному процессу [`Pid`] копии.
+/// Внутри копии возвращает [`Pid::Current`].
+/// При этом новый процесс создаётся практически без адресного пространства и не готовый к работе.
+/// Поэтому он, в частности, не ставится в очередь планировщика.
+/// Текущий контекст исходного процесса записывает в копию, чтобы в копии
+/// вернуться туда же, куда происходит возврат из системного вызова для вызывающего процесса.
 // Inline is needed for the correctness of exofork().
 #[inline(always)]
 pub fn exofork() -> Result<Pid> {
@@ -72,6 +95,12 @@ pub fn exofork() -> Result<Pid> {
     Ok(child_pid)
 }
 
+/// Системный вызов [`syscall::map()`].
+///
+/// Отображает в памяти процесса, заданного `dst_pid`, блок страниц `dst_block`
+/// с флагами доступа `flags`.
+/// Если `dst_block.start_address()` равен нулю,
+/// сам выбирает свободный участок адресного пространства размера `dst_block.size()`.
 pub fn map(
     dst_pid: Pid,
     dst_block: Block<Page>,
@@ -92,6 +121,9 @@ pub fn map(
     Block::new(Page::new(start)?, Page::new(end)?)
 }
 
+/// Системный вызов [`syscall::unmap()`].
+///
+/// Удаляет из виртуальной памяти целевого процесса `dst_pid` блок страниц `dst_block`.
 pub fn unmap(
     dst_pid: Pid,
     dst_block: Block<Page>,
@@ -107,6 +139,15 @@ pub fn unmap(
     .map(|_| ())
 }
 
+/// Системный вызов [`syscall::copy_mapping()`].
+///
+/// Создаёт копию отображения виртуальной памяти из вызывающего процесса
+/// в процесс, заданный `dst_pid`.
+/// Исходный диапазон задаёт `src_block`, целевой --- `dst_block`.
+/// В целевом процессе диапазон будет отображён с флагами `flags`.
+/// Не допускает целевое отображение с более широким набором флагов, чем исходное.
+/// После выполнения у процессов появляется область
+/// [разделяемой памяти](https://en.wikipedia.org/wiki/Shared_memory).
 pub fn copy_mapping(
     dst_pid: Pid,
     src_block: Block<Page>,
@@ -128,6 +169,10 @@ pub fn copy_mapping(
     }
 }
 
+/// Системный вызов [`syscall::set_state()`].
+///
+/// Переводит целевой процесс, заданный идентификатором `dst_pid`, в заданное состояние `state`.
+/// Ставит его в очередь планировщика в случае [`State::RUNNABLE`].
 pub fn set_state(
     dst_pid: Pid,
     state: State,
@@ -143,6 +188,10 @@ pub fn set_state(
     .map(|_| ())
 }
 
+/// Системный вызов [`syscall::set_trap_handler()`].
+///
+/// Устанавливает для целевого процесса, заданного идентификатором `dst_pid`,
+/// пользовательский обработчик прерывания `trap_handler()` со стеком `trap_handler_stack`.
 pub fn set_trap_handler(
     dst_pid: Pid,
     trap_handler: fn(&TrapInfo),
@@ -161,6 +210,7 @@ pub fn set_trap_handler(
     .map(|_| ())
 }
 
+/// Системный вызовов номер `number` с аргументами `arg0`--`arg4`.
 // Inline is needed for the correctness of exofork().
 #[inline(always)]
 pub fn syscall(
@@ -175,6 +225,12 @@ pub fn syscall(
     unimplemented!();
 }
 
+/// Получает управление, если в коде пользователя возникло исключение.
+/// Сохраняет контекст исключения и передаёт управление обработчику `trap_handler()`
+/// установленному с помощью [`syscall::set_trap_handler()`]
+/// через вспомогательную функцию [`trap_handler_invoker()`].
+/// После выполнения установленного обработчика `trap_handler()` восстанавливает
+/// сохранённый контекст.
 #[cold]
 #[naked]
 extern "C" fn trap_handler_trampoline() -> ! {
@@ -201,6 +257,8 @@ extern "C" fn trap_handler_trampoline() -> ! {
     }
 }
 
+/// Передаёт управление обработчику `trap_handler()`
+/// установленному с помощью [`syscall::set_trap_handler()`].
 #[cold]
 #[inline(never)]
 extern "C" fn trap_handler_invoker(
@@ -221,4 +279,5 @@ extern "C" fn trap_handler_invoker(
     }
 }
 
+/// Адрес обработчика `trap_handler()`, установленный с помощью [`syscall::set_trap_handler()`].
 static TRAP_HANDLER: AtomicPtr<()> = AtomicPtr::new(ptr::null_mut());
