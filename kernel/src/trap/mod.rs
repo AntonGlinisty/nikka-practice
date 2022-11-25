@@ -7,7 +7,10 @@ mod trap_context;
 
 use x86_64::instructions::interrupts;
 
-use crate::log::info;
+use crate::{
+    log::info,
+    time::rtc,
+};
 
 pub(crate) use self::idt::IDT;
 
@@ -74,6 +77,8 @@ pub(super) fn init() {
     IDT.load();
 
     interrupts::enable();
+
+    rtc::enable_next_interrupt();
 
     info!("traps init");
 }

@@ -76,8 +76,6 @@ pub(super) fn init() {
             timestamp().unwrap_or(0) * TICKS_PER_SECOND,
         ));
 
-        enable_next_interrupt();
-
         if is_time_valid() {
             info!(?acknowledged_settings, "RTC init");
         } else {
@@ -91,6 +89,14 @@ pub(super) fn init() {
             "RTC did not acknowledge new settings",
         );
     }
+}
+
+/// Говорит микросхеме RTC, что процессор обработал [прерывание](https://en.wikipedia.org/wiki/Interrupt) от неё.
+/// То есть, посылает ей [end of interrupt (EOI)](https://en.wikipedia.org/wiki/End_of_interrupt).
+///
+/// См. [Interrupts and Register C](https://wiki.osdev.org/RTC#Interrupts_and_Register_C).
+pub(crate) fn enable_next_interrupt() {
+    interrupt_status();
 }
 
 bitflags! {
@@ -274,14 +280,6 @@ fn interrupt_status() -> RegisterC {
 fn is_time_valid() -> bool {
     let register_d = RegisterD::from_bits_truncate(rtc_read(REGISTER_D));
     register_d.contains(RegisterD::VALID_RAM_AND_TIME)
-}
-
-/// Говорит микросхеме RTC, что процессор обработал [прерывание](https://en.wikipedia.org/wiki/Interrupt) от неё.
-/// То есть, посылает ей [end of interrupt (EOI)](https://en.wikipedia.org/wiki/End_of_interrupt).
-///
-/// См. [Interrupts and Register C](https://wiki.osdev.org/RTC#Interrupts_and_Register_C).
-fn enable_next_interrupt() {
-    interrupt_status();
 }
 
 /// Переводит текущее время RTC в [секунды с момента начала Unix--эпохи](https://en.wikipedia.org/wiki/Unix_time).
