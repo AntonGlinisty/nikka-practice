@@ -153,7 +153,8 @@ fn sysret(
     }
 }
 
-/// Выполняет системный вызов `syscall::exit(code)`.
+/// Выполняет системный вызов
+/// [`lib::syscall::exit(code)`](https://sergey-v-galtsev.gitlab.io/labs-description/doc/lib/syscall/fn.exit.html).
 ///
 /// Освобождает слот таблицы процессов и возвращается в контекст ядра,
 /// из которого пользовательский процесс был запущен.
@@ -165,9 +166,10 @@ fn exit(
     unimplemented!();
 }
 
-/// Выполняет системный вызов `syscall::log_value(string, value)`.
+/// Выполняет системный вызов
+/// [`lib::syscall::log_value(message, value)`](https://sergey-v-galtsev.gitlab.io/labs-description/doc/lib/syscall/fn.log_value.html).
 ///
-/// Записывает в журнал строку `string` типа `&str`, заданную началом `start` и длиной `len`,
+/// Записывает в журнал строку `message` типа `&str`, заданную началом `start` и длиной `len`,
 /// а также число `value`.
 #[allow(unused_mut)] // TODO: remove before flight.
 fn log_value(
@@ -180,7 +182,8 @@ fn log_value(
     unimplemented!();
 }
 
-/// Выполняет системный вызов `syscall::sched_yield()`.
+/// Выполняет системный вызов
+/// [`lib::syscall::sched_yield()`](https://sergey-v-galtsev.gitlab.io/labs-description/doc/lib/syscall/fn.sched_yield.html).
 ///
 /// Перепланирует процесс в конец очереди готовых к исполнению процессов и
 /// забирает у него CPU функцией [`Process::sched_yield()`],
@@ -197,7 +200,8 @@ fn sched_yield(
     unimplemented!();
 }
 
-/// Выполняет системный вызов `syscall::exofork()`.
+/// Выполняет системный вызов
+/// [`lib::syscall::exofork()`](https://sergey-v-galtsev.gitlab.io/labs-description/doc/lib/syscall/fn.exofork.html).
 ///
 /// Создаёт копию вызывающего процесса `process` и возвращает исходному процессу [`Pid`] копии.
 /// Внутри копии возвращает [`Pid::Current`].
@@ -213,7 +217,8 @@ fn exofork(
     unimplemented!();
 }
 
-/// Выполняет системный вызов `syscall::map(dst_pid, dst_block, flags)`.
+/// Выполняет системный вызов
+/// [`lib::syscall::map(dst_pid, dst_block, flags)`](https://sergey-v-galtsev.gitlab.io/labs-description/doc/lib/syscall/fn.map.html).
 ///
 /// Отображает в памяти процесса, заданного `dst_pid`, блок страниц размера `dst_size` байт
 /// начиная с виртуального адреса `dst_address` с флагами доступа `flags`.
@@ -236,7 +241,8 @@ fn map(
     unimplemented!();
 }
 
-/// Выполняет системный вызов `syscall::unmap(dst_pid, dst_block)`.
+/// Выполняет системный вызов
+/// [`lib::syscall::unmap(dst_pid, dst_block)`](https://sergey-v-galtsev.gitlab.io/labs-description/doc/lib/syscall/fn.unmap.html).
 ///
 /// Удаляет из виртуальной памяти целевого процесса `dst_pid` блок страниц
 /// размера `dst_size` байт начиная с виртуального адреса `dst_address`.
@@ -250,7 +256,8 @@ fn unmap(
     unimplemented!();
 }
 
-/// Выполняет системный вызов `syscall::copy_mapping(dst_pid, src_block, dst_block, flags)`.
+/// Выполняет системный вызов
+/// [`lib::syscall::copy_mapping(dst_pid, src_block, dst_block, flags)`](https://sergey-v-galtsev.gitlab.io/labs-description/doc/lib/syscall/fn.copy_mapping.html).
 ///
 /// Создаёт копию отображения виртуальной памяти из вызывающего процесса `process`
 /// в процесс, заданный `dst_pid`.
@@ -302,7 +309,8 @@ fn map_pages_to_frames(
     unimplemented!();
 }
 
-/// Выполняет системный вызов `syscall::set_state(dst_pid, state)`.
+/// Выполняет системный вызов
+/// [`lib::syscall::set_state(dst_pid, state)`](https://sergey-v-galtsev.gitlab.io/labs-description/doc/lib/syscall/fn.set_state.html).
 ///
 /// Переводит целевой процесс, заданный идентификатором `dst_pid`, в заданное состояние `state`.
 /// Ставит его в очередь планировщика в случае [`State::RUNNABLE`].
@@ -315,7 +323,8 @@ fn set_state(
     unimplemented!();
 }
 
-/// Выполняет системный вызов `syscall::set_trap_handler(dst_pid, trap_handler, trap_stack)`.
+/// Выполняет системный вызов
+/// [`lib::syscall::set_trap_handler(dst_pid, trap_handler, trap_stack)`](https://sergey-v-galtsev.gitlab.io/labs-description/doc/lib/syscall/fn.set_trap_handler.html).
 ///
 /// Устанавливает для целевого процесса, заданного идентификатором `dst_pid`,
 /// пользовательский обработчик прерывания с виртуальным адресом `rip` и стеком,
