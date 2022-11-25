@@ -183,8 +183,16 @@ fn log_value(
 /// Выполняет системный вызов `syscall::sched_yield()`.
 ///
 /// Перепланирует процесс в конец очереди готовых к исполнению процессов и
-/// забирает у него CPU, вернувшись в цикл планировщика [`Scheduler`].
-fn sched_yield(process: MutexGuard<Process>) -> ! {
+/// забирает у него CPU функцией [`Process::sched_yield()`],
+/// которая вернёт управление в другой контекст ядра ---
+/// в контекст из которого была вызвана функция [`Process::enter_user_mode()`].
+/// Текущий контекст исходного процесса --- `context` --- записывает в него,
+/// чтобы в дальнейшем в него можно было вернуться через [`Process::enter_user_mode()`].
+#[allow(unused_mut)] // TODO: remove before flight.
+fn sched_yield(
+    mut process: MutexGuard<Process>,
+    context: MiniContext,
+) -> ! {
     // TODO: your code here.
     unimplemented!();
 }
@@ -195,7 +203,12 @@ fn sched_yield(process: MutexGuard<Process>) -> ! {
 /// Внутри копии возвращает [`Pid::Current`].
 /// При этом новый процесс создаётся практически без адресного пространства и не готовый к работе.
 /// Поэтому он, в частности, не ставится в очередь планировщика.
-fn exofork(process: MutexGuard<Process>) -> Result<SyscallResult> {
+/// Текущий контекст исходного процесса --- `context` --- записывает в копию, чтобы в копии
+/// вернуться туда же, куда происходит возврат из системного вызова для вызывающего процесса.
+fn exofork(
+    process: MutexGuard<Process>,
+    context: MiniContext,
+) -> Result<SyscallResult> {
     // TODO: your code here.
     unimplemented!();
 }
@@ -373,7 +386,10 @@ fn check_process_permissions(
 pub mod test_scaffolding {
     use spin::MutexGuard;
 
-    use ku::process::SyscallResult;
+    use ku::process::{
+        MiniContext,
+        SyscallResult,
+    };
 
     use crate::error::Result;
 
@@ -389,7 +405,7 @@ pub mod test_scaffolding {
     }
 
     pub fn exofork(process: MutexGuard<Process>) -> Result<SyscallResult> {
-        super::exofork(process)
+        super::exofork(process, MiniContext::default())
     }
 
     pub fn map(
