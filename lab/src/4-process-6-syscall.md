@@ -456,6 +456,24 @@ $ (cd kernel; cargo test --test 4-process-6-syscall)
 05:13:27 0 I exit qemu; exit_code = SUCCESS
 ```
 
+Если вы увидите в тесте `4_process_6_syscall::syscall_log_value`
+Page Fault на чтении `0v1` в режиме пользователя (не ядра),
+это просто замена `panic!()` в коде пользователя в тесте.
+В журнале выше этого Page Fault должно быть написано, что ему не нравится,
+если конечно `log_value()` хоть немного работает.
+Например, --- `expected Err(InvalidArgument), got Ok`:
+```console
+...
+06:00:33 0 I expected Err(InvalidArgument), got Ok; value = 0; hex_value = 0x0; pid = 0:0
+06:00:33 0 D trap = "Page Fault"; context = { mode: user, cs:rip: 0x0023:0v10012E32, ss:rsp: 0x001B:0v7F7FFFFFEA38, rflags: AF PF }; info = { address: 0v1, code: 0b100 = non-present page | read | user }
+06:00:33 0 D leaving the user mode; pid = 0:0
+panicked at 'the user mode code has detected an error in syscall::log_value() implementation', kernel/tests/4-process-6-syscall.rs:60:5
+--------------------------------------------------- [failed]
+```
+Либо можно по коду теста в файле
+[`user/log_value/src/main.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/user/log_value/src/main.rs)
+посмотреть какая проверка не прошла.
+
 
 ### Ориентировочный объём работ этой части лабораторки
 
