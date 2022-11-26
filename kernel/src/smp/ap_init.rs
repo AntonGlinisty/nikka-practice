@@ -12,6 +12,7 @@ use core::{
 
 use chrono::Duration;
 use memoffset::offset_of;
+use static_assertions::const_assert;
 use x86::msr::IA32_EFER;
 use x86_64::{
     instructions::interrupts,
@@ -137,8 +138,8 @@ const BOOT_CODE_PLUS_STACK_SIZE: usize = Page::SIZE;
 ///
 /// Через этот стек в [`switch_from_real_mode_to_long_mode()`] передаётся дополнительная информация,
 /// необходимая для загрузки AP.
-/// Например, дескриптор описывающий GDT, который можно передать инструкции `lgdt` как есть,
-/// или адрес корневой таблицы страниц, который можно как есть записать в `CR3`.
+/// Например, дескриптор описывающий GDT, который можно передать инструкции `lgdt` как есть.
+/// Или адрес корневой таблицы страниц, который можно как есть записать в `CR3`.
 /// Это сделано, чтобы:
 ///
 /// - Не нужно было в функции [`switch_from_real_mode_to_long_mode()`] на 16-битном ассемблере строить GDT,
@@ -204,6 +205,8 @@ struct BootStack {
     /// которую использует ассемблерный код.
     gdt: SmallGdt,
 }
+
+const_assert!(offset_of!(BootStack, cpu) % mem::size_of::<Virt>() == 0);
 
 impl BootStack {
     /// Подготавливает временный стек для функции [`switch_from_real_mode_to_long_mode()`].
@@ -299,6 +302,7 @@ impl fmt::Debug for BootStack {
 /// Все нужные структуры и значения регистров копируются с BSP.
 #[allow(named_asm_labels)]
 #[cold]
+#[link_section = ".switch_from_real_mode_to_long_mode"]
 #[naked]
 extern "C" fn switch_from_real_mode_to_long_mode() -> ! {
     unsafe {
@@ -308,22 +312,44 @@ extern "C" fn switch_from_real_mode_to_long_mode() -> ! {
 
         switch_mode_start:
 
+            // Ваш код для 16-битного режима работы процессора.
+            // Он должен использовать только 16-битные и 32-битные регистры ---
+            // AX, EAX, SP, ESP, DS, SS, ..., CR*.
+            // 64-битные регистры --- RAX--R15 пока недоступны.
+            // Используйте только инструкции ассемблера,
+            // макрокоманды вроде .code16 и .code64 не добавляйте и не двигайте.
+
             // TODO: your code here.
 
         .code64
+
+            // Не пишите тут свой код, скорее всего это будет неверно.
 
             // Perform a far return to `set_cs_rip_to_64bit` in order to set `CS:RIP` right.
             retf
 
         set_cs_rip_to_64bit:
 
+            // Теперь процессор полностью настроен для 64-битного режима и работает в нём.
+            // Можно использовать 64-битные регистры RAX--R15.
+            // Используйте только инструкции ассемблера,
+            // макрокоманды вроде .code16 и .code64 не добавляйте и не двигайте.
+
             // TODO: your code here.
 
-            // The destination address of this jump should be absolute
-            // since this code is moved to another position in the memory.
+            // Здесь нужно перейти на `ap_kernel_main()` по абсолютному адресу.
+            // Так как этот код будет перемещён в другие адреса памяти, а `ap_kernel_main()` нет,
+            // то разность адресов этой команды и `ap_kernel_main()` поменяется.
+            // И обычные `jmp ap_kernel_main` и `call ap_kernel_main`,
+            // работающие с относительными адресами,
+            // после перемещения кода содержали бы неверные смещения.
+            // Можно воспользоваться косвенным переходом на абсолютный адрес, записанный в регистр.
             mov rax, OFFSET {ap_kernel_main}
             jmp rax
 
+            // Метки `switch_mode_start` и `switch_mode_end` отмечают границы
+            // загрузочного кода, который должен быть скопирован.
+            // Поэтому пишите код загрузки AP строго внутри них.
         switch_mode_end:
             ",
 
