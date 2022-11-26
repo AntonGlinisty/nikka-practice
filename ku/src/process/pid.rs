@@ -11,7 +11,7 @@ use crate::error::{
 };
 
 /// Идентификатор процесса.
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Pid {
     /// Текущий процесс, это удобно для использования тех системных вызовов,
     /// что принимают на вход [`Pid`].

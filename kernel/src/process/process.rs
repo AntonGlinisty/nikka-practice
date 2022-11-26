@@ -199,6 +199,8 @@ impl Process {
         if let Pid::Id { .. } = pid {
             self.pid = pid;
             self.address_space.get_mut().set_pid(pid);
+
+            test_scaffolding::pid_callback(self);
         } else {
             panic!("assignment of a wrong pid to a process");
         }
@@ -399,6 +401,17 @@ impl fmt::Display for TrapHandlerContext {
 
 #[doc(hidden)]
 pub(super) mod test_scaffolding {
+    use core::{
+        mem,
+        ptr,
+        sync::atomic::{
+            AtomicPtr,
+            Ordering,
+        },
+    };
+
+    use static_assertions::const_assert;
+
     use super::{
         super::registers::test_scaffolding,
         Pid,
@@ -419,4 +432,21 @@ pub(super) mod test_scaffolding {
     ) {
         process.set_pid(pid);
     }
+
+    pub fn set_pid_callback(pid_callback: fn(&Process)) {
+        PID_CALLBACK.store(pid_callback as *mut _, Ordering::Relaxed);
+    }
+
+    pub(super) fn pid_callback(process: &Process) {
+        let pid_callback = PID_CALLBACK.load(Ordering::Relaxed);
+        if !pid_callback.is_null() {
+            unsafe {
+                const_assert!(mem::size_of::<*const ()>() == mem::size_of::<fn(&Process)>());
+                let pid_callback = mem::transmute::<*const (), fn(&Process)>(pid_callback);
+                (pid_callback)(process);
+            }
+        }
+    }
+
+    static PID_CALLBACK: AtomicPtr<()> = AtomicPtr::new(ptr::null_mut());
 }

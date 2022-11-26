@@ -1,3 +1,14 @@
+extern crate alloc;
+
+use alloc::{
+    format,
+    string::String,
+    vec::Vec,
+};
+use core::slice;
+
+use spin::Mutex;
+
 use ku::{
     error::Error::{
         InvalidArgument,
@@ -17,10 +28,12 @@ use kernel::{
         switch_to,
     },
     process::{
+        Process,
         Scheduler,
         Table,
         test_scaffolding::{
             exofork,
+            set_pid_callback,
             set_state,
         },
     },
@@ -118,7 +131,20 @@ fn exofork_syscall() {
 
 #[test_case]
 fn eager_fork() {
+    let _guard = forbid_frame_leaks();
+
     let start_page_fault_count = TRAP_STATS[PAGE_FAULT].count();
+
+    static PARENTS: Mutex<Vec<(Pid, Pid)>> = Mutex::new(Vec::new());
+
+    *PARENTS.lock() = Vec::with_capacity(16);
+
+    set_pid_callback(record_parent);
+    fn record_parent(process: &Process) {
+        if let Some(parent) = process.parent() {
+            PARENTS.lock().push((parent, process.pid()));
+        }
+    }
 
     let pid = process_helpers::allocate(EAGER_FORK_ELF).pid();
 
@@ -131,4 +157,31 @@ fn eager_fork() {
         start_page_fault_count,
         "eager_fork should not page fault",
     );
+
+    let mut parents = PARENTS.lock();
+
+    assert_eq!(parents.len(), 12, "wrong total number of child processes");
+
+    slice::heapsort(&mut parents, |a, b| a < b);
+
+    for children in parents.group_by(|a, b| a.0 == b.0) {
+        assert_eq!(
+            children.len(),
+            3,
+            "wrong number of children {} for the process {}",
+            children.len(),
+            children[0].0,
+        );
+    }
+
+    let mut graphviz =
+        String::from("digraph process_tree { node [ style = filled; fillcolor = \"#CCCCCC\"]; ");
+    for (parent, process) in parents.iter() {
+        debug!(%parent, %process);
+        graphviz += &format!("\"{parent}\" -> \"{process}\"; ")
+    }
+    graphviz += "}";
+    debug!(%graphviz);
+
+    *parents = Vec::new();
 }
