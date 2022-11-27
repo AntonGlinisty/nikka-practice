@@ -75,12 +75,21 @@ fn fork_tree(
         capacity = pedigree.capacity(),
     );
 
+    let mut is_child = false;
+    let mut suffix = 'x';
+
     for child in '0' .. '3' {
-        if pedigree.len() < pedigree.capacity() &&
-            cow_fork(trap_handler_stack).expect("failed to cow_fork()")
-        {
-            fork_tree(pedigree, name, child, trap_handler_stack);
+        if pedigree.len() < pedigree.capacity() {
+            is_child = cow_fork(trap_handler_stack).expect("failed to cow_fork()")
         }
+        if is_child {
+            suffix = child;
+            break;
+        }
+    }
+
+    if is_child {
+        fork_tree(pedigree, name, suffix, trap_handler_stack);
     }
 }
 

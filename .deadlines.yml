@@ -586,5 +586,5 @@
         - user/lib/src/memory/mod.rs
         - user/lib/src/syscall.rs
       check:
-        - cd kernel && cargo test --test 2-mm-* --test 4-process-3-elf --test 4-concurrency-* --test 6-um-5-cow-fork
+        - cd kernel && cargo test --test 2-mm-* --test 4-process-3-elf --test 4-concurrency-* --test 6-um-*
 
