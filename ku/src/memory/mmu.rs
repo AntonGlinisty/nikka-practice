@@ -214,9 +214,8 @@ bitflags! {
     }
 }
 
-pub const KERNEL_R: PageTableFlags = PageTableFlags::from_bits_truncate(
-    PageTableFlags::PRESENT.bits() | PageTableFlags::NO_EXECUTE.bits(),
-);
+pub const KERNEL_R: PageTableFlags =
+    PageTableFlags::from_bits_truncate(PageTableFlags::PRESENT.bits());
 
 pub const KERNEL_RW: PageTableFlags =
     PageTableFlags::from_bits_truncate(KERNEL_R.bits() | PageTableFlags::WRITABLE.bits());
