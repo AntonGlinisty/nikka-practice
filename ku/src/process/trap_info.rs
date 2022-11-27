@@ -29,6 +29,7 @@ pub struct TrapInfo {
     /// Eg. if the trap is recursive - the trap has happened inside a trap handler.
     /// In this case `lib::syscall::trap_trampoline()` and `lib::syscall::trap_handler_invoker()`
     /// will push a return address onto the `context` stack.
+    /// That will effectively overwrite the `TrapInfo`.
     /// This field exists only to protect meaningfull fields of the `TrapInfo` from beeing overwritten.
     return_address_placeholder: [u8; Self::PLACEHOLDER_SIZE],
 }

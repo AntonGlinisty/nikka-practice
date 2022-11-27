@@ -49,6 +49,8 @@ pub unsafe fn copy_page(
     src: Page,
     dst: Page,
 ) {
+    assert_ne!(src, dst);
+
     // TODO: your code here.
     unimplemented!();
 }
