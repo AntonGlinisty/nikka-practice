@@ -62,8 +62,16 @@ impl Size {
         Self::new::<T>(into_usize(count))
     }
 
+    pub const fn bytes(bytes: usize) -> Self {
+        Self(bytes)
+    }
+
     pub const fn from_slice<T>(slice: &[T]) -> Self {
         Self(mem::size_of_val(slice))
+    }
+
+    pub const fn of<T>() -> Self {
+        Self(mem::size_of::<T>())
     }
 
     pub const fn num_bytes(&self) -> usize {

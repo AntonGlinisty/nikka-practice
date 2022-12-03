@@ -1,15 +1,16 @@
 use std::{
     env,
     error::Error,
+    fs,
     process::Command,
     str,
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
-    println!("cargo:rerun-if-changed=../Cargo.toml");
     println!("cargo:rerun-if-changed=../Cargo.lock");
-    println!("cargo:rerun-if-changed=../ku/src");
+    println!("cargo:rerun-if-changed=../fs.img");
     println!("cargo:rerun-if-changed=../ku/Cargo.toml");
+    println!("cargo:rerun-if-changed=../ku/src");
 
     let binaries = vec![
         "lib",
@@ -47,5 +48,19 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
+    if make_fs_image("../fs.img", 32 << 20).is_err() {
+        let message = "failed to create a disk image for the file system";
+        println!("cargo:warning=\n{message}");
+        panic!("{}", message);
+    }
+
     Ok(())
+}
+
+fn make_fs_image(
+    path: &str,
+    size: usize,
+) -> Result<(), std::io::Error> {
+    fs::remove_file(path).unwrap_or(());
+    fs::write(path, vec![0_u8; size])
 }

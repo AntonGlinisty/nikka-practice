@@ -12,6 +12,7 @@
 #![feature(asm_sym)]
 #![feature(const_refs_to_cell)]
 #![feature(custom_test_frameworks)]
+#![feature(int_roundings)]
 #![feature(maybe_uninit_slice)]
 #![feature(naked_functions)]
 #![feature(panic_info_message)]
@@ -27,6 +28,7 @@ extern crate alloc;
 pub mod allocator;
 
 pub mod error;
+pub mod fs;
 pub mod log;
 
 /// Здесь находится часть работы с памятью, которая происходит только в ядре.

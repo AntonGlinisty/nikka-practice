@@ -121,6 +121,21 @@ impl<T: Tag> Sub<usize> for Addr<T> {
     }
 }
 
+impl<T: Tag> Sub<Self> for Addr<T> {
+    type Output = Result<usize>;
+
+    fn sub(
+        self,
+        rhs: Self,
+    ) -> Self::Output {
+        if T::is_same_half(self, rhs) {
+            self.0.checked_sub(rhs.0).ok_or(Overflow)
+        } else {
+            Err(Overflow)
+        }
+    }
+}
+
 impl<T: Tag> fmt::Debug for Addr<T> {
     fn fmt(
         &self,

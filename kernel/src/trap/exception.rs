@@ -20,6 +20,7 @@ use super::{
 };
 
 use crate::{
+    fs::BlockCache,
     log::{
         error,
         info,
@@ -76,6 +77,12 @@ fn generic_trap(
             Process::sched_yield();
         }
     } else {
+        match BlockCache::trap_handler(&info) {
+            Ok(true) => return,
+            Ok(false) => {},
+            Err(error) => error!(?error, "failed to handle a page fault in the block cache"),
+        }
+
         if fatal == Fatal::Yes {
             panic!(
                 "kernel mode trap #{} - {}, context: {}, info: {}",

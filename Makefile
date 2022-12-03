@@ -102,6 +102,9 @@ lab: $(RUST_PATH)/mdbook doc lab/src/*.dot lab/src/*.md
 		cd - >/dev/null; \
 	)
 
+fs-dump:
+	@xxd fs.img | sed 's@.*0000 0000 0000 0000 0000 0000 0000 0000.*@...@' | uniq
+
 doc: FORCE
 	@( \
 		cargo doc --document-private-items; \
@@ -120,6 +123,7 @@ clean:
 	)
 	@rm --force --recursive \
 		doc \
+		fs.img \
 		kernel/serial.out \
 		lab/book \
 		lab/src/*.svg \

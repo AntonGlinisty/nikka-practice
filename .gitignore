@@ -6,6 +6,7 @@
 .gdb_history
 .vscode
 doc/
+fs.img
 lab/book/
 lab/src/*.svg
 serial.out
