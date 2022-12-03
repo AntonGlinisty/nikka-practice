@@ -21,9 +21,9 @@ use super::{
 
 use crate::{
     log::{
-        debug,
         error,
         info,
+        trace,
     },
     process::{
         ModeContext,
@@ -45,7 +45,7 @@ fn generic_trap(
     info: Info,
     fatal: Fatal,
 ) {
-    debug!(trap = TRAP_STATS[number].name(), %context, %info);
+    trace!(trap = TRAP_STATS[number].name(), %context, %info);
 
     TRAP_STATS[number].inc();
 
