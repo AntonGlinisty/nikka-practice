@@ -588,3 +588,187 @@
       check:
         - cd kernel && cargo test --test 2-mm-* --test 4-process-3-elf --test 4-concurrency-* --test 6-um-*
 
+- group: lab-7-file-system
+  start: 05-12-2022 18:00
+  deadline: 20-12-2022 23:59
+  second_deadline: 01-02-2023 23:59
+  enabled: true
+  tasks:
+    - task: block-cache
+      score: 100
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-1-block-cache.html
+      allow_list:
+        - kernel/src/fs/block_cache.rs
+        - kernel/src/memory/address_space.rs
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/memory/main_frame_allocator.rs
+        - kernel/src/memory/mapping.rs
+        - kernel/src/memory/page_allocator.rs
+        - kernel/src/process/elf.rs
+        - kernel/src/process/mod.rs
+        - kernel/src/process/process.rs
+        - kernel/src/process/registers.rs
+        - kernel/src/process/scheduler.rs
+        - kernel/src/process/syscall.rs
+        - kernel/src/process/table.rs
+        - kernel/src/smp/ap_init.rs
+        - kernel/src/smp/cpu.rs
+        - kernel/src/smp/local_apic.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/allocator/big.rs
+        - ku/src/memory/block.rs
+        - ku/src/ipc/pipe.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+        - user/cow_fork/src/main.rs
+        - user/eager_fork/src/main.rs
+        - user/lib/src/memory/mod.rs
+        - user/lib/src/syscall.rs
+      check:
+        - rm --force fs.img && cd kernel && cargo test --test 2-mm-* --test 3-allocator-1-big --test 7-fs-1-block-cache-1-write --test 7-fs-1-block-cache-2-read
+
+    - task: block_bitmap
+      score: 100
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-2-bitmap.html
+      allow_list:
+        - kernel/src/fs/block_bitmap.rs
+        - kernel/src/fs/block_cache.rs
+        - kernel/src/memory/address_space.rs
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/memory/main_frame_allocator.rs
+        - kernel/src/memory/mapping.rs
+        - kernel/src/memory/page_allocator.rs
+        - kernel/src/process/elf.rs
+        - kernel/src/process/mod.rs
+        - kernel/src/process/process.rs
+        - kernel/src/process/registers.rs
+        - kernel/src/process/scheduler.rs
+        - kernel/src/process/syscall.rs
+        - kernel/src/process/table.rs
+        - kernel/src/smp/ap_init.rs
+        - kernel/src/smp/cpu.rs
+        - kernel/src/smp/local_apic.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/allocator/big.rs
+        - ku/src/memory/block.rs
+        - ku/src/ipc/pipe.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+        - user/cow_fork/src/main.rs
+        - user/eager_fork/src/main.rs
+        - user/lib/src/memory/mod.rs
+        - user/lib/src/syscall.rs
+      check:
+        - rm --force fs.img && cd kernel && cargo test --test 2-mm-* --test 3-allocator-1-big --test 7-fs-2-bitmap
+
+    - task: inode
+      score: 200
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-3-inode.html
+      allow_list:
+        - kernel/src/fs/block_bitmap.rs
+        - kernel/src/fs/block_cache.rs
+        - kernel/src/fs/inode.rs
+        - kernel/src/memory/address_space.rs
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/memory/main_frame_allocator.rs
+        - kernel/src/memory/mapping.rs
+        - kernel/src/memory/page_allocator.rs
+        - kernel/src/process/elf.rs
+        - kernel/src/process/mod.rs
+        - kernel/src/process/process.rs
+        - kernel/src/process/registers.rs
+        - kernel/src/process/scheduler.rs
+        - kernel/src/process/syscall.rs
+        - kernel/src/process/table.rs
+        - kernel/src/smp/ap_init.rs
+        - kernel/src/smp/cpu.rs
+        - kernel/src/smp/local_apic.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/allocator/big.rs
+        - ku/src/memory/block.rs
+        - ku/src/ipc/pipe.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+        - user/cow_fork/src/main.rs
+        - user/eager_fork/src/main.rs
+        - user/lib/src/memory/mod.rs
+        - user/lib/src/syscall.rs
+      check:
+        - rm --force fs.img && cd kernel && cargo test --test 2-mm-* --test 3-allocator-1-big --test 7-fs-3-inode
+
+    - task: directory
+      score: 150
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-4-directory.html
+      allow_list:
+        - kernel/src/fs/block_bitmap.rs
+        - kernel/src/fs/block_cache.rs
+        - kernel/src/fs/inode.rs
+        - kernel/src/memory/address_space.rs
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/memory/main_frame_allocator.rs
+        - kernel/src/memory/mapping.rs
+        - kernel/src/memory/page_allocator.rs
+        - kernel/src/process/elf.rs
+        - kernel/src/process/mod.rs
+        - kernel/src/process/process.rs
+        - kernel/src/process/registers.rs
+        - kernel/src/process/scheduler.rs
+        - kernel/src/process/syscall.rs
+        - kernel/src/process/table.rs
+        - kernel/src/smp/ap_init.rs
+        - kernel/src/smp/cpu.rs
+        - kernel/src/smp/local_apic.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/allocator/big.rs
+        - ku/src/memory/block.rs
+        - ku/src/ipc/pipe.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+        - user/cow_fork/src/main.rs
+        - user/eager_fork/src/main.rs
+        - user/lib/src/memory/mod.rs
+        - user/lib/src/syscall.rs
+      check:
+        - rm --force fs.img && cd kernel && cargo test --test 2-mm-* --test 3-allocator-1-big --test 7-fs-4-directory
+
+    - task: open
+      score: 50
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-5-open.html
+      allow_list:
+        - kernel/src/fs/block_bitmap.rs
+        - kernel/src/fs/block_cache.rs
+        - kernel/src/fs/file_system.rs
+        - kernel/src/fs/inode.rs
+        - kernel/src/memory/address_space.rs
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/memory/main_frame_allocator.rs
+        - kernel/src/memory/mapping.rs
+        - kernel/src/memory/page_allocator.rs
+        - kernel/src/process/elf.rs
+        - kernel/src/process/mod.rs
+        - kernel/src/process/process.rs
+        - kernel/src/process/registers.rs
+        - kernel/src/process/scheduler.rs
+        - kernel/src/process/syscall.rs
+        - kernel/src/process/table.rs
+        - kernel/src/smp/ap_init.rs
+        - kernel/src/smp/cpu.rs
+        - kernel/src/smp/local_apic.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/allocator/big.rs
+        - ku/src/memory/block.rs
+        - ku/src/ipc/pipe.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+        - user/cow_fork/src/main.rs
+        - user/eager_fork/src/main.rs
+        - user/lib/src/memory/mod.rs
+        - user/lib/src/syscall.rs
+      check:
+        - rm --force fs.img && cd kernel && cargo test --test 2-mm-* --test 3-allocator-1-big --test 7-fs-5-*
+
