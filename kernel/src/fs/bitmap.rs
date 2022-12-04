@@ -146,3 +146,42 @@ impl Clone for Bitmap {
         }
     }
 }
+
+#[doc(hidden)]
+pub mod test_scaffolding {
+    use ku::error::Result;
+
+    pub struct Bitmap(pub(in super::super) super::Bitmap);
+
+    impl Bitmap {
+        pub fn new(block_count: usize) -> Result<Self> {
+            Ok(Self(super::Bitmap::new(block_count)?))
+        }
+
+        pub fn format(block_count: usize) -> Result<()> {
+            super::Bitmap::format(block_count)
+        }
+
+        pub fn is_free(
+            &self,
+            number: usize,
+        ) -> bool {
+            self.0.is_free(number)
+        }
+
+        pub fn set_free(
+            &mut self,
+            number: usize,
+        ) {
+            self.0.set_free(number)
+        }
+
+        pub fn allocate(&mut self) -> Result<usize> {
+            self.0.allocate()
+        }
+
+        pub fn free_block_count(&self) -> usize {
+            self.0.free_block_count()
+        }
+    }
+}

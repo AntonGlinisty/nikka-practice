@@ -1,0 +1,244 @@
+extern crate alloc;
+
+use alloc::{
+    vec,
+    vec::Vec,
+};
+use core::{
+    cmp,
+    mem,
+};
+
+use chrono::Duration;
+
+use ku::memory::size::{
+    MiB,
+    Size,
+};
+
+use kernel::{
+    Subsystems,
+    fs::{
+        File,
+        test_scaffolding::{
+            BLOCK_SIZE,
+            Bitmap,
+            Inode,
+            block_cache_init,
+            flush_block,
+            make_file,
+        },
+    },
+    log::debug,
+    memory::Virt,
+    time::{
+        self,
+        TscDuration,
+    },
+};
+
+mod init;
+
+init!(Subsystems::MEMORY);
+
+#[test_case]
+fn block_entry() {
+    let block_count = FS_SIZE / BLOCK_SIZE;
+    debug!(block_count);
+
+    block_cache_init(FS_DISK, block_count).unwrap();
+
+    Bitmap::format(block_count).unwrap();
+    let mut block_bitmap = Bitmap::new(block_count).unwrap();
+
+    const ENTRY_SIZE: usize = mem::size_of::<usize>();
+    const ENTRIES_PER_BLOCK: usize = BLOCK_SIZE / ENTRY_SIZE;
+    const FIRST_ENTRY_THROUGH_NON_DIRECT_BLOCK: usize = 1;
+
+    let mut inode = Inode::new();
+    let mut prev_entry: Option<Virt> = None;
+    let check_entries = 3 * ENTRIES_PER_BLOCK.pow(2);
+
+    for i in 0 .. check_entries {
+        let entry = inode.block_entry(i, &mut block_bitmap).unwrap();
+
+        let current_entry = Virt::from_ref(entry);
+        let entry_order_violation = if let Some(prev_entry) = prev_entry {
+            prev_entry >= current_entry
+        } else {
+            false
+        };
+        if entry_order_violation || i % 100_000 == 0 {
+            debug!(i, ?prev_entry, %current_entry, entry_order_violation);
+        }
+        assert!(!entry_order_violation);
+
+        if let Some(prev_entry) = prev_entry {
+            let prev_entry_inc = (prev_entry + ENTRY_SIZE).unwrap();
+            assert_eq!(current_entry, prev_entry_inc);
+        }
+
+        prev_entry = if i >= FIRST_ENTRY_THROUGH_NON_DIRECT_BLOCK &&
+            (i + 1 - FIRST_ENTRY_THROUGH_NON_DIRECT_BLOCK) % ENTRIES_PER_BLOCK != 0
+        {
+            Some(current_entry)
+        } else {
+            None
+        };
+
+        *entry = i;
+    }
+
+    debug!("block entry allocation is done, checking the entries");
+
+    for i in 0 .. check_entries {
+        let entry = inode.block_entry(i, &mut block_bitmap).unwrap();
+        if *entry != i || i % 100_000 == 0 {
+            debug!(i, actual = *entry, expected = i);
+        }
+        assert_eq!(*entry, i);
+    }
+}
+
+#[test_case]
+fn read_write_speed() {
+    let block_count = FS_SIZE / BLOCK_SIZE;
+    debug!(block_count);
+
+    block_cache_init(FS_DISK, block_count).unwrap();
+
+    Bitmap::format(block_count).unwrap();
+    let block_bitmap = Bitmap::new(block_count).unwrap();
+    let inode = Inode::new();
+    let mut file = make_file(&inode, &block_bitmap);
+
+    let mut buffer = [0x77; MiB];
+    let timer = time::timer();
+    file.write(0, &buffer).unwrap();
+    let elapsed = timer.elapsed();
+    debug!(size = %Size::from_slice(&buffer), %elapsed, "disk read speed");
+
+    buffer.fill(0);
+
+    let timeout = TscDuration::try_from(Duration::milliseconds(200)).unwrap();
+
+    let timer = time::timer();
+    file.read(0, &mut buffer).unwrap();
+    let elapsed = timer.elapsed();
+    debug!(size = %Size::from_slice(&buffer), %elapsed, %timeout, "file system read speed");
+    assert!(elapsed < timeout);
+
+    assert_eq!(buffer[123456], 0x77);
+    buffer.fill(0x33);
+
+    let timer = time::timer();
+    file.write(0, &buffer).unwrap();
+    let elapsed = timer.elapsed();
+    debug!(size = %Size::from_slice(&buffer), %elapsed, %timeout, "file system write speed");
+    assert!(elapsed < timeout);
+
+    let timer = time::timer();
+    for block in 0 .. block_count {
+        flush_block(block).unwrap();
+    }
+    let elapsed = timer.elapsed();
+    debug!(size = %Size::from_slice(&buffer), %elapsed, "disk write speed");
+}
+
+#[test_case]
+fn write_read() {
+    let block_count = FS_SIZE / BLOCK_SIZE;
+    debug!(block_count);
+
+    block_cache_init(FS_DISK, block_count).unwrap();
+
+    Bitmap::format(block_count).unwrap();
+    let block_bitmap = Bitmap::new(block_count).unwrap();
+    let inode = Inode::new();
+    let mut file = make_file(&inode, &block_bitmap);
+
+    let data: Vec<_> = (0 .. MiB).map(|x| (x + x * x) as u8).collect();
+    let mut offset = 0;
+
+    while offset < data.len() {
+        for size in (0 ..= 3 * BLOCK_SIZE).filter(|x| (x + 3) % BLOCK_SIZE < 6) {
+            let real_size = cmp::min(offset + size, data.len()) - offset;
+            assert_eq!(
+                file.write(offset, &data[offset .. offset + real_size]),
+                Ok(real_size),
+            );
+            offset += real_size;
+        }
+    }
+
+    let mut buffer = [0; MiB];
+    offset = 0;
+
+    while offset < data.len() {
+        for size in (0 ..= 4 * BLOCK_SIZE).filter(|x| (x + 4) % BLOCK_SIZE < 7) {
+            let real_size = cmp::min(offset + size, data.len()) - offset;
+            assert_eq!(
+                file.read(offset, &mut buffer[offset .. offset + real_size]),
+                Ok(real_size),
+            );
+            offset += real_size;
+        }
+    }
+
+    debug!(actual = ?buffer[..10], expected = ?data[..10]);
+    for (actual, expected) in buffer.iter().zip(data) {
+        assert_eq!(*actual, expected);
+    }
+}
+
+#[test_case]
+fn set_size() {
+    let block_count = FS_SIZE / BLOCK_SIZE;
+    debug!(block_count);
+
+    block_cache_init(FS_DISK, block_count).unwrap();
+
+    Bitmap::format(block_count).unwrap();
+    let block_bitmap = Bitmap::new(block_count).unwrap();
+    let start_free_block_count = block_bitmap.free_block_count();
+    let inode = Inode::new();
+    let mut file = make_file(&inode, &block_bitmap);
+
+    let filter = |x: &usize| (x + 2) % (BLOCK_SIZE / 3) <= 4;
+
+    for offset in (0 ..= 2 * BLOCK_SIZE).filter(filter) {
+        for size in (0 ..= 2 * BLOCK_SIZE).filter(filter) {
+            if offset == size {
+                debug!(offset, size);
+            }
+            check_expansion_is_zero_filled(&mut file, offset, size);
+            file.set_size(offset).unwrap();
+            check_expansion_is_zero_filled(&mut file, offset, size);
+            file.set_size(offset).unwrap();
+        }
+    }
+
+    file.set_size(0).unwrap();
+    let end_free_block_count = block_bitmap.free_block_count();
+    assert_eq!(start_free_block_count, end_free_block_count);
+
+    fn check_expansion_is_zero_filled(
+        file: &mut File,
+        offset: usize,
+        size: usize,
+    ) {
+        let mut buffer = vec![1; size];
+
+        file.set_size(offset + size).unwrap();
+        file.read(offset, &mut buffer).unwrap();
+        assert!(buffer.iter().all(|&x| x == 0));
+
+        buffer.fill(b'*');
+        assert_eq!(file.write(offset, &buffer), Ok(size));
+        file.read(offset, &mut buffer).unwrap();
+        assert!(buffer.iter().all(|&x| x == b'*'));
+    }
+}
+
+const FS_DISK: usize = 1;
+const FS_SIZE: usize = 32 * MiB;

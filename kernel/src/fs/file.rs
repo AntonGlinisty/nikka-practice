@@ -172,3 +172,20 @@ impl From<&mut DirectoryEntry> for Entry {
         }
     }
 }
+
+#[doc(hidden)]
+pub mod test_scaffolding {
+    use super::super::test_scaffolding::{
+        Bitmap,
+        Inode,
+    };
+
+    use super::File;
+
+    pub fn make_file(
+        inode: &Inode,
+        block_bitmap: &Bitmap,
+    ) -> File {
+        File::new(&inode.0, &block_bitmap.0)
+    }
+}

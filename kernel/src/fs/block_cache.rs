@@ -83,3 +83,38 @@ lazy_static! {
 }
 
 const SECTORS_PER_BLOCK: usize = BLOCK_SIZE / SECTOR_SIZE;
+
+#[doc(hidden)]
+pub mod test_scaffolding {
+    use ku::{
+        error::{
+            Error::NoDisk,
+            Result,
+        },
+        memory::{
+            Block,
+            Page,
+        },
+    };
+
+    use super::{
+        BLOCK_CACHE,
+        BlockCache,
+        Disk,
+    };
+
+    pub fn block_cache_init(
+        disk: usize,
+        block_count: usize,
+    ) -> Result<()> {
+        BlockCache::init(Disk::list()[disk], block_count)
+    }
+
+    pub fn cache() -> Result<Block<Page>> {
+        Ok(BLOCK_CACHE.lock().ok_or(NoDisk)?.cache)
+    }
+
+    pub fn flush_block(block_number: usize) -> Result<()> {
+        BlockCache::flush_block(block_number)
+    }
+}

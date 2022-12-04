@@ -286,3 +286,30 @@ const_assert!(BLOCK_SIZE % mem::size_of::<Inode>() == 0);
 const INDIRECT_BLOCK_ARITY: usize = BLOCK_SIZE / mem::size_of::<usize>();
 const MAX_HEIGHT: usize = 4;
 const NO_BLOCK: usize = 0;
+
+#[doc(hidden)]
+pub mod test_scaffolding {
+    use ku::error::Result;
+
+    use super::super::test_scaffolding::Bitmap;
+
+    use super::Kind;
+
+    pub struct Inode(pub(in super::super) super::Inode);
+
+    impl Inode {
+        pub fn new() -> Self {
+            let mut inode = super::Inode::default();
+            inode.set_kind(Kind::File);
+            Self(inode)
+        }
+
+        pub fn block_entry(
+            &mut self,
+            inode_block_number: usize,
+            block_bitmap: &mut Bitmap,
+        ) -> Result<&mut usize> {
+            self.0.block_entry(inode_block_number, Some(&mut block_bitmap.0))
+        }
+    }
+}
