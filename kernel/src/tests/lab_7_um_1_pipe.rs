@@ -11,6 +11,7 @@ use ku::{
     RingBuffer,
     RingBufferWriteTx,
     error::Result,
+    memory::Page,
 };
 
 use kernel::{
@@ -31,6 +32,8 @@ const QUALITY: Quality = Quality::Paranoid;
 
 #[test_case]
 fn stress() {
+    assert!(RingBuffer::REAL_SIZE > Page::SIZE);
+
     const SEED: u64 = 314159265;
 
     let mut ring_buffer = test_scaffolding::map_log(&mut BASE_ADDRESS_SPACE.lock()).unwrap();

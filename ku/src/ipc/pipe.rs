@@ -126,7 +126,7 @@ impl RingBuffer {
     }
 
     pub const MAPPED_SIZE: usize = 2 * Self::REAL_SIZE;
-    pub const REAL_SIZE: usize = Page::SIZE;
+    pub const REAL_SIZE: usize = 4 * Page::SIZE;
 }
 
 pub struct RingBufferTx<'a, T: Tag> {
