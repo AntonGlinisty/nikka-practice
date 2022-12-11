@@ -1,6 +1,7 @@
 extern crate alloc;
 
 use alloc::{
+    format,
     vec,
     vec::Vec,
 };
@@ -20,6 +21,7 @@ use kernel::{
     Subsystems,
     fs::{
         File,
+        Kind,
         test_scaffolding::{
             BLOCK_SIZE,
             Bitmap,
@@ -55,7 +57,7 @@ fn block_entry() {
     const ENTRIES_PER_BLOCK: usize = BLOCK_SIZE / ENTRY_SIZE;
     const FIRST_ENTRY_THROUGH_NON_DIRECT_BLOCK: usize = 1;
 
-    let mut inode = Inode::new();
+    let mut inode = Inode::new(Kind::File);
     let mut prev_entry: Option<Virt> = None;
     let check_entries = 3 * ENTRIES_PER_BLOCK.pow(2);
 
@@ -109,7 +111,7 @@ fn read_write_speed() {
 
     Bitmap::format(block_count).unwrap();
     let block_bitmap = Bitmap::new(block_count).unwrap();
-    let inode = Inode::new();
+    let inode = Inode::new(Kind::File);
     let mut file = make_file(&inode, &block_bitmap);
 
     let mut buffer = [0x77; MiB];
@@ -154,7 +156,7 @@ fn write_read() {
 
     Bitmap::format(block_count).unwrap();
     let block_bitmap = Bitmap::new(block_count).unwrap();
-    let inode = Inode::new();
+    let inode = Inode::new(Kind::File);
     let mut file = make_file(&inode, &block_bitmap);
 
     let data: Vec<_> = (0 .. MiB).map(|x| (x + x * x) as u8).collect();
@@ -192,6 +194,54 @@ fn write_read() {
 }
 
 #[test_case]
+fn big_file() {
+    let block_count = FS_SIZE / BLOCK_SIZE;
+    debug!(block_count);
+
+    block_cache_init(FS_DISK, block_count).unwrap();
+
+    Bitmap::format(block_count).unwrap();
+    let block_bitmap = Bitmap::new(block_count).unwrap();
+    let start_free_block_count = block_bitmap.free_block_count();
+    let inode = Inode::new(Kind::File);
+    let mut file = make_file(&inode, &block_bitmap);
+
+    let file_block_count = start_free_block_count * 99 / 100;
+    file.set_size(file_block_count * BLOCK_SIZE).unwrap();
+    debug!(file_block_count, file_size = %Size::bytes(file.size()));
+
+    for file_block in 0 .. file_block_count {
+        let data = format!("file block {file_block}");
+        let data_len = data.len();
+        assert_eq!(
+            file.write(file_block * BLOCK_SIZE, data.as_bytes()),
+            Ok(data_len),
+        );
+    }
+
+    for file_block in 0 .. file_block_count {
+        let data = format!("file block {file_block}");
+        let data_len = data.len();
+        let mut buffer = vec![0; data_len];
+        assert_eq!(
+            file.read(file_block * BLOCK_SIZE, &mut buffer),
+            Ok(data_len),
+        );
+        assert_eq!(buffer, data.as_bytes());
+    }
+
+    let free_block_count = block_bitmap.free_block_count();
+    let used_block_count = start_free_block_count - free_block_count;
+    debug!(free_block_count, used_block_count);
+
+    file.remove().unwrap();
+
+    let end_free_block_count = block_bitmap.free_block_count();
+    let leaked_block_count = start_free_block_count - end_free_block_count;
+    assert_eq!(leaked_block_count, 0);
+}
+
+#[test_case]
 fn set_size() {
     let block_count = FS_SIZE / BLOCK_SIZE;
     debug!(block_count);
@@ -201,7 +251,7 @@ fn set_size() {
     Bitmap::format(block_count).unwrap();
     let block_bitmap = Bitmap::new(block_count).unwrap();
     let start_free_block_count = block_bitmap.free_block_count();
-    let inode = Inode::new();
+    let inode = Inode::new(Kind::File);
     let mut file = make_file(&inode, &block_bitmap);
 
     let filter = |x: &usize| (x + 2) % (BLOCK_SIZE / 3) <= 4;

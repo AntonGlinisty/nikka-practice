@@ -24,6 +24,7 @@ pub enum Error {
     NoProcess,
     NoProcessSlot,
     NotDirectory,
+    NotFile,
     Null,
     Overflow,
     PermissionDenied,

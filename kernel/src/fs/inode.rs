@@ -23,6 +23,7 @@ use ku::{
             InvalidArgument,
             NoDisk,
             NotDirectory,
+            NotFile,
         },
         Result,
     },
@@ -113,7 +114,13 @@ impl Inode {
         &mut self,
         name: &str,
     ) -> Result<&mut Inode> {
-        self.find_entry(name, None).map(|entry| entry.inode_mut())
+        self.find_entry(name, None).and_then(|entry| {
+            if entry.inode().kind == Kind::Unused {
+                Err(FileNotFound)
+            } else {
+                Ok(entry.inode_mut())
+            }
+        })
     }
 
     pub(super) fn insert(
@@ -298,9 +305,9 @@ pub mod test_scaffolding {
     pub struct Inode(pub(in super::super) super::Inode);
 
     impl Inode {
-        pub fn new() -> Self {
+        pub fn new(kind: Kind) -> Self {
             let mut inode = super::Inode::default();
-            inode.set_kind(Kind::File);
+            inode.set_kind(kind);
             Self(inode)
         }
 
