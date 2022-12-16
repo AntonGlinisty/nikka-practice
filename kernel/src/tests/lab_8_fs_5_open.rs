@@ -147,7 +147,7 @@ fn test_list(
         assert_eq!(fs.used_space(), 0);
     }
 
-    assert!(usage <= fs.used_space());
+    assert!(usage <= fs.used_space() + POSSIBLE_HOLE_SIZE);
     assert!(fs.used_space() <= 4 * usage);
 }
 
@@ -206,3 +206,5 @@ const FILE_2_FINAL_ZERO_COUNT: usize = 9876;
 const FILE_2_INITIAL_ZERO_COUNT: usize = 1234;
 const FS_DISK: usize = 1;
 const FS_SIZE: usize = 32 * MiB;
+const POSSIBLE_HOLE_SIZE: usize = FILE_1_ZERO_COUNT.next_multiple_of(BLOCK_SIZE) +
+    FILE_2_FINAL_ZERO_COUNT.next_multiple_of(BLOCK_SIZE);
