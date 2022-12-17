@@ -3,36 +3,24 @@ extern crate alloc;
 use alloc::vec::Vec;
 use core::slice;
 
-use ku::{
-    error::Error::NoDisk,
-    memory::size::MiB,
-};
+use ku::error::Error::NoDisk;
 
 use kernel::{
     Subsystems,
-    fs::test_scaffolding::{
-        BLOCK_SIZE,
-        Bitmap,
-        block_cache_init,
-    },
+    fs::Kind,
     log::debug,
 };
 
+mod fs_helpers;
 mod init;
 
 init!(Subsystems::MEMORY);
 
 #[test_case]
 fn allocation() {
-    let block_count = FS_SIZE / BLOCK_SIZE;
-    debug!(block_count);
+    let (mut block_bitmap, _) = fs_helpers::single_inode_fs(Kind::File);
 
-    block_cache_init(FS_DISK, block_count).unwrap();
-
-    Bitmap::format(block_count).unwrap();
-    let mut block_bitmap = Bitmap::new(block_count).unwrap();
-
-    let free_block_count = (0 .. block_count)
+    let free_block_count = (0 .. fs_helpers::BLOCK_COUNT)
         .map(|i| {
             if block_bitmap.is_free(i) {
                 1
@@ -41,7 +29,7 @@ fn allocation() {
             }
         })
         .sum();
-    assert!(free_block_count >= block_count - 16);
+    assert!(free_block_count >= fs_helpers::BLOCK_COUNT - 16);
 
     let mut allocated: Vec<_> =
         (0 .. free_block_count).map(|_| block_bitmap.allocate().unwrap()).collect();
@@ -53,8 +41,8 @@ fn allocation() {
     assert_eq!(block_bitmap.allocate(), Err(NoDisk));
     block_bitmap.set_free(33);
     block_bitmap.allocate().unwrap();
-    for _ in (1 ..= block_count).rev() {
-        block_bitmap.set_free(block_count - 33);
+    for _ in (1 ..= fs_helpers::BLOCK_COUNT).rev() {
+        block_bitmap.set_free(fs_helpers::BLOCK_COUNT - 33);
         block_bitmap.allocate().unwrap();
     }
 
@@ -86,6 +74,3 @@ fn allocation() {
         assert_eq!(*i, j);
     }
 }
-
-const FS_DISK: usize = 1;
-const FS_SIZE: usize = 32 * MiB;

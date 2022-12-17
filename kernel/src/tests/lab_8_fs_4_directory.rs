@@ -14,10 +14,7 @@ use ku::{
         NotDirectory,
         NotFile,
     },
-    memory::size::{
-        MiB,
-        Size,
-    },
+    memory::size::Size,
 };
 
 use kernel::{
@@ -25,31 +22,19 @@ use kernel::{
     fs::{
         Kind,
         MAX_NAME_LEN,
-        test_scaffolding::{
-            BLOCK_SIZE,
-            Bitmap,
-            Inode,
-            block_cache_init,
-            make_file,
-        },
+        test_scaffolding::make_file,
     },
     log::debug,
 };
 
+mod fs_helpers;
 mod init;
 
 init!(Subsystems::MEMORY);
 
 #[test_case]
 fn basic_operations() {
-    let block_count = FS_SIZE / BLOCK_SIZE;
-    debug!(block_count);
-
-    block_cache_init(FS_DISK, block_count).unwrap();
-
-    Bitmap::format(block_count).unwrap();
-    let block_bitmap = Bitmap::new(block_count).unwrap();
-    let inode = Inode::new(Kind::Directory);
+    let (block_bitmap, inode) = fs_helpers::single_inode_fs(Kind::Directory);
     let mut directory = make_file(&inode, &block_bitmap);
 
     let mut buffer = [0; 1];
@@ -117,16 +102,9 @@ fn basic_operations() {
 
 #[test_case]
 fn big_directory() {
-    let block_count = FS_SIZE / BLOCK_SIZE;
-    debug!(block_count);
-
-    block_cache_init(FS_DISK, block_count).unwrap();
-
-    Bitmap::format(block_count).unwrap();
-    let block_bitmap = Bitmap::new(block_count).unwrap();
-    let start_free_block_count = block_bitmap.free_block_count();
-    let inode = Inode::new(Kind::Directory);
+    let (block_bitmap, inode) = fs_helpers::single_inode_fs(Kind::Directory);
     let mut directory = make_file(&inode, &block_bitmap);
+    let start_free_block_count = block_bitmap.free_block_count();
 
     for file_count in 1 ..= 1000 {
         directory.insert(&format!("file-{file_count}"), Kind::File).unwrap();
@@ -148,14 +126,7 @@ fn big_directory() {
 
 #[test_case]
 fn max_name_len() {
-    let block_count = FS_SIZE / BLOCK_SIZE;
-    debug!(block_count);
-
-    block_cache_init(FS_DISK, block_count).unwrap();
-
-    Bitmap::format(block_count).unwrap();
-    let block_bitmap = Bitmap::new(block_count).unwrap();
-    let inode = Inode::new(Kind::Directory);
+    let (block_bitmap, inode) = fs_helpers::single_inode_fs(Kind::Directory);
     let mut directory = make_file(&inode, &block_bitmap);
 
     let name = str::from_utf8(&[b'x'; MAX_NAME_LEN]).unwrap();
@@ -177,6 +148,3 @@ fn max_name_len() {
         InvalidArgument,
     );
 }
-
-const FS_DISK: usize = 1;
-const FS_SIZE: usize = 32 * MiB;

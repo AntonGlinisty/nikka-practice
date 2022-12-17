@@ -24,9 +24,6 @@ use kernel::{
         Kind,
         test_scaffolding::{
             BLOCK_SIZE,
-            Bitmap,
-            Inode,
-            block_cache_init,
             flush_block,
             make_file,
         },
@@ -39,25 +36,19 @@ use kernel::{
     },
 };
 
+mod fs_helpers;
 mod init;
 
 init!(Subsystems::MEMORY);
 
 #[test_case]
 fn block_entry() {
-    let block_count = FS_SIZE / BLOCK_SIZE;
-    debug!(block_count);
-
-    block_cache_init(FS_DISK, block_count).unwrap();
-
-    Bitmap::format(block_count).unwrap();
-    let mut block_bitmap = Bitmap::new(block_count).unwrap();
+    let (mut block_bitmap, mut inode) = fs_helpers::single_inode_fs(Kind::File);
 
     const ENTRY_SIZE: usize = mem::size_of::<usize>();
     const ENTRIES_PER_BLOCK: usize = BLOCK_SIZE / ENTRY_SIZE;
     const FIRST_ENTRY_THROUGH_NON_DIRECT_BLOCK: usize = 1;
 
-    let mut inode = Inode::new(Kind::File);
     let mut prev_entry: Option<Virt> = None;
     let check_entries = 3 * ENTRIES_PER_BLOCK.pow(2);
 
@@ -104,14 +95,7 @@ fn block_entry() {
 
 #[test_case]
 fn read_write_speed() {
-    let block_count = FS_SIZE / BLOCK_SIZE;
-    debug!(block_count);
-
-    block_cache_init(FS_DISK, block_count).unwrap();
-
-    Bitmap::format(block_count).unwrap();
-    let block_bitmap = Bitmap::new(block_count).unwrap();
-    let inode = Inode::new(Kind::File);
+    let (block_bitmap, inode) = fs_helpers::single_inode_fs(Kind::File);
     let mut file = make_file(&inode, &block_bitmap);
 
     let mut buffer = [0x77; MiB];
@@ -140,7 +124,7 @@ fn read_write_speed() {
     assert!(elapsed < timeout);
 
     let timer = time::timer();
-    for block in 0 .. block_count {
+    for block in 0 .. fs_helpers::BLOCK_COUNT {
         flush_block(block).unwrap();
     }
     let elapsed = timer.elapsed();
@@ -149,14 +133,7 @@ fn read_write_speed() {
 
 #[test_case]
 fn write_read() {
-    let block_count = FS_SIZE / BLOCK_SIZE;
-    debug!(block_count);
-
-    block_cache_init(FS_DISK, block_count).unwrap();
-
-    Bitmap::format(block_count).unwrap();
-    let block_bitmap = Bitmap::new(block_count).unwrap();
-    let inode = Inode::new(Kind::File);
+    let (block_bitmap, inode) = fs_helpers::single_inode_fs(Kind::File);
     let mut file = make_file(&inode, &block_bitmap);
 
     let data: Vec<_> = (0 .. MiB).map(|x| (x + x * x) as u8).collect();
@@ -195,16 +172,9 @@ fn write_read() {
 
 #[test_case]
 fn big_file() {
-    let block_count = FS_SIZE / BLOCK_SIZE;
-    debug!(block_count);
-
-    block_cache_init(FS_DISK, block_count).unwrap();
-
-    Bitmap::format(block_count).unwrap();
-    let block_bitmap = Bitmap::new(block_count).unwrap();
-    let start_free_block_count = block_bitmap.free_block_count();
-    let inode = Inode::new(Kind::File);
+    let (block_bitmap, inode) = fs_helpers::single_inode_fs(Kind::File);
     let mut file = make_file(&inode, &block_bitmap);
+    let start_free_block_count = block_bitmap.free_block_count();
 
     let file_block_count = start_free_block_count * 99 / 100;
     file.set_size(file_block_count * BLOCK_SIZE).unwrap();
@@ -243,16 +213,9 @@ fn big_file() {
 
 #[test_case]
 fn set_size() {
-    let block_count = FS_SIZE / BLOCK_SIZE;
-    debug!(block_count);
-
-    block_cache_init(FS_DISK, block_count).unwrap();
-
-    Bitmap::format(block_count).unwrap();
-    let block_bitmap = Bitmap::new(block_count).unwrap();
-    let start_free_block_count = block_bitmap.free_block_count();
-    let inode = Inode::new(Kind::File);
+    let (block_bitmap, inode) = fs_helpers::single_inode_fs(Kind::File);
     let mut file = make_file(&inode, &block_bitmap);
+    let start_free_block_count = block_bitmap.free_block_count();
 
     let filter = |x: &usize| (x + 2) % (BLOCK_SIZE / 3) <= 4;
 
@@ -289,6 +252,3 @@ fn set_size() {
         assert!(buffer.iter().all(|&x| x == b'*'));
     }
 }
-
-const FS_DISK: usize = 1;
-const FS_SIZE: usize = 32 * MiB;
