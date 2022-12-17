@@ -13,28 +13,34 @@ struct Bitmap {
 }
 ```
 
-Каждый элемент среза `Bitmap::bitmap` отвечает за 64 блока.
+Каждый элемент среза
+[`Bitmap::bitmap`](../../doc/kernel/fs/block_bitmap/struct.Bitmap.html#structfield.bitmap)
+отвечает за 64 блока.
 Блоку с меньшим номером соответствует бит с меньшим весом в соответствующем элементе.
 Блок свободен тогда и только тогда, когда соответствующий ему бит равен `0`.
 
 
 ### Задача 2 --- битовая карта занятых блоков
 
-Реализуйте метод
+Реализуйте [метод](../../doc/kernel/fs/block_bitmap/struct.Bitmap.html#method.allocate)
 
 ```rust
-fn Bitmap::allocate(&mut self) -> Result<usize>
+fn Bitmap::allocate(
+    &mut self,
+) -> Result<usize>
 ```
 
 в файле
 [`kernel/src/fs/block_bitmap.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/fs/block_bitmap.rs).
 
-Функция должна найти по `Bitmap::bitmap` свободный блок и аллоцировать его.
+Функция должна найти по
+[`Bitmap::bitmap`](../../doc/kernel/fs/block_bitmap/struct.Bitmap.html#structfield.bitmap)
+свободный блок и аллоцировать его.
 
 - Верните номер выделенного блока.
-- После того как новый блок аллоцирован, сбросьте изменившийся блок самого `bitmap` на диск с помощью реализованной вами функции `BlockCache::flush_block()`. Когда меняете метаданные, лучше сразу сбрасывать их на диск, так меньше вероятность поломки файловой системы, например, при сбое питания.
-- Искать каждый раз с самого начала `Bitmap::bitmap` не эффективно. Лучше, например, обходить его по циклу с того места, на котором остановились в прошлый раз. Для хранения этой позиции между вызовами `Bitmap::allocate()` служит поле `Bitmap::cursor`.
-- Проверять каждый бит тоже не эффективно. Лучше сначала найти элемент `Bitmap::bitmap`, в котором есть хотя бы один свободный бит. Поэтому биты сгруппированы именно по `u64`, а не например по `u8`.
+- После того как новый блок аллоцирован, сбросьте изменившийся блок самого [`Bitmap::bitmap`](../../doc/kernel/fs/block_bitmap/struct.Bitmap.html#structfield.bitmap) на диск с помощью реализованной вами функции [`BlockCache::flush_block()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.flush_block). Когда меняете метаданные, лучше сразу сбрасывать их на диск, так меньше вероятность поломки файловой системы, например, при сбое питания.
+- Искать каждый раз с самого начала [`Bitmap::bitmap`](../../doc/kernel/fs/block_bitmap/struct.Bitmap.html#structfield.bitmap) не эффективно. Лучше, например, обходить его по циклу с того места, на котором остановились в прошлый раз. Для хранения этой позиции между вызовами [`Bitmap::allocate()`](../../doc/kernel/fs/block_bitmap/struct.Bitmap.html#method.allocate) служит поле [`Bitmap::cursor`](../../doc/kernel/fs/block_bitmap/struct.Bitmap.html#structfield.cursor).
+- Проверять каждый бит тоже не эффективно. Лучше сначала найти элемент [`Bitmap::bitmap`](../../doc/kernel/fs/block_bitmap/struct.Bitmap.html#structfield.bitmap), в котором есть хотя бы один свободный бит. Поэтому биты сгруппированы именно по [`u64`](https://doc.rust-lang.org/nightly/core/primitive.u64.html), а не например по [`u8`](https://doc.rust-lang.org/nightly/core/primitive.u8.html).
 - Верните ошибку [`Error::NoDisk`](../../doc/kernel/error/enum.Error.html#variant.NoDisk), если свободных блоков не осталось.
 
 
@@ -47,9 +53,10 @@ fn Bitmap::allocate(&mut self) -> Result<usize>
 $ (cd kernel; cargo test --test 7-fs-2-bitmap)
 ...
 7_fs_2_bitmap::allocation-----------------------------
-20:37:24 0 D block_count = 8192
+19:00:01 0 D block_count = 8192
+19:00:04.863 0 D allocated_head = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; allocated_tail = [8182, 8183, 8184, 8185, 8186, 8187, 8188, 8189, 8190, 8191]
+19:00:10.693 0 D reallocated_head = [8129, 8131, 8133, 8135, 8137, 8139, 8141, 8143, 8145, 8147]; reallocated_tail = [8109, 8111, 8113, 8115, 8117, 8119, 8121, 8123, 8125, 8127]
 7_fs_2_bitmap::allocation-------------------- [passed]
-20:37:30.657 0 I exit qemu; exit_code = SUCCESS
 ```
 
 
