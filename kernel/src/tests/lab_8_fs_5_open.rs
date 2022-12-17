@@ -1,6 +1,7 @@
 extern crate alloc;
 
 use alloc::{
+    format,
     string::String,
     vec,
     vec::Vec,
@@ -160,10 +161,8 @@ fn build_list(
     let mut usage = 0;
 
     for entry in inode.list().unwrap() {
-        let mut path = String::new();
-        path.push_str(directory_path);
-        path.push('/');
-        path.push_str(entry.name());
+        let name = entry.name();
+        let path = format!("{directory_path}/{name}");
         info!(path = %&path, %entry);
         list.push(path.clone());
         usage += entry.size().next_multiple_of(BLOCK_SIZE);
@@ -188,10 +187,8 @@ fn remove_recursive(
     directory_path: &str,
 ) {
     for entry in inode.list().unwrap() {
-        let mut path = String::new();
-        path.push_str(directory_path);
-        path.push('/');
-        path.push_str(entry.name());
+        let name = entry.name();
+        let path = format!("{directory_path}/{name}");
         info!(path = %&path, %entry, "removing");
         let mut file = fs.open(&path).unwrap();
         if entry.kind() == Kind::Directory {
