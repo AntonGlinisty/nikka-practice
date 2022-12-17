@@ -36,7 +36,7 @@ pub struct FileSystem {
 
 impl FileSystem {
     pub fn mount(disk: usize) -> Result<FileSystem> {
-        let disk = Disk::list()[disk];
+        let disk = Disk::new(disk)?;
 
         BlockCache::init(disk, SUPERBLOCK_BLOCK + 1)?;
 
@@ -56,7 +56,8 @@ impl FileSystem {
         disk: usize,
         size: usize,
     ) -> Result<()> {
-        let disk = Disk::list()[disk];
+        let disk = Disk::new(disk)?;
+
         let block_count = size / BLOCK_SIZE;
 
         BlockCache::init(disk, block_count)?;

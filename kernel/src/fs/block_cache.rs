@@ -107,7 +107,7 @@ pub mod test_scaffolding {
         disk: usize,
         block_count: usize,
     ) -> Result<()> {
-        BlockCache::init(Disk::list()[disk], block_count)
+        BlockCache::init(Disk::new(disk)?, block_count)
     }
 
     pub fn cache() -> Result<Block<Page>> {

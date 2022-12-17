@@ -15,6 +15,7 @@ use ku::{
     error::{
         Error::{
             Medium,
+            NoDisk,
             Timeout,
         },
         Result,
@@ -28,40 +29,26 @@ use ku::{
 
 #[derive(Clone, Copy, Debug, Display)]
 #[display(
-    fmt = "{{ id: {}, base_port: {:#04X}, disk: {} }}",
+    fmt = "{{ id: {}, io_port: {:#04X}, io_disk: {} }}",
     id,
-    base_port,
-    disk
+    io_port,
+    io_disk
 )]
 pub(super) struct Disk {
-    base_port: u16,
-    disk: u8,
     id: u8,
+    io_disk: u8,
+    io_port: u16,
 }
 
 impl Disk {
-    fn new(
-        base_port: u16,
-        disk: u8,
-        id: u8,
-    ) -> Self {
-        Self {
-            base_port,
-            disk,
+    pub(super) fn new(id: usize) -> Result<Self> {
+        let id = id.try_into().map_err(|_| NoDisk)?;
+
+        Ok(Self {
+            io_port: Self::io_port(id)?,
+            io_disk: Self::io_disk(id),
             id,
-        }
-    }
-
-    pub(super) fn list() -> [Self; 4] {
-        const ATA0_BASE_PORT: u16 = 0x01F0;
-        const ATA1_BASE_PORT: u16 = 0x0170;
-
-        [
-            Self::new(ATA0_BASE_PORT, 0, 0),
-            Self::new(ATA0_BASE_PORT, 1, 1),
-            Self::new(ATA1_BASE_PORT, 0, 2),
-            Self::new(ATA1_BASE_PORT, 1, 3),
-        ]
+        })
     }
 
     pub(super) fn pio_read(
@@ -79,7 +66,7 @@ impl Disk {
             self.wait_ready()?;
 
             unsafe {
-                ins32(self.base_port, sector);
+                ins32(self.io_port, sector);
             }
         }
 
@@ -101,7 +88,7 @@ impl Disk {
             self.wait_ready()?;
 
             unsafe {
-                outs32(self.base_port, sector);
+                outs32(self.io_port, sector);
             }
         }
 
@@ -122,15 +109,18 @@ impl Disk {
 
         self.wait_ready()?;
 
-        io::outb(self.base_port + 2, sector_count as u8);
-        io::outb(self.base_port + 3, start_sector as u8);
-        io::outb(self.base_port + 4, (start_sector >> 8) as u8);
-        io::outb(self.base_port + 5, (start_sector >> 16) as u8);
+        io::outb(self.io_port + 2, sector_count as u8);
+        io::outb(self.io_port + 3, start_sector as u8);
+        io::outb(self.io_port + 4, (start_sector >> 8) as u8);
+        io::outb(self.io_port + 5, (start_sector >> 16) as u8);
         io::outb(
-            self.base_port + 6,
-            RESERVED_SHOULD_BE_ONES | LBA | (self.disk << 4) | ((start_sector >> 24) & 0xF) as u8,
+            self.io_port + 6,
+            RESERVED_SHOULD_BE_ONES |
+                LBA |
+                (self.io_disk << 4) |
+                ((start_sector >> 24) & 0xF) as u8,
         );
-        io::outb(self.base_port + 7, command.bits());
+        io::outb(self.io_port + 7, command.bits());
 
         Ok(())
     }
@@ -151,7 +141,7 @@ impl Disk {
         let timeout = Duration::seconds(TIMEOUT_IN_SECONDS);
 
         while last_status.is_none() || !start.has_passed(timeout) {
-            let status = Status::from_bits_truncate(unsafe { io::inb(self.base_port + 7) });
+            let status = Status::from_bits_truncate(unsafe { io::inb(self.io_port + 7) });
             last_status = Some(status);
 
             if status.contains(Status::READY) && !status.contains(Status::BUSY) {
@@ -171,6 +161,21 @@ impl Disk {
         error!(elapsed = %start.elapsed(), iterations, ?last_status, "timeout waiting for IDE");
 
         Err(Timeout)
+    }
+
+    fn io_port(id: u8) -> Result<u16> {
+        const ATA0_BASE_PORT: u16 = 0x01F0;
+        const ATA1_BASE_PORT: u16 = 0x0170;
+
+        match id / 2 {
+            0 => Ok(ATA0_BASE_PORT),
+            1 => Ok(ATA1_BASE_PORT),
+            _ => Err(NoDisk),
+        }
+    }
+
+    fn io_disk(id: u8) -> u8 {
+        id % 2
     }
 }
 
