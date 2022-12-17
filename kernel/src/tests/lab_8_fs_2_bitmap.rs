@@ -51,6 +51,12 @@ fn allocation() {
     );
 
     assert_eq!(block_bitmap.allocate(), Err(NoDisk));
+    block_bitmap.set_free(33);
+    block_bitmap.allocate().unwrap();
+    for _ in (1 ..= block_count).rev() {
+        block_bitmap.set_free(block_count - 33);
+        block_bitmap.allocate().unwrap();
+    }
 
     slice::heapsort(&mut allocated, |a, b| a < b);
     for (i, j) in allocated.iter().zip(allocated.iter().skip(1)) {
