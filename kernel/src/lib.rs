@@ -28,7 +28,10 @@ extern crate alloc;
 pub mod allocator;
 
 pub mod error;
+
+/// [Файловая система](https://en.wikipedia.org/wiki/File_system).
 pub mod fs;
+
 pub mod log;
 
 /// Здесь находится часть работы с памятью, которая происходит только в ядре.

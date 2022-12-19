@@ -27,6 +27,7 @@ use ku::{
     time,
 };
 
+/// [PATA](https://en.wikipedia.org/wiki/Parallel_ATA)--диск.
 #[derive(Clone, Copy, Debug, Display)]
 #[display(
     fmt = "{{ id: {}, io_port: {:#04X}, io_disk: {} }}",
@@ -35,12 +36,19 @@ use ku::{
     io_disk
 )]
 pub(super) struct Disk {
+    /// Идентификатор диска --- `0 .. 4`.
     id: u8,
+
+    /// Идентификатор диска,
+    /// передаваемый в [порт ввода--вывода](https://wiki.osdev.org/Port_IO) при операциях с ним.
     io_disk: u8,
+
+    /// Базовый [порт ввода--вывода](https://wiki.osdev.org/Port_IO) для операций с диском.
     io_port: u16,
 }
 
 impl Disk {
+    /// Возвращает диск с заданным `id`.
     pub(super) fn new(id: usize) -> Result<Self> {
         let id = id.try_into().map_err(|_| NoDisk)?;
 
@@ -51,6 +59,9 @@ impl Disk {
         })
     }
 
+    /// Читает с диска диапазон секторов `sectors` размера [`SECTOR_SIZE`]
+    /// в буфер `buffer` методом
+    /// [программного ввода--вывода](https://en.wikipedia.org/wiki/Programmed_input%E2%80%93output).
     pub(super) fn pio_read(
         &self,
         sectors: Range<usize>,
@@ -73,6 +84,9 @@ impl Disk {
         Ok(())
     }
 
+    /// Записывает на диск диапазон секторов `sectors` размера [`SECTOR_SIZE`]
+    /// из буфера `buffer` методом
+    /// [программного ввода--вывода](https://en.wikipedia.org/wiki/Programmed_input%E2%80%93output).
     pub(super) fn pio_write(
         &self,
         sectors: Range<usize>,
@@ -95,13 +109,20 @@ impl Disk {
         Ok(())
     }
 
+    /// Посылает в диск команду `command` для
+    /// [программного ввода--вывода](https://en.wikipedia.org/wiki/Programmed_input%E2%80%93output)
+    /// `sector_count` секторов начиная с сектора номер `start_sector`.
     unsafe fn send_command(
         &self,
         command: Command,
         start_sector: usize,
         sector_count: usize,
     ) -> Result<()> {
+        /// Выбирает режим логической адресации блоков диска
+        /// ([Logical block addressing](https://en.wikipedia.org/wiki/Logical_block_addressing), LBA).
         const LBA: u8 = 1 << 6;
+
+        /// Зарезервированные биты, которые должны быть выставлены в `1`.
         const RESERVED_SHOULD_BE_ONES: u8 = (1 << 5) | (1 << 7);
 
         assert!(start_sector < (1 << 24));
@@ -125,8 +146,10 @@ impl Disk {
         Ok(())
     }
 
+    /// Ожидает готовности диска к приёму команды.
     fn wait_ready(&self) -> Result<()> {
         bitflags! {
+            /// Регистр статуса.
             struct Status: u8 {
                 const ERROR = 1 << 0;
                 const FAILURE = 1 << 5;
@@ -163,8 +186,15 @@ impl Disk {
         Err(Timeout)
     }
 
+    /// Базовый [порт ввода--вывода](https://wiki.osdev.org/Port_IO)
+    /// для операций с диском имеющим порядковый номер `id`.
     fn io_port(id: u8) -> Result<u16> {
+        /// Базовый порт первого и второго
+        /// [PATA](https://en.wikipedia.org/wiki/Parallel_ATA)--диска.
         const ATA0_BASE_PORT: u16 = 0x01F0;
+
+        /// Базовый порт третьего и четвёртого
+        /// [PATA](https://en.wikipedia.org/wiki/Parallel_ATA)--диска.
         const ATA1_BASE_PORT: u16 = 0x0170;
 
         match id / 2 {
@@ -174,11 +204,15 @@ impl Disk {
         }
     }
 
+    /// Идентификатор диска,
+    /// передаваемый в [порт ввода--вывода](https://wiki.osdev.org/Port_IO)
+    /// для операций с диском имеющим порядковый номер `id`.
     fn io_disk(id: u8) -> u8 {
         id % 2
     }
 }
 
+/// Записывает в порт ввода--вывода номер `port` данные из буфера `buffer`.
 unsafe fn outs32(
     port: u16,
     buffer: &[u32],
@@ -195,6 +229,7 @@ unsafe fn outs32(
     );
 }
 
+/// Читает из порта ввода--вывода номер `port` данные в буфер `buffer`.
 unsafe fn ins32(
     port: u16,
     buffer: &mut [u32],
@@ -211,15 +246,21 @@ unsafe fn ins32(
     );
 }
 
+/// Размер сектора [PATA](https://en.wikipedia.org/wiki/Parallel_ATA)--диска.
 pub(super) const SECTOR_SIZE: usize = 1 << 9;
 
+/// Тайм-аут ожидания готовности диска к приёму команды в секундах.
 const TIMEOUT_IN_SECONDS: i64 = 10;
 
 const_assert!(SECTOR_SIZE % mem::size_of::<u32>() == 0);
 
 bitflags! {
+    /// [PATA](https://en.wikipedia.org/wiki/Parallel_ATA)--команда работы с диском.
     struct Command: u8 {
+        /// Чтение диапазона секторов с диска.
         const READ = 0x20;
+
+        /// Запись диапазона секторов на диск.
         const WRITE = 0x30;
     }
 }

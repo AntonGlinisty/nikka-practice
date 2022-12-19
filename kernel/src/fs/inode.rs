@@ -42,29 +42,55 @@ use super::{
     directory_entry::DirectoryEntry,
 };
 
+// Used in docs.
+#[allow(unused)]
+use ku::error::Error;
+
+/// Тип объекта с данными --- [inode](https://en.wikipedia.org/wiki/Inode).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[repr(usize)]
 pub enum Kind {
+    /// Свободный [inode](https://en.wikipedia.org/wiki/Inode).
     #[default]
     Unused = 0,
+
+    /// Файл.
     File = 1,
+
+    /// Директория.
     Directory = 2,
 }
 
+/// Метаинформация об объекте с данными --- [inode](https://en.wikipedia.org/wiki/Inode).
 #[derive(Debug, Default)]
 #[repr(C)]
 pub(super) struct Inode {
+    /// Тип объекта с данными --- свободный, файл или директория.
     kind: Kind,
+
+    /// Время последней модификации [`Inode`].
     modify_time: DateTime<Utc>,
+
+    /// Размер данных в байтах.
     size: usize,
+
+    /// Лес, отвечающий за отображение блоков [`Inode`]
+    /// в номера блоков файловой системы.
     root_blocks: [usize; MAX_HEIGHT],
 }
 
 impl Inode {
+    /// Тип объекта с данными --- свободный, файл или директория.
     pub(super) fn kind(&self) -> Kind {
         self.kind
     }
 
+    /// Устанавливает тип объекта с данными --- свободный, файл или директория.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если `kind` соответствует занятому [`Inode`],
+    /// но он уже занят.
     pub(super) fn set_kind(
         &mut self,
         kind: Kind,
@@ -73,6 +99,7 @@ impl Inode {
         self.kind = kind;
     }
 
+    /// Удаляет [`Inode`].
     pub(super) fn remove(
         &mut self,
         block_bitmap: &mut Bitmap,
@@ -84,10 +111,18 @@ impl Inode {
         Ok(())
     }
 
+    /// Размер данных в байтах.
     pub(super) fn size(&self) -> usize {
         self.size
     }
 
+    /// Устанавливает размер данных в байтах.
+    /// Если файл расширяется, то новые блоки с данными содержат нули.
+    /// При необходимости выделяет или освобождает блоки через `block_bitmap`.
+    /// Обновляет время последней модификации [`Inode`].
+    ///
+    /// Если новый размер `size` равен нулю, должен освободить все косвенные блоки,
+    /// используемые в [`Inode::root_blocks`].
     pub(super) fn set_size(
         &mut self,
         size: usize,
@@ -97,6 +132,7 @@ impl Inode {
         unimplemented!();
     }
 
+    /// Возвращает максимальный размер в байтах, которые может иметь файл.
     pub(super) fn max_size() -> usize {
         let max_blocks = (0 .. MAX_HEIGHT as u32)
             .map(|height| INDIRECT_BLOCK_ARITY.pow(height))
@@ -106,10 +142,13 @@ impl Inode {
         max_blocks * BLOCK_SIZE
     }
 
+    /// Время последней модификации [`Inode`].
     pub(super) fn modify_time(&self) -> DateTime<Utc> {
         self.modify_time
     }
 
+    /// Находит занятую запись с именем `name` в директории.
+    /// Возвращает ошибку [`Error::FileNotFound`], если такой записи нет.
     pub(super) fn find(
         &mut self,
         name: &str,
@@ -123,6 +162,13 @@ impl Inode {
         })
     }
 
+    /// Вставляет в директорию запись с именем `name` и типом `kind`.
+    /// Обновляет как время модификации выделенной записи, так и время модификации самой директории.
+    ///
+    /// Возвращает ошибки:
+    ///
+    /// - [`Error::FileExists`] если запись с таким именем уже есть.
+    /// - [`Error::InvalidArgument`] если `kind` равен [`Kind::Unused`].
     pub(super) fn insert(
         &mut self,
         name: &str,
@@ -133,12 +179,23 @@ impl Inode {
         unimplemented!();
     }
 
+    /// Возвращает итератор по занятым записям директории.
     pub(super) fn list(&mut self) -> Result<List> {
         Ok(List(
             self.iter()?.filter(|entry| entry.inode().kind() != Kind::Unused),
         ))
     }
 
+    /// Читает из файла по смещению `offset` в буфер `buffer` столько байт,
+    /// сколько остаётся до конца файла или до конца буфера.
+    ///
+    /// Возвращает количество прочитанных байт.
+    /// Если `offset` равен размеру файла, возвращает `0` прочитанных байт.
+    ///
+    /// Возвращает ошибки:
+    ///
+    /// - [`Error::NotFile`] если [`Inode`] не является файлом.
+    /// - [`Error::InvalidArgument`] если `offset` превышает размер файла.
     pub(super) fn read(
         &mut self,
         offset: usize,
@@ -148,6 +205,13 @@ impl Inode {
         unimplemented!();
     }
 
+    /// Записывает в файл по смещению `offset` байты из буфера `buffer`.
+    /// При необходимости расширяет размер файла.
+    ///
+    /// Возвращает количество записанных байт.
+    /// Если `offset` превышает размер файла, расширяет файл нулями до заданного `offset`.
+    ///
+    /// Возвращает ошибку [`Error::NotFile`] если [`Inode`] не является файлом.
     pub(super) fn write(
         &mut self,
         offset: usize,
@@ -158,6 +222,10 @@ impl Inode {
         unimplemented!();
     }
 
+    /// Находит занятую запись с именем `name` в директории.
+    /// Если такой записи нет, возвращает свободную запись --- `Kind::Unused`.
+    /// Если и таких нет, и при этом `block_bitmap` является [`Some`],
+    /// пробует расширить директорию и вернуть новую свободную запись.
     fn find_entry(
         &mut self,
         name: &str,
@@ -167,6 +235,7 @@ impl Inode {
         unimplemented!();
     }
 
+    /// Возвращает итератор по всем записям директории, --- и занятым, и свободным.
     fn iter(&mut self) -> Result<Iter> {
         if self.kind == Kind::Directory {
             assert_eq!(self.size % BLOCK_SIZE, 0);
@@ -182,6 +251,18 @@ impl Inode {
         }
     }
 
+    /// По номеру блока `inode_block_number` внутри данных [`Inode`]
+    /// возвращает ссылку на запись из метаданных этого [`Inode`].
+    /// Эта запись предназначена для номера блока на диске,
+    /// хранящего указанный блок данных [`Inode`].
+    /// С помощью этого метода происходит отображение смещения внутри данных файла
+    /// в номер блока на диске, хранящего эти данные.
+    /// Номер `inode_block_number` равен смещению внутри данных файла,
+    /// делённому на размер блока [`BLOCK_SIZE`].
+    ///
+    /// Если при обходе леса отображения блоков `Inode::root_blocks`
+    /// встречается не выделенный косвенный блок, пробует выделить его с помощью `block_bitmap`.
+    /// Если при этом `block_bitmap` равен [`None`], возвращает ошибку [`Error::NoDisk`].
     fn block_entry(
         &mut self,
         inode_block_number: usize,
@@ -191,14 +272,17 @@ impl Inode {
         unimplemented!();
     }
 
+    /// Возвращает блок в памяти блочного кэша,
+    /// где хранится блок `inode_block_number` внутри данных [`Inode`].
     fn block(
         &mut self,
-        number: usize,
+        inode_block_number: usize,
     ) -> Result<Block<Virt>> {
-        assert!(number < self.size.div_ceil(BLOCK_SIZE));
-        BlockCache::block(*self.block_entry(number, None)?)
+        assert!(inode_block_number < self.size.div_ceil(BLOCK_SIZE));
+        BlockCache::block(*self.block_entry(inode_block_number, None)?)
     }
 
+    /// Расширяет директорию свободными записями на один блок.
     fn extend(
         &mut self,
         block_bitmap: &mut Bitmap,
@@ -223,10 +307,18 @@ impl fmt::Display for Inode {
     }
 }
 
+/// Итератор по всем записям директории, --- и занятым, и свободным.
 pub(super) struct Iter<'a> {
+    /// Блок в памяти блочного кэша, внутри которого находится текущая позиция итератора.
     block: Block<Virt>,
+
+    /// Номер блока внутри данных [`Inode`] для текущей позиции итератора.
     block_number: usize,
+
+    /// Индекс [`DirectoryEntry`] внутри блока для текущей позиции итератора.
     entry: usize,
+
+    /// [`Inode`] самой директории.
     inode: &'a mut Inode,
 }
 
@@ -239,6 +331,7 @@ impl<'a> Iterator for Iter<'a> {
     }
 }
 
+/// Итератор по занятым записям директории.
 pub(super) struct List<'a>(Filter<Iter<'a>, fn(&&mut DirectoryEntry) -> bool>);
 
 impl<'a> Iterator for List<'a> {
@@ -249,6 +342,10 @@ impl<'a> Iterator for List<'a> {
     }
 }
 
+/// Вспомогательная функция для обхода леса отображения блоков [`Inode`].
+/// По заданному количеству `tree_count` деревьев в лесу и номеру блока с данными `leaf_number`
+/// выдает кортеж с номером нужного дерева, количеством листьев в этом дереве и номером листа
+/// в этом дереве, который соответствует листу `leaf_number` леса.
 #[allow(unused_mut)] // TODO: remove before flight.
 fn find_tree(
     tree_count: usize,
@@ -258,6 +355,10 @@ fn find_tree(
     unimplemented!();
 }
 
+/// Удаляет из леса отображения блоков [`Inode`] дерево или поддерево,
+/// на которое указывает запись `node`.
+/// Высота поддерева передаётся в `height`.
+/// Освобождаемые косвенные блоки передаются в `block_bitmap`.
 fn remove_tree(
     node: &mut usize,
     height: usize,
@@ -267,6 +368,10 @@ fn remove_tree(
     unimplemented!();
 }
 
+/// Обходит лес `forest` в поисках листа с координатами `leaf_coordinates`.
+/// Возвращает ссылку на запись с номером соответствующего блока данных [`Inode`],
+/// хранящуюся в самом [`Inode`] или в его косвенном блоке.
+/// При необходимости выделяет косвенные блоки --- узлы дерева --- из `block_bitmap`.
 #[allow(unused_mut)] // TODO: remove before flight.
 fn traverse_tree<'a>(
     mut node: &'a mut usize,
@@ -279,6 +384,9 @@ fn traverse_tree<'a>(
     unimplemented!();
 }
 
+/// Возвращает срез потомков узла `node` в лесу отображения блоков [`Inode`].
+/// При необходимости, то есть когда `*node` равен [`NO_BLOCK`],
+/// выделяет косвенный блок для них из `block_bitmap` и заполняет его записями [`NO_BLOCK`].
 fn next_level<'a>(
     node: &'a mut usize,
     block_bitmap: &mut Option<&mut Bitmap>,
@@ -290,8 +398,13 @@ fn next_level<'a>(
 const_assert!(BLOCK_SIZE % mem::size_of::<usize>() == 0);
 const_assert!(BLOCK_SIZE % mem::size_of::<Inode>() == 0);
 
+/// Арность дерева отображения блоков.
 const INDIRECT_BLOCK_ARITY: usize = BLOCK_SIZE / mem::size_of::<usize>();
+
+/// Максимальная высота дерева отображения блоков.
 const MAX_HEIGHT: usize = 4;
+
+/// Зарезервированный номер блока, означающий что блок не выделен.
 const NO_BLOCK: usize = 0;
 
 #[doc(hidden)]
