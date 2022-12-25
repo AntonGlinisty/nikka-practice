@@ -61,32 +61,32 @@ bitflags! {
         /// Код для [`Result::Ok`].
         const OK = 0;
 
+        /// Код для всех ошибок, которые не должны возвращаться из системных вызовов.
+        const UNEXPECTED = 1;
+
         /// Код для [`Error::InvalidArgument`].
-        const INVALID_ARGUMENT = 1;
+        const INVALID_ARGUMENT = 2;
 
         /// Код для [`Error::NoFrame`].
-        const NO_FRAME = 2;
+        const NO_FRAME = 3;
 
         /// Код для [`Error::NoPage`].
-        const NO_PAGE = 3;
+        const NO_PAGE = 4;
 
         /// Код для [`Error::NoProcess`].
-        const NO_PROCESS = 4;
+        const NO_PROCESS = 5;
 
         /// Код для [`Error::NoProcessSlot`].
-        const NO_PROCESS_SLOT = 5;
+        const NO_PROCESS_SLOT = 6;
 
         /// Код для [`Error::Null`].
-        const NULL = 6;
+        const NULL = 7;
 
         /// Код для [`Error::Overflow`].
-        const OVERFLOW = 7;
+        const OVERFLOW = 8;
 
         /// Код для [`Error::PermissionDenied`].
-        const PERMISSION_DENIED = 8;
-
-        /// Код для всех ошибок, которые не должны возвращаться из системных вызовов.
-        const UNEXPECTED = 9;
+        const PERMISSION_DENIED = 9;
 
         /// Код для [`Error::Unimplemented`].
         const UNIMPLEMENTED = 10;
