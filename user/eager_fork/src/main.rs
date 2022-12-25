@@ -28,7 +28,6 @@ use ku::{
         },
     },
     process::{
-        self,
         Pid,
         State,
     },
@@ -57,7 +56,7 @@ fn fork_tree(
     suffix: char,
 ) {
     name.push(suffix).unwrap();
-    pedigree.push(process::pid()).unwrap();
+    pedigree.push(ku::process_info().pid()).unwrap();
 
     info!(
         name = name.as_str(),

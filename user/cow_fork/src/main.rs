@@ -30,7 +30,6 @@ use ku::{
         },
     },
     process::{
-        self,
         ExitCode,
         Info,
         Pid,
@@ -66,7 +65,7 @@ fn fork_tree(
     trap_handler_stack: Block<Page>,
 ) {
     name.push(suffix).unwrap();
-    pedigree.push(process::pid()).unwrap();
+    pedigree.push(ku::process_info().pid()).unwrap();
 
     info!(
         name = name.as_str(),

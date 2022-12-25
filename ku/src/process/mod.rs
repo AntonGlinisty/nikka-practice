@@ -34,7 +34,3 @@ bitflags! {
         const RUNNING = 2;
     }
 }
-
-pub fn pid() -> Pid {
-    super::process_info().pid()
-}
