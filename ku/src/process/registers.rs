@@ -86,6 +86,7 @@ impl fmt::Display for RFlags {
         &self,
         formatter: &mut fmt::Formatter,
     ) -> fmt::Result {
+        /// Общепринятые сокращения для битов регистра флагов.
         static FLAGS: [&str; 22] = [
             "CF",
             "",

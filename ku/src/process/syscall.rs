@@ -6,43 +6,92 @@ use crate::error::{
 use bitflags::bitflags;
 
 bitflags! {
+    /// Код выхода пользовательской программы, передаваемый в `syscall::exit()`.
     pub struct ExitCode: usize {
+        /// Пользовательская программа завершилась успешно.
         const OK = 0;
+
+        /// Пользовательская программа запаниковала.
         const PANIC = 1;
+
+        /// Пользовательская программа выполнила несуществующий системный вызов.
         const UNIMPLEMENTED_SYSCALL = 2;
     }
 }
 
 bitflags! {
+    /// Номера системных вызовов.
     pub struct Syscall: usize {
+        /// Номер системного вызова `exit()`.
         const EXIT = 0;
+
+        /// Номер системного вызова `log_value()`.
         const LOG_VALUE = 1;
+
+        /// Номер системного вызова `sched_yield()`.
         const SCHED_YIELD = 2;
+
+        /// Номер системного вызова `sched_exofork()`.
         const EXOFORK = 3;
+
+        /// Номер системного вызова `map()`.
         const MAP = 4;
+
+        /// Номер системного вызова `unmap()`.
         const UNMAP = 5;
+
+        /// Номер системного вызова `copy_mapping()`.
         const COPY_MAPPING = 6;
+
+        /// Номер системного вызова `set_state()`.
         const SET_STATE = 7;
+
+        /// Номер системного вызова `set_trap_handler()`.
         const SET_TRAP_HANDLER = 8;
     }
 }
 
+/// Данные, возвращаемые из системных вызовов.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SyscallResult(pub usize);
 
 bitflags! {
+    /// Код ошибки, возвращаемый из системных вызовов.
     pub struct ResultCode: usize {
+        /// Код для [`Result::Ok`].
         const OK = 0;
+
+        /// Код для [`Error::InvalidArgument`].
         const INVALID_ARGUMENT = 1;
+
+        /// Код для [`Error::NoFrame`].
         const NO_FRAME = 2;
+
+        /// Код для [`Error::NoPage`].
         const NO_PAGE = 3;
+
+        /// Код для [`Error::NoProcess`].
         const NO_PROCESS = 4;
+
+        /// Код для [`Error::NoProcessSlot`].
         const NO_PROCESS_SLOT = 5;
+
+        /// Код для [`Error::Null`].
         const NULL = 6;
+
+        /// Код для [`Error::Overflow`].
         const OVERFLOW = 7;
+
+        /// Код для [`Error::PermissionDenied`].
         const PERMISSION_DENIED = 8;
+
+        /// Код для всех ошибок, которые не должны возвращаться из системных вызовов.
         const UNEXPECTED = 9;
+
+        /// Код для [`Error::Unimplemented`].
         const UNIMPLEMENTED = 10;
+
+        /// Код для [`Error::InvalidAlignment`].
         const INVALID_ALIGNMENT = 11;
     }
 }

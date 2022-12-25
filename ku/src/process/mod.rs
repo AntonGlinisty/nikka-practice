@@ -1,7 +1,19 @@
+#![warn(clippy::missing_docs_in_private_items)]
+#![warn(missing_docs)]
+
+/// Минимальная информация о контексте исполнения.
 pub mod mini_context;
+
+/// Идентификатор процесса.
 pub mod pid;
+
+/// Операции с [регистром флагов](https://en.wikipedia.org/wiki/FLAGS_register).
 pub mod registers;
+
+/// Константы для работы с системными вызовами.
 pub mod syscall;
+
+/// Информация об исключении процессора.
 pub mod trap_info;
 
 use bitflags::bitflags;

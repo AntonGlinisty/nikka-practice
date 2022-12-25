@@ -3,12 +3,22 @@ use core::fmt;
 use bitflags::bitflags;
 
 bitflags! {
-    /// https://wiki.osdev.org/Exceptions#Error_code
+    /// [Причина некорректности](https://wiki.osdev.org/Exceptions#Error_code)
+    /// обращения к странице виртуальной памяти.
     pub struct PageFaultInfo: usize {
+        /// Страница отображена, но нарушены флаги доступа к ней.
         const PRESENT = 1 << 0;
+
+        /// Обращение на запись (не обязательно недопустимое).
         const WRITE = 1 << 1;
+
+        /// Обращение из пространства пользователя (не обязательно недопустимое).
         const USER = 1 << 2;
+
+        /// Таблица страниц содержит некорректные данные --- есть `1` в зарезервированном бите.
         const RESERVED = 1 << 3;
+
+        /// Недопустимое выполнение кода.
         const EXECUTE = 1 << 4;
     }
 }

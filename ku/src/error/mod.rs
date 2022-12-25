@@ -6,31 +6,79 @@ use core::{
 
 use super::pipe;
 
+/// Перечисление для возможных ошибок.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Error {
+    /// Ошибка загрузки [ELF--файла](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format).
     Elf(&'static str),
+
+    /// Файл уже существует.
     FileExists,
+
+    /// Файла не существует.
     FileNotFound,
+
+    /// Ошибка форматирования сообщения.
     Fmt(fmt::Error),
+
+    /// Заданное целое значение не помещается в указанный тип.
     Int(TryFromIntError),
+
+    /// Неверное выравнивание.
     InvalidAlignment,
+
+    /// Задано недопустимое значение аргумента.
     InvalidArgument,
+
+    /// Local APIC вернул ошибку.
     LocalApic,
+
+    /// Ошибка на устройстве хранения данных.
     Medium,
+
+    /// На данный момент данных нет.
     NoData,
+
+    /// Нет такого устройства хранения данных.
     NoDisk,
+
+    /// Нет свободного физического фрейма памяти.
     NoFrame,
+
+    /// Нет заданной страницы виртуальной памяти.
     NoPage,
+
+    /// Нет заданного процесса.
     NoProcess,
+
+    /// Нет свободного слота в таблице процессов.
     NoProcessSlot,
+
+    /// Заданный путь содержит объект, не являющийся директорией.
     NotDirectory,
+
+    /// Заданный путь указывает на объект, не являющийся файлом.
     NotFile,
+
+    /// Попытка разыменовать нулевой указатель.
     Null,
+
+    /// Возникло переполнение.
     Overflow,
+
+    /// Нарушение прав доступа.
     PermissionDenied,
+
+    /// Ошибка кольцевого буфера --- [`pipe::Error`].
     Pipe(pipe::Error),
+
+    /// Ошибка библиотеки [`postcard`] --- [`postcard::Error`].
     Postcard(postcard::Error),
+
+    /// Истёк тайм-аут.
     Timeout,
+
+    /// Запрошенная функциональность не реализована.
     Unimplemented,
 }
 
@@ -58,4 +106,6 @@ impl From<postcard::Error> for Error {
     }
 }
 
+/// Тип возвращаемого результата `T` или ошибки [`Error`] ---
+/// мономорфизация [`result::Result`] по типу ошибки.
 pub type Result<T> = result::Result<T, Error>;

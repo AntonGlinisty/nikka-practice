@@ -214,28 +214,35 @@ bitflags! {
     }
 }
 
+/// Флаги для страниц, доступных ядру только на чтение.
 pub const KERNEL_R: PageTableFlags =
     PageTableFlags::from_bits_truncate(PageTableFlags::PRESENT.bits());
 
+/// Флаги для страниц, доступных ядру на чтение и запись.
 pub const KERNEL_RW: PageTableFlags =
     PageTableFlags::from_bits_truncate(KERNEL_R.bits() | PageTableFlags::WRITABLE.bits());
 
+/// Шаблон флагов для страниц, доступных коду пользователя.
 pub const USER: PageTableFlags = PageTableFlags::from_bits_truncate(
     PageTableFlags::PRESENT.bits() | PageTableFlags::USER_ACCESSIBLE.bits(),
 );
 
+/// Флаги для страниц, доступных коду пользователя только на чтение.
 pub const USER_R: PageTableFlags =
     PageTableFlags::from_bits_truncate(KERNEL_R.bits() | PageTableFlags::USER_ACCESSIBLE.bits());
 
+/// Флаги для страниц, доступных коду пользователя на чтение и запись.
 pub const USER_RW: PageTableFlags =
     PageTableFlags::from_bits_truncate(KERNEL_RW.bits() | PageTableFlags::USER_ACCESSIBLE.bits());
 
+/// Шаблон флагов для страниц, не ограничивающий доступ.
 pub const FULL_ACCESS: PageTableFlags = PageTableFlags::from_bits_truncate(
     PageTableFlags::PRESENT.bits() |
         PageTableFlags::WRITABLE.bits() |
         PageTableFlags::USER_ACCESSIBLE.bits(),
 );
 
+/// Шаблон флагов для страниц, который пользователь может задавать в системных вызовах.
 pub const SYSCALL_ALLOWED_FLAGS: PageTableFlags =
     PageTableFlags::from_bits_truncate(USER_RW.bits() | PageTableFlags::COPY_ON_WRITE.bits());
 

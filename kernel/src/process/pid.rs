@@ -35,7 +35,10 @@ impl Pid {
     /// Максимальное поддерживаемое [`Pid`] количество одновременно работающих процессов.
     pub const MAX_COUNT: usize = (1 << Self::EPOCH_SHIFT);
 
+    /// Сдвиг для значения [`Pid::Id::epoch`] при сериализации и десериализации [`Pid`] в [`usize`].
     const EPOCH_SHIFT: u32 = u16::BITS;
+
+    /// Сдвиг для значения [`Pid::Id::slot`] при сериализации и десериализации [`Pid`] в [`usize`].
     const SLOT_MASK: usize = Self::MAX_COUNT - 1;
 
     /// Создаёт [`Pid`] с начальным значением [`Pid::Id::epoch`] для заданного `slot`.
