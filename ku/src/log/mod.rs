@@ -56,16 +56,38 @@ pub use tracing::{
     warn,
 };
 
+// Used in docs.
+#[allow(unused)]
+use crate as ku;
+
+/// Структура для сериализации метаданных сообщения журнала, соответствует [`tracing::Metadata`].
+///
+/// Требуется, так как [`tracing::Metadata`] не реализует
+/// типажи [`serde::Serialize`] и [`serde::Deserialize`].
+/// Дополнительно снабжает метаданные сообщения отметкой времени.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct LogMetadata<'a> {
+    /// Исходный файл, где содержится вызов макроса, записавшего сообщение.
     file: Option<&'a str>,
+
+    /// Строка исходного файла, где содержится вызов макроса, записавшего сообщение.
     line: Option<u32>,
+
+    /// Уровень журналирования сообщения.
     level: char,
+
+    /// Строка, описывающая часть программы, из которой сообщение было записано в журнал.
+    /// По умолчанию --- имя модуля.
+    /// Соответствует [`tracing::Metadata::target()`].
     target: &'a str,
+
+    /// Отметка времени сообщения.
     timestamp: Tsc,
 }
 
 impl<'a> LogMetadata<'a> {
+    /// Переводит метаданные `metadata` библиотеки [`tracing`] и отметку времени `timestamp`
+    /// в сериализуемые метаданные [`LogMetadata`].
     pub fn new(
         metadata: &Metadata<'a>,
         timestamp: Tsc,
@@ -79,55 +101,84 @@ impl<'a> LogMetadata<'a> {
         }
     }
 
+    /// Исходный файл, где содержится вызов макроса, записавшего сообщение.
     pub fn file(&self) -> Option<&'a str> {
         self.file
     }
 
+    /// Строка исходного файла, где содержится вызов макроса, записавшего сообщение.
     pub fn line(&self) -> Option<u32> {
         self.line
     }
 
+    /// Уровень журналирования сообщения.
     pub fn level(&self) -> Result<Level> {
         level_try_from_symbol(self.level)
     }
 
+    /// Строка, описывающая часть программы, из которой сообщение было записано в журнал.
+    /// По умолчанию --- имя модуля.
+    /// Соответствует [`tracing::Metadata::target()`].
     pub fn target(&self) -> &'a str {
         self.target
     }
 
+    /// Отметка времени сообщения.
     pub fn timestamp(&self) -> Tsc {
         self.timestamp
     }
 }
 
+/// Поле сообщения с именем и значением, соответствует [`tracing::field::Field`].
+/// Требуется, так как [`tracing::field::Field`] не реализует
+/// типажи [`serde::Serialize`] и [`serde::Deserialize`].
 #[derive(Debug, Deserialize)]
 pub struct LogField<'a>(#[serde(borrow)] &'a str, #[serde(borrow)] LogFieldValue<'a>);
 
 impl LogField<'_> {
+    /// Имя поля сообщения.
     pub fn name(&self) -> &str {
         self.0
     }
 
+    /// Значение поля сообщения.
     pub fn value(&self) -> &LogFieldValue<'_> {
         &self.1
     }
 }
 
+/// Значение поля сообщения.
 #[derive(Debug, Deserialize, Serialize)]
 pub enum LogFieldValue<'a> {
+    /// Булево значение.
     Bool(bool),
+
+    /// Знаковое целочисленное значение.
     I64(i64),
+
+    /// Строковое значение.
     Str(&'a str),
+
+    /// Беззнаковое целочисленное значение.
     U64(u64),
+
+    /// Для значений остальных типов --- список строковых фрагментов, которые выдала
+    /// соответствующая реализация [`core::fmt::Debug::fmt()`] при форматировании этого значения.
     VecStr,
 }
 
+/// Процесс сериализации одного сообщения журнала.
 struct LogEvent<'a> {
+    /// Сериализатор.
     serializer: postcard::Serializer<LogBuffer<'a>>,
+
+    /// Результат сериализации.
     result: Result<()>,
 }
 
 impl LogEvent<'_> {
+    /// Записывает сообщение `event` с отметкой времени `timestamp`
+    /// в [`ku::info::ProcessInfo::log()`].
     fn record_event(
         event: &Event<'_>,
         timestamp: Tsc,
@@ -150,6 +201,7 @@ impl LogEvent<'_> {
         Ok(())
     }
 
+    /// Сериализует заголовок сообщения `event` с отметкой временем `timestamp`.
     fn record_header(
         &mut self,
         event: &Event<'_>,
@@ -164,6 +216,7 @@ impl LogEvent<'_> {
         Ok(())
     }
 
+    /// Сериализует поле сообщения `field` со значением `value`.
     fn record_field(
         &mut self,
         field: &Field,
@@ -179,6 +232,7 @@ impl LogEvent<'_> {
         Ok(())
     }
 
+    /// Сериализует значение `value` поля сообщения через [`core::fmt::Debug::fmt()`].
     fn record_vec_str(
         &mut self,
         value: &dyn fmt::Debug,
@@ -192,6 +246,8 @@ impl LogEvent<'_> {
         Ok(())
     }
 
+    /// Записывает один фрагмент `text` поля сообщения
+    /// при сериализации через [`core::fmt::Debug::fmt()`].
     fn record_vec_element(
         &mut self,
         text: &str,
@@ -203,6 +259,8 @@ impl LogEvent<'_> {
         Ok(())
     }
 
+    /// Запоминает первую ошибку, возникшую в процессе сериализации.
+    /// Если `result` не содержит ошибку, ничего не делает.
     fn set_result(
         &mut self,
         result: Result<()>,
@@ -212,6 +270,7 @@ impl LogEvent<'_> {
         }
     }
 
+    /// Возвращает [`Ok`] или возникшую в процессе сериализации ошибку.
     fn is_ok_so_far(&self) -> Result<()> {
         if self.serializer.output.result.is_err() {
             self.serializer.output.result?;
@@ -290,13 +349,20 @@ impl Write for LogEvent<'_> {
     }
 }
 
+/// Структура для записи префикса сообщения, которое не влезает в буфер целиком.
 struct PlanB<const N: usize> {
+    /// Буфер под строковое представление префикса сообщения.
     log_message: String<N>,
+
+    /// Признак того, что буфер [`PlanB::log_message`] уже переполнен.
     overflow: bool,
+
+    /// Признак того, что нужно записать разделитель полей после ранее записанного поля.
     separator: bool,
 }
 
 impl<const N: usize> PlanB<N> {
+    /// Записывает префикс сообщения `event` в виде строки ограниченной длины.
     fn record_event(event: &Event<'_>) -> String<N> {
         let mut plan_b = Self {
             log_message: String::new(),
@@ -309,6 +375,7 @@ impl<const N: usize> PlanB<N> {
         plan_b.log_message
     }
 
+    /// Сериализует поле сообщения `field` со значением `value` через [`core::fmt::Debug::fmt()`].
     fn record_field(
         &mut self,
         field: &Field,
@@ -352,18 +419,42 @@ impl<const N: usize> Write for PlanB<N> {
     }
 }
 
+/// Сборщик сообщений журнала.
 pub struct LogCollector {
+    /// Функция сброса буфера накопленных сообщений.
+    /// Обычно это `syscall::sched_yield()`, так как за сброс буфера отвечает ядро.
     flush: Cell<Option<fn()>>,
+
+    /// Текущий уровень журналирования.
     level: Level,
+
+    /// Количество потерянных сообщений с момента предыдущего служебного сообщения о таких потерях.
     lost_recently: Cell<usize>,
+
+    /// Количество потерянных сообщений за всё время.
     lost_totally: Cell<usize>,
+
+    /// Количество потерянных сообщений, для которых к тому же провалился
+    /// первый запасной вариант --- запись в журнал префикса сообщения фиксированной длины.
     plan_b_failures: Cell<usize>,
+
+    /// Количество потерянных сообщений, для которых к тому же провалились оба запасных варианта.
+    /// Первый запасной вариант записывает в журнал префикс сообщения фиксированной длины,
+    /// второй запасной вариант --- только метаданные потерянного сообщения.
     plan_c_failures: Cell<usize>,
+
+    /// Уровень вложенности текущей операции записи сообщения.
+    /// В момент обработки записи сообщения, возможна попытка записать ещё одно сообщения.
+    /// Поле [`LogCollector::recursion`] позволяет отсечь бесконечную рекурсию в этом случае.
     recursion: Cell<usize>,
+
+    /// Количество потерянных сообщений в текущем наборе рекурсивных вызовов журналирования.
     recursive_failure: Cell<usize>,
 }
 
 impl LogCollector {
+    /// Создаёт сборщик сообщений журнала, записывающий в [`ku::info::ProcessInfo::log()`]
+    /// сообщения с уровнем журналирования `level` и выше.
     const fn new(level: Level) -> Self {
         LogCollector {
             flush: Cell::new(None),
@@ -377,6 +468,7 @@ impl LogCollector {
         }
     }
 
+    /// Устанавливает функцию `flush` для сброса буфера накопленных сообщений.
     pub fn set_flush(
         &self,
         flush: fn(),
@@ -384,6 +476,7 @@ impl LogCollector {
         self.flush.set(Some(flush));
     }
 
+    /// Сбрасывает буфер накопленных сообщений.
     fn flush(&self) -> bool {
         if let Some(flush) = self.flush.get() {
             (flush)();
@@ -393,6 +486,7 @@ impl LogCollector {
         }
     }
 
+    /// Записывает служебное сообщение с количеством потерянных сообщений.
     fn report_lost_messages_statistics(&self) {
         let recent = self.lost_recently.get();
         let recursive_failure = self.recursive_failure.get();
@@ -418,6 +512,12 @@ impl LogCollector {
         }
     }
 
+    /// Записывает служебное сообщение с префиксом не поместившегося в буфер сообщения `event`,
+    /// его метаданными, отметкой времени `timestamp` и
+    /// возникшей при записи сообщения ошибкой `error`.
+    /// Либо только с метаданными потерянного сообщения,
+    /// отметкой времени `timestamp` и возникшей ошибкой `error`,
+    /// если даже префикс исходного сообщения записать не удалось.
     fn report_lost_message(
         &self,
         event: &Event<'_>,
@@ -478,11 +578,16 @@ impl Collect for LogCollector {
         defer! {
             self.recursion.update(|x| x - 1);
         }
+
+        /// Ограничение на рекурсивные вызовы журналирования.
         const RECURSION_LIMIT: usize = 3;
+
         if recursion > RECURSION_LIMIT {
             return;
         }
 
+        /// Количество попыток записи сообщения в [`ku::info::ProcessInfo::log()`].
+        /// Между которыми выполняется попытка сброса буфера.
         const TRY_COUNT: i32 = 2;
 
         for tries_left in (0 .. TRY_COUNT).rev() {
@@ -542,12 +647,18 @@ impl Collect for LogCollector {
     }
 }
 
+/// Буфер для записи сообщения в [`ku::info::ProcessInfo::log()`].
 struct LogBuffer<'a> {
+    /// Буфер пишущей в [`ku::info::ProcessInfo::log()`] транзакции.
     buffer: RingBufferWriteTx<'a>,
+
+    /// Текущий результат записи сообщения в буфер.
     result: pipe::Result<()>,
 }
 
 impl LogBuffer<'_> {
+    /// Создаёт пишущую в [`ku::info::ProcessInfo::log()`] транзакцию и
+    /// возвращает буфер для записи сообщения.
     fn new() -> Self {
         Self {
             buffer: crate::process_info().log().write_tx(),
@@ -580,6 +691,8 @@ impl Flavor for LogBuffer<'_> {
     }
 }
 
+/// Переводит уровень журналирования `level` в соответствующий символ.
+/// Этот же символ используется при сериализации уровня журналирования.
 pub const fn level_into_symbol(level: &Level) -> char {
     match *level {
         Level::ERROR => 'E',
@@ -590,6 +703,8 @@ pub const fn level_into_symbol(level: &Level) -> char {
     }
 }
 
+/// Переводит символ уровня журналирования `level` в соответствующий уровень.
+/// Возвращает ошибку [`Error::InvalidArgument`], если символу не соответствует никакой уровень.
 const fn level_try_from_symbol(level: char) -> Result<Level> {
     match level {
         'E' => Ok(Level::ERROR),
@@ -601,6 +716,9 @@ const fn level_try_from_symbol(level: char) -> Result<Level> {
     }
 }
 
+/// Сборщик сообщений журнала.
 pub static LOG_COLLECTOR: LogCollector = LogCollector::new(Level::DEBUG);
 
+/// Размер префикса сообщения, который записывается в журнал в случае,
+/// когда сообщение не влезает в буфер журнала целиком.
 const PLAN_B_MAX_MESSAGE_SIZE: usize = 128;
