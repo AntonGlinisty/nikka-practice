@@ -27,6 +27,7 @@ pub mod error;
 /// и в виде структуры с информацией о текущем процессе [`ProcessInfo`].
 pub mod info;
 
+/// [Межпроцессное взаимодействие (Inter-process communication, IPC)](https://en.wikipedia.org/wiki/Inter-process_communication).
 pub mod ipc;
 
 pub mod log;
