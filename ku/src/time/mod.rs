@@ -1,6 +1,3 @@
-#![warn(clippy::missing_docs_in_private_items)]
-#![warn(missing_docs)]
-
 /// Вспомогательные структуры [`AtomicCorrelationInterval`] и [`CorrelationInterval`] для соотнесения частоты процессора с частотой другого источника времени по двум моментам времени.
 mod correlation_interval;
 

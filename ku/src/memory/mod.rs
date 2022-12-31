@@ -1,6 +1,3 @@
-#![warn(clippy::missing_docs_in_private_items)]
-#![warn(missing_docs)]
-
 /// Определения типов адресов памяти, как виртуальных, так и физических --- [`Addr`], [`Virt`] и [`Phys`].
 pub mod addr;
 

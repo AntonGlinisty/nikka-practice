@@ -1,6 +1,3 @@
-#![warn(clippy::missing_docs_in_private_items)]
-#![warn(missing_docs)]
-
 use core::{
     mem,
     ptr,
