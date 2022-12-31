@@ -1,6 +1,3 @@
-#![warn(clippy::missing_docs_in_private_items)]
-#![warn(missing_docs)]
-
 /// Аллокатор памяти общего назначения в пространстве пользователя, реализованный через
 /// системные вызовы [`syscall::map()`], [`syscall::unmap()`] и [`syscall::copy_mapping()`].
 mod map;
