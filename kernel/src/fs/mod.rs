@@ -1,6 +1,3 @@
-#![warn(clippy::missing_docs_in_private_items)]
-#![warn(missing_docs)]
-
 /// [Битовая карта](https://en.wikipedia.org/wiki/Free-space_bitmap)
 /// для отслеживания какие именно блоки файловой системы заняты, а какие --- свободны.
 mod bitmap;
