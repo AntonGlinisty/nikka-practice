@@ -62,10 +62,13 @@ pub use tracing::{
     warn,
 };
 
+/// Инициализация журналирования.
 pub(super) fn init() {
     dispatch::set_global_default(Dispatch::from_static(&LOG_COLLECTOR)).unwrap();
 }
 
+/// Записывает в журнал все сообщения от пользовательского процесса `pid`,
+/// сохранённые им в буфер `log_buffer`.
 pub(super) fn user_events(
     pid: Pid,
     log_buffer: &mut RingBuffer,
@@ -73,15 +76,23 @@ pub(super) fn user_events(
     LOG_COLLECTOR.log.lock().user_events(pid, log_buffer);
 }
 
+/// Вспомогательная структура для печати сообщения.
 struct LogEvent {
+    /// Признак того, что нужно записать разделитель полей после ранее записанного поля.
     separator: bool,
+
+    /// Текущий цвет при выводе части сообщения на экран.
     color: Color,
 }
 
 impl LogEvent {
+    /// Цвет для вывода текста сообщения.
     const MESSAGE: Color = Color::WHITE;
+
+    /// Цвет для вывода значений полей сообщения.
     const VALUE: Color = Color::LIGHT_CYAN;
 
+    /// Создаёт вспомогательную структуру для печати сообщения.
     fn new() -> Self {
         Self {
             separator: false,
@@ -89,6 +100,9 @@ impl LogEvent {
         }
     }
 
+    /// Печатает заголовок поля `name`.
+    /// Если `name == "message"`, то это поле --- текст сообщения.
+    /// Для него имя поля опускается.
     fn field(
         &mut self,
         name: &str,
@@ -107,6 +121,7 @@ impl LogEvent {
         }
     }
 
+    /// Печатает строковый фрагмент `value_part` значения поля сообщения.
     fn str_value_part(
         &mut self,
         value_part: &str,
@@ -114,6 +129,7 @@ impl LogEvent {
         print!(color(self.color), "{}", value_part);
     }
 
+    /// Печатает поле сообщения `name` со значением `value` через [`core::fmt::Debug::fmt()`].
     fn debug(
         &mut self,
         name: &str,
@@ -134,26 +150,73 @@ impl Visit for LogEvent {
     }
 }
 
+/// Формат печати сообщений журнала.
 #[allow(unused)]
 #[derive(Eq, PartialEq)]
 enum Format {
+    /// Компактный формат:
+    /// ```console
+    /// <время в UTC> <CPU id> <level char> <message>; <key1> = <value1>; <key2> = <value2>; ...
+    /// ```
+    /// Пример:
+    /// ```console
+    /// 17:50:31.233 0 I Nikka booted; now = 2023-01-01 17:50:31 UTC; tsc = Tsc(2850348853)
+    /// ```
+    ///
+    /// - Сокращает уровень журналирования до первой буквы.
+    /// - Не печатает [`tracing::Metadata::target()`].
+    /// - Не печатает файл [`tracing::Metadata::file()`] и строку [`tracing::Metadata::line()`]
+    ///   исходного кода, где находится соответствующий вызов макроса журналирования.
     Compact,
+
+    /// Полный формат:
+    /// ```console
+    /// <время в UTC> <CPU id> <level> <target> <file:line> <message>; <key1> = <value1>; <key2> = <value2>; ...
+    /// ```
+    /// Пример:
+    /// ```console
+    /// 17:51:20.477 0 INFO kernel kernel/src/lib.rs:118 Nikka booted; now = 2023-01-01 17:51:20 UTC; tsc = Tsc(2732927919)
+    /// ```
     Full,
+
+    /// Аналогичен [`Format::Compact`], но дополнительно не печатает время:
+    /// ```console
+    /// <CPU id> <level char> <message>; <key1> = <value1>; <key2> = <value2>; ...
+    /// ```
+    /// Это позволяет писать в журнал из функций, которые вычисляют текущее время, без зацикливания.
+    /// Пример:
+    /// ```console
+    /// 0 I Nikka booted; now = 2023-01-01 17:52:07 UTC; tsc = Tsc(2787412607)
+    /// ```
+    ///
+    /// - Не печатает текущее время.
+    /// - Сокращает уровень журналирования до первой буквы.
+    /// - Не печатает [`tracing::Metadata::target()`].
+    /// - Не печатает файл [`tracing::Metadata::file()`] и строку [`tracing::Metadata::line()`]
+    ///   исходного кода, где находится соответствующий вызов макроса журналирования.
     Timeless,
 }
 
+/// Сборщик записей журнала для печати сообщений в заданном формате.
 struct Log {
+    /// Формат печати сообщений журнала.
     format: Format,
 }
 
 impl Log {
+    /// Цвет для вывода номера CPU.
     const CPU: Color = Color::DARK_GRAY;
+
+    /// Цвет для вывода [`tracing::Metadata::target()`],
+    /// файла [`tracing::Metadata::file()`] и строки [`tracing::Metadata::line()`].
     const LOCATION: Color = Color::DARK_GRAY;
 
+    /// Создаёт сборщик записей журнала для печати сообщений в формате `format`.
     const fn new(format: Format) -> Self {
         Self { format }
     }
 
+    /// Возвращает цвет, которым нужно печатать уровень журналирования `level`.
     const fn level_color(level: &Level) -> Color {
         match *level {
             Level::ERROR => Color::LIGHT_RED,
@@ -164,19 +227,22 @@ impl Log {
         }
     }
 
+    /// Печатает сообщение `event` с отметкой времени `timestamp`.
     fn log_event(
         &self,
         event: &Event<'_>,
-        tsc: Tsc,
+        timestamp: Tsc,
     ) {
         self.log_metadata(
             event.metadata().level(),
-            LogMetadata::new(event.metadata(), tsc),
+            LogMetadata::new(event.metadata(), timestamp),
         );
         event.record(&mut LogEvent::new());
         println!();
     }
 
+    /// Печатает метаданные `metadata` сообщения, включая отметку времени,
+    /// на уровне журналирования `level`.
     fn log_metadata(
         &self,
         level: &Level,
@@ -210,6 +276,8 @@ impl Log {
         }
     }
 
+    /// Печатает все сообщения от пользовательского процесса `pid`,
+    /// сериализованные им в буфер `log_buffer`.
     fn user_events(
         &self,
         pid: Pid,
@@ -223,6 +291,8 @@ impl Log {
         tx.commit();
     }
 
+    /// Печатает одно сообщение от пользовательского процесса `pid`,
+    /// десериализуя его из `deserializer`.
     fn user_event<'a>(
         &self,
         pid: Pid,
@@ -257,12 +327,19 @@ impl Log {
     }
 }
 
+/// Сборщик сообщений журнала, печатающий сообщения на экран и в COM--порт.
 struct LogCollector {
+    /// Уровень журналирования.
+    /// Печатаются только сообщения с уровнем журналирования, равным [`LogCollector::level`] и выше.
     level: Level,
+
+    /// Сборщик записей журнала для печати сообщений в заданном формате.
     log: Mutex<Log>,
 }
 
 impl LogCollector {
+    /// Создаёт сборщик сообщений журнала, печатающий сообщения с уровнем журналирования `level` и выше
+    /// на экран и в COM--порт в формате `format`.
     const fn new(
         format: Format,
         level: Level,
@@ -328,4 +405,5 @@ impl Collect for LogCollector {
     }
 }
 
+/// Сборщик сообщений журнала, печатающий сообщения на экран и в COM--порт.
 static LOG_COLLECTOR: LogCollector = LogCollector::new(Format::Compact, Level::DEBUG);

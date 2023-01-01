@@ -40,6 +40,14 @@ enum Fatal {
     No,
 }
 
+/// Общий обработчик исключений и прерываний.
+///
+/// - `context` --- контекст в котором возникло прерывание.
+/// - `number` --- номер прерывания.
+/// - `info` --- дополнительная информация для некоторых исключений процессора.
+/// - `fatal` --- фатально ли исключение.
+/// Если фатальное исключение вызвал процесс, то он будет остановлен и удалён.
+/// Если фатальное исключение вызвало ядро, оно запаникует.
 fn generic_trap(
     context: &mut TrapContext,
     number: usize,
@@ -103,14 +111,18 @@ fn generic_trap(
     }
 }
 
+/// [Exceptions: Division Error](https://wiki.osdev.org/Exception#Division_Error)
 pub(super) extern "x86-interrupt" fn divide_error(mut context: TrapContext) {
     generic_trap(&mut context, super::DIVIDE_ERROR, Info::None, Fatal::Yes);
 }
 
+/// [Exceptions: Debug](https://wiki.osdev.org/Exception#Debug)
 pub(super) extern "x86-interrupt" fn debug(mut context: TrapContext) {
     generic_trap(&mut context, super::DEBUG, Info::None, Fatal::Yes);
 }
 
+/// [Non-maskable interrupt](https://en.wikipedia.org/wiki/Non-maskable_interrupt),
+/// [Exceptions: Non-maskable interrupt](https://wiki.osdev.org/Non_Maskable_Interrupt)
 pub(super) extern "x86-interrupt" fn non_maskable_interrupt(mut context: TrapContext) {
     generic_trap(
         &mut context,
@@ -120,14 +132,17 @@ pub(super) extern "x86-interrupt" fn non_maskable_interrupt(mut context: TrapCon
     );
 }
 
+/// [Exceptions: Breakpoint](https://wiki.osdev.org/Exception#Breakpoint)
 pub(super) extern "x86-interrupt" fn breakpoint(mut context: TrapContext) {
     generic_trap(&mut context, super::BREAKPOINT, Info::None, Fatal::No);
 }
 
+/// [Exceptions: Overflow](https://wiki.osdev.org/Exception#Overflow)
 pub(super) extern "x86-interrupt" fn overflow(mut context: TrapContext) {
     generic_trap(&mut context, super::OVERFLOW, Info::None, Fatal::No);
 }
 
+/// [Exceptions: Bound Range Exceeded](https://wiki.osdev.org/Exception#Bound_Range_Exceeded)
 pub(super) extern "x86-interrupt" fn bound_range_exceeded(mut context: TrapContext) {
     generic_trap(
         &mut context,
@@ -137,10 +152,12 @@ pub(super) extern "x86-interrupt" fn bound_range_exceeded(mut context: TrapConte
     );
 }
 
+/// [Exceptions: Invalid Opcode](https://wiki.osdev.org/Exception#Invalid_Opcode)
 pub(super) extern "x86-interrupt" fn invalid_opcode(mut context: TrapContext) {
     generic_trap(&mut context, super::INVALID_OPCODE, Info::None, Fatal::Yes);
 }
 
+/// [Exceptions: Device Not Available](https://wiki.osdev.org/Exception#Device_Not_Available)
 pub(super) extern "x86-interrupt" fn device_not_available(mut context: TrapContext) {
     generic_trap(
         &mut context,
@@ -150,6 +167,8 @@ pub(super) extern "x86-interrupt" fn device_not_available(mut context: TrapConte
     );
 }
 
+/// [Double Fault](https://en.wikipedia.org/wiki/Double_fault),
+/// [Exceptions: Double Fault](https://wiki.osdev.org/Exception#Double_Fault)
 pub(super) extern "x86-interrupt" fn double_fault(
     mut context: TrapContext,
     error_code: u64,
@@ -169,6 +188,7 @@ pub(super) extern "x86-interrupt" fn double_fault(
     unreachable!();
 }
 
+/// [Exceptions: Invalid TSS](https://wiki.osdev.org/Exception#Invalid_TSS)
 pub(super) extern "x86-interrupt" fn invalid_tss(
     mut context: TrapContext,
     error_code: u64,
@@ -181,6 +201,7 @@ pub(super) extern "x86-interrupt" fn invalid_tss(
     );
 }
 
+/// [Exceptions: Segment Not Present](https://wiki.osdev.org/Exception#Segment_Not_Present)
 pub(super) extern "x86-interrupt" fn segment_not_present(
     mut context: TrapContext,
     error_code: u64,
@@ -193,6 +214,7 @@ pub(super) extern "x86-interrupt" fn segment_not_present(
     );
 }
 
+/// [Exceptions: Stack-Segment Fault](https://wiki.osdev.org/Exception#Stack-Segment_Fault)
 pub(super) extern "x86-interrupt" fn stack_segment_fault(
     mut context: TrapContext,
     error_code: u64,
@@ -205,6 +227,8 @@ pub(super) extern "x86-interrupt" fn stack_segment_fault(
     );
 }
 
+/// [General Protection Fault](https://en.wikipedia.org/wiki/General_protection_fault)
+/// [Exceptions: General Protection Fault](https://wiki.osdev.org/Exception#General_Protection_Fault)
 pub(super) extern "x86-interrupt" fn general_protection_fault(
     mut context: TrapContext,
     error_code: u64,
@@ -217,6 +241,8 @@ pub(super) extern "x86-interrupt" fn general_protection_fault(
     );
 }
 
+/// [Page Fault](https://en.wikipedia.org/wiki/Page_fault),
+/// [Exceptions: Page Fault](https://wiki.osdev.org/Exception#Page_Fault)
 pub(super) extern "x86-interrupt" fn page_fault(
     mut context: TrapContext,
     error_code: u64,
@@ -232,6 +258,7 @@ pub(super) extern "x86-interrupt" fn page_fault(
     );
 }
 
+/// [Exceptions: x87 Floating-Point Exception](https://wiki.osdev.org/Exception#x87_Floating-Point_Exception)
 pub(super) extern "x86-interrupt" fn x87_floating_point(mut context: TrapContext) {
     generic_trap(
         &mut context,
@@ -241,6 +268,7 @@ pub(super) extern "x86-interrupt" fn x87_floating_point(mut context: TrapContext
     );
 }
 
+/// [Exceptions: Alignment Check](https://wiki.osdev.org/Exception#Alignment_Check)
 pub(super) extern "x86-interrupt" fn alignment_check(
     mut context: TrapContext,
     error_code: u64,
@@ -253,10 +281,13 @@ pub(super) extern "x86-interrupt" fn alignment_check(
     );
 }
 
+/// [Machine-check exception](https://en.wikipedia.org/wiki/Machine-check_exception),
+/// [Exceptions: Machine Check](https://wiki.osdev.org/Exception#Machine_Check)
 pub(super) extern "x86-interrupt" fn machine_check(mut context: TrapContext) {
     generic_trap(&mut context, super::MACHINE_CHECK, Info::None, Fatal::Yes);
 }
 
+/// [Exceptions: SIMD Floating-Point Exception](https://wiki.osdev.org/Exception#SIMD_Floating-Point_Exception)
 pub(super) extern "x86-interrupt" fn simd_floating_point(mut context: TrapContext) {
     generic_trap(
         &mut context,
@@ -266,10 +297,12 @@ pub(super) extern "x86-interrupt" fn simd_floating_point(mut context: TrapContex
     );
 }
 
+/// [Exceptions: Security Exception](https://wiki.osdev.org/Exception#Security_Exception)
 pub(super) extern "x86-interrupt" fn virtualization(mut context: TrapContext) {
     generic_trap(&mut context, super::VIRTUALIZATION, Info::None, Fatal::Yes);
 }
 
+/// [Exceptions: Security Exception](https://wiki.osdev.org/Exception#Security_Exception)
 pub(super) extern "x86-interrupt" fn security_exception(
     mut context: TrapContext,
     error_code: u64,

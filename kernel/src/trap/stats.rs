@@ -18,6 +18,8 @@ pub struct Stats {
 }
 
 impl Stats {
+    /// Создаёт информацию об исключении или прерывании
+    /// с именем `name` и короткой мнемоникой `mnemonic`.
     const fn new(
         name: &'static str,
         mnemonic: &'static str,
@@ -29,25 +31,31 @@ impl Stats {
         }
     }
 
+    /// Сколько раз сработало это исключение или прерывание.
     pub fn count(&self) -> usize {
         self.count.load(Ordering::Relaxed)
     }
 
+    /// Короткая мнемоника исключения или прерывания.
     pub fn mnemonic(&self) -> &'static str {
         self.mnemonic
     }
 
+    /// Имя исключения или прерывания.
     pub fn name(&self) -> &'static str {
         self.name
     }
 
+    /// Инкрементирует счётчик срабатывания исключения или прерывания.
     pub(super) fn inc(&self) {
         self.count.fetch_add(1, Ordering::Relaxed);
     }
 }
 
+/// Информация обо всех исключениях и прерываниях.
 type InterruptStats = [Stats; COUNT];
 
+/// Информация обо всех исключениях и прерываниях.
 pub static TRAP_STATS: InterruptStats = [
     Stats::new("Divide Error", "#DE"),
     Stats::new("Debug", "#DB"),

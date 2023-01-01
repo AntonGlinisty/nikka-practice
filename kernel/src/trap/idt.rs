@@ -110,16 +110,21 @@ lazy_static! {
     pub(crate) static ref IDT: Idt = Idt::new();
 }
 
+/// Тип функции обработчиков исключений и прерываний.
 type InterruptHandler = fn(TrapContext);
 
+/// Запись таблицы исключений и прерываний
+/// ([Interrupt descriptor table](https://en.wikipedia.org/wiki/Interrupt_descriptor_table), IDT).
 #[derive(Clone, Copy)]
 struct IdtEntry(Entry<InterruptHandler>);
 
 impl IdtEntry {
+    /// Создаёт запись таблицы исключений и прерываний без обработчика.
     const fn missing() -> Self {
         Self(Entry::missing())
     }
 
+    /// Устанавливает обработчик `handler` исключения или прерывания.
     fn set_handler(
         &mut self,
         handler: extern "x86-interrupt" fn(TrapContext),
@@ -127,6 +132,8 @@ impl IdtEntry {
         unsafe { self.0.set_handler_addr(VirtAddr::from_ptr(handler as *const ())) }
     }
 
+    /// Устанавливает обработчик `handler` исключения,
+    /// для которого процессор сохраняет дополнительный код ошибки.
     fn set_handler_with_error(
         &mut self,
         handler: extern "x86-interrupt" fn(TrapContext, u64),
@@ -135,6 +142,7 @@ impl IdtEntry {
     }
 }
 
+#[doc(hidden)]
 pub mod test_scaffolding {
     use spin::Mutex;
 

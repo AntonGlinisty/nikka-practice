@@ -2,6 +2,9 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
+//! Библиотека ядра.
+//! Позволяет подключать ядро как при обычном запуске, так и при запуске интеграционных тестов.
+
 #![allow(clippy::missing_safety_doc)]
 #![cfg_attr(test, no_main)]
 #![deny(warnings)]
@@ -21,17 +24,21 @@
 #![no_std]
 #![reexport_test_harness_main = "test_main"]
 #![test_runner(crate::test_runner)]
+#![warn(clippy::missing_docs_in_private_items)]
+#![warn(missing_docs)]
 
 extern crate alloc;
 
 /// Аллокаторы памяти общего назначения.
 pub mod allocator;
 
+/// Перечисление для возможных ошибок [`Error`] и соответствующий [`Result`].
 pub mod error;
 
 /// [Файловая система](https://en.wikipedia.org/wiki/File_system).
 pub mod fs;
 
+/// Поддержка журналирования макросами библиотеки [`tracing`].
 pub mod log;
 
 /// Здесь находится часть работы с памятью, которая происходит только в ядре.
@@ -47,6 +54,12 @@ pub mod smp;
 /// Здесь находится часть работы со временем, которая происходит только в ядре.
 pub mod time;
 
+/// Система обработки [прерываний](https://en.wikipedia.org/wiki/Interrupt).
+///
+/// External Interrupts in the x86 system:
+/// - [Part 1. Interrupt controller evolution](https://habr.com/en/post/446312/)
+/// - [Part 2. Linux kernel boot options](https://habr.com/en/post/501660/)
+/// - [Part 3. Interrupt routing setup in a chipset, with the example of coreboot](https://habr.com/en/post/501912/)
 pub mod trap;
 
 use core::{
@@ -74,42 +87,74 @@ use memory::{
     gdt,
 };
 
+// Used in docs.
+#[allow(unused)]
+use error::Error;
+
+/// Цвет для печати сообщения об успешном завершении теста.
 #[allow(dead_code)]
 const PASS: text::Color = text::Color::LIGHT_GREEN;
 
+/// Цвет для печати сообщения о провале теста.
 #[allow(dead_code)]
 const FAIL: text::Color = text::Color::LIGHT_RED;
 
 bitflags! {
+    /// Код выхода из qemu при запуске тестов.
     pub struct ExitCode: u8 {
+        /// Успешное завершение --- все тесты прошли.
         const SUCCESS = 1;
+
+        /// Неуспешное завершение --- есть провалившийся тест.
         const FAILURE = 2;
     }
 }
 
 bitflags! {
+    /// Разбивка на подсистемы для возможности инициализации только части из них в тестах.
     pub struct Subsystems: usize {
+        /// Память: подсистема физической памяти.
         const PHYS_MEMORY = 1 << 0;
+
+        /// Память: подсистема виртуальной памяти.
         const VIRT_MEMORY = 1 << 1;
+
+        /// Память: основной аллокатор физической памяти.
         const MAIN_FRAME_ALLOCATOR = 1 << 2;
 
+        /// Все части подсистемы памяти.
         const MEMORY =
             Self::PHYS_MEMORY.bits | Self::VIRT_MEMORY.bits | Self::MAIN_FRAME_ALLOCATOR.bits;
 
+        /// Процессы: системные вызовы.
         const SYSCALL = 1 << 4;
+
+        /// Процессы: таблица процессов.
         const PROCESS_TABLE = 1 << 5;
+
+        /// Процессы: планировщик.
         const SCHEDULER = 1 << 6;
 
+        /// Все части подсистемы процессов.
         const PROCESS = Self::SYSCALL.bits | Self::PROCESS_TABLE.bits | Self::SCHEDULER.bits;
 
+        /// Симметричной многопроцессорности: контроллер прерываний Local APIC.
         const LOCAL_APIC = 1 << 7;
+
+        /// Симметричной многопроцессорности: вектор структур для CPU--локальных данных.
         const CPUS = 1 << 8;
+
+        /// Симметричной многопроцессорности: запуск Application Processors.
         const BOOT_APS = 1 << 9;
 
+        /// Все части подсистемы симметричной многопроцессорности.
         const SMP = Self::LOCAL_APIC.bits | Self::CPUS.bits | Self::BOOT_APS.bits;
     }
 }
 
+/// Инициализация части подсистем ядра для тестов.
+/// Аргумент `boot_info` содержит информацию от [`bootloader`],
+/// `subsystems` задаёт набор подсистем, которые нужно инициализировать.
 #[cold]
 #[inline(never)]
 pub fn init_subsystems(
@@ -146,12 +191,17 @@ pub fn init_subsystems(
     }
 }
 
+/// Инициализация всех подсистем ядра.
+/// Аргумент `boot_info` содержит информацию от [`bootloader`].
 #[cold]
 #[inline(never)]
 pub fn init(boot_info: &'static BootInfo) {
     init_subsystems(boot_info, Subsystems::all());
 }
 
+/// Останавливает процессор инструкцией
+/// [`hlt`](https://www.felixcloutier.com/x86/hlt)
+/// при запрещённых внешних прерываниях.
 #[cold]
 #[inline(never)]
 pub fn halt() -> ! {
@@ -160,9 +210,13 @@ pub fn halt() -> ! {
     }
 }
 
+/// Выхода из qemu при запуске тестов с кодом `exit_code`.
+/// Требует указания аргумента `-device isa-debug-exit,iobase=0xF4,iosize=0x04` при запуске qemu.
 pub fn exit_qemu(exit_code: ExitCode) -> ! {
     info!(?exit_code, "exit qemu");
 
+    /// [Порт ввода--вывода](https://wiki.osdev.org/Port_IO)
+    /// для команды выхода из qemu.
     const EXIT_PORT: u16 = 0xF4;
 
     unsafe {
@@ -172,6 +226,7 @@ pub fn exit_qemu(exit_code: ExitCode) -> ! {
     halt()
 }
 
+/// Обработчик ошибок аллокации памяти.
 #[alloc_error_handler]
 #[cold]
 #[inline(never)]
@@ -179,7 +234,9 @@ fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
     panic!("failed to allocate memory, layout = {:?}", layout)
 }
 
+/// Определяет интерфейс запуска теста.
 pub trait Testable {
+    /// Запускает тест.
     fn run(&self);
 }
 
@@ -194,6 +251,7 @@ where
     }
 }
 
+/// Запускает набор тестов `tests`.
 pub fn test_runner(tests: &[&dyn Testable]) {
     println!("running {} tests", tests.len());
 
@@ -204,19 +262,21 @@ pub fn test_runner(tests: &[&dyn Testable]) {
     exit_qemu(ExitCode::SUCCESS);
 }
 
+/// Отмечает интеграционный тест как проваленный.
 pub fn fail_test(panic_info: &PanicInfo) -> ! {
     println!(color(FAIL), "{}\n{:-<51} [failed]", panic_info, "");
 
     exit_qemu(ExitCode::FAILURE)
 }
 
+/// Отмечает интеграционный тест как прошедший.
 pub fn pass_test() -> ! {
     println!(color(PASS), "{:-<51} [passed]", "");
 
     exit_qemu(ExitCode::SUCCESS)
 }
 
-#[cfg(test)]
+/// Обработчик паники.
 #[cold]
 #[inline(never)]
 #[panic_handler]
@@ -224,4 +284,5 @@ fn panic(panic_info: &PanicInfo) -> ! {
     fail_test(panic_info)
 }
 
+/// Страница памяти с общей информацией о системе.
 static SYSTEM_INFO: SystemInfo = SystemInfo::new();
