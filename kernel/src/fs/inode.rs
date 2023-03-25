@@ -76,7 +76,7 @@ pub(super) struct Inode {
 
     /// Лес, отвечающий за отображение блоков [`Inode`]
     /// в номера блоков файловой системы.
-    root_blocks: [usize; MAX_HEIGHT],
+    root_blocks: Forest,
 }
 
 impl Inode {
@@ -134,10 +134,7 @@ impl Inode {
 
     /// Возвращает максимальный размер в байтах, которые может иметь файл.
     pub(super) fn max_size() -> usize {
-        let max_blocks = (0 .. MAX_HEIGHT as u32)
-            .map(|height| INDIRECT_BLOCK_ARITY.pow(height))
-            .reduce(Add::add)
-            .unwrap();
+        let max_blocks = leaf_count();
 
         max_blocks * BLOCK_SIZE
     }
@@ -342,17 +339,31 @@ impl<'a> Iterator for List<'a> {
     }
 }
 
+/// Лес, отвечающий за отображение блоков [`Inode`]
+/// в номера блоков файловой системы.
+type Forest = [usize; MAX_HEIGHT];
+
 /// Вспомогательная функция для обхода леса отображения блоков [`Inode`].
 /// По заданному количеству `tree_count` деревьев в лесу и номеру блока с данными `leaf_number`
 /// выдает кортеж с номером нужного дерева, количеством листьев в этом дереве и номером листа
 /// в этом дереве, который соответствует листу `leaf_number` леса.
-#[allow(unused_mut)] // TODO: remove before flight.
-fn find_tree(
-    tree_count: usize,
-    mut leaf_number: usize,
-) -> Result<(usize, usize, usize)> {
+fn find_leaf(leaf_in_forest: usize) -> Result<LeafCoordinates> {
     // TODO: your code here.
     unimplemented!();
+}
+
+/// Полное количество листьев в лесу [`Forest`] ---
+/// максимальное количество блоков в одном [`Inode`].
+fn leaf_count() -> usize {
+    (0 .. MAX_HEIGHT)
+        .map(leaf_count_in_tree)
+        .reduce(Add::add)
+        .expect("the forest is empty")
+}
+
+/// Количество листьев в дереве высоты `tree_height`.
+fn leaf_count_in_tree(tree_height: usize) -> usize {
+    INDIRECT_BLOCK_ARITY.pow(tree_height.try_into().expect("the tree height is off the chart"))
 }
 
 /// Удаляет из леса отображения блоков [`Inode`] дерево или поддерево,
@@ -373,11 +384,9 @@ fn remove_tree(
 /// хранящуюся в самом [`Inode`] или в его косвенном блоке.
 /// При необходимости выделяет косвенные блоки --- узлы дерева --- из `block_bitmap`.
 #[allow(unused_mut)] // TODO: remove before flight.
-fn traverse_tree<'a>(
-    mut node: &'a mut usize,
-    height: usize,
-    mut leaf_count: usize,
-    mut leaf_number: usize,
+fn traverse<'a>(
+    forest: &'a mut Forest,
+    leaf_coordinates: LeafCoordinates,
     mut block_bitmap: Option<&mut Bitmap>,
 ) -> Result<&'a mut usize> {
     // TODO: your code here.
@@ -393,6 +402,15 @@ fn next_level<'a>(
 ) -> Result<&'a mut [usize]> {
     // TODO: your code here.
     unimplemented!();
+}
+
+/// Координаты листа в лесу.
+struct LeafCoordinates {
+    /// Номер листа в его дереве.
+    leaf: usize,
+
+    /// Номер дерева в лесу [`Forest`].
+    tree: usize,
 }
 
 const_assert!(BLOCK_SIZE % mem::size_of::<usize>() == 0);

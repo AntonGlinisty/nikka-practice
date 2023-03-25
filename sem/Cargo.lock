@@ -31,14 +31,14 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "hello_world"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "nix",
 ]
 
 [[package]]
 name = "jobserver"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "nix",
 ]
@@ -103,7 +103,7 @@ checksum = "a3f87b73ce11b1619a3c6332f45341e0047173771e8b8b73f87bfeefb7b56244"
 
 [[package]]
 name = "rsh"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "nix",
  "regex",
