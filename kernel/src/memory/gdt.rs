@@ -80,7 +80,7 @@ impl RealModePseudoDescriptor {
         /// Процессор 80286 имеет ограничение для физических адресов в 16 MiB.
         const MAX_REAL_MODE_BASE: u32 = 16 << 20;
 
-        let base = address.try_into_u32()?;
+        let base = address.try_into()?;
 
         if base < MAX_REAL_MODE_BASE {
             Ok(Self {

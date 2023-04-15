@@ -211,7 +211,7 @@ impl LocalApic {
         /// кода загрузки процессора.
         const MAX_BOOT_FRAME: u32 = 0xFF;
 
-        let boot_page = size::try_into_u32(Frame::new(boot_address)?.index())?;
+        let boot_page = size::try_into::<u32>(Frame::new(boot_address)?.index())?;
         if boot_page > MAX_BOOT_FRAME {
             return Err(InvalidArgument);
         }
@@ -269,7 +269,7 @@ impl LocalApic {
     fn enable(&mut self) {
         /// Включает использование local APIC.
         const ENABLE_LOCAL_APIC: u32 = 1 << 8;
-        self.spurious.set(ENABLE_LOCAL_APIC | size::try_into_u32(SPURIOUS).unwrap());
+        self.spurious.set(ENABLE_LOCAL_APIC | size::try_into::<u32>(SPURIOUS).unwrap());
     }
 
     /// Запрещает ненужные нам локальные прерывания.
@@ -306,7 +306,7 @@ impl LocalApic {
         /// Задаёт периодический режим таймера.
         const PERIODIC_MODE: u32 = 0b01 << 17;
 
-        self.lvt_timer.set(PERIODIC_MODE | size::try_into_u32(TIMER).unwrap());
+        self.lvt_timer.set(PERIODIC_MODE | size::try_into::<u32>(TIMER).unwrap());
 
         // [AMD64 Architecture Programmer’s Manual](https://docs.amd.com/v/u/en-US/40332-PUB_4.08):
         // "To avoid race conditions, software should initialize

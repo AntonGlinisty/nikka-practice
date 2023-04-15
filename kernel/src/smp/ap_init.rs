@@ -234,7 +234,7 @@ impl BootStack {
 
         let efer = Efer::read().bits().try_into()?;
         let cr4 = Cr4::read_raw().try_into()?;
-        let cr3 = BASE_ADDRESS_SPACE.lock().page_table_root().address().try_into_u32()?;
+        let cr3 = BASE_ADDRESS_SPACE.lock().page_table_root().address().try_into()?;
         let cr0 = Cr0::read_raw().try_into()?;
         let gdt = SmallGdt::new();
         let gdt_pseudo_descriptor =

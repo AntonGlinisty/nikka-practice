@@ -76,11 +76,14 @@ impl<T: Tag> Addr<T> {
         size::into_u64(self.0)
     }
 
-    /// Возвращает битовое представление адреса типа [`u32`],
-    /// если адрес представим в 32-х битном виде.
-    /// Иначе возвращает ошибку [`Error::Int`].
-    pub fn try_into_u32(self) -> Result<u32> {
-        size::try_into_u32(self.0)
+    /// Возвращает битовое представление адреса в виде целого типа,
+    /// для которого есть [`TryFrom<u64>`], например в виде [`u32`].
+    /// Возвращает ошибку [`Error::Int`], если адрес не помещается в выбранный тип.
+    pub fn try_into<Q: TryFrom<u64>>(self) -> Result<Q>
+    where
+        Error: From<<Q as TryFrom<u64>>::Error>,
+    {
+        size::try_into(self.0)
     }
 }
 

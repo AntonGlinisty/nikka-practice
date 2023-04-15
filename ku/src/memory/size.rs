@@ -6,11 +6,10 @@ use core::{
 use number_prefix::NumberPrefix;
 use static_assertions::const_assert;
 
-use crate::error::Result;
-
-// Used in docs.
-#[allow(unused)]
-use crate::error::Error;
+use crate::error::{
+    Error,
+    Result,
+};
 
 /// [Кибибайт](https://en.wikipedia.org/wiki/kibibyte)
 #[allow(non_upper_case_globals)]
@@ -50,10 +49,20 @@ pub const fn into_u64(x: usize) -> u64 {
     x as u64
 }
 
-/// Преобразует [`usize`] в [`u32`].
-/// Возвращает ошибку [`Error::Int`], если значение `x` не помещается в [`u32`].
-pub fn try_into_u32(x: usize) -> Result<u32> {
-    Ok(into_u64(x).try_into()?)
+/// Преобразует [`usize`] в целый тип,
+/// для которого есть [`From<u64>`], например в [`u128`].
+pub fn into<T: From<u64>>(x: usize) -> T {
+    T::from(into_u64(x))
+}
+
+/// Преобразует [`usize`] в целый тип,
+/// для которого есть [`TryFrom<u64>`], например в [`u32`].
+/// Возвращает ошибку [`Error::Int`], если значение `x` не помещается в выбранный тип.
+pub fn try_into<T: TryFrom<u64>>(x: usize) -> Result<T>
+where
+    Error: From<<T as TryFrom<u64>>::Error>,
+{
+    Ok(T::try_from(into_u64(x))?)
 }
 
 /// Типаж для указания размеров областей памяти определённого типа.
