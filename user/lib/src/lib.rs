@@ -34,6 +34,7 @@ use tracing_core::{
 };
 
 use ku::{
+    backtrace::Backtrace,
     info,
     info::ProcessInfo,
     log::{
@@ -69,7 +70,11 @@ pub extern "C" fn _start(process_info: &'static mut ProcessInfo) -> ! {
 #[inline(never)]
 #[panic_handler]
 fn panic(panic_info: &PanicInfo) -> ! {
-    error!(message = %panic_info);
+    if let Ok(backtrace) = Backtrace::with_stack(ku::process_info().stack()) {
+        error!(message = %panic_info, %backtrace);
+    } else {
+        error!(message = %panic_info);
+    }
     syscall::exit(ExitCode::PANIC.bits());
 }
 

@@ -21,6 +21,9 @@ extern crate rlibc;
 /// Аллокаторы памяти общего назначения.
 pub mod allocator;
 
+/// Поддержка печати трассировок стека.
+pub mod backtrace;
+
 /// Перечисление для возможных ошибок [`Error`] и соответствующий [`Result`].
 pub mod error;
 

@@ -98,14 +98,20 @@ impl Process {
 
     /// Дублирует существующий процесс.
     pub(super) fn duplicate(
-        &self,
+        &mut self,
         rax: usize,
         rdi: usize,
     ) -> Result<Self> {
+        let stack = if let Ok(info) = unsafe { self.info() } {
+            info.stack()
+        } else {
+            Block::default()
+        };
+
         let mut address_space = self.address_space.lock().duplicate()?;
 
         address_space.switch_to();
-        let info = Block::from_ref(super::map_process_info(&mut address_space)?);
+        let info = Block::from_ref(super::map_process_info(&mut address_space, stack)?);
         self.address_space.lock().switch_to();
 
         Ok(Self {

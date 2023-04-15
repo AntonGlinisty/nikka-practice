@@ -43,6 +43,7 @@ use crate::{
     memory::{
         AddressSpace,
         BASE_ADDRESS_SPACE,
+        Block,
         FRAME_ALLOCATOR,
         Page,
         Size,
@@ -104,7 +105,7 @@ fn create_process(elf_file: &[u8]) -> Result<Process> {
 
     let stack = Stack::new(&mut address_space, USER_RW)?;
 
-    let process_info = map_process_info(&mut address_space)?;
+    let process_info = map_process_info(&mut address_space, Block::from_ref(stack))?;
 
     BASE_ADDRESS_SPACE.lock().switch_to();
 
@@ -119,12 +120,17 @@ fn create_process(elf_file: &[u8]) -> Result<Process> {
 /// Создаёт для процесса отображение в его адресное пространство `address_space`
 /// страниц с общей информацией о системе и с информацией о самом процессе.
 /// См. [`SystemInfo`] и [`ProcessInfo`].
-fn map_process_info(address_space: &mut AddressSpace) -> Result<&'static mut ProcessInfo> {
+/// Информация о блоке памяти, отведённом под пользовательский стек, --- `stack` ---
+/// сохраняется в его [`ProcessInfo`].
+fn map_process_info(
+    address_space: &mut AddressSpace,
+    stack: Block<Virt>,
+) -> Result<&'static mut ProcessInfo> {
     let log = map_log(address_space)?;
     let recursive_mapping = address_space.mapping().make_recursive_mapping()?;
     let system_info = map_system_info(address_space)?;
     address_space.map_one(USER_RW, || {
-        ProcessInfo::new(log, recursive_mapping, system_info)
+        ProcessInfo::new(log, recursive_mapping, stack, system_info)
     })
 }
 
@@ -174,6 +180,7 @@ pub mod test_scaffolding {
 
     use ku::{
         RingBuffer,
+        memory::Block,
         process::{
             MiniContext,
             Pid,
@@ -201,7 +208,7 @@ pub mod test_scaffolding {
 
         address_space.switch_to();
 
-        let process_info = super::map_process_info(&mut address_space)?;
+        let process_info = super::map_process_info(&mut address_space, Block::default())?;
 
         BASE_ADDRESS_SPACE.lock().switch_to();
 

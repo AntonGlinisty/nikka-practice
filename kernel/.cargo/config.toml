@@ -1,4 +1,10 @@
 [build]
+rustflags = [
+    "--codegen",
+    "force-frame-pointers=yes",
+    "--codegen",
+    "relocation-model=dynamic-no-pic",
+]
 target = "kernel.json"
 
 [target.'cfg(target_os = "none")']

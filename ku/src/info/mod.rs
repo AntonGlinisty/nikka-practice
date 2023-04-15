@@ -41,6 +41,9 @@ pub struct ProcessInfo {
     /// Позволяет процессу читать собственное отображение виртуальной памяти.
     recursive_mapping: usize,
 
+    /// Область памяти, выделенная текущему процессу под стек режима пользователя.
+    stack: Block<Virt>,
+
     /// Общая информации о системе.
     system_info: *const SystemInfo,
 }
@@ -53,12 +56,14 @@ impl ProcessInfo {
     pub fn new(
         log: RingBuffer,
         recursive_mapping: usize,
+        stack: Block<Virt>,
         system_info: *const SystemInfo,
     ) -> Self {
         Self {
             log,
             pid: Pid::Current,
             recursive_mapping,
+            stack,
             system_info,
         }
     }
@@ -86,6 +91,11 @@ impl ProcessInfo {
     /// Позволяет процессу читать собственное отображение виртуальной памяти.
     pub fn recursive_mapping(&self) -> usize {
         self.recursive_mapping
+    }
+
+    /// Область памяти, выделенная текущему процессу под стек режима пользователя.
+    pub fn stack(&self) -> Block<Virt> {
+        self.stack
     }
 
     /// Проверяет, принадлежит ли `address` структурам информации о процессе.

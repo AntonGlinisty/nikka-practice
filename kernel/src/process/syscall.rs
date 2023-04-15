@@ -210,7 +210,7 @@ fn sched_yield(
 /// Текущий контекст исходного процесса --- `context` --- записывает в копию, чтобы в копии
 /// вернуться туда же, куда происходит возврат из системного вызова для вызывающего процесса.
 fn exofork(
-    process: MutexGuard<Process>,
+    mut process: MutexGuard<Process>,
     context: MiniContext,
 ) -> Result<SyscallResult> {
     // TODO: your code here.

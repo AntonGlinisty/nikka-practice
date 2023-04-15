@@ -24,9 +24,12 @@ use bootloader::{
     entry_point,
 };
 
-use ku::time::{
-    pit8254::Pit,
-    rtc::Rtc,
+use ku::{
+    backtrace::Backtrace,
+    time::{
+        pit8254::Pit,
+        rtc::Rtc,
+    },
 };
 use text::{
     Attribute,
@@ -91,6 +94,10 @@ fn panic(panic_info: &PanicInfo) -> ! {
         text::TEXT.lock().set_attribute(Attribute::PANIC);
 
         println!("{panic_info}");
+
+        if let Ok(backtrace) = Backtrace::current() {
+            println!("{backtrace:?}");
+        }
 
         kernel::halt()
     }

@@ -1,5 +1,10 @@
 [build]
-rustflags = ["--codegen", "link-args=--image-base=0x10000000"]
+rustflags = [
+    "--codegen",
+    "link-args=--image-base=0x10000000",
+    "--codegen",
+    "force-frame-pointers=yes",
+]
 target = "../kernel/kernel.json"
 
 [unstable]
