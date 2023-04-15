@@ -11,6 +11,7 @@ Rust'овский интерфейс аллокатора памяти обще�
 часть стандартной библиотеки.
 И в последующих задачах лабораторки мы сможем использовать
 [`alloc::vec::Vec`](https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html)
+и
 [`alloc::collections::vec_deque::VecDeque`](https://doc.rust-lang.org/nightly/alloc/collections/vec_deque/struct.VecDeque.html).
 Что гораздо удобнее, чем методы семейства
 [`AddressSpace::map_slice()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.map_slice).

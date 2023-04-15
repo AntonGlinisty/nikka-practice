@@ -139,6 +139,7 @@ $ (cd kernel; cargo run --release)
 >
 > Дополнительные ссылки про системы отслеживания времени:
 >
+> - [Сурдин В.Г. - Общая астрономия - 3. Время и календарь](https://www.youtube.com/watch?v=9agICl7sIrM)
 > - [Как устроены атомные часы](https://habr.com/ru/post/677064/) --- самый точный доступный источник времени.
 > - [Грядущая отмена високосных секунд](https://www.nature.com/articles/d41586-022-03783-5).
 > - [История часов](https://en.wikipedia.org/wiki/History_of_timekeeping_devices).
