@@ -38,8 +38,10 @@ use crate::{
     },
     memory::{
         BASE_ADDRESS_SPACE,
+        Block,
         Frame,
         GDT,
+        KERNEL_RW,
         Page,
         Phys,
         RealModePseudoDescriptor,
@@ -75,13 +77,13 @@ pub(super) fn boot_ap(
     let timer = time::timer();
     let initialized = AtomicBool::new(false);
 
-    let boot_code = prepare_boot_code(phys2virt, cpu, &initialized)?;
+    let boot_memory = prepare_boot_code(phys2virt, cpu, &initialized)?;
 
-    LocalApic::send_init(cpu.id(), boot_code)?;
+    LocalApic::send_init(cpu.id(), boot_memory.code_frame())?;
 
     let message = "boot Application Processor";
 
-    if let Err(error) = wait_initialized(&initialized, Duration::seconds(1)) {
+    if let Err(error) = wait_initialized(&initialized, Duration::seconds(1), boot_memory) {
         error!(cpu = cpu.id(), duration = %timer.elapsed(), ?error, message);
     } else {
         info!(cpu = cpu.id(), duration = %timer.elapsed(), message);
@@ -92,6 +94,7 @@ pub(super) fn boot_ap(
 
 /// Подготовка кода и стека начальной инициализации Application Processor.
 /// Возвращает физический адрес, куда сохранён код и стек инициализации.
+/// А также гард, который при своём удалении восстановит исходное содержимое этой памяти.
 /// Аргумент `phys2virt` --- виртуальная страница, с которой начинается линейное отображение
 /// всей физической памяти в виртуальную, см. [`phys2virt::map()`].
 /// Аргумент `cpu` задаёт структуру [`Cpu`] для запускаемого Application Processor.
@@ -101,10 +104,10 @@ fn prepare_boot_code(
     phys2virt: Page,
     cpu: &mut Cpu,
     initialized: &AtomicBool,
-) -> Result<Frame> {
-    let boot_code = real_mode_address(BOOT_CODE, "boot code");
+) -> Result<BootMemory> {
+    let boot_memory = BootMemory::new(phys2virt)?;
 
-    copy_switch_mode_code(phys2virt::map(phys2virt, boot_code))?;
+    copy_switch_mode_code(boot_memory.code_data())?;
 
     let boot_stack_phys = real_mode_address(BOOT_STACK, "boot stack");
     let boot_stack = BootStack::new(boot_stack_phys, cpu, initialized)?;
@@ -119,7 +122,7 @@ fn prepare_boot_code(
         arch::x86_64::_mm_mfence();
     }
 
-    Ok(Frame::new(boot_code).expect("boot code should be aligned on frame boundary"))
+    Ok(boot_memory)
 }
 
 /// Адрес, куда релоцируется код функции [`switch_from_real_mode_to_long_mode()`].
@@ -388,6 +391,76 @@ extern "C" fn ap_kernel_main(
     Scheduler::run();
 }
 
+/// Гард, который:
+///   - При создании запоминает данные, записанные в блоке [`BootMemory::data`].
+///   - При своём удалении восстановит исходное содержимое в этом блоке памяти.
+pub(super) struct BootMemory {
+    /// Физический адрес кода загрузки Application Processor.
+    code_frame: Frame,
+
+    /// Блок памяти, содержимое которого нужно сохранить и в последствии восстановить.
+    data: &'static mut [usize],
+
+    /// Оригинальные данные блока [`BootMemory::data`],
+    /// которые содержались в нём до записи в него кода загрузки Application Processor.
+    /// Их нужно будет восстановить после загрузки Application Processor.
+    original_data: &'static mut [usize],
+}
+
+impl BootMemory {
+    /// Возвращает гард [`BootMemory`], который:
+    ///   - При создании запоминает данные, записанные в блоке [`BootMemory::data`].
+    ///   - При своём удалении восстановит исходное содержимое в этом блоке памяти.
+    fn new(phys2virt: Page) -> Result<Self> {
+        let message = "invalid boot code_pages block";
+
+        let code_frame = Frame::new(real_mode_address(BOOT_CODE, "boot code_pages"))
+            .expect("boot code should be aligned on frame boundary");
+        let data = unsafe {
+            Self::code_block(phys2virt::map(phys2virt, code_frame.address()))
+                .expect(message)
+                .try_into_mut_slice()?
+        };
+
+        let original_data =
+            unsafe { BASE_ADDRESS_SPACE.lock().map_slice_zeroed(data.len(), KERNEL_RW)? };
+
+        original_data.clone_from_slice(data);
+
+        Ok(Self {
+            code_frame,
+            data,
+            original_data,
+        })
+    }
+
+    /// Возвращает блок страниц, содержащих адреса с `virt` до `virt + BOOT_CODE_PLUS_STACK_SIZE`.
+    fn code_block(virt: Virt) -> Result<Block<Page>> {
+        Ok(Block::new(virt, (virt + BOOT_CODE_PLUS_STACK_SIZE)?)?.enclosing())
+    }
+
+    /// Возвращает виртуальный адрес кода загрузки Application Processor.
+    /// Гарантируется, что по этому адресу можно записывать данные.
+    fn code_data(&self) -> Virt {
+        Virt::from_ref(self.data)
+    }
+
+    /// Возвращает физический адрес кода загрузки Application Processor.
+    fn code_frame(&self) -> Frame {
+        self.code_frame
+    }
+}
+
+impl Drop for BootMemory {
+    fn drop(&mut self) {
+        self.data.clone_from_slice(self.original_data);
+
+        unsafe {
+            BASE_ADDRESS_SPACE.lock().unmap_slice(self.original_data).unwrap();
+        }
+    }
+}
+
 /// Релоцирует код начальной загрузки Application Processor,
 /// расположенный в функции [`switch_from_real_mode_to_long_mode()`]
 /// в заданный адрес `boot_code_address`.
@@ -455,9 +528,22 @@ fn signal_initialized(initialized: &AtomicBool) {
 
 /// Ждёт пока запускаемый Application Processor не завершит свою инициализацию.
 /// Если этого не произойдёт за отведённый `timeout`, возвращает ошибку [`Error::Timeout`].
+///
+/// Аргумент `_boot_memory` хранит исходное состояние памяти,
+/// которой Application Processor может пользоваться по своему усмотрению во время загрузки.
+/// При разрушении гарда `_boot_memory`, он восстановит исходное состояние этого блока памяти.
+/// Функция [`wait_initialized()`] принимает `_boot_memory` во владение для того, чтобы
+/// чётко задать границы времени в течение которого участок памяти зарезервирован за
+/// Application Processor.
+/// То есть:
+///   - Гарантировать что [`BootMemory`] не будет разрушен до того как
+///     Application Processor не перестанет пользоваться соответствующей памятью.
+///   - Как только Application Processor перестал ею пользоваться,
+///     разрушить [`BootMemory`] и восстановить исходное содержимое этой памяти.
 fn wait_initialized(
     initialized: &AtomicBool,
     timeout: Duration,
+    _boot_memory: BootMemory,
 ) -> Result<()> {
     let start = time::timer();
 
