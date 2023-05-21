@@ -16,6 +16,8 @@ members = [
     "user/page_fault",
     "user/sched_yield",
     "user/trap_handler",
+
+    "kernel/examples/bga",
 ]
 
 [profile.user]

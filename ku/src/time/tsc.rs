@@ -60,6 +60,12 @@ pub struct Tsc(i64);
 pub struct TscDuration(i64);
 
 impl Tsc {
+    /// Возвращает [`Tsc`] с заданным номером такта процессора.
+    #[inline(always)]
+    pub fn new(tsc: i64) -> Self {
+        Self(tsc)
+    }
+
     /// Возвращает [`Tsc`] с номером текущего такта процессора.
     #[inline(always)]
     pub fn now() -> Self {

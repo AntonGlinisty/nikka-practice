@@ -2,6 +2,7 @@ use core::{
     convert::From,
     hint,
     sync::atomic::{
+        AtomicI64,
         AtomicU8,
         Ordering,
     },
@@ -10,6 +11,7 @@ use core::{
 use bitflags::bitflags;
 use chrono::{
     DateTime,
+    Duration,
     NaiveDate,
     NaiveDateTime,
     Utc,
@@ -20,7 +22,9 @@ use x86::io;
 use x86_64::instructions::interrupts;
 
 use ku::time::{
+    self,
     CorrelationPoint,
+    Tsc,
     rtc::TICKS_PER_SECOND,
 };
 
@@ -40,7 +44,17 @@ pub(crate) fn interrupt() {
         let now = CorrelationPoint::now(timestamp * TICKS_PER_SECOND);
         let rtc = SYSTEM_INFO.rtc();
         rtc.init_base(now);
+        let before_correction = time::datetime(Tsc::new(now.tsc()));
         rtc.store_prev(now);
+        let after_correction = time::datetime(Tsc::new(now.tsc()));
+
+        if let Some(error) = (before_correction - after_correction).num_nanoseconds() {
+            ERROR.store(error, Ordering::Relaxed);
+        } else if before_correction < after_correction {
+            ERROR.store(i64::MIN, Ordering::Relaxed);
+        } else {
+            ERROR.store(i64::MAX, Ordering::Relaxed);
+        }
     }
 }
 
@@ -89,6 +103,14 @@ pub(super) fn init() {
             "RTC did not acknowledge new settings",
         );
     }
+}
+
+/// Значение ошибки предсказания времени для последнего прерывания RTC.
+///
+/// То есть, разность времени, предсказанного для показаний RTC по счётчику тактов процессора
+/// и времени по показаниям RTC для момента последнего прерывания.
+pub fn error() -> Duration {
+    Duration::nanoseconds(ERROR.load(Ordering::Relaxed))
 }
 
 /// Говорит микросхеме RTC, что процессор обработал [прерывание](https://en.wikipedia.org/wiki/Interrupt) от неё.
@@ -319,6 +341,9 @@ fn parse_hour(
     // TODO: your code here.
     hour // TODO: remove before flight.
 }
+
+/// Значение ошибки предсказания времени для последнего прерывания RTC в наносекундах.
+static ERROR: AtomicI64 = AtomicI64::new(0);
 
 /// Копия текущих настроек микросхемы --- [`RegisterB`].
 static SETTINGS: AtomicU8 = AtomicU8::new(0);

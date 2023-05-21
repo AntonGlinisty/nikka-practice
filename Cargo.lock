@@ -38,6 +38,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
+name = "az"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b7e4c2464d97fe331d41de9d5db0def0a96f4d823b8b32a2efd503578988973"
+
+[[package]]
 name = "bare-metal"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -51,6 +57,26 @@ name = "bare-metal"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8fe8f5a8a398345e52358e18ff07cc17a568fbca5c6f73873d3a62056309603"
+
+[[package]]
+name = "bga"
+version = "0.3.0"
+dependencies = [
+ "bitflags",
+ "bootloader",
+ "chrono",
+ "derive_more",
+ "embedded-graphics",
+ "embedded-graphics-core",
+ "embedded-plots",
+ "kernel",
+ "ku",
+ "pic8259",
+ "text",
+ "tinypci",
+ "x86",
+ "x86_64",
+]
 
 [[package]]
 name = "bit_field"
@@ -172,6 +198,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "90e5c1c8368803113bf0c9584fc495a58b86dc8a29edbf8fe877d21d9507e797"
 
 [[package]]
+name = "embedded-graphics"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "750082c65094fbcc4baf9ba31583ce9a8bb7f52cadfb96f6164b1bc7f922f32b"
+dependencies = [
+ "az",
+ "byteorder",
+ "embedded-graphics-core",
+ "float-cmp",
+ "micromath",
+]
+
+[[package]]
+name = "embedded-graphics-core"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8b1239db5f3eeb7e33e35bd10bd014e7b2537b17e071f726a09351431337cfa"
+dependencies = [
+ "az",
+ "byteorder",
+]
+
+[[package]]
 name = "embedded-hal"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -182,12 +231,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "embedded-plots"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d855c9092b75232d45ce8d28a997e095ed5e171280b425934abf246d7512d669"
+dependencies = [
+ "embedded-graphics",
+ "heapless",
+ "itertools 0.9.0",
+]
+
+[[package]]
 name = "exit"
 version = "0.3.0"
 dependencies = [
  "chrono",
  "ku",
  "lib",
+]
+
+[[package]]
+name = "float-cmp"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1267f4ac4f343772758f7b1bdcbe767c218bbab93bb432acbf5162bbf85a6c4"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]
@@ -215,6 +284,15 @@ dependencies = [
 
 [[package]]
 name = "itertools"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "284f18f85651fe11e8a991b2adb42cb078325c996ed026d994719efcfca1d54b"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
 version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a9a9d19fa1e79b6215ff29b9d6880b706147f16e9b1dbb1e4e5947b5b02bc5e3"
@@ -231,7 +309,7 @@ dependencies = [
  "bootloader",
  "chrono",
  "derive_more",
- "itertools",
+ "itertools 0.10.3",
  "ku",
  "lazy_static",
  "memoffset",
@@ -260,7 +338,7 @@ dependencies = [
  "chrono",
  "derive_more",
  "heapless",
- "itertools",
+ "itertools 0.10.3",
  "memoffset",
  "num-traits",
  "number_prefix",
@@ -348,6 +426,12 @@ dependencies = [
  "ku",
  "lib",
 ]
+
+[[package]]
+name = "micromath"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc4010833aea396656c2f91ee704d51a6f1329ec2ab56ffd00bfd56f7481ea94"
 
 [[package]]
 name = "nb"
@@ -654,6 +738,11 @@ dependencies = [
  "x86",
  "x86_64",
 ]
+
+[[package]]
+name = "tinypci"
+version = "0.1.0"
+source = "git+https://github.com/sergey-v-galtsev/tinypci#41ddf008a2e4e82e8971498434cae08430720695"
 
 [[package]]
 name = "tracing"
