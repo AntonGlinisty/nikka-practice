@@ -1,5 +1,4 @@
 use core::{
-    alloc::Layout,
     any,
     fmt,
     mem,
@@ -12,15 +11,14 @@ use spin::Mutex;
 
 use ku::allocator::{
     AtomicInfo,
-    BigAllocator,
     Info,
 };
 
 use crate::{
+    allocator::Big,
     error::{
         Error::{
             InvalidAlignment,
-            InvalidArgument,
             PermissionDenied,
         },
         Result,
@@ -35,7 +33,6 @@ use crate::{
 
 use super::{
     FRAME_ALLOCATOR,
-    KERNEL_RW,
     Virt,
     block::Block,
     frage::{
@@ -121,9 +118,23 @@ impl AddressSpace {
         Ok(address_space)
     }
 
+    /// Постраничный аллокатор памяти в этом адресном пространстве.
+    /// Выделяемая им память будет отображена с флагами `flags`.
+    pub fn allocator(
+        &mut self,
+        flags: PageTableFlags,
+    ) -> Big {
+        Big::new(self, flags)
+    }
+
     /// Статистика аллокатора общего назначения.
     pub(crate) fn info(&self) -> Info {
         self.info.load()
+    }
+
+    /// Статистика аллокатора общего назначения.
+    pub(crate) fn info_mut(&mut self) -> &mut AtomicInfo {
+        &mut self.info
     }
 
     /// Возвращает страничное отображение данного виртуального адресного пространства.
@@ -522,69 +533,6 @@ impl fmt::Display for AddressSpace {
                 None => write!(formatter, "\"process\" @ {page_table_root}"),
             },
         }
-    }
-}
-
-unsafe impl BigAllocator for AddressSpace {
-    fn reserve(
-        &mut self,
-        layout: Layout,
-    ) -> Result<Block<Page>> {
-        if layout.align() > Page::SIZE {
-            warn!(?layout, page_size = %Page::SIZE, "can not handle alignments greater than the page size");
-            return Err(InvalidAlignment);
-        }
-
-        let block = self.page_allocator.allocate(layout.size())?;
-        self.info.allocation(block.size(), block.size(), block.count());
-
-        Ok(block)
-    }
-
-    unsafe fn unreserve(
-        &mut self,
-        block: Block<Page>,
-    ) -> Result<()> {
-        self.info.deallocation(block.size(), block.size(), block.count());
-
-        Ok(())
-    }
-
-    unsafe fn rereserve(
-        &mut self,
-        old_block: Block<Page>,
-        sub_block: Block<Page>,
-    ) -> Result<()> {
-        if old_block.contains_block(sub_block) {
-            self.info.allocation(sub_block.size(), sub_block.size(), sub_block.count());
-            self.info.deallocation(old_block.size(), old_block.size(), old_block.count());
-            Ok(())
-        } else {
-            Err(InvalidArgument)
-        }
-    }
-
-    unsafe fn map(
-        &mut self,
-        block: Block<Page>,
-    ) -> Result<()> {
-        self.map_block(block, KERNEL_RW)
-    }
-
-    unsafe fn unmap(
-        &mut self,
-        block: Block<Page>,
-    ) -> Result<()> {
-        self.unmap_block(block)
-    }
-
-    unsafe fn remap(
-        &mut self,
-        old_block: Block<Page>,
-        new_block: Block<Page>,
-    ) -> Result<()> {
-        // TODO: your code here.
-        unimplemented!();
     }
 }
 

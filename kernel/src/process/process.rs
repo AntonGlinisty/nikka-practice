@@ -34,6 +34,7 @@ use crate::{
         Block,
         USER_RW,
         Virt,
+        mmu::PageTableFlags,
     },
     smp::Cpu,
     trap::{
@@ -139,8 +140,11 @@ impl Process {
     }
 
     /// Возвращает аллокатор памяти общего назначения внутри адресного пространства процесса.
-    pub(super) fn allocator(&self) -> MemoryAllocator {
-        MemoryAllocator::new(&self.address_space)
+    pub(super) fn allocator(
+        &self,
+        flags: PageTableFlags,
+    ) -> MemoryAllocator {
+        MemoryAllocator::new(&self.address_space, flags)
     }
 
     /// Устанавливает минимальный контекст процесса.
@@ -249,13 +253,16 @@ impl Process {
         let pid = process.pid;
 
         process.address_space.get_mut().switch_to();
+        debug!("switched to address_space");
 
         if let Ok(info) = unsafe { process.info() } {
             info.set_pid(pid);
         }
+        debug!("set pid");
 
         Cpu::set_current_process(Some(pid));
 
+        debug!("set current_process");
         let registers = &mut process.registers as *mut Registers;
 
         process.state = State::RUNNING;

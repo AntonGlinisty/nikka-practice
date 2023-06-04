@@ -1,3 +1,6 @@
+/// Аллокатор памяти, предназначенный для выделения памяти блоками виртуальных страниц.
+mod big;
+
 /// Аллокатор памяти общего назначения внутри [`AddressSpace`].
 mod memory_allocator;
 
@@ -15,8 +18,12 @@ use core::{
 
 use ku::allocator::Info;
 
-use crate::memory::BASE_ADDRESS_SPACE;
+use crate::memory::{
+    BASE_ADDRESS_SPACE,
+    KERNEL_RW,
+};
 
+pub(crate) use big::Big;
 pub(crate) use memory_allocator::MemoryAllocator;
 
 // Used in docs.
@@ -44,7 +51,7 @@ unsafe impl GlobalAlloc for GlobalAllocator {
         &self,
         layout: Layout,
     ) -> *mut u8 {
-        MemoryAllocator::new(&BASE_ADDRESS_SPACE)
+        MemoryAllocator::new(&BASE_ADDRESS_SPACE, KERNEL_RW)
             .allocate(layout)
             .map(|x| x.as_non_null_ptr().as_ptr())
             .unwrap_or(ptr::null_mut())
@@ -55,14 +62,15 @@ unsafe impl GlobalAlloc for GlobalAllocator {
         ptr: *mut u8,
         layout: Layout,
     ) {
-        MemoryAllocator::new(&BASE_ADDRESS_SPACE).deallocate(NonNull::new(ptr).unwrap(), layout);
+        MemoryAllocator::new(&BASE_ADDRESS_SPACE, KERNEL_RW)
+            .deallocate(NonNull::new(ptr).unwrap(), layout);
     }
 
     unsafe fn alloc_zeroed(
         &self,
         layout: Layout,
     ) -> *mut u8 {
-        MemoryAllocator::new(&BASE_ADDRESS_SPACE)
+        MemoryAllocator::new(&BASE_ADDRESS_SPACE, KERNEL_RW)
             .allocate_zeroed(layout)
             .map(|x| x.as_non_null_ptr().as_ptr())
             .unwrap_or(ptr::null_mut())
@@ -74,7 +82,7 @@ unsafe impl GlobalAlloc for GlobalAllocator {
         layout: Layout,
         new_size: usize,
     ) -> *mut u8 {
-        let allocator = MemoryAllocator::new(&BASE_ADDRESS_SPACE);
+        let allocator = MemoryAllocator::new(&BASE_ADDRESS_SPACE, KERNEL_RW);
         let ptr = NonNull::new(ptr).unwrap();
 
         if let Ok(new_layout) = Layout::from_size_align(new_size, layout.align()) {

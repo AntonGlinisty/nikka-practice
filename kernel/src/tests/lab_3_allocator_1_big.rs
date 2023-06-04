@@ -29,6 +29,7 @@ use kernel::{
         mmu::{
             PageTableEntry,
             PageTableFlags,
+            USER_RW,
         },
         test_scaffolding::{
             forbid_frame_leaks,
@@ -53,12 +54,16 @@ fn shrink_is_not_a_noop() {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
     let old_layout = Layout::from_size_align(4 * Page::SIZE, Page::SIZE).unwrap();
-    let old_allocation = address_space.dry_allocate(old_layout, Initialize::Garbage).unwrap();
+    let old_allocation = address_space
+        .allocator(USER_RW)
+        .dry_allocate(old_layout, Initialize::Garbage)
+        .unwrap();
     let old_block = Block::from_slice(unsafe { old_allocation.as_uninit_slice() });
 
     let new_layout = Layout::from_size_align(3 * Page::SIZE, Page::SIZE).unwrap();
     let new_allocation = unsafe {
         address_space
+            .allocator(USER_RW)
             .dry_shrink(old_allocation.as_non_null_ptr(), old_layout, new_layout)
             .unwrap()
     };
@@ -69,7 +74,9 @@ fn shrink_is_not_a_noop() {
     debug!(%old_block, %new_block, no_remap_on_shrink = old_block.contains_block(new_block));
 
     unsafe {
-        address_space.dry_deallocate(new_allocation.as_non_null_ptr(), new_layout);
+        address_space
+            .allocator(USER_RW)
+            .dry_deallocate(new_allocation.as_non_null_ptr(), new_layout);
     }
 }
 

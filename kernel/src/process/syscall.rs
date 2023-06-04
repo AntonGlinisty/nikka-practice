@@ -48,6 +48,7 @@ use crate::{
         Block,
         FRAME_ALLOCATOR,
         Frame,
+        KERNEL_RW,
         Page,
         USER,
         Virt,

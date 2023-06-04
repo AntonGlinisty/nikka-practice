@@ -10,9 +10,12 @@ use core::{
 
 use spin::Mutex;
 
-use ku::allocator::{
-    DryAllocator,
-    Initialize,
+use ku::{
+    allocator::{
+        DryAllocator,
+        Initialize,
+    },
+    memory::mmu::PageTableFlags,
 };
 
 use crate::memory::AddressSpace;
@@ -21,12 +24,22 @@ use crate::memory::AddressSpace;
 pub(crate) struct MemoryAllocator<'a> {
     /// Адресное пространство, внутри которого аллокатор выделяет память.
     address_space: &'a Mutex<AddressSpace>,
+
+    /// Флаги с которыми будет отображена выделяемая память.
+    flags: PageTableFlags,
 }
 
 impl MemoryAllocator<'_> {
     /// Возвращает аллокатор памяти общего назначения внутри `address_space`.
-    pub const fn new(address_space: &Mutex<AddressSpace>) -> MemoryAllocator {
-        MemoryAllocator { address_space }
+    /// Выделяемая им память будет отображена с флагами `flags`.
+    pub fn new(
+        address_space: &Mutex<AddressSpace>,
+        flags: PageTableFlags,
+    ) -> MemoryAllocator {
+        MemoryAllocator {
+            address_space,
+            flags,
+        }
     }
 }
 
@@ -37,6 +50,7 @@ unsafe impl Allocator for MemoryAllocator<'_> {
     ) -> result::Result<NonNull<[u8]>, AllocError> {
         self.address_space
             .lock()
+            .allocator(self.flags)
             .dry_allocate(layout, Initialize::Garbage)
             .map_err(|_| AllocError)
     }
@@ -47,6 +61,7 @@ unsafe impl Allocator for MemoryAllocator<'_> {
     ) -> result::Result<NonNull<[u8]>, AllocError> {
         self.address_space
             .lock()
+            .allocator(self.flags)
             .dry_allocate(layout, Initialize::Zero)
             .map_err(|_| AllocError)
     }
@@ -56,7 +71,7 @@ unsafe impl Allocator for MemoryAllocator<'_> {
         ptr: NonNull<u8>,
         layout: Layout,
     ) {
-        self.address_space.lock().dry_deallocate(ptr, layout);
+        self.address_space.lock().allocator(self.flags).dry_deallocate(ptr, layout);
     }
 
     unsafe fn grow(
@@ -67,6 +82,7 @@ unsafe impl Allocator for MemoryAllocator<'_> {
     ) -> result::Result<NonNull<[u8]>, AllocError> {
         self.address_space
             .lock()
+            .allocator(self.flags)
             .dry_grow(ptr, old_layout, new_layout, Initialize::Garbage)
             .map_err(|_| AllocError)
     }
@@ -79,6 +95,7 @@ unsafe impl Allocator for MemoryAllocator<'_> {
     ) -> result::Result<NonNull<[u8]>, AllocError> {
         self.address_space
             .lock()
+            .allocator(self.flags)
             .dry_grow(ptr, old_layout, new_layout, Initialize::Zero)
             .map_err(|_| AllocError)
     }
@@ -91,6 +108,7 @@ unsafe impl Allocator for MemoryAllocator<'_> {
     ) -> result::Result<NonNull<[u8]>, AllocError> {
         self.address_space
             .lock()
+            .allocator(self.flags)
             .dry_shrink(ptr, old_layout, new_layout)
             .map_err(|_| AllocError)
     }

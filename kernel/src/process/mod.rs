@@ -101,7 +101,7 @@ fn create_process(elf_file: &[u8]) -> Result<Process> {
 
     address_space.switch_to();
 
-    let entry = elf::load(&mut address_space, elf_file)?;
+    let entry = elf::load(&mut address_space.allocator(USER_RW), elf_file)?;
 
     let stack = Stack::new(&mut address_space, USER_RW)?;
 
