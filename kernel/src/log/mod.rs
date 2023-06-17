@@ -27,7 +27,7 @@ use tracing_core::{
 };
 
 use ku::{
-    RingBuffer,
+    ReadBuffer,
     log::{
         LogField,
         LogFieldValue,
@@ -68,12 +68,12 @@ pub(super) fn init() {
 }
 
 /// Записывает в журнал все сообщения от пользовательского процесса `pid`,
-/// сохранённые им в буфер `log_buffer`.
+/// сохранённые им в буфер `log`.
 pub(super) fn user_events(
     pid: Pid,
-    log_buffer: &mut RingBuffer,
+    log: &mut ReadBuffer,
 ) {
-    LOG_COLLECTOR.log.lock().user_events(pid, log_buffer);
+    LOG_COLLECTOR.log.lock().user_events(pid, log);
 }
 
 /// Вспомогательная структура для печати сообщения.
@@ -277,18 +277,22 @@ impl Log {
     }
 
     /// Печатает все сообщения от пользовательского процесса `pid`,
-    /// сериализованные им в буфер `log_buffer`.
+    /// сериализованные им в буфер `log`.
     fn user_events(
         &self,
         pid: Pid,
-        log_buffer: &mut RingBuffer,
+        log: &mut ReadBuffer,
     ) {
-        let mut tx = log_buffer.read_tx();
-        let mut deserializer = postcard::Deserializer::from_bytes(tx.read());
+        if let Some(mut tx) = log.read_tx() {
+            while let Some(event) = unsafe { tx.read() } {
+                let mut deserializer = postcard::Deserializer::from_bytes(event);
+                if self.user_event(pid, &mut deserializer).is_err() {
+                    return;
+                }
+            }
 
-        while self.user_event(pid, &mut deserializer).is_ok() {}
-
-        tx.commit();
+            tx.commit();
+        }
     }
 
     /// Печатает одно сообщение от пользовательского процесса `pid`,

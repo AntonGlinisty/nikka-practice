@@ -10,7 +10,7 @@ use core::{
 use static_assertions::const_assert;
 
 use super::{
-    RingBuffer,
+    WriteBuffer,
     memory::{
         Block,
         Page,
@@ -32,7 +32,7 @@ use crate as ku;
 #[repr(C, align(4096))]
 pub struct ProcessInfo {
     /// Буфер для асинхронного журналирования макросами библиотеки [`tracing`].
-    log: RingBuffer,
+    log: WriteBuffer,
 
     /// Идентификатор текущего процесса.
     pid: Pid,
@@ -54,7 +54,7 @@ const_assert!(mem::size_of::<ProcessInfo>() % Page::SIZE == 0);
 impl ProcessInfo {
     /// Инициализирует [`ProcessInfo`].
     pub fn new(
-        log: RingBuffer,
+        log: WriteBuffer,
         recursive_mapping: usize,
         stack: Block<Virt>,
         system_info: *const SystemInfo,
@@ -69,7 +69,7 @@ impl ProcessInfo {
     }
 
     /// Буфер для асинхронного журналирования макросами библиотеки [`tracing`].
-    pub fn log(&mut self) -> &mut RingBuffer {
+    pub fn log(&mut self) -> &mut WriteBuffer {
         &mut self.log
     }
 

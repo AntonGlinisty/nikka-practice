@@ -26,6 +26,9 @@
 Заплатим мы за это тем, что размер буфера должен быть кратен размеру страницы памяти,
 а также двойным расходом виртуального адресного пространства.
 
+Аналогично сделано в библиотеке
+[magic_ring_buffer](https://docs.rs/magic-ring-buffer/latest/magic_ring_buffer/).
+
 
 ### Транзакции
 
@@ -350,6 +353,58 @@ const QUALITY: Quality = Quality::Debuggable;
 15:30:41.569 0 D read; operation = '7' x 2277, commit
 ...
 ```
+
+
+> ### Классическая ограниченная Multi-Producer Multi-Consumer очередь
+>
+> Наш циклический буфер похож на классическую ограниченную SPSC очередь на циклическом буфере.
+> [Хорошая иллюстрация работы ограниченных SPSC и MPMC очереди](https://doc.dpdk.org/guides-19.05/prog_guide/ring_lib.html).
+>
+> Сходства:
+>
+> - Циклический буфер.
+> - Атомарные операции.
+> - Вставка и извлечение среза аналогичны bulk enqueue и bulk dequeue.
+>
+> Различия:
+>
+> - Двойное отображение в память.
+> - Использование [`RingBuffer`](../../doc/ku/ipc/pipe/struct.RingBuffer.html) одновременно и как очереди и как буфера памяти. Вместо указателей на отдельно выделенную память, лежащих в SPSC.
+> - Поддержка транзакций и их отката.
+>
+> Обратите внимание, что очередь по определению сериализует писателя и читателя.
+> Запись может быть прочитана только после того как она записана.
+> Но в явном виде блокировок нет.
+> Если в случае пустой очереди читатель сразу получает ошибку, а не блокируется,
+> и аналогично писатель в случае полной очереди, то SPSC является lock free.
+> Но в MPMC есть ещё и сериализация писателей между собой и сериализация читателей между собой.
+> А именно, писатель захватывает слот и пока он не освободит его, писатели, захватившие последующие слоты ждут.
+> То есть, если писатель, захватит слот и зависнет, то зависнут все писатели.
+> Аналогично и для читателей.
+> Это означает, что при таком зависании глобальный прогресс остановится, а MPMC не является lock free.
+>
+> Немного другие способы организации ограниченных очередей на кольцевом буфере:
+>
+> - [A look at some bounded queues](http://cbloomrants.blogspot.com/2011/07/07-29-11-look-at-some-bounded-queues_29.html) (SPSC).
+> - [A look at some bounded queues - part 2](http://cbloomrants.blogspot.com/2011/07/07-30-11-look-at-some-bounded-queues.html) (MPMC).
+>
+> Тут также есть соображения о помещении атомарных переменных с состоянием ячеек в разные линии кэша.
+> В [`RingBuffer`](../../doc/ku/ipc/pipe/struct.RingBuffer.html) вы тоже можете это реализовать.
+>
+> Ещё один полезный цикл статей про SPSC, SPMC и MPMC lock free очереди:
+>
+> - [A Fast Lock-Free Queue for C++](https://moodycamel.com/blog/2013/a-fast-lock-free-queue-for-c++.htm)
+> - [A Fast General Purpose Lock-Free Queue for C++](https://moodycamel.com/blog/2014/a-fast-general-purpose-lock-free-queue-for-c++.htm)
+> - [Detailed Design of a Lock-Free Queue](https://moodycamel.com/blog/2014/detailed-design-of-a-lock-free-queue.htm)
+>
+> Классический алгоритм неограниченной MPMC на односвязном списке:
+>
+> - [Simple, Fast, and Practical Non-Blocking and Blocking Concurrent Queue Algorithms, Maged M. Michael and Michael L. Scott](https://cs.rochester.edu/u/scott/papers/1996_PODC_queues.pdf)
+>
+> Используется и гибридный подход, объединяющий в односвязный список массивы или циклические буферы. Например:
+>
+> - [Jiffy: A Fast, Memory Efficient, Wait-Free Multi-Producers Single-Consumer Queue](https://arxiv.org/pdf/2010.14189.pdf)
+> - [Fast Concurrent Queues for x86 Processors](https://www.cs.tau.ac.il/~mad/publications/ppopp2013-x86queues.pdf)
 
 
 ### Ориентировочный объём работ этой части лабораторки

@@ -183,20 +183,20 @@ impl LogEvent<'_> {
         event: &Event<'_>,
         timestamp: Tsc,
     ) -> Result<()> {
-        let mut log_event = Self {
-            serializer: postcard::Serializer {
-                output: LogBuffer::new(),
-            },
-            result: Ok(()),
-        };
+        if let Some(output) = LogBuffer::new() {
+            let mut log_event = Self {
+                serializer: postcard::Serializer { output },
+                result: Ok(()),
+            };
 
-        log_event.result = log_event.record_header(event, timestamp);
-        log_event.is_ok_so_far()?;
+            log_event.result = log_event.record_header(event, timestamp);
+            log_event.is_ok_so_far()?;
 
-        event.record(&mut log_event);
-        log_event.is_ok_so_far()?;
+            event.record(&mut log_event);
+            log_event.is_ok_so_far()?;
 
-        log_event.serializer.output.buffer.commit();
+            log_event.serializer.output.buffer.commit();
+        }
 
         Ok(())
     }
@@ -659,11 +659,11 @@ struct LogBuffer<'a> {
 impl LogBuffer<'_> {
     /// Создаёт пишущую в [`ku::info::ProcessInfo::log()`] транзакцию и
     /// возвращает буфер для записи сообщения.
-    fn new() -> Self {
-        Self {
-            buffer: crate::process_info().log().write_tx(),
+    fn new() -> Option<Self> {
+        Some(Self {
+            buffer: crate::process_info().log().write_tx()?,
             result: Ok(()),
-        }
+        })
     }
 }
 

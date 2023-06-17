@@ -8,6 +8,7 @@
 #![allow(clippy::missing_safety_doc)]
 #![deny(warnings)]
 #![feature(allocator_api)]
+#![feature(arbitrary_enum_discriminant)]
 #![feature(cell_update)]
 #![feature(const_size_of_val)]
 #![feature(slice_ptr_get)]
@@ -70,10 +71,12 @@ pub use info::{
 };
 pub use ipc::pipe::{
     self,
+    ReadBuffer,
     RingBuffer,
     RingBufferMemory,
     RingBufferReadTx,
     RingBufferWriteTx,
+    WriteBuffer,
 };
 pub use time::{
     Hz,

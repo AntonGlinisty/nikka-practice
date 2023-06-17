@@ -15,10 +15,14 @@ use rand::{
 };
 
 use ku::{
-    RingBuffer,
-    RingBufferWriteTx,
     error::Result,
     memory::Page,
+    pipe::{
+        ReadBuffer,
+        RingBuffer,
+        RingBufferWriteTx,
+        WriteBuffer,
+    },
 };
 
 use kernel::{
@@ -43,7 +47,8 @@ fn stress() {
 
     const SEED: u64 = 314159265;
 
-    let mut ring_buffer = test_scaffolding::map_log(&mut BASE_ADDRESS_SPACE.lock()).unwrap();
+    let (mut read_buffer, mut write_buffer) =
+        test_scaffolding::map_log(&mut BASE_ADDRESS_SPACE.lock()).unwrap();
 
     let mut rng = SmallRng::seed_from_u64(SEED);
     let mut read_ops = Generator::new(QUALITY, SEED);
@@ -54,16 +59,21 @@ fn stress() {
         if iteration % 1_000 == 0 {
             debug!(
                 iteration,
-                read_stats = ?ring_buffer.read_stats(),
-                write_stats = ?ring_buffer.write_stats(),
+                read_stats = ?read_buffer.read_stats(),
+                write_stats = ?write_buffer.write_stats(),
             );
         }
 
         if rng.gen_ratio(3, 4) {
-            write_errors +=
-                write_with_retries(&mut ring_buffer, &mut write_ops, &mut read_ops, &mut rng);
+            write_errors += write_with_retries(
+                &mut read_buffer,
+                &mut write_buffer,
+                &mut write_ops,
+                &mut read_ops,
+                &mut rng,
+            );
         } else {
-            read(&mut ring_buffer, &mut read_ops, &mut rng);
+            read(&mut read_buffer, &mut read_ops, &mut rng);
         }
     }
 
@@ -74,24 +84,30 @@ fn stress() {
 }
 
 fn read(
-    ring_buffer: &mut RingBuffer,
+    ring_buffer: &mut ReadBuffer,
     read_ops: &mut Generator,
     rng: &mut SmallRng,
 ) {
-    let mut tx = ring_buffer.read_tx();
-    let data = tx.read();
+    let mut tx = ring_buffer.read_tx().unwrap();
 
-    match read_ops.quality {
-        Quality::Debuggable => trace!(
-            data = %RunLengthEncoding(data),
-            len = data.len(),
-            "read_tx"
-        ),
-        Quality::Paranoid => trace!(?data, len = data.len(), "read_tx"),
+    let commit = rng.gen_ratio(1, 2);
+
+    while let Some(data) = unsafe { tx.read() } {
+        match read_ops.quality {
+            Quality::Debuggable => trace!(
+                data = %RunLengthEncoding(data),
+                len = data.len(),
+                "read_tx"
+            ),
+            Quality::Paranoid => trace!(?data, len = data.len(), "read_tx"),
+        }
+
+        if commit {
+            check_read_tx(data, read_ops);
+        }
     }
 
-    if rng.gen_ratio(1, 2) {
-        check_read_tx(data, read_ops);
+    if commit {
         tx.commit();
     }
 }
@@ -123,7 +139,8 @@ fn check_read_tx(
 }
 
 fn write_with_retries(
-    ring_buffer: &mut RingBuffer,
+    read_buffer: &mut ReadBuffer,
+    write_buffer: &mut WriteBuffer,
     write_ops: &mut Generator,
     read_ops: &mut Generator,
     rng: &mut SmallRng,
@@ -131,9 +148,9 @@ fn write_with_retries(
     let operation = write_ops.generate_operation();
     let mut write_errors = 0;
 
-    while let Err(write_error) = write(ring_buffer, &operation, rng) {
+    while let Err(write_error) = write(write_buffer, &operation, rng) {
         trace!(?write_error);
-        read(ring_buffer, read_ops, rng);
+        read(read_buffer, read_ops, rng);
         write_errors += 1;
     }
 
@@ -141,11 +158,11 @@ fn write_with_retries(
 }
 
 fn write(
-    ring_buffer: &mut RingBuffer,
+    ring_buffer: &mut WriteBuffer,
     operation: &Operation,
     rng: &mut SmallRng,
 ) -> Result<()> {
-    let mut tx = ring_buffer.write_tx();
+    let mut tx = ring_buffer.write_tx().unwrap();
 
     write_chunked(&mut tx, operation, rng)?;
 
@@ -186,7 +203,7 @@ fn write_chunked(
 
 #[derive(Clone)]
 struct Generator {
-    buffer: [u8; RingBuffer::REAL_SIZE],
+    buffer: [u8; RingBuffer::MAX_CAPACITY],
     quality: Quality,
     rng: SmallRng,
 }
@@ -197,7 +214,7 @@ impl Generator {
         seed: u64,
     ) -> Self {
         Self {
-            buffer: [0; RingBuffer::REAL_SIZE],
+            buffer: [0; RingBuffer::MAX_CAPACITY],
             quality,
             rng: SmallRng::seed_from_u64(seed),
         }
@@ -246,11 +263,13 @@ impl<'a> Operation<'a> {
         const BOUNDARY_SIZE: usize = 16;
 
         if rng.gen_ratio(3, 4) {
-            rng.gen_range(BOUNDARY_SIZE .. RingBuffer::REAL_SIZE - BOUNDARY_SIZE + 1)
+            rng.gen_range(BOUNDARY_SIZE .. RingBuffer::MAX_CAPACITY - BOUNDARY_SIZE + 1)
         } else if rng.gen_ratio(1, 2) {
             rng.gen_range(0 .. BOUNDARY_SIZE)
         } else {
-            rng.gen_range(RingBuffer::REAL_SIZE - BOUNDARY_SIZE + 1 .. RingBuffer::REAL_SIZE + 1)
+            rng.gen_range(
+                RingBuffer::MAX_CAPACITY - BOUNDARY_SIZE + 1 .. RingBuffer::MAX_CAPACITY + 1,
+            )
         }
     }
 }

@@ -27,8 +27,13 @@ use static_assertions::const_assert;
 
 use ku::{
     ProcessInfo,
-    RingBuffer,
     SystemInfo,
+    pipe::{
+        self,
+        ReadBuffer,
+        RingBuffer,
+        WriteBuffer,
+    },
     process::MiniContext,
 };
 
@@ -105,12 +110,13 @@ fn create_process(elf_file: &[u8]) -> Result<Process> {
 
     let stack = Stack::new(&mut address_space, USER_RW)?;
 
-    let process_info = map_process_info(&mut address_space, Block::from_ref(stack))?;
+    let (read_buffer, write_buffer) = map_log(&mut address_space)?;
+    let process_info = map_process_info(&mut address_space, Block::from_ref(stack), write_buffer)?;
 
     BASE_ADDRESS_SPACE.lock().switch_to();
 
     let context = MiniContext::new(entry, stack.pointer());
-    let process = Process::new(address_space, context, process_info);
+    let process = Process::new(address_space, context, process_info, read_buffer);
 
     info!(%context, file_size = %Size::from_slice(elf_file), %process, "loaded ELF file");
 
@@ -125,19 +131,19 @@ fn create_process(elf_file: &[u8]) -> Result<Process> {
 fn map_process_info(
     address_space: &mut AddressSpace,
     stack: Block<Virt>,
+    write_buffer: WriteBuffer,
 ) -> Result<&'static mut ProcessInfo> {
-    let log = map_log(address_space)?;
     let recursive_mapping = address_space.mapping().make_recursive_mapping()?;
     let system_info = map_system_info(address_space)?;
     address_space.map_one(USER_RW, || {
-        ProcessInfo::new(log, recursive_mapping, stack, system_info)
+        ProcessInfo::new(write_buffer, recursive_mapping, stack, system_info)
     })
 }
 
 /// Создаёт для процесса отображение в его адресное пространство `address_space`
 /// циклического буфера для журналирования.
 /// См. [`RingBuffer`].
-fn map_log(address_space: &mut AddressSpace) -> Result<RingBuffer> {
+fn map_log(address_space: &mut AddressSpace) -> Result<(ReadBuffer, WriteBuffer)> {
     // TODO: your code here.
     Ok(RingBuffer::zero()) // TODO: remove before flight.
 }
@@ -179,8 +185,11 @@ pub mod test_scaffolding {
     };
 
     use ku::{
-        RingBuffer,
         memory::Block,
+        pipe::{
+            ReadBuffer,
+            WriteBuffer,
+        },
         process::{
             MiniContext,
             Pid,
@@ -208,17 +217,19 @@ pub mod test_scaffolding {
 
         address_space.switch_to();
 
-        let process_info = super::map_process_info(&mut address_space, Block::default())?;
+        let (read_buffer, write_buffer) = map_log(&mut address_space)?;
+        let process_info =
+            super::map_process_info(&mut address_space, Block::default(), write_buffer)?;
 
         BASE_ADDRESS_SPACE.lock().switch_to();
 
         let context = MiniContext::default();
-        let process = Process::new(address_space, context, process_info);
+        let process = Process::new(address_space, context, process_info, read_buffer);
 
         Table::allocate(process)
     }
 
-    pub fn map_log(address_space: &mut AddressSpace) -> Result<RingBuffer> {
+    pub fn map_log(address_space: &mut AddressSpace) -> Result<(ReadBuffer, WriteBuffer)> {
         super::map_log(address_space)
     }
 

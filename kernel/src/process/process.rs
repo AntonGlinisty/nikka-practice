@@ -7,7 +7,7 @@ use spin::{
 
 use ku::{
     ProcessInfo,
-    RingBuffer,
+    ReadBuffer,
     process::{
         Info,
         MiniContext,
@@ -59,6 +59,9 @@ pub struct Process {
     /// В этом блоке находится структура типа [`ProcessInfo`].
     info: Block<Virt>,
 
+    /// Буфер, в который код пользователя записывает свои сообщения журнала.
+    log: ReadBuffer,
+
     /// Идентификатор процесса--родителя, который создал данный процесс.
     parent: Option<Pid>,
 
@@ -83,12 +86,14 @@ impl Process {
         address_space: AddressSpace,
         context: MiniContext,
         info: &'static mut ProcessInfo,
+        log: ReadBuffer,
     ) -> Self {
         let info = Block::from_ref(info);
 
         Self {
             address_space: Mutex::new(address_space),
             info,
+            log,
             parent: None,
             pid: Pid::Current,
             registers: Registers::new(context, info.start_address().into_usize()),
@@ -112,12 +117,15 @@ impl Process {
         let mut address_space = self.address_space.lock().duplicate()?;
 
         address_space.switch_to();
-        let info = Block::from_ref(super::map_process_info(&mut address_space, stack)?);
+        let (read_buffer, write_buffer) = super::map_log(&mut address_space)?;
+        let info = super::map_process_info(&mut address_space, stack, write_buffer)?;
+        let info = Block::from_ref(info);
         self.address_space.lock().switch_to();
 
         Ok(Self {
             address_space: Mutex::new(address_space),
             info,
+            log: read_buffer,
             parent: Some(self.pid),
             pid: Pid::Current,
             registers: self.registers.duplicate(rax, rdi, info.start_address().into_usize()),
@@ -170,20 +178,12 @@ impl Process {
         }
     }
 
-    /// Возвращает [`RingBuffer`] в который код пользователя записывает свои сообщения журнала.
-    pub fn log(&mut self) -> Result<&mut RingBuffer> {
-        let info = unsafe { self.info()? };
-        let log = Block::from_ref(info.log());
-        let address_space = self.address_space.get_mut();
-
-        let log = address_space.check_permission_mut::<RingBuffer>(log, USER_RW)?;
-
-        if log.len() == 1 {
-            address_space.check_permission_mut::<u8>(log[0].block(), USER_RW)?;
-            Ok(&mut log[0])
-        } else {
-            Err(InvalidArgument)
-        }
+    /// Возвращает буфер, в который код пользователя записывает свои сообщения журнала.
+    fn log(&mut self) -> Result<&mut ReadBuffer> {
+        self.address_space
+            .get_mut()
+            .check_permission_mut::<u8>(self.log.block(), USER_RW)?;
+        Ok(&mut self.log)
     }
 
     /// Возвращает идентификатор процесса--родителя, который создал данный процесс.
@@ -332,7 +332,7 @@ impl Process {
 
         if let Ok(log) = self.log() {
             log::user_events(pid, log);
-            trace!(read_stats = ?log.read_stats(), write_stats = ?log.write_stats());
+            trace!(read_stats = ?*log.read_stats());
         } else {
             warn!(%pid, "log is not mapped properly");
         }
