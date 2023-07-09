@@ -10,6 +10,7 @@
 #![feature(allocator_api)]
 #![feature(arbitrary_enum_discriminant)]
 #![feature(cell_update)]
+#![feature(const_caller_location)]
 #![feature(const_size_of_val)]
 #![feature(slice_ptr_get)]
 #![feature(strict_provenance)]
@@ -54,6 +55,9 @@ pub mod memory;
 /// которые нужны и в ядре, и в пространстве пользователя.
 pub mod process;
 
+/// Примитив синхронизации [`Spinlock`].
+pub mod sync;
+
 /// Здесь собраны базовые примитивы для работы со временем, которые нужны и в ядре, и в пространстве пользователя.
 pub mod time;
 
@@ -78,6 +82,7 @@ pub use ipc::pipe::{
     RingBufferWriteTx,
     WriteBuffer,
 };
+pub use sync::spinlock::Spinlock;
 pub use time::{
     Hz,
     Tsc,

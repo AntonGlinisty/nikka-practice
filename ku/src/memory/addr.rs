@@ -66,6 +66,13 @@ impl<T: Tag> Addr<T> {
         Self::new(size::from(addr))
     }
 
+    /// Возвращает нулевой [`Addr`] --- [`Phys`] или [`Virt`].
+    /// В отличие от `Addr::default()` доступна в константном контексте,
+    /// поэтому не может использовать `T::new()`.
+    pub const fn zero() -> Self {
+        Self(0, PhantomData)
+    }
+
     /// Возвращает битовое представление адреса.
     pub fn into_usize(self) -> usize {
         self.0

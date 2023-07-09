@@ -88,16 +88,22 @@ impl Tsc {
         TscDuration(lap_end - mem::replace(&mut self.0, lap_end))
     }
 
-    /// Возвращает `true` если одновременно:
-    /// - [`TscDuration`] уже можно преобразовать в [`Duration`].
-    /// То есть, если прошло как минимум два тика [`Rtc`] или [`Pit`],
+    /// Возвращает `true` если с момента создания этого [`Tsc`]
+    /// прошло не менее `duration` времени.
+    ///
+    /// # Note
+    ///
+    /// Если ещё не прошло два тика [`Rtc`] или [`Pit`],
+    /// то [`Duration`] и [`TscDuration`] сравнить нельзя,
     /// см. [`TscDuration::try_from::<Duration>()`].
-    /// - С момента создания этого [`Tsc`] прошло не менее `duration` времени.
+    /// В этом случае считается, что один такт процессора
+    /// происходит за одну наносекунду.
     pub fn has_passed(
         &self,
         duration: Duration,
     ) -> bool {
-        self.elapsed().try_into().unwrap_or_else(|_| Duration::seconds(0)) >= duration
+        let elapsed = self.elapsed();
+        elapsed.try_into().unwrap_or_else(|_| Duration::nanoseconds(elapsed.0)) >= duration
     }
 
     /// Возвращает номер такта процессора, записанный в [`Tsc`].
