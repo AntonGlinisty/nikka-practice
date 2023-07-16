@@ -4,6 +4,7 @@ use core::{
     hint,
     sync::atomic::{
         AtomicI64,
+        AtomicU64,
         Ordering,
     },
 };
@@ -94,7 +95,7 @@ pub struct AtomicCorrelationPoint {
     /// И читатель может его использовать при дополнительном условии,
     /// что чтение [`AtomicCorrelationPoint::sequence`] вернуло один и тот же результат
     /// до чтения и после чтения остальных полей.
-    sequence: AtomicI64,
+    sequence: AtomicU64,
 
     /// Значение счётчика тактов процессора.
     tsc: AtomicI64,
@@ -106,7 +107,7 @@ impl AtomicCorrelationPoint {
     pub const fn new() -> Self {
         Self {
             count: AtomicI64::new(0),
-            sequence: AtomicI64::new(0),
+            sequence: AtomicU64::new(0),
             tsc: AtomicI64::new(0),
         }
     }
@@ -139,13 +140,8 @@ impl AtomicCorrelationPoint {
 
     /// Атомарно читает значение [`CorrelationPoint`] из структуры [`AtomicCorrelationPoint`].
     pub fn load(&self) -> CorrelationPoint {
-        loop {
-            if let Some(point) = self.try_load() {
-                return point;
-            } else {
-                hint::spin_loop();
-            }
-        }
+        // TODO: your code here.
+        CorrelationPoint { count: self.count.load(Ordering::Relaxed), tsc: self.tsc.load(Ordering::Relaxed) } // TODO: remove before flight.
     }
 
     /// Читает значение [`CorrelationPoint`] из структуры [`AtomicCorrelationPoint`].
@@ -153,6 +149,12 @@ impl AtomicCorrelationPoint {
     fn try_load(&self) -> Option<CorrelationPoint> {
         // TODO: your code here.
         Some(CorrelationPoint { count: self.count.load(Ordering::Relaxed), tsc: self.tsc.load(Ordering::Relaxed) }) // TODO: remove before flight.
+    }
+
+    /// Возвращает `true`, если значение `sequence` означает,
+    /// что захвачена блокировка на запись.
+    fn is_locked(sequence: u64) -> bool {
+        sequence % 2 != 0
     }
 }
 

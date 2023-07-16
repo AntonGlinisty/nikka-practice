@@ -55,7 +55,7 @@ pub mod memory;
 /// которые нужны и в ядре, и в пространстве пользователя.
 pub mod process;
 
-/// Примитив синхронизации [`Spinlock`].
+/// Примитивы синхронизации [`Spinlock`] и [`SequenceLock`].
 pub mod sync;
 
 /// Здесь собраны базовые примитивы для работы со временем, которые нужны и в ядре, и в пространстве пользователя.
@@ -82,7 +82,10 @@ pub use ipc::pipe::{
     RingBufferWriteTx,
     WriteBuffer,
 };
-pub use sync::spinlock::Spinlock;
+pub use sync::{
+    sequence_lock::SequenceLock,
+    spinlock::Spinlock,
+};
 pub use time::{
     Hz,
     Tsc,

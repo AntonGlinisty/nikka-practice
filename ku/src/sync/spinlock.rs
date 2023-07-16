@@ -6,6 +6,7 @@ use core::{
         Deref,
         DerefMut,
     },
+    panic::Location,
     sync::atomic::{
         AtomicBool,
         AtomicUsize,
@@ -13,7 +14,12 @@ use core::{
     },
 };
 
-use crate::log::trace;
+use crate::{
+    backtrace::Callsite,
+    log::trace,
+};
+
+use super::sequence_lock::SequenceLock;
 
 /// Спин-блокировка, которая позволяет синхронизировать доступ
 /// к защищаемым ею данным из разных потоков исполнения.
@@ -118,8 +124,15 @@ pub struct Spinlock<T> {
     /// Данные, защищаемые спин-блокировкой.
     // TODO: your code here.
     data: spin::Mutex<T>, // TODO: remove before flight.
+    /// Место кода, в котором определена переменная спин-блокировки.
+    /// Используется для отладочной печати.
+    defined: &'static Location<'static>,
+
     /// Атомарная переменная, сигнализирующая, что спин-блокировка захвачена.
     locked: AtomicBool,
+
+    /// Последний владелец спин-блокировки.
+    owner: SequenceLock<Callsite>,
 
     /// Статистика попыток захвата спин-блокировки.
     stats: Stats,
@@ -127,11 +140,14 @@ pub struct Spinlock<T> {
 
 impl<T> Spinlock<T> {
     /// Создаёт новую спин-блокировку для защиты `data`.
+    #[track_caller]
     pub const fn new(data: T) -> Self {
         Self {
             // TODO: your code here.
             data: spin::Mutex::new(data), // TODO: remove before flight.
+            defined: Location::caller(),
             locked: AtomicBool::new(false),
+            owner: SequenceLock::new(Callsite::zero()),
             stats: Stats::new(),
         }
     }
@@ -143,6 +159,7 @@ impl<T> Spinlock<T> {
     /// - Позволяет читать и писать в защищаемые [`Spinlock`] данные
     /// с помощью типажей [`Deref`] и [`DerefMut`] соответственно.
     /// - Автоматически освобождает блокировку в реализации типажа [`Drop`].
+    #[track_caller]
     pub fn lock(&self) -> SpinlockGuard<'_, T> {
         // TODO: your code here.
         SpinlockGuard { spinlock: self.data.lock() } // TODO: remove before flight.
@@ -155,6 +172,7 @@ impl<T> Spinlock<T> {
     /// - Позволяет читать и писать в защищаемые [`Spinlock`] данные
     /// с помощью типажей [`Deref`] и [`DerefMut`] соответственно.
     /// - Автоматически освобождает блокировку в реализации типажа [`Drop`].
+    #[track_caller]
     pub fn try_lock(&self) -> Option<SpinlockGuard<'_, T>> {
         // TODO: your code here.
         Some(SpinlockGuard { spinlock: self.data.try_lock()? }) // TODO: remove before flight.
@@ -162,6 +180,7 @@ impl<T> Spinlock<T> {
 
     /// Пытается захватить спин-блокировку максимум `max_tries` раз.
     /// Если за это количество попыток блокировка не освободилась, возвращает [`None`].
+    /// В случае успеха сохраняет `callsite` с метаданными нового владельца спин-блокировки.
     ///
     /// При успехе возвращает [`SpinlockGuard`], который:
     /// - Позволяет читать и писать в защищаемые [`Spinlock`] данные
@@ -170,6 +189,7 @@ impl<T> Spinlock<T> {
     fn try_lock_impl(
         &self,
         max_tries: usize,
+        callsite: Callsite,
     ) -> Option<SpinlockGuard<'_, T>> {
         // TODO: your code here.
         unimplemented!();
@@ -188,7 +208,7 @@ impl<T: fmt::Debug> fmt::Debug for Spinlock<T> {
         &self,
         formatter: &mut fmt::Formatter,
     ) -> fmt::Result {
-        write!(formatter, "Spinlock {{ ")?;
+        write!(formatter, "Spinlock {{ defined: {}, ", self.defined)?;
 
         // TODO: your code here.
 
@@ -202,7 +222,7 @@ impl<T> Drop for Spinlock<T> {
             self.stats.locks.load(Ordering::Relaxed),
             self.stats.unlocks.load(Ordering::Relaxed),
         );
-        trace!(stats = ?self.stats, "dropping");
+        trace!(spinlock = %self.defined, stats = ?self.stats, "dropping");
     }
 }
 

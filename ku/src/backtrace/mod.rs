@@ -1,3 +1,6 @@
+/// Отладочная информация [`Callsite`] о точке вызова некоторой функции.
+pub mod callsite;
+
 use core::{
     arch::asm,
     fmt,
@@ -16,6 +19,8 @@ use crate::{
         },
     },
 };
+
+pub use callsite::Callsite;
 
 /// Поддержка печати трассировок стека.
 ///
