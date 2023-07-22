@@ -13,9 +13,10 @@ use core::{
     },
 };
 
-use spin::Mutex;
-
-use ku::process::Pid;
+use ku::{
+    process::Pid,
+    sync::Spinlock,
+};
 
 use kernel::{
     Subsystems,
@@ -48,7 +49,7 @@ fn cow_fork() {
 
     static START_FREE_FRAMES: AtomicUsize = AtomicUsize::new(0);
     static ONE_PROCESS_FRAMES: AtomicUsize = AtomicUsize::new(0);
-    static PARENTS: Mutex<Vec<(Pid, Pid)>> = Mutex::new(Vec::new());
+    static PARENTS: Spinlock<Vec<(Pid, Pid)>> = Spinlock::new(Vec::new());
 
     *PARENTS.lock() = Vec::with_capacity(16);
 

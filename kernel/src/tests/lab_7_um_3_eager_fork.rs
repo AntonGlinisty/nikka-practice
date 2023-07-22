@@ -7,8 +7,6 @@ use alloc::{
 };
 use core::slice;
 
-use spin::Mutex;
-
 use ku::{
     error::Error::{
         InvalidArgument,
@@ -18,6 +16,7 @@ use ku::{
         Pid,
         State,
     },
+    sync::Spinlock,
 };
 
 use kernel::{
@@ -135,7 +134,7 @@ fn eager_fork() {
 
     let start_page_fault_count = TRAP_STATS[PAGE_FAULT].count();
 
-    static PARENTS: Mutex<Vec<(Pid, Pid)>> = Mutex::new(Vec::new());
+    static PARENTS: Spinlock<Vec<(Pid, Pid)>> = Spinlock::new(Vec::new());
 
     *PARENTS.lock() = Vec::with_capacity(16);
 

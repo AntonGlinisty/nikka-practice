@@ -4,7 +4,6 @@ use core::fmt::{
 };
 
 use serde::Deserialize;
-use spin::Mutex;
 use tracing::{
     Collect,
     Event,
@@ -34,6 +33,7 @@ use ku::{
         LogMetadata,
         level_into_symbol,
     },
+    sync::Spinlock,
     time::{
         Tsc,
         datetime_ms,
@@ -338,7 +338,7 @@ struct LogCollector {
     level: Level,
 
     /// Сборщик записей журнала для печати сообщений в заданном формате.
-    log: Mutex<Log>,
+    log: Spinlock<Log>,
 }
 
 impl LogCollector {
@@ -350,7 +350,7 @@ impl LogCollector {
     ) -> Self {
         Self {
             level,
-            log: Mutex::new(Log::new(format)),
+            log: Spinlock::new(Log::new(format)),
         }
     }
 }

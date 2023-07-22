@@ -1,10 +1,5 @@
 use core::fmt;
 
-use spin::{
-    Mutex,
-    MutexGuard,
-};
-
 use ku::{
     ProcessInfo,
     ReadBuffer,
@@ -13,6 +8,10 @@ use ku::{
         MiniContext,
         State,
         TrapInfo,
+    },
+    sync::spinlock::{
+        Spinlock,
+        SpinlockGuard,
     },
 };
 
@@ -53,7 +52,7 @@ use super::{
 #[derive(Debug)]
 pub struct Process {
     /// Виртуальное адресное пространство процесса.
-    address_space: Mutex<AddressSpace>,
+    address_space: Spinlock<AddressSpace>,
 
     /// Блок памяти, через который ядро предоставляет процессу информацию о нём.
     /// В этом блоке находится структура типа [`ProcessInfo`].
@@ -91,7 +90,7 @@ impl Process {
         let info = Block::from_ref(info);
 
         Self {
-            address_space: Mutex::new(address_space),
+            address_space: Spinlock::new(address_space),
             info,
             log,
             parent: None,
@@ -123,7 +122,7 @@ impl Process {
         self.address_space.lock().switch_to();
 
         Ok(Self {
-            address_space: Mutex::new(address_space),
+            address_space: Spinlock::new(address_space),
             info,
             log: read_buffer,
             parent: Some(self.pid),
@@ -143,7 +142,7 @@ impl Process {
     /// В отличие от [`Process::address_space()`] не требует эксклюзивную ссылку на [`Process`].
     /// Это позволяет одновременно держать ссылки и на адресное пространство процесса и
     /// на его аллокатор памяти [`MemoryAllocator`].
-    pub(super) fn lock_address_space(&self) -> MutexGuard<'_, AddressSpace> {
+    pub(super) fn lock_address_space(&self) -> SpinlockGuard<'_, AddressSpace> {
         self.address_space.lock()
     }
 
@@ -249,7 +248,7 @@ impl Process {
     /// Переходит в режим пользователя.
     /// Возвращает `true` если возврат из режима пользователя
     /// был совершён принудительно (по прерыванию таймера `trap::timer()`).
-    pub fn enter_user_mode(mut process: MutexGuard<Process>) -> bool {
+    pub fn enter_user_mode(mut process: SpinlockGuard<Process>) -> bool {
         let pid = process.pid;
 
         process.address_space.get_mut().switch_to();

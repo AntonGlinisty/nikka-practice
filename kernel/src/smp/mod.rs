@@ -18,7 +18,8 @@ use core::cmp;
 
 use bootloader::BootInfo;
 use lazy_static::lazy_static;
-use spin::Mutex;
+
+use ku::sync::spinlock::Spinlock;
 
 use crate::{
     Subsystems,
@@ -123,7 +124,7 @@ fn init_smp(
 
 lazy_static! {
     /// Структуры [`Cpu`] для всех процессоров в системе.
-    static ref CPUS: Mutex<Vec<Cpu>> = Mutex::new(Vec::<Cpu>::default());
+    static ref CPUS: Spinlock<Vec<Cpu>> = Spinlock::new(Vec::<Cpu>::default());
 }
 
 #[doc(hidden)]

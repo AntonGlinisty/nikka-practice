@@ -1,5 +1,3 @@
-use spin::Mutex;
-
 use ku::{
     error::Error::{
         InvalidArgument,
@@ -12,6 +10,7 @@ use ku::{
         mmu::USER_RW,
     },
     process::Pid,
+    sync::spinlock::Spinlock,
 };
 
 use kernel::{
@@ -32,7 +31,7 @@ const LOOP_ELF: &[u8] = include_bytes!("../../target/kernel/user/loop");
 
 #[test_case]
 fn log_value_implementation() {
-    let process = Mutex::new(process_helpers::make(LOOP_ELF));
+    let process = Spinlock::new(process_helpers::make(LOOP_ELF));
     set_pid(&mut process.lock(), Pid::new(0));
     switch_to(process.lock().address_space());
 

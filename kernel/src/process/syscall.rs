@@ -4,7 +4,6 @@ use core::{
     str,
 };
 
-use spin::MutexGuard;
 use x86_64::registers::model_specific::{
     Efer,
     EferFlags,
@@ -13,14 +12,17 @@ use x86_64::registers::model_specific::{
     Star,
 };
 
-use ku::process::{
-    ExitCode,
-    MiniContext,
-    RFlags,
-    ResultCode,
-    State,
-    Syscall,
-    SyscallResult,
+use ku::{
+    process::{
+        ExitCode,
+        MiniContext,
+        RFlags,
+        ResultCode,
+        State,
+        Syscall,
+        SyscallResult,
+    },
+    sync::spinlock::SpinlockGuard,
 };
 
 use crate::{
@@ -160,7 +162,7 @@ fn sysret(
 /// Освобождает слот таблицы процессов и возвращается в контекст ядра,
 /// из которого пользовательский процесс был запущен.
 fn exit(
-    process: MutexGuard<Process>,
+    process: SpinlockGuard<Process>,
     code: usize,
 ) -> ! {
     // TODO: your code here.
@@ -174,7 +176,7 @@ fn exit(
 /// а также число `value`.
 #[allow(unused_mut)] // TODO: remove before flight.
 fn log_value(
-    mut process: MutexGuard<Process>,
+    mut process: SpinlockGuard<Process>,
     start: usize,
     len: usize,
     value: usize,
@@ -194,7 +196,7 @@ fn log_value(
 /// чтобы в дальнейшем в него можно было вернуться через [`Process::enter_user_mode()`].
 #[allow(unused_mut)] // TODO: remove before flight.
 fn sched_yield(
-    mut process: MutexGuard<Process>,
+    mut process: SpinlockGuard<Process>,
     context: MiniContext,
 ) -> ! {
     // TODO: your code here.
@@ -211,7 +213,7 @@ fn sched_yield(
 /// Текущий контекст исходного процесса --- `context` --- записывает в копию, чтобы в копии
 /// вернуться туда же, куда происходит возврат из системного вызова для вызывающего процесса.
 fn exofork(
-    mut process: MutexGuard<Process>,
+    mut process: SpinlockGuard<Process>,
     context: MiniContext,
 ) -> Result<SyscallResult> {
     // TODO: your code here.
@@ -232,7 +234,7 @@ fn exofork(
 /// происходит только выделение адресного пространства --- виртуальных страниц.
 /// То есть, не происходит ни выделения физических фреймов, ни их отображения.
 fn map(
-    process: MutexGuard<Process>,
+    process: SpinlockGuard<Process>,
     dst_pid: usize,
     dst_address: usize,
     dst_size: usize,
@@ -248,7 +250,7 @@ fn map(
 /// Удаляет из виртуальной памяти целевого процесса `dst_pid` блок страниц
 /// размера `dst_size` байт начиная с виртуального адреса `dst_address`.
 fn unmap(
-    process: MutexGuard<Process>,
+    process: SpinlockGuard<Process>,
     dst_pid: usize,
     dst_address: usize,
     dst_size: usize,
@@ -272,7 +274,7 @@ fn unmap(
 /// При этом флаги [`PageTableFlags::WRITABLE`] и [`PageTableFlags::COPY_ON_WRITE`]
 /// с точки зрения ядра имеют одинаковые логические привилегии, --- доступность страницы на запись.
 fn copy_mapping(
-    process: MutexGuard<Process>,
+    process: SpinlockGuard<Process>,
     dst_pid: usize,
     src_address: usize,
     dst_address: usize,
@@ -287,7 +289,7 @@ fn copy_mapping(
 /// адресное пространство процесса `process` с корректно заданными флагами `flags`.
 /// Возвращает вектор физических фреймов, в которые отображены эти страницы.
 fn check_frames<'a>(
-    process: &'a MutexGuard<Process>,
+    process: &'a SpinlockGuard<Process>,
     block: Block<Page>,
     flags: PageTableFlags,
 ) -> Result<Vec<Frame, MemoryAllocator<'a>>> {
@@ -299,7 +301,7 @@ fn check_frames<'a>(
 /// в адресное пространство процесса `process`.
 /// Количества элементов в `src_frames` и `dst_pages` должны совпадать.
 fn map_pages_to_frames(
-    process: &MutexGuard<Process>,
+    process: &SpinlockGuard<Process>,
     src_frames: Vec<Frame, MemoryAllocator>,
     dst_pages: Block<Page>,
     flags: PageTableFlags,
@@ -316,7 +318,7 @@ fn map_pages_to_frames(
 /// Переводит целевой процесс, заданный идентификатором `dst_pid`, в заданное состояние `state`.
 /// Ставит его в очередь планировщика в случае [`State::RUNNABLE`].
 fn set_state(
-    process: MutexGuard<Process>,
+    process: SpinlockGuard<Process>,
     dst_pid: usize,
     state: usize,
 ) -> Result<SyscallResult> {
@@ -332,7 +334,7 @@ fn set_state(
 /// который задаётся блоком виртуальных адресов начиная с `stack_address` и размера `stack_size`.
 /// Стек может быть не выровнен по границе страниц.
 fn set_trap_handler(
-    process: MutexGuard<Process>,
+    process: SpinlockGuard<Process>,
     dst_pid: usize,
     rip: usize,
     stack_address: usize,
@@ -359,7 +361,7 @@ fn check_block(
 /// адресное пространство процесса `process` с корректно заданными флагами `flags`.
 /// Возвращает физический фрейм, в который она отображена.
 fn check_frame(
-    process: &MutexGuard<Process>,
+    process: &SpinlockGuard<Process>,
     page: Page,
     flags: PageTableFlags,
 ) -> Result<Frame> {
@@ -385,20 +387,21 @@ fn check_page_flags(flags: usize) -> Result<PageTableFlags> {
 /// - Либо самого себя, задавая [`Pid::Current`] или явно собственный идентификатор [`Pid::Id`].
 /// - Либо свой непосредственно дочерний процесс, задавая его идентификатор.
 fn check_process_permissions(
-    process: MutexGuard<Process>,
+    process: SpinlockGuard<Process>,
     dst_pid: usize,
-) -> Result<MutexGuard<Process>> {
+) -> Result<SpinlockGuard<Process>> {
     // TODO: your code here.
     unimplemented!();
 }
 
 #[doc(hidden)]
 pub mod test_scaffolding {
-    use spin::MutexGuard;
-
-    use ku::process::{
-        MiniContext,
-        SyscallResult,
+    use ku::{
+        process::{
+            MiniContext,
+            SyscallResult,
+        },
+        sync::spinlock::SpinlockGuard,
     };
 
     use crate::error::Result;
@@ -406,7 +409,7 @@ pub mod test_scaffolding {
     use super::super::Process;
 
     pub fn log_value(
-        process: MutexGuard<Process>,
+        process: SpinlockGuard<Process>,
         start: usize,
         len: usize,
         value: usize,
@@ -414,12 +417,12 @@ pub mod test_scaffolding {
         super::log_value(process, start, len, value)
     }
 
-    pub fn exofork(process: MutexGuard<Process>) -> Result<SyscallResult> {
+    pub fn exofork(process: SpinlockGuard<Process>) -> Result<SyscallResult> {
         super::exofork(process, MiniContext::default())
     }
 
     pub fn map(
-        process: MutexGuard<Process>,
+        process: SpinlockGuard<Process>,
         dst_pid: usize,
         dst_address: usize,
         dst_size: usize,
@@ -429,7 +432,7 @@ pub mod test_scaffolding {
     }
 
     pub fn unmap(
-        process: MutexGuard<Process>,
+        process: SpinlockGuard<Process>,
         dst_pid: usize,
         dst_address: usize,
         dst_size: usize,
@@ -438,7 +441,7 @@ pub mod test_scaffolding {
     }
 
     pub fn copy_mapping(
-        process: MutexGuard<Process>,
+        process: SpinlockGuard<Process>,
         dst_pid: usize,
         src_address: usize,
         dst_address: usize,
@@ -449,7 +452,7 @@ pub mod test_scaffolding {
     }
 
     pub fn set_state(
-        process: MutexGuard<Process>,
+        process: SpinlockGuard<Process>,
         dst_pid: usize,
         state: usize,
     ) -> Result<SyscallResult> {

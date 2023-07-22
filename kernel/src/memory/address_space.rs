@@ -7,11 +7,13 @@ use core::{
 };
 
 use lazy_static::lazy_static;
-use spin::Mutex;
 
-use ku::allocator::{
-    AtomicInfo,
-    Info,
+use ku::{
+    allocator::{
+        AtomicInfo,
+        Info,
+    },
+    sync::spinlock::Spinlock,
 };
 
 use crate::{
@@ -555,7 +557,7 @@ lazy_static! {
     /// Создаётся загрузчиком до старта ядра и донастраивается ядром.
     /// Все остальные адресные пространства получаются из него и его копий
     /// с помощью метода [`AddressSpace::duplicate()`].
-    pub static ref BASE_ADDRESS_SPACE: Mutex<AddressSpace> = Mutex::new(AddressSpace::default());
+    pub static ref BASE_ADDRESS_SPACE: Spinlock<AddressSpace> = Spinlock::new(AddressSpace::default());
 }
 
 #[doc(hidden)]

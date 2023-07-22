@@ -8,14 +8,13 @@ use core::{
     result,
 };
 
-use spin::Mutex;
-
 use ku::{
     allocator::{
         DryAllocator,
         Initialize,
     },
     memory::mmu::PageTableFlags,
+    sync::spinlock::Spinlock,
 };
 
 use crate::memory::AddressSpace;
@@ -23,7 +22,7 @@ use crate::memory::AddressSpace;
 /// Аллокатор памяти общего назначения внутри [`AddressSpace`].
 pub(crate) struct MemoryAllocator<'a> {
     /// Адресное пространство, внутри которого аллокатор выделяет память.
-    address_space: &'a Mutex<AddressSpace>,
+    address_space: &'a Spinlock<AddressSpace>,
 
     /// Флаги с которыми будет отображена выделяемая память.
     flags: PageTableFlags,
@@ -33,7 +32,7 @@ impl MemoryAllocator<'_> {
     /// Возвращает аллокатор памяти общего назначения внутри `address_space`.
     /// Выделяемая им память будет отображена с флагами `flags`.
     pub fn new(
-        address_space: &Mutex<AddressSpace>,
+        address_space: &Spinlock<AddressSpace>,
         flags: PageTableFlags,
     ) -> MemoryAllocator {
         MemoryAllocator {

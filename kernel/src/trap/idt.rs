@@ -144,7 +144,7 @@ impl IdtEntry {
 
 #[doc(hidden)]
 pub mod test_scaffolding {
-    use spin::Mutex;
+    use ku::sync::Spinlock;
 
     use super::super::DEBUG;
 
@@ -155,7 +155,7 @@ pub mod test_scaffolding {
         TrapContext,
     };
 
-    static IDT: Mutex<Idt> = Mutex::new(Idt([IdtEntry::missing(); COUNT]));
+    static IDT: Spinlock<Idt> = Spinlock::new(Idt([IdtEntry::missing(); COUNT]));
 
     pub fn set_debug_handler(handler: extern "x86-interrupt" fn(TrapContext)) {
         let mut idt = IDT.lock();

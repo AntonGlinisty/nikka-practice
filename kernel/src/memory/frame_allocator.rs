@@ -1,5 +1,6 @@
 use lazy_static::lazy_static;
-use spin::Mutex;
+
+use ku::sync::Spinlock;
 
 use crate::error::{
     Error::NoFrame,
@@ -126,7 +127,7 @@ impl FrameAllocator {
 lazy_static! {
     /// Аллокатор физических фреймов [`FrameAllocator`],
     /// хранящий и оборачивающий либо [`BootFrameAllocator`], либо [`MainFrameAllocator`].
-    pub static ref FRAME_ALLOCATOR: Mutex<FrameAllocator> = Mutex::new(FrameAllocator::Void);
+    pub static ref FRAME_ALLOCATOR: Spinlock<FrameAllocator> = Spinlock::new(FrameAllocator::Void);
 }
 
 #[doc(hidden)]

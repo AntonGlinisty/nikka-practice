@@ -5,9 +5,10 @@ use core::{
 };
 
 use lazy_static::lazy_static;
-use spin::{
-    Mutex,
-    MutexGuard,
+
+use ku::sync::spinlock::{
+    Spinlock,
+    SpinlockGuard,
 };
 
 use crate::{
@@ -46,7 +47,7 @@ enum Slot {
     /// Слот занят.
     Used {
         /// Процесс, находящийся в этом слоте таблицы процессов.
-        process: Mutex<Process>,
+        process: Spinlock<Process>,
     },
 }
 
@@ -96,15 +97,15 @@ impl Table {
     /// При этом:
     /// - Инкрементирует эпоху в освободившемся слоте.
     /// - Вставляет слот в голову списка свободных слотов [`Table::free`].
-    pub fn free(process: MutexGuard<Process>) {
+    pub fn free(process: SpinlockGuard<Process>) {
         // TODO: your code here.
     }
 
-    /// Возвращает захваченную спин-блокировку [`MutexGuard`] со структурой [`Process`],
+    /// Возвращает захваченную спин-блокировку [`SpinlockGuard`] со структурой [`Process`]
     /// соответствующей идентификатору `pid`.
     /// Если процесса по указанному `pid` нет или тот же слот занят уже другим процессом,
     /// возвращает ошибку [`Error::NoProcess`].
-    pub fn get(pid: Pid) -> Result<MutexGuard<'static, Process>> {
+    pub fn get(pid: Pid) -> Result<SpinlockGuard<'static, Process>> {
         // TODO: your code here.
         test_scaffolding::process() // TODO: remove before flight.
     }
@@ -130,15 +131,16 @@ unsafe fn forge_static_lifetime<T>(x: &T) -> &'static T {
 
 lazy_static! {
     /// Таблица процессов.
-    pub(super) static ref TABLE: Mutex<Table> = Mutex::new(Table::default());
+    pub(super) static ref TABLE: Spinlock<Table> = Spinlock::new(Table::default());
 }
 
 #[doc(hidden)]
 pub mod test_scaffolding {
     use lazy_static::lazy_static;
-    use spin::{
-        Mutex,
-        MutexGuard,
+
+    use ku::sync::spinlock::{
+        Spinlock,
+        SpinlockGuard,
     };
 
     use crate::error::{
@@ -153,7 +155,7 @@ pub mod test_scaffolding {
         forge_static_lifetime,
     };
 
-    pub(super) fn process() -> Result<MutexGuard<'static, Process>> {
+    pub(super) fn process() -> Result<SpinlockGuard<'static, Process>> {
         assert!(TABLE.lock().table.is_empty());
 
         DUMMY_TABLE
@@ -167,10 +169,11 @@ pub mod test_scaffolding {
         assert!(TABLE.lock().table.is_empty());
 
         process.set_pid(Pid::new(0));
-        *DUMMY_TABLE.lock() = Some(Mutex::new(process));
+        *DUMMY_TABLE.lock() = Some(Spinlock::new(process));
     }
 
     lazy_static! {
-        pub(super) static ref DUMMY_TABLE: Mutex<Option<Mutex<Process>>> = Mutex::new(None);
+        pub(super) static ref DUMMY_TABLE: Spinlock<Option<Spinlock<Process>>> =
+            Spinlock::new(None);
     }
 }

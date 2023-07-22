@@ -1,8 +1,9 @@
 use alloc::collections::VecDeque;
 
 use lazy_static::lazy_static;
-use spin::Mutex;
 use x86_64::instructions;
+
+use ku::sync::Spinlock;
 
 use crate::{
     log::info,
@@ -78,7 +79,7 @@ lazy_static! {
     /// Планировщик процессов.
     /// Реализует простейшее
     /// [циклическое исполнение процессов](https://en.wikipedia.org/wiki/Round-robin_scheduling).
-    static ref SCHEDULER: Mutex<Scheduler> = Mutex::new(Scheduler {
+    static ref SCHEDULER: Spinlock<Scheduler> = Spinlock::new(Scheduler {
         queue: VecDeque::new(),
     });
 }

@@ -47,11 +47,14 @@ use x86_64::registers::model_specific::{
     EferFlags,
 };
 
-pub use ku::memory::{
-    addr,
-    block,
-    frage,
-    size,
+pub use ku::{
+    memory::{
+        addr,
+        block,
+        frage,
+        size,
+    },
+    sync::spinlock::Spinlock,
 };
 
 use crate::{

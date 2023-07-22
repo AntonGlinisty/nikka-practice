@@ -1,7 +1,8 @@
 #![allow(dead_code)]
 
-use spin::MutexGuard;
 use xmas_elf::ElfFile;
+
+use ku::sync::spinlock::SpinlockGuard;
 
 use kernel::{
     log::{
@@ -37,7 +38,7 @@ pub(super) fn make(file: &[u8]) -> Process {
     process
 }
 
-pub(super) fn dummy_allocate(file: &[u8]) -> MutexGuard<'static, Process> {
+pub(super) fn dummy_allocate(file: &[u8]) -> SpinlockGuard<'static, Process> {
     test_scaffolding::set_process(
         test_scaffolding::create_process(file).expect("failed to create the test process"),
     );
@@ -50,7 +51,7 @@ pub(super) fn dummy_allocate(file: &[u8]) -> MutexGuard<'static, Process> {
     process
 }
 
-pub(super) fn allocate(file: &[u8]) -> MutexGuard<'static, Process> {
+pub(super) fn allocate(file: &[u8]) -> SpinlockGuard<'static, Process> {
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
 
     let pid = process::create(file).expect("failed to create the test process");

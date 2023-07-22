@@ -1,6 +1,7 @@
-use spin::Mutex;
-
-use ku::process::registers::RFlags;
+use ku::{
+    process::registers::RFlags,
+    sync::spinlock::Spinlock,
+};
 
 use kernel::{
     Subsystems,
@@ -27,7 +28,7 @@ const PAGE_FAULT_ELF: &[u8] = include_bytes!("../../target/kernel/user/page_faul
 fn user_mode_page_fault() {
     let _guard = forbid_frame_leaks();
 
-    let process = Mutex::new(process_helpers::make(PAGE_FAULT_ELF));
+    let process = Spinlock::new(process_helpers::make(PAGE_FAULT_ELF));
 
     test_scaffolding::disable_interrupts(&mut process.lock());
 
@@ -46,7 +47,7 @@ fn user_mode_page_fault() {
 fn user_context_saved() {
     let _guard = forbid_frame_leaks();
 
-    let process = Mutex::new(process_helpers::make(PAGE_FAULT_ELF));
+    let process = Spinlock::new(process_helpers::make(PAGE_FAULT_ELF));
 
     test_scaffolding::disable_interrupts(&mut process.lock());
 

@@ -1,5 +1,3 @@
-use spin::Mutex;
-
 use ku::{
     error::Error::{
         InvalidAlignment,
@@ -21,6 +19,7 @@ use ku::{
         Pid,
         SyscallResult,
     },
+    sync::spinlock::Spinlock,
 };
 
 use kernel::{
@@ -56,7 +55,7 @@ const MEMORY_ALLOCATOR_ELF: &[u8] = include_bytes!("../../target/kernel/user/mem
 fn map_syscall_group() {
     let _guard = forbid_frame_leaks();
 
-    let process = Mutex::new(process_helpers::make(MEMORY_ALLOCATOR_ELF));
+    let process = Spinlock::new(process_helpers::make(MEMORY_ALLOCATOR_ELF));
     set_pid(&mut process.lock(), Pid::new(0));
     let pid = process.lock().pid().into_usize();
     switch_to(process.lock().address_space());
@@ -148,7 +147,7 @@ fn map_syscall_group() {
 }
 
 fn map_over_kernel(
-    process: &Mutex<Process>,
+    process: &Spinlock<Process>,
     block: Block<Page>,
 ) {
     let pid = process.lock().pid().into_usize();

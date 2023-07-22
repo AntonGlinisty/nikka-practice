@@ -4,7 +4,6 @@ use core::{
 };
 
 use lazy_static::lazy_static;
-use spin::Mutex;
 use x86_64::{
     PrivilegeLevel,
     instructions::{
@@ -26,6 +25,8 @@ use x86_64::{
         tss::TaskStateSegment,
     },
 };
+
+use ku::sync::spinlock::Spinlock;
 
 use crate::{
     error::{
@@ -308,7 +309,7 @@ impl Default for TssEntry {
 lazy_static! {
     /// Основная используемая глобальная таблица дескрипторов
     /// ([Global Descriptor Table](https://en.wikipedia.org/wiki/Global_Descriptor_Table), GDT).
-    pub(crate) static ref GDT: Mutex<Gdt> = Mutex::new({
+    pub(crate) static ref GDT: Spinlock<Gdt> = Spinlock::new({
         let mut gdt = Gdt::new();
 
         gdt.set_tss(0, &TSS);

@@ -1,7 +1,8 @@
 use core::mem;
 
 use lazy_static::lazy_static;
-use spin::Mutex;
+
+use ku::sync::spinlock::Spinlock;
 
 use crate::error::Result;
 
@@ -133,8 +134,8 @@ impl ExceptionStacks {
 
 lazy_static! {
     /// Выделенные стеки для непредвиденных исключений.
-    pub(crate) static ref EXCEPTION_STACKS: Mutex<ExceptionStacks> =
-        Mutex::new(ExceptionStacks::new());
+    pub(crate) static ref EXCEPTION_STACKS: Spinlock<ExceptionStacks> =
+        Spinlock::new(ExceptionStacks::new());
 }
 
 /// Размер не отображённой в память защитной области стека.
