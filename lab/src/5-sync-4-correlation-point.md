@@ -41,7 +41,7 @@
 
 Атомарность нужна для того, чтобы конкурентно
 
-- в обработчике прерывания обновлять счётчики [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html);
+- в обработчике прерывания от часов обновлять счётчики [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html);
 - а в обычном коде читать эти счётчики, чтобы "посмотреть на часы".
 
 В [`CorrelationPoint`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html) два числа типа
@@ -66,8 +66,8 @@
 [неблокирующую синхронизацию](https://en.wikipedia.org/wiki/Non-blocking_algorithm)
 для согласованного доступа к полям
 [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html).
-Которая будет отдавать предпочтение писателю, так как это обработчик прерывания в ядре, ---
-он всегда сможет завершить работу по обновлению структуры за фиксированное и достаточно небольшое количество тактов.
+Которая будет отдавать предпочтение писателю, так как это обработчик прерывания в ядре.
+Он всегда сможет завершить работу по обновлению структуры за фиксированное и достаточно небольшое количество тактов.
 И никогда не будет ждать читателей, которые могут быть запущены как в режиме ядра, так и в режиме пользователя.
 А вот читатели будут максимально пессимизированы ---
 они будут вынуждены ждать пока писатель завершит свою работу, если им не повезло запуститься конкурентно с писателем.
@@ -78,57 +78,56 @@
 
 В качестве инструмента такой неблокирующей синхронизации предлагается использовать упрощённый
 [sequence lock](https://en.wikipedia.org/wiki/Seqlock).
-В нашем случае его идея в следующем.
-Мы храним в поле
-[`AtomicCorrelationPoint::sequence_number`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence_number)
-удвоенный номер операции обновления.
+В чём-то он будет проще обобщённого
+[sequence lock](https://en.wikipedia.org/wiki/Seqlock)
+из
+[предыдущей задачи](../../lab/book/5-sync-3-sequence-lock.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-3--%D1%80%D0%B5%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-sequencelock).
+А в чём-то он будет сложнее, --- теперь нам не доступен
+[приём read-don't-modify-write](https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf).
+Так как он требует запись в память, в которую мы не позволим писать из пространства пользователя.
+
+В поле
+[`AtomicCorrelationPoint::sequence`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence)
+хранится удвоенный номер операции обновления.
 А в его младшем бите хранится признак, что сейчас структура
 [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
 находится в несогласованном состоянии из-за текущей активности писателя.
 То есть:
 
-- Нечётное значение в [`AtomicCorrelationPoint::sequence_number`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence_number) означает, что писатель начал обновлять структуру [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html), но ещё не закончил. Если читатель обнаруживает структуру в таком состоянии, он должен подождать пока писатель закончит обновление.
-- Чётное значение в [`AtomicCorrelationPoint::sequence_number`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence_number) означает, что значение структуры [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html) согласованно и читатель может его использовать.
+- Нечётное значение в [`AtomicCorrelationPoint::sequence`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence) означает, что писатель начал обновлять структуру [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html), но ещё не закончил. Если читатель обнаруживает структуру в таком состоянии, он должен подождать пока писатель закончит обновление.
+- Чётное значение в [`AtomicCorrelationPoint::sequence`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence) означает, что значение структуры [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html) согласованно и читатель может его использовать.
 
 В нашем случае писатель один, что дополнительно упрощает дело.
 Алгоритм его действий:
-- Раз он один, значит до начала обновления им структуры [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html), её значение заведомо согласованно. А [`AtomicCorrelationPoint::sequence_number`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence_number) содержит чётное число.
-- Писатель атомарно инкрементирует поле [`AtomicCorrelationPoint::sequence_number`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence_number). Оно становится нечётным, символизируя что идёт обновление.
+- Раз он один, значит до начала обновления им структуры [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html), её значение заведомо согласованно. А [`AtomicCorrelationPoint::sequence`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence) содержит чётное число.
+- Писатель атомарно инкрементирует поле [`AtomicCorrelationPoint::sequence`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence). Оно становится нечётным, символизируя что идёт обновление.
 - После этого писатель заполняет поля [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count) и [`AtomicCorrelationPoint::tsc`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.tsc).
-- Последним действием писатель атомарно инкрементирует поле [`AtomicCorrelationPoint::sequence_number`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence_number). Это действие сигнализирует всем читателям, что обновление завершено и структура находится в согласованном состоянии.
+- Последним действием писатель атомарно инкрементирует поле [`AtomicCorrelationPoint::sequence`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence). Это действие сигнализирует всем читателям, что обновление завершено и структура находится в согласованном состоянии.
 
 Алгоритм действий читателя чуть сложнее:
 
-- Читатель атомарно загружает значения поля [`AtomicCorrelationPoint::sequence_number`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence_number).
+- Читатель атомарно загружает значения поля [`AtomicCorrelationPoint::sequence`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence).
 - Далее он читает значение полей [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count) и [`AtomicCorrelationPoint::tsc`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.tsc).
-- После чего он повторно атомарно загружает значение поля [`AtomicCorrelationPoint::sequence_number`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence_number).
-- Если при обеих загрузках значения поля [`AtomicCorrelationPoint::sequence_number`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence_number) совпадают и являются чётными, то структура [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html) была прочитана в согласованном состоянии. Читатель возвращает значение получившейся структуры [`CorrelationPoint`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html) в вызывающую функцию.
+- После чего он повторно атомарно загружает значение поля [`AtomicCorrelationPoint::sequence`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence).
+- Если при обеих загрузках значения поля [`AtomicCorrelationPoint::sequence`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence) совпадают и являются чётными, то структура [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html) была прочитана в согласованном состоянии. Читатель возвращает значение получившейся структуры [`CorrelationPoint`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html) в вызывающую функцию.
 - Если же это не так, читатель повторяет все действия с самого начала.
 
 Перекос сложности в сторону читателя и наличие в нём цикла ожидания, чего нет в писателе, ---
 проявление большего приоритета писателя.
 
-> Обобщённая реализация [sequence lock](https://en.wikipedia.org/wiki/Seqlock)
-> с несколькими писателями и произвольной защищаемой структурой данных была бы сложнее.
-> Например, можете посмотреть на:
->
-> - [Writing a seqlock in Rust.](https://pitdicker.github.io/Writing-a-seqlock-in-Rust/)
-> - [Can Seqlocks Get Along With Programming Language Memory Models?](https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf)
-> - [Crate seqlock.](https://docs.rs/seqlock/0.1.2/seqlock/)
+Обобщённую реализацию
+[sequence lock](https://en.wikipedia.org/wiki/Seqlock)
+с несколькими писателями и произвольной защищаемой структурой данных смотрите в
+[предыдущей задаче](../../lab/book/5-sync-3-sequence-lock.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-3--%D1%80%D0%B5%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-sequencelock).
 
 
-### Задача 2 --- реализация [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
+### Задача 4 --- реализация [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
 
 Реализуйте описанные алгоритмы чтения и записи.
 Читает из структуры
 [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
-её [метод](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.load)
-
-```rust
-fn AtomicCorrelationPoint::load(&self) -> CorrelationPoint
-```
-
-Точнее вам достаточно реализовать вспомогательный [метод](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.try_load)
+её приватный
+[метод](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.try_load)
 
 ```rust
 fn AtomicCorrelationPoint::try_load(&self) -> Option<CorrelationPoint>
@@ -138,6 +137,22 @@ fn AtomicCorrelationPoint::try_load(&self) -> Option<CorrelationPoint>
 И возвращает его, завернув в
 [`core::option::Option::Some`](https://doc.rust-lang.org/nightly/core/option/enum.Option.html#variant.Some),
 если оно было прочитано согласованно.
+
+Публичный
+[метод](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.load)
+
+```rust
+fn AtomicCorrelationPoint::load(&self) -> CorrelationPoint
+```
+
+вызывает метод
+[`AtomicCorrelationPoint::try_load()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.try_load)
+до тех пор пока не удалось прочитать
+[`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
+согласованно.
+В нём таже пригодится функция
+[`core::hint::spin_loop()`](https://doc.rust-lang.org/nightly/core/hint/fn.spin_loop.html),
+которая сообщает процессору, что он находится в цикле активного ожидания внешнего события.
 
 Пишут в
 [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
@@ -163,87 +178,19 @@ fn AtomicCorrelationPoint::inc(&self, tsc: i64)
 
 Методом
 [`AtomicCorrelationPoint::store()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.store)
-пользуется обработчик прерываний RTC.
+пользуется обработчик прерываний RTC
+[`kernel::time::rtc::interrupt()`](../../doc/kernel/time/rtc/fn.interrupt.html).
 С его помощью он сохраняет текущее значение секунд, прошедших с начала Unix--эпохи.
 А методом
 [`AtomicCorrelationPoint::inc()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.inc) ---
-обработчик прерываний PIT.
+обработчик прерываний PIT
+[`kernel::time::pit8254::interrupt()`](../../doc/kernel/time/pit8254/fn.interrupt.html).
 Он сохраняет просто счётчик своих тиков, который никак не привязан к реальному времени.
 Поэтому ему достаточно инкрементировать логическое значение своего счётчика при каждом прерывании.
 
-Используйте поле
-[`AtomicCorrelationPoint::sequence_number`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence_number)
-как атомарную переменную, синхронизующую между собой
-[`load()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.load) и
-[`store()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.store)/[`inc()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.inc).
-То есть, правильно расставьте сами атомарные операции доступа к обоим полям и
-[`core::sync::atomic::Ordering`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html)
-в них.
-К сожалению, тест не может проверить корректность расстановки
-[`Ordering`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html).
-Поэтому ей стоит уделить повышенное внимание.
-
-Обратите внимание, что
-[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst)
-использовать не рекомендуется.
-Так как мнение "использовать
-[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst)
-гарантированно безопасно" неверно.
-Режим
-[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst)
-позволяет делать довольно специфические вещи, которые реально нужны довольно редко.
-[А вот гарантий корректности не даёт, это заблуждение](https://github.com/rust-lang/nomicon/issues/166).
-
-Если в алгоритме синхронизации вам понадобилось написать что-нибудь вроде
-
-```rust
-let end_sequence_number = sequence_number.load(Ordering::Release);
-```
-
-Компилятор выдаст ошибку:
-
-```console
-error: atomic loads cannot have `Release` or `AcqRel` ordering
-  --> kernel/tests/5-sync-4-correlation-point.rs:38:52
-   |
-38 |     let end_sequence_number = sequence_number.load(Ordering::Release);
-   |                                                    ^^^^^^^^^^^^^^^^^
-   |
-   = note: `#[deny(invalid_atomic_ordering)]` on by default
-   = help: consider using ordering modes `Acquire`, `SeqCst` or `Relaxed`
-```
-
-А если её подавить с помощью `#[allow(invalid_atomic_ordering)]`, то уже при запуске будет
-[паника](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicI64.html#panics):
-
-```
-5_sync_4_correlation_point::wrong_ordering------------------
-panicked at 'there is no such thing as a release load', .../src/rust/library/core/src/sync/atomic.rs:2964:24
---------------------------------------------------- [failed]
-```
-
-Если в этом месте поменять
-[`Ordering::Release`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Release)
-на
-[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst),
-не меняя остальную часть алгоритма синхронизации,
-то компиляция пройдёт и паники не будет.
-Но код скорее всего будет **некорректен**, --- простая замена на
-[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst)
-не исправит сам алгоритм синхронизации.
-То есть, использование
-[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst)
-скроет ошибку в алгоритме синхронизации, о наличии которой заботливо предупреждали компилятор и паника.
-К такому же эффекту приведёт смена
-[`Ordering::Release`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Release)
-на
-[`Ordering::Relaxed`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Relaxed).
-Но [`Ordering::Relaxed`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Relaxed)
-хотя бы бросается в глаза в коде.
-
-Также учтите, что нам точно не нужен
+Учтите, что в этой задаче точно не нужен
 [приём "read-dont-modify-write"](https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf).
-Его может хотеться использовать в читателе.
+Как и в предыдущей задаче, его может хотеться использовать в читателе.
 Но читатель потенциально будет выполняться в режиме пользователя.
 А значит, не сможет выполнять запись в общесистемную структуру
 [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html),
@@ -253,6 +200,29 @@ panicked at 'there is no such thing as a release load', .../src/rust/library/cor
 Не говоря уж о совершенно лишнем захвате линии кэша в эксклюзивное использование при чтении
 [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html).
 
+Используйте атомарные поля
+[`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
+для синхронизации между собой
+[`load()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.load) и
+[`store()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.store)/[`inc()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.inc).
+То есть, правильно расставьте сами атомарные операции доступа к полям и
+[`core::sync::atomic::Ordering`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html)
+в них.
+Чтобы заменить недоступный
+[приём read-don't-modify-write](https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf)
+теперь придётся придумать более хитрую схему синхронизации, чем в
+[предыдущей задачи](../../lab/book/5-sync-3-sequence-lock.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-3--%D1%80%D0%B5%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-sequencelock).
+
+К сожалению, как и в предыдущей задаче,
+на архитектуре
+[x86-64](https://en.wikipedia.org/wiki/X86-64)
+тест не может проверить корректность расстановки
+[`Ordering`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html).
+Поэтому ей стоит уделить повышенное внимание.
+[Как и раньше](../../lab/book/5-sync-2-spinlock.html#%D0%9C%D0%BE%D0%B4%D0%B5%D0%BB%D1%8C-%D0%BF%D0%B0%D0%BC%D1%8F%D1%82%D0%B8-acquire-%D0%B8-release),
+[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst)
+использовать не рекомендуется.
+
 Вы можете опираться на тот факт, что писатель один и методы записи ---
 [`AtomicCorrelationPoint::store()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.store) и
 [`AtomicCorrelationPoint::inc()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.inc) ---
@@ -261,11 +231,16 @@ panicked at 'there is no such thing as a release load', .../src/rust/library/cor
 
 ### Запуск тестов
 
-Тесты можно запустить командой `cargo test --test 5-sync-4-correlation-point` в директории `kernel` репозитория.
+Тесты можно запустить командой `cargo test --test 5-sync-4-correlation-point` в директориях `ku` и `kernel` репозитория.
+В проверочной системе запускаются тесты из обоих этих директорий.
+Тот что находится в файле
+[`ku/tests/5-sync-4-correlation-point.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/tests/5-sync-4-correlation-point.rs)
+похож на тест из предыдущей задачи.
+Он запускается в многопоточном окружении под linux.
 
-После выполнения задачи должны проходить тесты `correlation_point_reader()` и `correlation_point_writer()`
-в файле
-[`kernel/tests/time.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/time.rs):
+Тесты в файле
+[`kernel/tests/5-sync-4-correlation-point.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/5-sync-4-correlation-point.rs)
+запускаются в режиме ядра и используют прерывания для запуска конкурентного кода.
 
 ```console
 $ (cd kernel; cargo test --test 5-sync-4-correlation-point)
@@ -308,10 +283,10 @@ time::correlation_point_writer--------------------- [passed]
 
 > ### Как устроен тест
 >
-> Для того чтобы проверить корректность реализации
-> [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
-> было бы здорово запустить стресс--тест с писателем и читателем на разных процессорах.
-> И желательно на процессорах со
+> для того чтобы проверить корректность реализации
+> [`SequenceLock`](../../doc/ku/sync/sequence_lock/struct.SequenceLock.html)
+> стресс--тест с писателем и читателем запускается в многопоточном окружении под linux.
+> Его конечно хотелось бы запускать ещё и на процессорах со
 > [слабой моделью памяти](https://en.wikipedia.org/wiki/Memory_ordering#In_symmetric_multiprocessing_(SMP)_microprocessor_systems),
 > в которых возможно больше интересных эффектов, чем в архитектуре
 > [x86-64](https://en.wikipedia.org/wiki/X86-64).
@@ -321,9 +296,10 @@ time::correlation_point_writer--------------------- [passed]
 > стоило бы запустить этот тест несколько раз на наборе неэквивалентных с точки зрения архитектуры пар процессоров ---
 > читатель и писатель в одном NUMA--домене, в разных NUMA--доменах и т.д.
 >
-> Но в Nikka поддержана только
-> архитектура [x86-64](https://en.wikipedia.org/wiki/X86-64).
-> А поддержку нескольких процессоров мы сделаем только в
+> В этой задаче дополнительные тесты в файле
+> [`kernel/tests/5-sync-4-correlation-point.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/5-sync-4-correlation-point.rs)
+> запускаются в ядре Nikka.
+> При этом поддержку нескольких процессоров в нём мы сделаем только в
 > [будущей лабе](../../lab/book/3-smp-2-smp-0-intro.html).
 > И пока нам не доступна возможность запустить стресс--тест даже на двух процессорах в симметричной системе.
 >
@@ -341,7 +317,7 @@ time::correlation_point_writer--------------------- [passed]
 >
 > Зато есть интересный режим работы процессора ---
 > [режим трассировки](https://en.wikipedia.org/wiki/Stepping_(debugging)).
-> От предназначен для пошаговой отладки программ.
+> Он предназначен для пошаговой отладки программ.
 > В этом режиме процессор генерирует прерывание с номером
 > [`kernel::trap::DEBUG`](../../doc/kernel/trap/constant.DEBUG.html)
 > на каждой исполняемой им инструкции программы.
@@ -576,8 +552,8 @@ time::correlation_point_writer--------------------- [passed]
 - Публичный доступ:
   - [Плейлист с лекциями](https://youtube.com/playlist?list=PL4_hYwCyhAva37lNnoMuBcKRELso5nvBm).
   - [Репозиторий курса](https://gitlab.com/Lipovsky/concurrency-course).
-- [Личный кабинет ШАД, весна 2022](https://lk.yandexdataschool.ru/courses/2022-spring/7.1013-theory-and-practice-of-concurrency/about/).
-- [Wiki yandex-team, запись 2020 года](https://wiki.yandex-team.ru/hr/volnoslushateli/lekcii-shad/chetvertyjj-semestr/#zapis2020goda9).
+- Личный кабинет ШАД, [весна 2023](https://lk.yandexdataschool.ru/courses/2023-spring/7.1141-theory-and-practice-of-concurrency/classes/) или [весна 2022](https://lk.yandexdataschool.ru/courses/2022-spring/7.1013-theory-and-practice-of-concurrency/classes/).
+- [Wiki yandex-team](https://wiki.yandex-team.ru/hr/volnoslushateli/lekcii-shad/).
 
 
 ### Ориентировочный объём работ этой части лабораторки

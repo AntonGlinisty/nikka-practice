@@ -10,7 +10,7 @@
 [`Scheduler::queue`](../../doc/kernel/process/scheduler/struct.Scheduler.html#structfield.queue)
 такой же ёмкости, как таблица процессов.
 И, так же как и таблица процессов, является [синглтоном](https://en.wikipedia.org/wiki/Singleton_pattern)
-[`static ref SCHEDULER: Mutex<Scheduler>`](../../doc/kernel/process/scheduler/struct.SCHEDULER.html).
+[`static ref SCHEDULER: Spinlock<Scheduler>`](../../doc/kernel/process/scheduler/struct.SCHEDULER.html).
 
 
 ### Задача 7 --- планировщик

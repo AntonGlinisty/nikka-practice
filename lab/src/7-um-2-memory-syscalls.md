@@ -56,7 +56,7 @@ fn check_page_flags(flags: usize) -> Result<PageTableFlags>
 
 ```rust
 fn check_frame(
-    process: &mut MutexGuard<Process>,
+    process: &mut SpinlockGuard<Process>,
     page: Page,
     flags: PageTableFlags,
 ) -> Result<Frame>
@@ -71,9 +71,9 @@ fn check_frame(
 
 ```rust
 fn check_process_permissions(
-    process: MutexGuard<Process>,
+    process: SpinlockGuard<Process>,
     dst_pid: usize,
-) -> Result<MutexGuard<Process>>
+) -> Result<SpinlockGuard<Process>>
 ```
 
 Проверяет, что процесс `process` имеет право модифицировать целевой процесс, заданный своим идентификатором `dst_pid`.
@@ -95,7 +95,7 @@ fn check_process_permissions(
 
 ```rust
 fn map(
-    process: MutexGuard<Process>,
+    process: SpinlockGuard<Process>,
     dst_pid: usize,
     dst_address: usize,
     dst_size: usize,
@@ -145,7 +145,7 @@ fn map(
 
 ```rust
 fn unmap(
-    process: MutexGuard<Process>,
+    process: SpinlockGuard<Process>,
     dst_pid: usize,
     dst_address: usize,
     dst_size: usize,
@@ -161,7 +161,7 @@ fn unmap(
 
 ```rust
 fn copy_mapping(
-    process: MutexGuard<Process>,
+    process: SpinlockGuard<Process>,
     dst_pid: usize,
     src_address: usize,
     dst_address: usize,

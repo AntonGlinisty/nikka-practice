@@ -357,25 +357,25 @@ $ (cd kernel; cargo test --test 2-mm-1-block --test 2-mm-1-boot-frame-allocator)
 [`kernel::memory::FRAME_ALLOCATOR`](../../doc/kernel/memory/struct.FRAME_ALLOCATOR.html).
 Это
 [`kernel::memory::FrameAllocator`](../../doc/kernel/memory/frame_allocator/enum.FrameAllocator.html),
-обёрнутый в спинлок
-[`spin::mutex::Mutex`](../../doc/spin/mutex/struct.Mutex.html) ---
-[`Mutex`](../../doc/spin/mutex/struct.Mutex.html)`<`[`FrameAllocator`](../../doc/kernel/memory/frame_allocator/enum.FrameAllocator.html)`>`.
+обёрнутый в спин-блокировкy
+[`ku::sync::Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html) ---
+[`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html)`<`[`FrameAllocator`](../../doc/kernel/memory/frame_allocator/enum.FrameAllocator.html)`>`.
 Чтобы работать с
 [`FRAME_ALLOCATOR`](../../doc/kernel/memory/struct.FRAME_ALLOCATOR.html),
 нужно сначала захватить блокировку методом
-[`Mutex::lock()`](../../doc/spin/mutex/struct.Mutex.html#method.lock),
+[`Spinlock::lock()`](../../doc/ku/sync/spinlock/struct.Spinlock.html#method.lock)
 а затем уже вызвать подходящий метод
 [`FrameAllocator`](../../doc/kernel/memory/frame_allocator/enum.FrameAllocator.html),
 например
 [`FrameAllocator::allocate()`](../../doc/kernel/memory/frame_allocator/enum.FrameAllocator.html#method.allocate).
 Метод
-[`Mutex::lock()`](../../doc/spin/mutex/struct.Mutex.html#method.lock)
+[`Spinlock::lock()`](../../doc/ku/sync/spinlock/struct.Spinlock.html#method.lock)
 возвращает
-[`spin::mutex::MutexGuard`](../../doc/spin/mutex/struct.MutexGuard.html)
+[`ku::sync::SpinlockGuard`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html),
 который:
 
-- За [счёт](../../doc/spin/mutex/struct.MutexGuard.html#impl-Deref) [реализации](../../doc/spin/mutex/struct.MutexGuard.html#impl-DerefMut) типажей [`core::ops::Deref`](https://doc.rust-lang.org/nightly/core/ops/trait.Deref.html) и [`core::ops::DerefMut`](https://doc.rust-lang.org/nightly/core/ops/trait.DerefMut.html) предоставляет прозрачный доступ к внутреннему [`FrameAllocator`](../../doc/kernel/memory/frame_allocator/enum.FrameAllocator.html).
-- При разрушении, например при выходе из своей зоны видимости или [явном вызове `drop(guard)`](../../doc/spin/mutex/struct.Mutex.html#thread-safety-example), автоматически освобождает захваченную блокировку.
+- За [счёт](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html#impl-Deref) [реализации](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html#impl-DerefMut) типажей [`core::ops::Deref`](https://doc.rust-lang.org/nightly/core/ops/trait.Deref.html) и [`core::ops::DerefMut`](https://doc.rust-lang.org/nightly/core/ops/trait.DerefMut.html) предоставляет прозрачный доступ к внутреннему [`FrameAllocator`](../../doc/kernel/memory/frame_allocator/enum.FrameAllocator.html).
+- При разрушении, например при выходе из своей зоны видимости или [явном вызове `drop(guard)`](../../doc/ku/sync/spinlock/struct.Spinlock.html#%D0%AF%D0%B2%D0%BD%D0%BE%D0%B5-%D0%BE%D1%81%D0%B2%D0%BE%D0%B1%D0%BE%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D0%B5-%D0%B1%D0%BB%D0%BE%D0%BA%D0%B8%D1%80%D0%BE%D0%B2%D0%BA%D0%B8), автоматически освобождает захваченную блокировку.
 
 Пример использования с блокировками, которые освобождаются сразу, в том же выражении, есть в тестах
 [`kernel/tests/memory.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/memory.rs):

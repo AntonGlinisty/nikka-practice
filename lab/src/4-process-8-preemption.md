@@ -22,7 +22,7 @@ fn Process::preempt(context: &mut TrapContext)
 если текущий контекст исполняется в режиме пользователя.
 Текущий контекст пользователя нужно будет сохранить в структуре
 [`Process`](../../doc/kernel/process/process/struct.Process.html).
-Но чтобы до неё добраться, нужно блокировать спинлок в таблице процессов.
+Но чтобы до неё добраться, нужно захватить спин-блокировку в таблице процессов.
 А брать блокировки из обработчиков прерываний не стоит.
 Поэтому для начала в самом прерывании сохраним контекст пользователя в промежуточном месте ---
 в CPU--локальной структуре
@@ -64,7 +64,7 @@ extern "x86-interrupt" fn timer(mut context: TrapContext)
 В [методе](../../doc/kernel/process/process/struct.Process.html#method.enter_user_mode)
 
 ```rust
-fn Process::enter_user_mode(mut process: MutexGuard<Process>) -> bool
+fn Process::enter_user_mode(mut process: SpinlockGuard<Process>) -> bool
 ```
 
 в файле [`kernel/src/process/process.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/process.rs)

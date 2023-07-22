@@ -67,7 +67,7 @@ enum Slot {
         next: Option<Pid>,
     },
     Used {
-        process: Mutex<Process>,
+        process: Spinlock<Process>,
     },
 }
 ```
@@ -84,22 +84,22 @@ enum Slot {
 Также свободные слоты провязаны в список, чтобы удобнее было за \\(O(1)\\)
 находить какой-нибудь свободный слот под новый процесс.
 
-Занятые слоты содержат спинлок
+Занятые слоты содержат спин-блокировку
 [`process`](../../doc/kernel/process/table/enum.Slot.html#variant.Used.field.process).
-Когда нам понадобится обратиться к процессу, нужно будет захватить его спинлок,
+Когда нам понадобится обратиться к процессу, нужно будет захватить его спин-блокировку,
 чтобы избежать несогласованного конкурентного изменения структуры
 [`kernel::process::process::Process`](../../doc/kernel/process/process/struct.Process.html).
 Чтобы обратиться с самой таблице процессов
-[`static ref kernel::process::table::TABLE: Mutex<Table>`](../../doc/kernel/process/table/struct.TABLE.html),
-конечно тоже нужно захватить её общий спинлок.
+[`static ref kernel::process::table::TABLE: Spinlock<Table>`](../../doc/kernel/process/table/struct.TABLE.html),
+конечно тоже нужно захватить её общую спин-блокировку.
 Но не хочется держать захваченной спин-блокировку всей таблицы, пока мы работаем со структурой
 [`kernel::process::process::Process`](../../doc/kernel/process/process/struct.Process.html)
 одного её процесса.
 Поэтому, таблица будет по идентификатору процесса
 [`Pid`](../../doc/ku/process/pid/enum.Pid.html)
-фактически обменивать захваченную спин-блокировку `Mutex<Table>` на захваченную спин-блокировку процесса `Mutex<Process>`.
+фактически обменивать захваченную спин-блокировку `Spinlock<Table>` на захваченную спин-блокировку процесса `Spinlock<Process>`.
 После чего вызывающий код сможет работать с процессом конкурентно другому коду,
-который сможет захватить уже освободившийся `Mutex<Table>`.
+который сможет захватить уже освободившийся `Spinlock<Table>`.
 
 
 ### Задача 5 --- таблица процессов
@@ -148,7 +148,7 @@ fn Table::allocate(mut process: Process) -> Result<Pid>
 поглощает свой аргумент.
 Этот и все последующие методы --- статические, они оперируют с глобальным
 [синглтоном](https://en.wikipedia.org/wiki/Singleton_pattern)
-[`static ref TABLE: Mutex<Table>`](../../doc/kernel/process/table/struct.TABLE.html),
+[`static ref TABLE: Spinlock<Table>`](../../doc/kernel/process/table/struct.TABLE.html),
 захватывая его блокировку --- `TABLE.lock()`.
 При реализации вам может пригодиться метод
 [`Option::take()`](https://doc.rust-lang.org/nightly/core/option/enum.Option.html#method.take).
@@ -159,11 +159,11 @@ fn Table::allocate(mut process: Process) -> Result<Pid>
 Реализуйте [метод](../../doc/kernel/process/struct.Table.html#method.get)
 
 ```rust
-fn Table::get(pid: Pid) -> Result<MutexGuard<'static, Process>>
+fn Table::get(pid: Pid) -> Result<SpinlockGuard<'static, Process>>
 ```
 
 Он возвращает захваченную спин-блокировку
-[`spin::mutex::MutexGuard`](../../doc/spin/mutex/struct.MutexGuard.html)
+[`ku::sync::SpinlockGuard`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html)
 со структурой
 [`kernel::process::process::Process`](../../doc/kernel/process/process/struct.Process.html),
 соответствующей идентификатору `pid`.
@@ -184,7 +184,7 @@ fn Table::get(pid: Pid) -> Result<MutexGuard<'static, Process>>
 `#[derive(..., Eq, PartialEq)]`.
 
 Так как размер таблицы процессов
-[`static ref TABLE: Mutex<Table>`](../../doc/kernel/process/table/struct.TABLE.html)
+[`static ref TABLE: Spinlock<Table>`](../../doc/kernel/process/table/struct.TABLE.html)
 после инициализации мы никогда не меняем, и в частности не уменьшаем,
 время жизни каждого её слота --- практически `'static`.
 Который и указан в результирующем типе метода
@@ -198,10 +198,10 @@ unsafe fn forge_static_lifetime<T>(x: &T) -> &'static T
 ```
 
 Естественно, чтобы вернуть
-[`MutexGuard`](../../doc/spin/mutex/struct.MutexGuard.html)
+[`SpinlockGuard`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html),
 нужно заблокировать процесс в слоте методом
-[`Mutex::lock()`](../../doc/spin/mutex/struct.Mutex.html#method.lock).
-Спинлок же самой
+[`Spinlock::lock()`](../../doc/ku/sync/spinlock/struct.Spinlock.html#method.lock).
+Спин-блокировка же самой
 [`TABLE`](../../doc/kernel/process/table/struct.TABLE.html)
 будет автоматически разблокирован аналогичным гардом при выходе из функции.
 Получается, что она в начале захватывает низкогранулярную блокировку на всю таблицу
@@ -215,7 +215,7 @@ unsafe fn forge_static_lifetime<T>(x: &T) -> &'static T
 Реализуйте [метод](../../doc/kernel/process/struct.Table.html#method.free)
 
 ``` rust
-fn Table::free(process: MutexGuard<Process>)
+fn Table::free(process: SpinlockGuard<Process>)
 ```
 
 Он:

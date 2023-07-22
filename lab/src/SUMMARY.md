@@ -10,9 +10,11 @@
 
 # Лабораторная работа №1
 
-- [Время](1-hw-0-intro.md)
+- [Время и параллельный код](1-hw-0-intro.md)
   - [Часы реального времени](1-hw-1-rtc.md)
   - [Счётчик тактов процессора](1-hw-2-tsc.md)
+  - [Спин-блокировка](5-sync-2-spinlock.md)
+  - [Sequence lock](5-sync-3-sequence-lock.md)
   - [Счётчики тиков](5-sync-4-correlation-point.md)
   - [Измерение частоты процессора и повышение разрешения часов](1-hw-3-high-resolution-date.md)
   - [Обработка прерываний RTC](1-hw-4-interrupts.md)

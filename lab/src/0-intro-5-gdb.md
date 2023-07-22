@@ -162,3 +162,21 @@ Backtrace:
   0x21830C
   0x9C81
 ```
+
+Также можно воспользоваться структурой
+[`ku::backtrace::callsite::Callsite`](../../doc/ku/backtrace/callsite/struct.Callsite.html).
+Кроме backtrace она позволяет сохранить ссылку на строку в коде ---
+[`core::panic::Location`](https://doc.rust-lang.org/nightly/core/panic/struct.Location.html).
+Например, так:
+```rust
+#[track_caller]
+fn foo(...) {
+    ...
+    let callsite = Callsite::new(Location::caller());
+    ...
+}
+```
+И при печати будет показывать и номер строки в коде, из которой вызывается функция `foo()`, и ведущий туда backtrace:
+```console
+ku/tests/5-sync-2-spinlock.rs:86:25, backtrace: [0x4332DF 0x423B65 0x42FA55 0x411205 0x421A85 0x408F87 0x40943D 0x408B22 0x41BD55 0x40F845 0x41DA71 0x50F3D3]
+```

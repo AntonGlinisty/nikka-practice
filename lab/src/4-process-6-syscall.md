@@ -261,7 +261,7 @@ fn kernel::process::syscall::sysret(
 
 ```rust
 fn kernel::process::syscall::exit(
-    process: MutexGuard<Process>,
+    process: SpinlockGuard<Process>,
     code: usize,
 ) -> !
 ```
@@ -286,7 +286,7 @@ fn kernel::process::syscall::exit(
 
 ```rust
 fn kernel::process::syscall::log_value(
-    process: MutexGuard<Process>,
+    process: SpinlockGuard<Process>,
     str_start: usize,
     str_end: usize,
     value: usize,

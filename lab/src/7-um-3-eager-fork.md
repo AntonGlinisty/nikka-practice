@@ -31,7 +31,7 @@ Nikka воплощает некоторые идеи [экзоядра](https://
 
 ```rust
 fn exofork(
-    process: MutexGuard<Process>,
+    process: SpinlockGuard<Process>,
     context: MiniContext,
 ) -> Result<SyscallResult>
 ```
@@ -114,7 +114,7 @@ let (child_pid, process_info) = syscall(Syscall::EXOFORK.bits(), 0, 0, 0, 0, 0)?
 
 ```rust
 fn set_state(
-    process: MutexGuard<Process>,
+    process: SpinlockGuard<Process>,
     dst_pid: usize,
     state: usize,
 ) -> Result<SyscallResult>

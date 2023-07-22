@@ -136,7 +136,7 @@ pub const RSP_OFFSET_IN_TRAP_INFO: usize = offset_of!(TrapInfo, context) + RSP_O
 
 ```rust
 fn kernel::process::syscall::set_trap_handler(
-    process: MutexGuard<Process>,
+    process: SpinlockGuard<Process>,
     dst_pid: usize,
     rip: usize,
     stack_address: usize,

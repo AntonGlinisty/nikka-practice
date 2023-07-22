@@ -115,7 +115,7 @@ fn CorrelationInterval::datetime_with_resolution<const PARTS_PER_SECOND: i64>(
 Мы заметим это на старте системы по низкому --- секундному --- разрешению в записях журнала.
 
 
-### Задача 3 --- реализация основного метода повышения разрешения часов
+### Задача 5 --- реализация основного метода повышения разрешения часов
 
 Для этой задачи понадобится готовое решение [задачи 1](../../lab/book/1-hw-1-rtc.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-1--%D1%87%D1%82%D0%B5%D0%BD%D0%B8%D0%B5-%D1%80%D0%B5%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%B3%D0%BE-%D0%B2%D1%80%D0%B5%D0%BC%D0%B5%D0%BD%D0%B8-%D0%B8%D0%B7-%D0%BC%D0%B8%D0%BA%D1%80%D0%BE%D1%81%D1%85%D0%B5%D0%BC%D1%8B-rtc).
 
@@ -127,6 +127,7 @@ fn CorrelationInterval::datetime_with_resolution<const PARTS_PER_SECOND: i64>(
 - Результат возвращается в типе [`chrono::naive::NaiveDateTime`](../../doc/chrono/naive/struct.NaiveDateTime.html), который не содержит данных о часовом поясе. Идентификатор часового пояса добавит вызывающая функция.
 - Запрошенное разрешение `PARTS_PER_SECOND` задаётся в единицах в секунду, например для миллисекунд `PARTS_PER_SECOND = 1_000`. Оно не будет выше наносекунд --- `PARTS_PER_SECOND = 1_000_000_000`, --- которые поддерживает [`NaiveDateTime`](../../doc/chrono/naive/struct.NaiveDateTime.html).
 - [Високосные секунды](https://en.wikipedia.org/wiki/Leap_second) не поддерживаем.
+- Вам могут пригодиться функции [`i64::div_euclid()`](https://doc.rust-lang.org/nightly/std/primitive.i64.html#method.div_euclid) и [`i64::rem_euclid()`](https://doc.rust-lang.org/nightly/std/primitive.i64.html#method.rem_euclid).
 
 
 #### Зависание при журналировании
@@ -146,7 +147,7 @@ fn CorrelationInterval::datetime_with_resolution<const PARTS_PER_SECOND: i64>(
 Бесконечной рекурсии не происходит из-за дополнительной блокировки в журналировании --- поле
 [`kernel::log::LogCollector::log`](../../doc/kernel/log/struct.LogCollector.html#structfield.log)
 имеет тип
-[`spin::Mutex`](../../doc/spin/type.Mutex.html)`<`[`kernel::log::Log`](../../doc/kernel/log/struct.Log.html)`>`.
+[`ku::sync::Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html)`<`[`kernel::log::Log`](../../doc/kernel/log/struct.Log.html)`>`.
 Основное предназначение этой блокировки ---
 предотвратить перемешивание кусков сообщений от разных процессоров в системе.
 
@@ -235,7 +236,7 @@ static LOG_COLLECTOR: LogCollector = LogCollector::new(Format::Timeless, Level::
 ```
 
 Также иногда можно убирать
-[`Mutex`](../../doc/spin/type.Mutex.html)
+[`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html):
 из поля
 [`kernel::log::LogCollector::log`](../../doc/kernel/log/struct.LogCollector.html#structfield.log).
 Если на нём возникает [взаимоблокировка](https://en.wikipedia.org/wiki/Deadlock).
