@@ -22,7 +22,6 @@ use super::{
         Grid,
         LEN,
         TAB_WIDTH,
-        round_up,
     },
 };
 
@@ -454,7 +453,7 @@ fn check_white_space(
     alignment: usize,
     data: &[Filler],
 ) -> usize {
-    let end = cmp::min(round_up(begin + 1, alignment), buffer.len());
+    let end = cmp::min((begin + 1).next_multiple_of(alignment), buffer.len());
 
     for position in begin .. end {
         let found = buffer[position].read().character;
@@ -637,7 +636,6 @@ mod format {
         Buffer,
         COLUMN_COUNT,
         is_graphical,
-        round_up,
     };
 
     pub struct BufferFormatter<'a> {
@@ -660,7 +658,7 @@ mod format {
             while end >= 1 && self.buffer[end - 1].read().character == b'\0' {
                 end -= 1;
             }
-            end = cmp::min(round_up(end, COLUMN_COUNT), self.buffer.len());
+            end = cmp::min(end.next_multiple_of(COLUMN_COUNT), self.buffer.len());
 
             for (index, glyph) in self.buffer[.. end].iter().enumerate() {
                 let mut ch = glyph.read().character;

@@ -21,13 +21,6 @@ pub fn is_graphical(octet: u8) -> bool {
     (b' ' + 1 .. 0x7F).contains(&octet)
 }
 
-pub fn round_up(
-    value: usize,
-    granularity: usize,
-) -> usize {
-    (value + granularity - 1) / granularity * granularity
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct Glyph {
