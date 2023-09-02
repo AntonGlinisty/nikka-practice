@@ -169,6 +169,18 @@ impl<T: Memory> Block<T> {
         self.start <= block.start && block.end <= self.end
     }
 
+    /// Возвращает подблок исходного блока, задающийся диапазоном `range`.
+    pub fn slice(
+        &self,
+        range: Range<usize>,
+    ) -> Option<Self> {
+        if range.start <= range.end && range.end <= self.count() {
+            Self::from_index(self.start + range.start, self.start + range.end).ok()
+        } else {
+            None
+        }
+    }
+
     /// Разделяет блок на две дизъюнктные части:
     ///   - изменённый `self`;
     ///   - новый блок размером `count` единиц, взятый с конца текущего блока.

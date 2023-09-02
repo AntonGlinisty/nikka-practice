@@ -28,5 +28,7 @@ tracing-core = { git = "https://github.com/tokio-rs/tracing", version = "*", def
 x86_64 = "*"
 
 [dev-dependencies]
+nix = { version = "*" }
 ntest_timeout = { version = "*" }
+rand = { version = "*", default-features = false, features = ["small_rng"] }
 tracing-subscriber = { git = "https://github.com/tokio-rs/tracing" }

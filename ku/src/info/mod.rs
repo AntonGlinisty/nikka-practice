@@ -111,7 +111,7 @@ impl ProcessInfo {
             Block::<Virt>::from_ref(self),
             Block::<Virt>::from_ref(unsafe { &*self.system_info }),
             Block::<Virt>::from_ref(&self.log),
-            self.log.block(),
+            self.log.block().into(),
         ]
         .iter()
         .any(|block| block.enclosing().contains_address(address))

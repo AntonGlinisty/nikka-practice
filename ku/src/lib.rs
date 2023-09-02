@@ -42,7 +42,7 @@ pub mod ipc;
 
 /// Поддержка журналирования макросами библиотеки [`tracing`].
 ///
-/// Сериализует сообщения в [`RingBuffer`] и
+/// Сериализует сообщения в [`pipe`] и
 /// передаёт их для журналирования в ядро через [`ProcessInfo::log()`].
 /// Сериализация осуществляется с помощью [`serde`] в формате [`postcard`].
 pub mod log;
@@ -76,8 +76,6 @@ pub use info::{
 pub use ipc::pipe::{
     self,
     ReadBuffer,
-    RingBuffer,
-    RingBufferMemory,
     RingBufferReadTx,
     RingBufferWriteTx,
     WriteBuffer,

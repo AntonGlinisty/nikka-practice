@@ -23,15 +23,12 @@ mod table;
 
 use core::mem;
 
-use static_assertions::const_assert;
-
 use ku::{
     ProcessInfo,
     SystemInfo,
     pipe::{
         self,
         ReadBuffer,
-        RingBuffer,
         WriteBuffer,
     },
     process::MiniContext,
@@ -50,7 +47,6 @@ use crate::{
         BASE_ADDRESS_SPACE,
         Block,
         FRAME_ALLOCATOR,
-        Page,
         Size,
         Stack,
         USER_R,
@@ -142,10 +138,9 @@ fn map_process_info(
 
 /// Создаёт для процесса отображение в его адресное пространство `address_space`
 /// циклического буфера для журналирования.
-/// См. [`RingBuffer`].
+/// См. [`pipe::make()`].
 fn map_log(address_space: &mut AddressSpace) -> Result<(ReadBuffer, WriteBuffer)> {
-    // TODO: your code here.
-    Ok(RingBuffer::zero()) // TODO: remove before flight.
+    pipe::make(&mut address_space.allocator(USER_RW))
 }
 
 /// Создаёт для процесса отображение в его адресное пространство `address_space`
@@ -186,10 +181,6 @@ pub mod test_scaffolding {
 
     use ku::{
         memory::Block,
-        pipe::{
-            ReadBuffer,
-            WriteBuffer,
-        },
         process::{
             MiniContext,
             Pid,
@@ -198,10 +189,7 @@ pub mod test_scaffolding {
 
     use crate::{
         error::Result,
-        memory::{
-            AddressSpace,
-            BASE_ADDRESS_SPACE,
-        },
+        memory::BASE_ADDRESS_SPACE,
         process::{
             Process,
             Table,
@@ -217,7 +205,7 @@ pub mod test_scaffolding {
 
         address_space.switch_to();
 
-        let (read_buffer, write_buffer) = map_log(&mut address_space)?;
+        let (read_buffer, write_buffer) = super::map_log(&mut address_space)?;
         let process_info =
             super::map_process_info(&mut address_space, Block::default(), write_buffer)?;
 
@@ -227,10 +215,6 @@ pub mod test_scaffolding {
         let process = Process::new(address_space, context, process_info, read_buffer);
 
         Table::allocate(process)
-    }
-
-    pub fn map_log(address_space: &mut AddressSpace) -> Result<(ReadBuffer, WriteBuffer)> {
-        super::map_log(address_space)
     }
 
     pub const PROCESS_SLOT_COUNT: usize = super::PROCESS_SLOT_COUNT;

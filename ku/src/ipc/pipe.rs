@@ -1,6 +1,7 @@
 #![allow(rustdoc::private_intra_doc_links)]
 
 use core::{
+    alloc::Layout,
     cmp,
     marker::PhantomData,
     mem,
@@ -11,12 +12,11 @@ use core::{
     },
 };
 
-use static_assertions::const_assert;
-
 use crate::{
-    error::Error::{
-        InvalidAlignment,
-        Null,
+    allocator::BigAllocator,
+    error::{
+        self,
+        Error::InvalidAlignment,
     },
     log::error,
     memory::{
@@ -27,33 +27,23 @@ use crate::{
     },
 };
 
-/// Сырая память для
-/// [непрерывного циклического буфера](https://fgiesen.wordpress.com/2012/07/21/the-magic-ring-buffer/).
-type RingBufferRaw = [u8; RingBuffer::MAPPED_SIZE];
-
-/// Сырая память для
-/// [непрерывного циклического буфера](https://fgiesen.wordpress.com/2012/07/21/the-magic-ring-buffer/),
-/// выравненная на границу страницы.
-#[repr(C, align(4096))]
-pub struct RingBufferMemory([u8; RingBuffer::MAPPED_SIZE]);
-
-const_assert!(mem::align_of::<RingBufferMemory>() == Page::SIZE);
-const_assert!(mem::size_of::<RingBufferMemory>() % Page::SIZE == 0);
-
-/// Создаёт [`RingBuffer`] поверх уже отображённой памяти `buf`.
+/// Отображает в память непрерывный циклический буфер [`RingBuffer`].
 ///
+/// Использует для построения отображения `allocator`,
+/// который должен реализовывать типаж постраничного аллокатора памяти
+/// [`BigAllocator`].
 /// Возвращает пару из [`ReadBuffer`] и [`WriteBuffer`] ---
-/// интерфейсом читателя и интерфейсом писателя для этого буфера.
-pub fn make(buf: &'static mut RingBufferMemory) -> (ReadBuffer, WriteBuffer) {
+/// интерфейса читателя и интерфейса писателя для этого буфера.
+pub fn make<T: BigAllocator>(allocator: &mut T) -> error::Result<(ReadBuffer, WriteBuffer)> {
     // TODO: your code here.
     Ok((ReadBuffer::default(), WriteBuffer::default())) // TODO: remove before flight.
 }
 
 /// [Непрерывный циклический буфер](https://fgiesen.wordpress.com/2012/07/21/the-magic-ring-buffer/).
 #[derive(Debug, Default)]
-pub struct RingBuffer {
-    /// Виртуальный адрес начала блока памяти с данными, которые хранятся в буфере.
-    buf: Virt,
+struct RingBuffer {
+    /// Блок памяти с данными, которые хранятся в буфере.
+    block: Block<Page>,
 
     /// Количество байт, прочитанных из буфера за всё время.
     /// То есть, эта величина потенциально больше размера буфера.
@@ -62,7 +52,7 @@ pub struct RingBuffer {
     /// Аналогично, все методы работают с позициями в буфере,
     /// измеряя их от момента инициализации буфера.
     /// Единственное преобразование таких позиций в смещения в памяти, ---
-    /// взятие по модулю `Self::REAL_SIZE`, --- выполняется в реализации метода [`RingBuffer::into()`].
+    /// взятие по модулю `Self::REAL_SIZE`, --- выполняется в реализации метода [`RingBuffer::get()`].
     head: usize,
 
     /// Количество байт, записанных в буфер за всё время.
@@ -72,7 +62,7 @@ pub struct RingBuffer {
     /// Аналогично, все методы работают с позициями в буфере,
     /// измеряя их от момента инициализации буфера.
     /// Единственное преобразование таких позиций в смещения в памяти, ---
-    /// взятие по модулю `Self::REAL_SIZE`, --- выполняется в реализации метода [`RingBuffer::into()`].
+    /// взятие по модулю `Self::REAL_SIZE`, --- выполняется в реализации метода [`RingBuffer::get()`].
     tail: usize,
 
     /// Статистики чтения или записи в буфер.
@@ -80,12 +70,13 @@ pub struct RingBuffer {
 }
 
 impl RingBuffer {
-    /// Инициализирует буфер по адресу `buf`.
-    fn new(buf: Virt) -> Self {
-        assert_ne!(buf, Virt::default());
+    /// Инициализирует буфер над блоком памяти `buf`.
+    fn new(block: Block<Page>) -> Self {
+        assert_ne!(block.start_address(), Virt::default());
+        assert_eq!(block.size(), Self::MAPPED_SIZE);
 
         Self {
-            buf,
+            block,
             head: 0,
             tail: 0,
             stats: RingBufferStats::default(),
@@ -93,12 +84,8 @@ impl RingBuffer {
     }
 
     /// Возвращает блок виртуальной памяти, в которую отображён буфер.
-    fn block(&self) -> Block<Virt> {
-        if self.buf == Virt::default() {
-            Block::default()
-        } else {
-            Block::from_ref(unsafe { self.buf.try_into_ref::<RingBufferRaw>().unwrap() })
-        }
+    fn block(&self) -> Block<Page> {
+        self.block
     }
 
     /// Создаёт читающую или пишущую транзакцию.
@@ -148,7 +135,7 @@ impl RingBuffer {
         unimplemented!();
     }
 
-    /// Читает из заголовка записи, находящейся на позиции `position`, её размер.
+    /// Читает размер из заголовка записи, находящейся на позиции `position`.
     fn read_size(
         &mut self,
         position: usize,
@@ -160,7 +147,7 @@ impl RingBuffer {
         size
     }
 
-    /// Записывает в заголовок записи, находящейся на позиции `position`, её размер `size`.
+    /// Записывает размер `size` в заголовок записи, находящейся на позиции `position`.
     fn write_size(
         &mut self,
         position: usize,
@@ -174,37 +161,34 @@ impl RingBuffer {
         assert_eq!(size, 0);
     }
 
-    /// Возвращает ссылку на флаг состояния записи,
-    /// находящейся на позиции `position`.
+    /// Возвращает ссылку на флаг состояния записи, находящейся на позиции `position`.
     ///
     /// Принимает `&mut self`, чтобы гарантировать отсутствие алиасинга.
     fn state(
         &mut self,
         position: usize,
     ) -> &AtomicU8 {
-        self.into(position)
+        self.get(position)
     }
 
-    /// Возвращает ссылку на заголовок с метаданными записи,
-    /// находящейся на позиции `position`.
+    /// Возвращает ссылку на заголовок с метаданными записи, находящейся на позиции `position`.
     ///
     /// Принимает `&mut self`, чтобы гарантировать отсутствие алиасинга.
     fn header(
         &mut self,
         position: usize,
-    ) -> &mut [u8; Self::HEAD_SIZE - mem::size_of::<AtomicU8>()] {
-        self.into(position + mem::size_of::<AtomicU8>())
+    ) -> &mut [u8; Self::HEADER_SIZE - mem::size_of::<AtomicU8>()] {
+        self.get(position + mem::size_of::<AtomicU8>())
     }
 
-    /// Возвращает ссылку на буфер с данными,
-    /// находящийся на позиции `position`.
+    /// Возвращает ссылку на буфер с данными, находящийся на позиции `position`.
     ///
     /// Принимает `&mut self`, чтобы гарантировать отсутствие алиасинга.
     fn buf(
         &mut self,
         position: usize,
     ) -> &mut [u8; Self::REAL_SIZE] {
-        self.into(position)
+        self.get(position)
     }
 
     /// Возвращает ссылку на тип `T`, записанный на позиции `position`.
@@ -215,24 +199,23 @@ impl RingBuffer {
     /// # Panics
     ///
     /// Паникует:
-    /// - Если память под буфер не выделена.
     /// - Тип `T` не влезает в буфер.
     /// - Тип `T` требует нетривиального выравнивания.
     ///
     /// Принимает `&mut self`, чтобы гарантировать отсутствие алиасинга.
-    fn into<T>(
+    fn get<T>(
         &mut self,
         position: usize,
     ) -> &mut T {
         assert!(mem::size_of::<T>() <= Self::REAL_SIZE);
 
         let offset = position % Self::REAL_SIZE;
-        let virt =
-            (self.buf + offset).expect("the RingBuffer does not fit into address space properly");
+        let block = Block::<Virt>::from(self.block)
+            .slice(offset .. offset + mem::size_of::<T>())
+            .expect("RingBuffer is not mapped properly");
 
-        match unsafe { virt.try_into_mut() } {
+        match unsafe { block.try_into_mut() } {
             Ok(value) => value,
-            Err(Null) => panic!("the RingBuffer is not properly initialized"),
             Err(InvalidAlignment) => panic!("type T should be trivially aligned"),
             Err(error) => panic!("unexpected error {:?}", error),
         }
@@ -242,62 +225,39 @@ impl RingBuffer {
     /// прочитанных из буфера и записанных в буфер за всё время.
     /// Если буфер закрыт, возвращает [`None`].
     /// Если замечает нарушение инвариантов буфера,
-    /// считает что противоположная сторона испортила буфер и
-    /// расценивает его как закрытый.
+    /// считает что противоположная сторона испортила буфер и расценивает его как закрытый.
     fn head_tail(&mut self) -> Option<(usize, usize)> {
         // TODO: your code here.
         unimplemented!();
     }
 
-    /// Проверяет, что `buf` отображён в виртуальную память
-    /// [непрерывно](https://fgiesen.wordpress.com/2012/07/21/the-magic-ring-buffer/).
-    fn check_continuous_mapping(buf: &mut RingBufferRaw) {
-        let read_ptr = &buf[0] as *const u8;
-        let write_ptr = &mut buf[Self::REAL_SIZE] as *mut u8;
-
-        assert_ne!(read_ptr, write_ptr);
-
-        unsafe {
-            let new_value = !read_ptr.read_volatile();
-            write_ptr.write_volatile(new_value);
-            assert_eq!(
-                read_ptr.read_volatile(),
-                new_value,
-                "RingBuffer is not mapped properly to be continuous",
-            );
-        }
-    }
-
     /// Вычисляет размер заголовка одной записи для `RingBuffer` размера `Self::REAL_SIZE`.
-    const fn head_size() -> usize {
-        let mut head_size = mem::size_of::<AtomicU8>();
+    const fn header_size() -> usize {
+        let mut header_size = mem::size_of::<AtomicU8>();
         let mut size = Self::REAL_SIZE;
 
         while size > 0 {
-            head_size += mem::size_of::<u8>();
+            header_size += mem::size_of::<u8>();
             size >>= u8::BITS;
         }
 
-        head_size
+        header_size
     }
 
-    /// Размер отображённой виртуальной памяти.
-    pub const MAPPED_SIZE: usize = 2 * Self::REAL_SIZE;
-
-    /// Ёмкость циклического буфера.
-    pub const REAL_SIZE: usize = 4 * Page::SIZE;
-
     /// Размер заголовка одной записи в буфере.
-    pub const HEAD_SIZE: usize = Self::head_size();
+    const HEADER_SIZE: usize = Self::header_size();
 
     /// Размер хвоста после конца записи в буфере --- флага состояния следующей записи.
     /// Используется при записи в буфер, чтобы отметить следующую запись свободной.
     /// То есть, чтобы читающая сторона не пыталась читать следующую запись до тех пор,
     /// пока та не будет записана на самом деле.
-    pub const TAIL_SIZE: usize = mem::size_of::<AtomicU8>();
+    const STATE_SIZE: usize = mem::size_of::<AtomicU8>();
 
-    /// Максимальный размер полезной нагрузки в одной записи.
-    pub const MAX_CAPACITY: usize = Self::REAL_SIZE - Self::HEAD_SIZE - Self::TAIL_SIZE;
+    /// Размер отображённой виртуальной памяти.
+    const MAPPED_SIZE: usize = 2 * Self::REAL_SIZE;
+
+    /// Размер занимаемой физической памяти.
+    const REAL_SIZE: usize = 4 * Page::SIZE;
 }
 
 /// Читающая сторона [`RingBuffer`].
@@ -320,7 +280,7 @@ impl ReadBuffer {
     }
 
     /// Возвращает блок виртуальной памяти, в которую отображён буфер.
-    pub fn block(&self) -> Block<Virt> {
+    pub fn block(&self) -> Block<Page> {
         self.0.block()
     }
 
@@ -350,7 +310,7 @@ impl WriteBuffer {
     }
 
     /// Возвращает блок виртуальной памяти, в которую отображён буфер.
-    pub fn block(&self) -> Block<Virt> {
+    pub fn block(&self) -> Block<Page> {
         self.0.block()
     }
 
@@ -391,24 +351,24 @@ enum Header {
 }
 
 impl Header {
-    /// Значение флага для свободной записи,
-    /// см. [`Header::Clear`].
+    /// Значение флага для свободной записи.
+    /// См. [`Header::Clear`].
     const CLEAR: u8 = 0;
 
-    /// Значение флага для записи, закрывающей [`RingBuffer`],
-    /// см. [`Header::Closed`].
+    /// Значение флага для записи, закрывающей [`RingBuffer`].
+    /// См. [`Header::Closed`].
     const CLOSED: u8 = 1;
 
-    /// Значение флага для захваченной писателем записи,
-    /// см. [`Header::Locked`].
+    /// Значение флага для захваченной писателем записи.
+    /// См. [`Header::Locked`].
     const LOCKED: u8 = 2;
 
-    /// Значение флага для зафиксированной писателем и не зафиксированной читателем записи,
-    /// см. [`Header::Written`].
+    /// Значение флага для зафиксированной писателем и не зафиксированной читателем записи.
+    /// См. [`Header::Written`].
     const WRITTEN: u8 = 3;
 
-    /// Значение флага для зафиксированной и писателем и читателем записи,
-    /// см. [`Header::Written`].
+    /// Значение флага для зафиксированной и писателем и читателем записи.
+    /// См. [`Header::Written`].
     const READ: u8 = 4;
 }
 
@@ -488,12 +448,12 @@ impl RingBufferTx<'_, WriteTag> {
     /// Ёмкость, оставшаяся в буфере транзакции на текущий момент.
     pub fn capacity(&self) -> usize {
         let skip_header = if self.header == self.tail {
-            RingBuffer::HEAD_SIZE
+            RingBuffer::HEADER_SIZE
         } else {
             0
         };
-        if RingBuffer::REAL_SIZE - (self.tail - self.head) >= skip_header + RingBuffer::TAIL_SIZE {
-            RingBuffer::REAL_SIZE - (self.tail + skip_header - self.head) - RingBuffer::TAIL_SIZE
+        if RingBuffer::REAL_SIZE - (self.tail - self.head) >= skip_header + RingBuffer::STATE_SIZE {
+            RingBuffer::REAL_SIZE - (self.tail + skip_header - self.head) - RingBuffer::STATE_SIZE
         } else {
             0
         }
@@ -558,11 +518,11 @@ pub struct RingBufferStats {
 pub enum Error {
     /// Буфер транзакции переполнен.
     Overflow {
-        /// Остававшееся в буфере место на момент старта транзакции.
+        /// Место, остававшееся в буфере на момент старта транзакции.
         /// То есть, полная доступная для транзакции ёмкость.
         capacity: usize,
 
-        /// Уже записанный ранее в рамках транзакции объём.
+        /// Объём данных, уже записанных ранее в рамках транзакции.
         len: usize,
 
         /// Размер объекта, при попытке записи которого буфер транзакции переполнился.
@@ -574,3 +534,7 @@ pub enum Error {
 /// Тип возвращаемого результата `T` или ошибки [`Error`] ---
 /// мономорфизация [`result::Result`] по типу ошибки.
 pub type Result<T> = result::Result<T, Error>;
+
+/// Максимальный размер полезной нагрузки в одной записи [`RingBuffer`].
+pub const MAX_CAPACITY: usize =
+    RingBuffer::REAL_SIZE - RingBuffer::HEADER_SIZE - RingBuffer::STATE_SIZE;

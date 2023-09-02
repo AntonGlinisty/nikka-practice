@@ -106,7 +106,7 @@ unsafe impl BigAllocator for MapAllocator {
         }
     }
 
-    unsafe fn remap(
+    unsafe fn copy_mapping(
         &mut self,
         old_block: Block<Page>,
         new_block: Block<Page>,

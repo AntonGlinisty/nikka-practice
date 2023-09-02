@@ -1,12 +1,16 @@
-#![feature(custom_test_frameworks)]
+#![deny(warnings)]
 #![feature(slice_group_by)]
-#![no_main]
-#![no_std]
-#![reexport_test_harness_main = "test_main"]
-#![test_runner(kernel::test_runner)]
 
-use core::fmt;
+use std::{
+    fmt,
+    thread,
+    time::{
+        Duration,
+        Instant,
+    },
+};
 
+use ntest_timeout::timeout;
 use rand::{
     Rng,
     SeedableRng,
@@ -15,40 +19,96 @@ use rand::{
 };
 
 use ku::{
-    error::Result,
-    memory::Page,
+    error::{
+        Error,
+        Result,
+    },
+    log::{
+        debug,
+        trace,
+    },
+    memory::{
+        Page,
+        size::{
+            MiB,
+            Size,
+        },
+    },
     pipe::{
+        self,
+        Error::Overflow,
+        MAX_CAPACITY,
         ReadBuffer,
-        RingBuffer,
         RingBufferWriteTx,
         WriteBuffer,
     },
 };
 
-use kernel::{
-    Subsystems,
-    log::{
-        debug,
-        trace,
-    },
-    memory::BASE_ADDRESS_SPACE,
-    process::test_scaffolding,
-};
+use allocator::BigForPipe;
 
-mod init;
-
-init!(Subsystems::MEMORY | Subsystems::PROCESS);
+mod allocator;
+mod log;
 
 const QUALITY: Quality = Quality::Paranoid;
+const SEED: u64 = 314159265;
+const WINDOW_DURATION: Duration = Duration::from_millis(
+    if cfg!(debug_assertions) {
+        500
+    } else {
+        1
+    },
+);
 
-#[test_case]
-fn stress() {
-    assert!(RingBuffer::REAL_SIZE > Page::SIZE);
+#[test]
+#[timeout(1_000)]
+fn check_continuous_mapping() {
+    log::init();
 
-    const SEED: u64 = 314159265;
+    let mut allocator = BigForPipe::new();
 
-    let (mut read_buffer, mut write_buffer) =
-        test_scaffolding::map_log(&mut BASE_ADDRESS_SPACE.lock()).unwrap();
+    let (_, write_buffer) = pipe::make(&mut allocator).unwrap();
+    let block = write_buffer.block();
+
+    debug!(ring_buffer_block = %block);
+    assert_eq!(block.start_address().into_usize() % Page::SIZE, 0);
+    assert_eq!(block.size() % (2 * Page::SIZE), 0);
+    assert!(block.size() > 2 * Page::SIZE);
+
+    let mut read_rng = SmallRng::seed_from_u64(SEED);
+    let mut write_rng = read_rng.clone();
+
+    let buf = unsafe { block.try_into_mut_slice::<u8>().unwrap() };
+    let (read_buf, write_buf) = buf.split_at_mut(block.size() / 2);
+
+    for write_ref in write_buf {
+        let value = write_rng.gen();
+        let write_ptr = write_ref as *mut u8;
+        unsafe {
+            write_ptr.write_volatile(value);
+        }
+    }
+
+    for read_ref in read_buf {
+        let value = read_rng.gen();
+        let read_ptr = read_ref as *const u8;
+        assert_eq!(
+            unsafe { read_ptr.read_volatile() },
+            value,
+            "RingBuffer is not mapped properly to be continuous",
+        );
+    }
+
+    allocator.unmap();
+}
+
+#[test]
+#[timeout(60_000)]
+fn sequential() {
+    log::init();
+
+    let mut allocator = BigForPipe::new();
+
+    let (mut read_buffer, mut write_buffer) = pipe::make(&mut allocator).unwrap();
 
     let mut rng = SmallRng::seed_from_u64(SEED);
     let mut read_ops = Generator::new(QUALITY, SEED);
@@ -77,18 +137,134 @@ fn stress() {
         }
     }
 
+    allocator.unmap();
+
     assert!(
         write_errors > 0,
         "the test does not check for RingBuffer overflow",
     );
 }
 
+#[test]
+#[timeout(300_000)]
+fn concurrent() {
+    log::init();
+
+    const ITERATIONS: u64 = if cfg!(debug_assertions) {
+        20
+    } else {
+        1_000
+    };
+
+    for iteration in 0 .. ITERATIONS {
+        let mut allocator = BigForPipe::new();
+
+        let (read_buffer, write_buffer) = pipe::make(&mut allocator).unwrap();
+
+        let read_thread = thread::Builder::new()
+            .name("read_thread".to_string())
+            .spawn(move || read_thread(iteration, SEED + iteration, read_buffer))
+            .unwrap();
+
+        let write_thread = thread::Builder::new()
+            .name("write_thread".to_string())
+            .spawn(move || write_thread(iteration, SEED + iteration, write_buffer))
+            .unwrap();
+
+        assert!(read_thread.join().is_ok());
+        assert!(write_thread.join().is_ok());
+
+        allocator.unmap();
+    }
+}
+
+fn read_thread(
+    iteration: u64,
+    seed: u64,
+    mut read_buffer: ReadBuffer,
+) {
+    let mut rng = SmallRng::seed_from_u64(seed);
+    let mut read_ops = Generator::new(QUALITY, seed);
+
+    let mut read_tx = 0;
+    let mut window_bytes = 0;
+    let mut window_begin = Instant::now();
+
+    while let Some(bytes) = read(&mut read_buffer, &mut read_ops, &mut rng) {
+        window_bytes += bytes;
+
+        let elapsed = window_begin.elapsed();
+        if elapsed >= WINDOW_DURATION {
+            let throughput_per_second =
+                u128::try_from(window_bytes).unwrap() * 1_000_000 / elapsed.as_micros();
+            let throughput_per_second = throughput_per_second.try_into().unwrap();
+            let throughput = Size::bytes(throughput_per_second);
+            debug!(
+                iteration,
+                read_tx,
+                throughput_per_second = %throughput,
+                window_bytes,
+                read_stats = ?read_buffer.read_stats(),
+            );
+
+            let min_throughput = if cfg!(debug_assertions) {
+                MiB
+            } else {
+                500 * MiB
+            };
+            assert!(
+                throughput_per_second > min_throughput,
+                "the ring buffer is too slow, throughput={throughput}/s",
+            );
+
+            window_begin = Instant::now();
+            window_bytes = 0;
+        }
+
+        if bytes == 0 {
+            thread::yield_now();
+        }
+
+        read_tx += 1;
+    }
+}
+
+fn write_thread(
+    iteration: u64,
+    seed: u64,
+    mut write_buffer: WriteBuffer,
+) {
+    let mut rng = SmallRng::seed_from_u64(seed);
+    let mut write_ops = Generator::new(QUALITY, seed);
+
+    let mut window_begin = Instant::now();
+
+    const WRITE_TRANSACTIONS: u64 = 10_000;
+
+    for write_tx in 0 .. WRITE_TRANSACTIONS {
+        let operation = write_ops.generate_operation();
+
+        if window_begin.elapsed() >= WINDOW_DURATION {
+            debug!(iteration, write_tx, write_stats = ?write_buffer.write_stats());
+            window_begin = Instant::now();
+        }
+
+        while let Err(write_error) = write(&mut write_buffer, &operation, &mut rng) {
+            trace!(%operation, ?write_error);
+            thread::yield_now();
+        }
+    }
+
+    write_buffer.close();
+}
+
 fn read(
     ring_buffer: &mut ReadBuffer,
     read_ops: &mut Generator,
     rng: &mut SmallRng,
-) {
-    let mut tx = ring_buffer.read_tx().unwrap();
+) -> Option<usize> {
+    let mut tx = ring_buffer.read_tx()?;
+    let mut total_bytes = 0;
 
     let commit = rng.gen_ratio(1, 2);
 
@@ -97,7 +273,7 @@ fn read(
             Quality::Debuggable => trace!(
                 data = %RunLengthEncoding(data),
                 len = data.len(),
-                "read_tx"
+                "read_tx",
             ),
             Quality::Paranoid => trace!(?data, len = data.len(), "read_tx"),
         }
@@ -105,11 +281,16 @@ fn read(
         if commit {
             check_read_tx(data, read_ops);
         }
+
+        total_bytes += data.len();
     }
 
     if commit {
+        trace!("read commit");
         tx.commit();
     }
+
+    Some(total_bytes)
 }
 
 fn check_read_tx(
@@ -120,7 +301,7 @@ fn check_read_tx(
 
     while !data.is_empty() {
         let expected = read_ops.generate_operation();
-        trace!(operation = %expected, "read");
+        trace!(data = %RunLengthEncoding(data), operation = %expected, "read");
 
         if expected.commit {
             let (got, more_data) = data.split_at(expected.data.len());
@@ -148,10 +329,29 @@ fn write_with_retries(
     let operation = write_ops.generate_operation();
     let mut write_errors = 0;
 
+    trace!(%operation, "starting a chunked write operation");
+
     while let Err(write_error) = write(write_buffer, &operation, rng) {
-        trace!(?write_error);
-        read(read_buffer, read_ops, rng);
+        trace!(%operation, ?write_error);
+
         write_errors += 1;
+        assert!(write_errors < 1_000);
+
+        if let Error::Pipe(Overflow {
+            capacity,
+            len,
+            exceeding_object_len,
+        }) = write_error
+        {
+            if capacity > 0 && len + exceeding_object_len <= capacity {
+                debug!(%operation, ?write_error, "unexpected capacity overflow");
+            }
+            assert!(capacity == 0 || len + exceeding_object_len > capacity);
+        } else {
+            panic!("unexpected error {write_error:?}");
+        }
+
+        read(read_buffer, read_ops, rng).unwrap();
     }
 
     write_errors
@@ -203,7 +403,7 @@ fn write_chunked(
 
 #[derive(Clone)]
 struct Generator {
-    buffer: [u8; RingBuffer::MAX_CAPACITY],
+    buffer: [u8; MAX_CAPACITY],
     quality: Quality,
     rng: SmallRng,
 }
@@ -214,7 +414,7 @@ impl Generator {
         seed: u64,
     ) -> Self {
         Self {
-            buffer: [0; RingBuffer::MAX_CAPACITY],
+            buffer: [0; MAX_CAPACITY],
             quality,
             rng: SmallRng::seed_from_u64(seed),
         }
@@ -263,13 +463,11 @@ impl<'a> Operation<'a> {
         const BOUNDARY_SIZE: usize = 16;
 
         if rng.gen_ratio(3, 4) {
-            rng.gen_range(BOUNDARY_SIZE .. RingBuffer::MAX_CAPACITY - BOUNDARY_SIZE + 1)
+            rng.gen_range(BOUNDARY_SIZE .. MAX_CAPACITY - BOUNDARY_SIZE + 1)
         } else if rng.gen_ratio(1, 2) {
             rng.gen_range(0 .. BOUNDARY_SIZE)
         } else {
-            rng.gen_range(
-                RingBuffer::MAX_CAPACITY - BOUNDARY_SIZE + 1 .. RingBuffer::MAX_CAPACITY + 1,
-            )
+            rng.gen_range(MAX_CAPACITY - BOUNDARY_SIZE + 1 .. MAX_CAPACITY + 1)
         }
     }
 }

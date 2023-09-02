@@ -181,7 +181,7 @@ impl Process {
     fn log(&mut self) -> Result<&mut ReadBuffer> {
         self.address_space
             .get_mut()
-            .check_permission_mut::<u8>(self.log.block(), USER_RW)?;
+            .check_permission_mut::<u8>(self.log.block().into(), USER_RW)?;
         Ok(&mut self.log)
     }
 

@@ -121,7 +121,7 @@ unsafe impl BigAllocator for Big<'_> {
         self.address_space.unmap_block(block)
     }
 
-    unsafe fn remap(
+    unsafe fn copy_mapping(
         &mut self,
         old_block: Block<Page>,
         new_block: Block<Page>,
