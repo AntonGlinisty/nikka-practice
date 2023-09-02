@@ -131,7 +131,7 @@ fn map(
 Сама структура
 [`lib::allocator::map::MapAllocator`](../../doc/lib/allocator/map/struct.MapAllocator.html),
 код которой уже написан, реализует
-[знакомый](../../lab/book/3-allocator-1-big.html#%D0%A2%D0%B8%D0%BF%D0%B0%D0%B6-kuallocatorbigbigallocator)
+[знакомый](../../lab/book/3-smp-1-memory-allocator.html#%D0%A2%D0%B8%D0%BF%D0%B0%D0%B6-kuallocatorbigbigallocator)
 вам типаж
 [`ku::allocator::big::BigAllocator`](../../doc/ku/allocator/big/trait.BigAllocator.html)
 через системные вызовы
@@ -286,7 +286,7 @@ $ (cd kernel; cargo test --test 6-um-2-memory-syscalls-allocator)
 
 Как видно, тест `user_space_memory_allocator()` запускает те же проверки,
 что и тесты `basic()` и `grow_and_shrink()` из
-[задачи про аллокатор памяти общего назначения в ядре](../../lab/book/3-allocator-1-big.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-1--%D0%B0%D0%BB%D0%BB%D0%BE%D0%BA%D0%B0%D1%82%D0%BE%D1%80-%D0%BF%D0%B0%D0%BC%D1%8F%D1%82%D0%B8-%D0%BE%D0%B1%D1%89%D0%B5%D0%B3%D0%BE-%D0%BD%D0%B0%D0%B7%D0%BD%D0%B0%D1%87%D0%B5%D0%BD%D0%B8%D1%8F).
+[задачи про аллокатор памяти общего назначения в ядре](../../lab/book/3-smp-1-memory-allocator.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-1--%D0%B0%D0%BB%D0%BB%D0%BE%D0%BA%D0%B0%D1%82%D0%BE%D1%80-%D0%BF%D0%B0%D0%BC%D1%8F%D1%82%D0%B8-%D0%BE%D0%B1%D1%89%D0%B5%D0%B3%D0%BE-%D0%BD%D0%B0%D0%B7%D0%BD%D0%B0%D1%87%D0%B5%D0%BD%D0%B8%D1%8F).
 Но делает это в пространстве пользователя.
 
 
