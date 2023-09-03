@@ -157,7 +157,37 @@ impl<T: Tag> fmt::Display for Addr<T> {
         &self,
         formatter: &mut fmt::Formatter,
     ) -> fmt::Result {
-        write!(formatter, "{}{:X}", T::HEX_PREFIX, self.0)
+        write!(formatter, "{}", T::HEX_PREFIX)?;
+
+        /// Количество бит в одной шестнадцатеричной цифре.
+        const BITS_PER_HEX_DIGIT: usize = 4;
+
+        /// Количество шестнадцатеричных цифр в одной группе, отделённой от других символом `_`.
+        const GROUP_HEX_DIGITS: usize = 4;
+
+        /// Количество бит в одной группе шестнадцатеричных цифр.
+        const GROUP_BITS: u32 = (GROUP_HEX_DIGITS * BITS_PER_HEX_DIGIT) as u32;
+
+        /// Битовая маска младшей группы шестнадцатеричных цифр.
+        const GROUP_MASK: usize = (1 << GROUP_BITS) - 1;
+
+        let mut groups = (0 .. usize::BITS / GROUP_BITS)
+            .rev()
+            .map(|index| (index, (self.0 >> (index * GROUP_BITS)) & GROUP_MASK))
+            .skip_while(|&(index, group)| index > 0 && group == 0)
+            .map(|(_, group)| group);
+
+        write!(
+            formatter,
+            "{:X}",
+            groups.next().expect("there should be at least one group of digits"),
+        )?;
+
+        for group in groups {
+            write!(formatter, "_{:0width$X}", group, width = GROUP_HEX_DIGITS)?;
+        }
+
+        Ok(())
     }
 }
 

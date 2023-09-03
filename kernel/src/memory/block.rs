@@ -434,7 +434,7 @@ impl<T: Memory> fmt::Display for Block<T> {
         } else {
             write!(
                 formatter,
-                "[{}, 0v10000000000000000), size {}",
+                "[{}, 0v1_0000_0000_0000_0000), size {}",
                 self.start_address(),
                 Size::new::<T>(self.count()),
             )
