@@ -5,7 +5,6 @@
 //! Библиотека ядра.
 //! Позволяет подключать ядро как при обычном запуске, так и при запуске интеграционных тестов.
 
-#![allow(clippy::missing_safety_doc)]
 #![cfg_attr(test, no_main)]
 #![deny(warnings)]
 #![feature(abi_x86_interrupt)]

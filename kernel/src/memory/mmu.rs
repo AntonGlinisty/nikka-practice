@@ -25,6 +25,11 @@ use ku::memory::Page;
 /// Сбрасывает кэш страничного преобразования процессора
 /// ([Translation Lookaside Buffer, TLB](https://en.wikipedia.org/wiki/Translation_lookaside_buffer))
 /// для заданной страницы `page`.
+///
+/// # Safety
+///
+/// Вызывающий код должен работать в режиме ядра
+/// (в [кольце защиты](https://en.wikipedia.org/wiki/Protection_ring) 0).
 pub unsafe fn flush(page: Page) {
     tlb::flush(page.address().into_usize());
 }

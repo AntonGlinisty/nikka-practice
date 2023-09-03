@@ -84,6 +84,12 @@ impl TrapInfo {
     /// После этого, если переключить стек в изменившийся [`TrapInfo::context`],
     /// и выполнить инструкцию `ret`,
     /// то регистры `rip` и `rsp` окажутся в состоянии, равном исходному [`TrapInfo::context`].
+    ///
+    /// # Safety
+    ///
+    /// - Контекст исключения, сохранённый в [`TrapInfo::context`] должен быть корректен.
+    /// - В стеке контекста исключения должно быть достаточно места для адреса возврата ---
+    ///   [`Virt`].
     pub unsafe fn prepare_for_ret(&mut self) -> Result<()> {
         *self.context.push::<Virt>()?.try_into_mut()? = self.context.rip();
         Ok(())

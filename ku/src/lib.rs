@@ -5,7 +5,6 @@
 //! Общая для пространств ядра и пользователя библиотека.
 //! ku --- **k**ernel && **u**ser.
 
-#![allow(clippy::missing_safety_doc)]
 #![deny(warnings)]
 #![feature(allocator_api)]
 #![feature(arbitrary_enum_discriminant)]

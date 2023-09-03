@@ -15,6 +15,12 @@ use core::alloc::Allocator;
 /// выделенного блока памяти принимает аргумент типа [`Initialize`],
 /// чтобы не дублировать код
 /// ([DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself)).
+///
+/// # Safety
+///
+/// Реализация должна выполнять те же
+/// [safety--требования](https://doc.rust-lang.org/nightly/core/alloc/trait.Allocator.html#safety),
+/// что и реализация [`core::alloc::Allocator`].
 pub unsafe trait DryAllocator {
     /// Выделяет память как [`Allocator::allocate()`] и [`Allocator::allocate_zeroed()`].
     /// Зануляет память как [`Allocator::allocate_zeroed()`], если
@@ -26,6 +32,12 @@ pub unsafe trait DryAllocator {
     ) -> Result<NonNull<[u8]>>;
 
     /// Освобождает память как [`Allocator::deallocate()`].
+    ///
+    /// # Safety
+    ///
+    /// Вызывающая сторона должна гарантировать
+    /// [то же самое](https://doc.rust-lang.org/nightly/core/alloc/trait.Allocator.html#safety-1),
+    /// что требуется при вызове [`core::alloc::Allocator::deallocate`].
     unsafe fn dry_deallocate(
         &mut self,
         ptr: NonNull<u8>,
@@ -35,6 +47,12 @@ pub unsafe trait DryAllocator {
     /// Увеличивает выделенный блок памяти как [`Allocator::grow()`] и [`Allocator::grow_zeroed()`].
     /// Зануляет новую память как [`Allocator::grow_zeroed()`], если
     /// `initialize` равен [`Initialize::Zero`].
+    ///
+    /// # Safety
+    ///
+    /// Вызывающая сторона должна гарантировать
+    /// [то же самое](https://doc.rust-lang.org/nightly/core/alloc/trait.Allocator.html#safety-2),
+    /// что требуется при вызове [`core::alloc::Allocator::grow`].
     unsafe fn dry_grow(
         &mut self,
         ptr: NonNull<u8>,
@@ -44,6 +62,12 @@ pub unsafe trait DryAllocator {
     ) -> Result<NonNull<[u8]>>;
 
     /// Уменьшает выделенный блок памяти как [`Allocator::shrink()`].
+    ///
+    /// # Safety
+    ///
+    /// Вызывающая сторона должна гарантировать
+    /// [то же самое](https://doc.rust-lang.org/nightly/core/alloc/trait.Allocator.html#safety-4),
+    /// что требуется при вызове [`core::alloc::Allocator::shrink`].
     unsafe fn dry_shrink(
         &mut self,
         ptr: NonNull<u8>,
