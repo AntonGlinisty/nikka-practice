@@ -1,0 +1,2 @@
+[build]
+rustflags = ["--codegen", "relocation-model=dynamic-no-pic"]
