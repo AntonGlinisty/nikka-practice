@@ -10,8 +10,8 @@ max_low_demand_bonus: 1.0
 gitlab_url: https://gitlab.manytask.org
 default_branch: main
 course_group: os
-public_repo: os/public-fall-2022
-students_group: os/students-fall-2022
+public_repo: os/public-fall-2023
+students_group: os/students-fall-2023
 # lectures_repo: py-tasks/lectures-2022-spring
 # gitlab_service_name: Python Bot
 
@@ -19,6 +19,6 @@ students_group: os/students-fall-2022
 manytask_url: https://os.manytask.org
 
 # info
-lms_url: https://lk.yandexdataschool.ru/courses/2022-autumn/7.1076-arkhitektura-kompiutera-i-operatsionnye-sistemy/
+lms_url: https://lk.yandexdataschool.ru/courses/2023-autumn/7.1175-AKOS/
 # telegram_channel_invite: https://t.me/+w2DWhs5OyLQ3YWEy
 telegram_chat_invite: https://t.me/+PAXh6qX5Nzg1MDcy
