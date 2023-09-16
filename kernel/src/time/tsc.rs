@@ -7,7 +7,10 @@ use core::{
 
 use chrono::Duration;
 use itertools::Itertools;
-use num_traits::cast;
+use num_traits::{
+    NumCast,
+    cast,
+};
 // FloatCore is used for a substitute of `f64::abs()`. `f64::abs()` is declared in `std` whilst this is a `#[no_std]` library.
 // Moreover, `f64::abs()` from `std` uses FPU but this library is used in the kernel which is compiled with `+soft-float`.
 // However, rustc fails to recognize that FloatCore is really used.
@@ -116,7 +119,7 @@ impl TscDuration {
     /// Возвращает количество тактов процессора из [`TscDuration`] в виде [`f64`].
     pub fn into_f64(self) -> f64 {
         let tsc: u64 = self.0.try_into().expect("duration should not be negative");
-        cast::cast(tsc).expect(U64_AS_F64_SHOULD_NOT_FAIL)
+        into_f64(tsc)
     }
 }
 
@@ -142,7 +145,7 @@ impl fmt::Display for TscDuration {
         formatter: &mut fmt::Formatter,
     ) -> fmt::Result {
         if let Some(hz) = Rtc::tsc_per_second().or_else(Pit::tsc_per_second) {
-            let hz: f64 = cast::cast(hz.get()).expect(U64_AS_F64_SHOULD_NOT_FAIL);
+            let hz = into_f64(hz.get());
             let value = self.into_f64() / hz;
 
             match NumberPrefix::decimal(value) {
@@ -170,15 +173,12 @@ impl TryFrom<Duration> for TscDuration {
     /// Возвращает ошибку [`Error::NoData`], если пока ни [`Rtc`] ни [`Pit`] не тикнули дважды.
     fn try_from(duration: Duration) -> Result<Self> {
         let hz = Rtc::tsc_per_second().or_else(Pit::tsc_per_second).ok_or(NoData)?;
-        let hz: f64 = cast::cast(hz.get()).expect(U64_AS_F64_SHOULD_NOT_FAIL);
+        let hz = into_f64(hz.get());
 
-        let tsc: f64 = if let Some(nanoseconds) = duration.num_nanoseconds() {
-            let nanoseconds: f64 = cast::cast(nanoseconds).expect(U64_AS_F64_SHOULD_NOT_FAIL);
-            hz * nanoseconds / cast::cast::<_, f64>(NSECS_PER_SEC).unwrap()
+        let tsc = if let Some(nanoseconds) = duration.num_nanoseconds() {
+            hz * into_f64(nanoseconds) / into_f64(NSECS_PER_SEC)
         } else {
-            let milliseconds = duration.num_milliseconds();
-            let milliseconds: f64 = cast::cast(milliseconds).expect(U64_AS_F64_SHOULD_NOT_FAIL);
-            hz * milliseconds / cast::cast::<_, f64>(MSECS_PER_SEC).unwrap()
+            hz * into_f64(duration.num_milliseconds()) / into_f64(MSECS_PER_SEC)
         };
 
         Ok(TscDuration(tsc as i64))
@@ -230,9 +230,13 @@ fn fractional_prefix(value: f64) -> (f64, &'static str) {
         .unwrap()
 }
 
-/// Сообщение об ошибке при переводе [`u64`] в [`f64`], которая не должна возникать.
-const U64_AS_F64_SHOULD_NOT_FAIL: &str =
-    "a cast from u64 to f64 can loose precision but should not fail";
+/// Преобразует [`i64`] или [`u64`]
+/// (точнее любое 64-битное число, реализующее типаж [`NumCast`])
+/// в [`f64`].
+fn into_f64<T: NumCast>(value: T) -> f64 {
+    assert_eq!(mem::size_of_val(&value), mem::size_of::<u64>());
+    cast::cast(value).expect("a cast from i64/u64 to f64 can loose precision but should not fail")
+}
 
 #[cfg(test)]
 mod test {
