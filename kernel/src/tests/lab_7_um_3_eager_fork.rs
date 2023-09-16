@@ -51,7 +51,7 @@ const EAGER_FORK_ELF: &[u8] = include_bytes!("../../target/kernel/user/eager_for
 const EXIT_ELF: &[u8] = include_bytes!("../../target/kernel/user/exit");
 
 #[test_case]
-fn exofork_syscall() {
+fn t1_exofork_syscall() {
     let _guard = forbid_frame_leaks();
 
     let mut parent = process_helpers::allocate(EXIT_ELF);
@@ -115,13 +115,13 @@ fn exofork_syscall() {
         Table::free(Table::get(pid).unwrap());
     }
 
-    assert_eq!(TRAP_STATS[PAGE_FAULT].count(), 0);
+    let start_page_faults = TRAP_STATS[PAGE_FAULT].count();
 
     while Scheduler::run_one() {}
 
     assert_eq!(
         TRAP_STATS[PAGE_FAULT].count(),
-        1,
+        start_page_faults + 1,
         "the child process should page fault",
     );
 
@@ -129,7 +129,7 @@ fn exofork_syscall() {
 }
 
 #[test_case]
-fn eager_fork() {
+fn t2_eager_fork() {
     let _guard = forbid_frame_leaks();
 
     let start_page_fault_count = TRAP_STATS[PAGE_FAULT].count();

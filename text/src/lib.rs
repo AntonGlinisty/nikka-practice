@@ -2,7 +2,7 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
-#![feature(int_roundings)]
+#![feature(const_option)]
 #![no_std]
 
 mod cursor;

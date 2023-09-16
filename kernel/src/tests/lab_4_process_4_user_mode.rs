@@ -32,13 +32,13 @@ fn user_mode_page_fault() {
 
     test_scaffolding::disable_interrupts(&mut process.lock());
 
-    assert_eq!(TRAP_STATS[PAGE_FAULT].count(), 0);
+    let start_page_faults = TRAP_STATS[PAGE_FAULT].count();
 
     Process::enter_user_mode(process.lock());
 
     assert_eq!(
         TRAP_STATS[PAGE_FAULT].count(),
-        1,
+        start_page_faults + 1,
         "probably the user mode page faults are not handled or counted",
     );
 }

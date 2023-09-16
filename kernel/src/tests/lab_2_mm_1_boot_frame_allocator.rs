@@ -26,7 +26,7 @@ mod init;
 init!(Subsystems::PHYS_MEMORY);
 
 #[test_case]
-fn sanity_check() {
+fn t1_sanity_check() {
     let _guard = forbid_frame_leaks();
 
     let mut frame_allocator = FRAME_ALLOCATOR.lock();
@@ -60,7 +60,7 @@ fn sanity_check() {
 }
 
 #[test_case]
-fn allocate_block() {
+fn t2_allocate_block() {
     let mut frame_allocator = FRAME_ALLOCATOR.lock();
 
     for size in (0 ..= 3 * Frame::SIZE).filter(|x| (x + 3) % Frame::SIZE < 6) {
@@ -79,7 +79,7 @@ fn allocate_block() {
 }
 
 #[test_case]
-fn allocate() {
+fn t3_allocate() {
     let mut frame_allocator = FRAME_ALLOCATOR.lock();
     let start_free_frames = frame_allocator.count();
     let frame_count = init::frame_count();
@@ -101,7 +101,7 @@ fn allocate() {
 }
 
 #[test_case]
-fn allocated_frames_are_unique() {
+fn t4_allocated_frames_are_unique() {
     let mut frame_allocator = FRAME_ALLOCATOR.lock();
     let free_frames = frame_allocator.count();
     let frame_count = init::frame_count();

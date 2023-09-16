@@ -7,10 +7,10 @@
 
 #![deny(warnings)]
 #![feature(allocator_api)]
-#![feature(arbitrary_enum_discriminant)]
 #![feature(cell_update)]
 #![feature(const_caller_location)]
 #![feature(const_size_of_val)]
+#![feature(let_chains)]
 #![feature(slice_ptr_get)]
 #![feature(strict_provenance)]
 #![no_std]

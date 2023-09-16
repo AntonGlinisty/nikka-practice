@@ -42,7 +42,7 @@ impl VgaCursor {
         const CURSOR_END_LINE: u8 = 0x0B;
 
         const MAX_LINES: u8 = 1 << 4;
-        const LAST_LINE: u8 = MAX_LINES - 1;
+        const LAST_LINE: u8 = MAX_LINES.checked_sub(1).expect("MAX_LINES should be positive");
 
         // TODO: your code here.
     }

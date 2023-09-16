@@ -70,6 +70,8 @@ fn points_beyond_interval() {
 
 #[test_case]
 fn stress() {
+    wait_for_two_correlation_points();
+
     stress::<1, 1_000_000>(2_000, 4_000, 3, 7);
     stress::<1, 1_000_000>(2_000, 100, 1, 1);
 

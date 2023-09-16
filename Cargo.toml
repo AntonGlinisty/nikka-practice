@@ -20,5 +20,7 @@ members = [
     "kernel/examples/bga",
 ]
 
+resolver = "1"
+
 [profile.user]
 inherits = "dev"

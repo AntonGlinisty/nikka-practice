@@ -7,7 +7,6 @@
 #![feature(alloc_error_handler)]
 #![feature(allocator_api)]
 #![feature(asm_const)]
-#![feature(asm_sym)]
 #![feature(naked_functions)]
 #![feature(slice_ptr_get)]
 #![no_std]

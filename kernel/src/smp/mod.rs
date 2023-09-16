@@ -38,7 +38,7 @@ use crate::{
     time,
 };
 
-use self::acpi::Acpi;
+use acpi::Acpi;
 
 pub(crate) use cpu::{
     Cpu,
