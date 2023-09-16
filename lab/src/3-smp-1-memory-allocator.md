@@ -53,7 +53,7 @@ Rust'овский интерфейс аллокатора памяти обще�
 
 План состоит в том, чтобы
 
-- Для [`kernel::memory::address_space::AddressSpace`](../../doc/kernel/memory/address_space/struct.AddressSpace.html) реализовать типаж [`ku::allocator::big::BigAllocator`](../../doc/ku/allocator/big/trait.BigAllocator.html). Этот пункт уже частично сделан, остался один метод --- [`BigAllocator::remap()`](../../doc/ku/allocator/big/trait.BigAllocator.html#tymethod.remap)
+- Для [`kernel::allocator::Big`](../../doc/kernel/allocator/big/struct.Big.html) реализовать типаж [`ku::allocator::big::BigAllocator`](../../doc/ku/allocator/big/trait.BigAllocator.html). Этот пункт уже частично сделан, остался один метод --- [`BigAllocator::copy_mapping()`](../../doc/ku/allocator/big/trait.BigAllocator.html#tymethod.copy_mapping)
 - Для типажа [`ku::allocator::big::BigAllocator`](../../doc/ku/allocator/big/trait.BigAllocator.html) реализовать типаж [`ku::allocator::dry::DryAllocator`](../../doc/ku/allocator/dry/trait.DryAllocator.html).
 - Определить тип [`kernel::allocator::memory_allocator::MemoryAllocator`](../../doc/kernel/allocator/memory_allocator/struct.MemoryAllocator.html) и реализовать для него типаж [`core::alloc::Allocator`](https://doc.rust-lang.org/nightly/core/alloc/trait.Allocator.html) через реализованный ранее [`ku::allocator::dry::DryAllocator`](../../doc/ku/allocator/dry/trait.DryAllocator.html). Этот пункт уже сделан в файле [`kernel/src/allocator/memory_allocator.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/allocator/memory_allocator.rs).
 
@@ -107,7 +107,7 @@ Rust'овский интерфейс аллокатора памяти обще�
 - [`ku::allocator::big::BigAllocator::unreserve()`](../../doc/ku/allocator/big/trait.BigAllocator.html#tymethod.unreserve) и
 - [`ku::allocator::big::BigAllocator::rereserve()`](../../doc/ku/allocator/big/trait.BigAllocator.html#tymethod.unreserve)
 для
-[`kernel::memory::address_space::AddressSpace`](../../doc/kernel/memory/address_space/struct.AddressSpace.html)
+[`kernel::allocator::Big`](../../doc/kernel/allocator/big/struct.Big.html)
 сами обновляют эту статистику.
 Вам остаётся только корректно позвать эти методы.
 
@@ -127,29 +127,31 @@ Rust'овский интерфейс аллокатора памяти обще�
 ### Задача 1 --- аллокатор памяти общего назначения
 
 Реализуйте метод
-[`remap()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.remap)
+[`copy_mapping()`](../../doc/kernel/allocator/big/struct.Big.html#method.copy_mapping)
 типажа
 [`ku::allocator::big::BigAllocator`](../../doc/ku/allocator/big/trait.BigAllocator.html)
 для
-[`kernel::memory::address_space::AddressSpace`](../../doc/kernel/memory/address_space/struct.AddressSpace.html)
+[`kernel::allocator::Big`](../../doc/kernel/allocator/big/struct.Big.html)
 в файле
-[`kernel/src/memory/address_space.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/address_space.rs):
+[`kernel/src/allocator/big.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/allocator/big.rs):
 
 ```rust
-unsafe fn remap(&mut self, old_block: Block<Page>, new_block: Block<Page>) -> Result<()>;
+unsafe fn copy_mapping(
+    &mut self,
+    old_block: Block<Page>,
+    new_block: Block<Page>,
+) -> Result<()>;
 ```
 
-Он перемещает отображение физических фреймов из `old_block` в `new_block`.
+Он копирует отображение физических фреймов из `old_block` в `new_block`.
 Если изначально `new_block` содержал отображённые страницы,
 их отображение удаляется.
 Физические фреймы, на которые не осталось других ссылок, освобождаются.
-После работы `remap()` виртуальные адреса `old_block`
-становятся недоступны.
-А содержимое памяти, которое ранее было доступно через `old_block`,
-становится доступным через `new_block`.
+После работы `copy_mapping()` содержимое памяти, которое ранее было доступно через `old_block`,
+становится доступным ещё и через `new_block`.
 Флаги доступа при этом не меняются.
 
-Если `old_block` и `new_block` имеют разный размер или пересекаются, метод `remap()`
+Если `old_block` и `new_block` имеют разный размер или пересекаются, метод `copy_mapping()`
 возвращает ошибку
 [`Error::InvalidArgument`](../../doc/ku/error/enum.Error.html#variant.InvalidArgument).
 
@@ -167,7 +169,7 @@ unsafe fn remap(&mut self, old_block: Block<Page>, new_block: Block<Page>) -> Re
 [`ku::allocator::big::BigAllocator::map()`](../../doc/ku/allocator/big/trait.BigAllocator.html#tymethod.map),
 [`ku::allocator::big::BigAllocator::unmap()`](../../doc/ku/allocator/big/trait.BigAllocator.html#tymethod.unmap)
 и
-[`ku::allocator::big::BigAllocator::remap()`](../../doc/ku/allocator/big/trait.BigAllocator.html#tymethod.remap).
+[`ku::allocator::big::BigAllocator::copy_mapping()`](../../doc/ku/allocator/big/trait.BigAllocator.html#tymethod.copy_mapping).
 Естественно, все выдаваемые блоки памяти будут выровнены на границы страниц и по своему адресу и по размеру.
 
 Вам могут пригодиться методы [`ku::memory::block::Block`](../../doc/ku/memory/block/struct.Block.html), например:
