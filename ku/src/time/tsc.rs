@@ -32,6 +32,7 @@ use crate::error::{
 };
 
 use super::{
+    Hz,
     MSECS_PER_SEC,
     NSECS_PER_SEC,
     pit8254::Pit,
@@ -144,7 +145,7 @@ impl fmt::Display for TscDuration {
         &self,
         formatter: &mut fmt::Formatter,
     ) -> fmt::Result {
-        if let Some(hz) = Rtc::tsc_per_second().or_else(Pit::tsc_per_second) {
+        if let Some(hz) = tsc_per_second() {
             let hz = into_f64(hz.get());
             let value = self.into_f64() / hz;
 
@@ -172,7 +173,7 @@ impl TryFrom<Duration> for TscDuration {
     ///
     /// Возвращает ошибку [`Error::NoData`], если пока ни [`Rtc`] ни [`Pit`] не тикнули дважды.
     fn try_from(duration: Duration) -> Result<Self> {
-        let hz = Rtc::tsc_per_second().or_else(Pit::tsc_per_second).ok_or(NoData)?;
+        let hz = tsc_per_second().ok_or(NoData)?;
         let hz = into_f64(hz.get());
 
         let tsc = if let Some(nanoseconds) = duration.num_nanoseconds() {
@@ -194,7 +195,7 @@ impl TryFrom<TscDuration> for Duration {
     ///
     /// Возвращает ошибку [`Error::NoData`], если пока ни [`Rtc`] ни [`Pit`] не тикнули дважды.
     fn try_from(tsc_duration: TscDuration) -> Result<Self> {
-        let hz = Rtc::tsc_per_second().or_else(Pit::tsc_per_second).ok_or(NoData)?;
+        let hz = tsc_per_second().ok_or(NoData)?;
         let hz = i64::try_from(hz.get())?;
 
         let seconds = Self::seconds(tsc_duration.0 / hz);
@@ -214,6 +215,15 @@ pub fn tsc() -> i64 {
             .try_into()
             .expect("i64 overflow when storing TSC is expected only after tens of years of uptime")
     }
+}
+
+/// Возвращает частоту процессора, вычисленную:
+/// - С помощью [`Rtc`], если уже прошло два тика [`Rtc`].
+/// - Иначе, с помощью [`Pit`], если уже прошло два тика [`Pit`].
+///
+/// Возвращает [`None`], если пока ни [`Rtc`] ни [`Pit`] не тикнули дважды.
+fn tsc_per_second() -> Option<Hz> {
+    Rtc::tsc_per_second().or_else(Pit::tsc_per_second)
 }
 
 /// Переводит дробное значение `value` в более удобную для человека форму.
