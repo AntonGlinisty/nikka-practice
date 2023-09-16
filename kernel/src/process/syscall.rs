@@ -212,6 +212,7 @@ fn sched_yield(
 /// Поэтому он, в частности, не ставится в очередь планировщика.
 /// Текущий контекст исходного процесса --- `context` --- записывает в копию, чтобы в копии
 /// вернуться туда же, куда происходит возврат из системного вызова для вызывающего процесса.
+#[allow(unused_mut)] // TODO: remove before flight.
 fn exofork(
     mut process: SpinlockGuard<Process>,
     context: MiniContext,
