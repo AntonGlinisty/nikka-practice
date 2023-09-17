@@ -70,10 +70,11 @@ fn CorrelationInterval::datetime<const PARTS_PER_SECOND: i64>(
 [`chrono::offset::Utc`](../../doc/chrono/offset/struct.Utc.html).
 
 Функции
-[`ku::time::datetime()`](../../doc/ku/time/fn.datetime.html)
+[`ku::time::datetime()`](../../doc/ku/time/fn.datetime.html) и
 [`ku::time::datetime_ms()`](../../doc/ku/time/fn.datetime_ms.html)
-используя этот метод повышают разрешение часов реального времени
-[`ku::time::rtc::Rtc`](../../doc/ku/time/rtc/struct.Rtc.html):
+повышают разрешение часов реального времени
+[`ku::time::rtc::Rtc`](../../doc/ku/time/rtc/struct.Rtc.html),
+используя этот метод:
 
 ```rust
 pub fn datetime(tsc: Tsc) -> DateTime<Utc> {
@@ -90,7 +91,8 @@ const NSECS_PER_SEC: i64 = 1_000_000_000;
 
 Метод
 [`CorrelationInterval::datetime()`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#method.datetime)
-читает переданный ему на вход `atomic_correlation_interval`, проверяет что в результирующем
+читает переданный ему на вход `atomic_correlation_interval`.
+И проверяет, что в результирующем
 [`CorrelationInterval`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html)
 оба поля ---
 [`CorrelationInterval::base`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#structfield.base) и
@@ -130,7 +132,7 @@ fn CorrelationInterval::datetime_with_resolution<const PARTS_PER_SECOND: i64>(
 - Вам могут пригодиться функции [`i64::div_euclid()`](https://doc.rust-lang.org/nightly/std/primitive.i64.html#method.div_euclid) и [`i64::rem_euclid()`](https://doc.rust-lang.org/nightly/std/primitive.i64.html#method.rem_euclid).
 
 
-#### Зависание при журналировании
+#### Зависание или паника при журналировании
 
 Если попробовать добавить журналирование в метод
 [`CorrelationInterval::datetime_with_resolution()`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#method.datetime_with_resolution),
@@ -142,7 +144,7 @@ fn CorrelationInterval::datetime_with_resolution<const PARTS_PER_SECOND: i64>(
 - Который вызывает `debug!()` или другой макрос журналирования.
 - Который вызывает `datetime_with_resolution()`.
 - ...
-- В конце-концов произошло бы исчерпание стека и падение ядра по Page Fault.
+- В конце концов произошло бы исчерпание стека и падение ядра по Page Fault.
 
 Бесконечной рекурсии не происходит из-за дополнительной блокировки в журналировании --- поле
 [`kernel::log::LogCollector::log`](../../doc/kernel/log/struct.LogCollector.html#structfield.log)
@@ -159,70 +161,215 @@ fn CorrelationInterval::datetime_with_resolution<const PARTS_PER_SECOND: i64>(
 Она не поддерживает рекурсивный захват, поэтому происходит
 [взаимоблокировка](https://en.wikipedia.org/wiki/Deadlock),
 которая и проявляется как зависание.
-Факт [взаимоблокировки](https://en.wikipedia.org/wiki/Deadlock),
-какую конкретно блокировку и какая строка кода пытается захватить,
-легко узнать из `(gdb) backtrace`, прервав зависший код из `gdb` комбинацией `<Ctrl-C>`:
 
+Если вы сделали задачи на Spinlock и SequenceLock, то это зависание приведёт к панике с отладочным сообщением:
+```console
+...
+     Running tests/1-hw-3-high-resolution-date.rs (/.../nikka/target/kernel/debug/deps/1_hw_3_high_resolution_date-683176186a322834)
+...
+1_hw_3_high_resolution_date::high_resolution_date---------
+17:14:41 0 D waiting for the RTC to tick twice
+panicked at kernel/src/log/mod.rs:322:18:
+deadlock detected on spinlock defined at kernel/src/log/mod.rs:308:18, locked at kernel/src/log/mod.rs:322:18, lock attempt at kernel/src/log/mod.rs:322:18, backtrace: [0x22D7C8 0x29843E 0x2984A3 0x298353 0x298470 0x290FCA 0x290697 0x28FA61 0x293279 0x292928 0x22CF42]
+--------------------------------------------------- [failed]
 ```
+С помощью `llvm-symbolizer` можно расшифровать полученный backtrace:
+```console
+/.../nikka$ echo '0x22D7C8 0x29843E 0x2984A3 0x298353 0x298470 0x290FCA 0x290697 0x28FA61 0x293279 0x292928 0x22CF42' | tr ' ' '\n' | llvm-symbolizer --exe /.../nikka/target/kernel/debug/deps/1_hw_3_high_resolution_date-683176186a322834
+_$LT$kernel..log..LogCollector$u20$as$u20$tracing_core..collect..Collect$GT$::event::h462d99e420ca2493
+/.../nikka/kernel/src/log/mod.rs:322:9
+
+tracing_core::dispatch::Dispatch::event::h67eb2c170b121b93
+/.../.cargo/git/checkouts/tracing-e9bbb56ea31f0c18/b8c45cc/tracing-core/src/dispatch.rs:752:13
+
+tracing_core::event::Event::dispatch::_$u7b$$u7b$closure$u7d$$u7d$::h01d7a0f38d1ad551
+/.../.cargo/git/checkouts/tracing-e9bbb56ea31f0c18/b8c45cc/tracing-core/src/event.rs:36:10
+
+tracing_core::dispatch::get_default::hff5d99b033e23eef
+/.../.cargo/git/checkouts/tracing-e9bbb56ea31f0c18/b8c45cc/tracing-core/src/dispatch.rs:501:2
+
+tracing_core::event::Event::dispatch::hd7df4b7bcd805a1a
+/.../.cargo/git/checkouts/tracing-e9bbb56ea31f0c18/b8c45cc/tracing-core/src/event.rs:37:6
+
+ku::time::correlation_interval::CorrelationInterval$LT$_$GT$::datetime_with_resolution::_$u7b$$u7b$closure$u7d$$u7d$::h41d9a946112ee058
+/.../.cargo/git/checkouts/tracing-e9bbb56ea31f0c18/b8c45cc/tracing/src/macros.rs:885:15
+
+ku::time::correlation_interval::CorrelationInterval$LT$_$GT$::datetime_with_resolution::hbfbe0a0ed7dac3e1
+/.../nikka/ku/src/time/correlation_interval.rs:62:9
+
+ku::time::correlation_interval::CorrelationInterval$LT$_$GT$::datetime::h8662a6334f24af94
+/.../nikka/ku/src/time/correlation_interval.rs:46:13
+
+ku::time::rtc::Rtc::datetime::hb639862c4f2d4b5c
+/.../nikka/ku/src/time/rtc.rs:22:9
+
+ku::time::datetime_ms::h58c326396bd47ace
+/.../nikka/ku/src/time/mod.rs:45:5
+
+kernel::log::Log::log_metadata::hf3b3dd5726499f9b
+/.../nikka/kernel/src/log/mod.rs:211:13
+```
+В нём видно проблемную строку:
+```console
+ku::time::correlation_interval::CorrelationInterval$LT$_$GT$::datetime_with_resolution::hbfbe0a0ed7dac3e1
+/.../nikka/ku/src/time/correlation_interval.rs:62:9
+```
+```console
+/.../nikka$ nl -b a /.../nikka/ku/src/time/correlation_interval.rs | grep -w 62
+    62          debug!("create a deadlock");
+```
+
+##### Или можно запустить тест под gdb
+
+Если вы не реализовали отладку взаимоблокировок,
+то факт [взаимоблокировки](https://en.wikipedia.org/wiki/Deadlock),
+какую конкретно блокировку и какая строка кода пытается захватить,
+можно узнать с помощью `gdb`.
+Из ранее запущенной команды теста
+```console
+/.../nikka$ (cd kernel; cargo test --test 1-hw-3-high-resolution-date)
+...
+     Running tests/1-hw-3-high-resolution-date.rs (/.../nikka/target/kernel/debug/deps/1_hw_3_high_resolution_date-683176186a322834)
+...
+Running: `qemu-system-x86_64 -drive format=raw,file=/.../nikka/target/kernel/debug/deps/bootimage-1_hw_3_high_resolution_date-683176186a322834.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none -drive file=../fs.img,index=1,media=disk,driver=raw`
+```
+нам понадобятся две строки --- `Running tests/...` с ELF--файлом теста и
+`Running: 'qemu-system-x86_64...` с командой запуска эмулятора.
+
+В одной консоли запустим qemu, добавив в его команду аргументы `-gdb tcp::1234 -S`.
+Они означают, что нужно дождаться отладчика gdb на заданном порту:
+
+```console
+/.../nikka$ qemu-system-x86_64 -drive format=raw,file=/.../nikka/target/kernel/debug/deps/bootimage-1_hw_3_high_resolution_date-683176186a322834.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none -drive file=../fs.img,index=1,media=disk,driver=raw -gdb tcp::1234 -S
+...
+```
+
+В другой консоли создадим командный файл для gdb с указанием ELF--файла теста:
+```console
+/.../nikka$ cat > gdbinit
+set architecture i386:x86-64
+set disassembly-flavor intel
+target remote localhost:1234
+file /.../nikka/target/kernel/debug/deps/1_hw_3_high_resolution_date-683176186a322834
+```
+
+Запустим gdb с этим командным файлом, дадим команду `continue`, чтобы эмулятор запустил ядро.
+А когда оно зависнет, нажмём `<Ctrl-C>` и выполним команду `backtrace`:
+```console
+~/nikka$ gdb -command=gdbinit
 ...
 0x000000000000fff0 in ?? ()
 (gdb) continue
 Continuing.
 ^C
 Thread 1 received signal SIGINT, Interrupt.
-0x00000000002ecd9c in core::sync::atomic::atomic_load<u8> (dst=0x320b40 <kernel::log::LOG_COLLECTOR+8>, order=core::sync::atomic::Ordering::Relaxed) at src/sync/atomic.rs:2960
-2960	        match order {
+core::core_arch::x86::sse2::_mm_pause () at /.../.rustup/toolchains/nightly-2023-09-16-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/../../stdarch/crates/core_arch/src/x86/sse2.rs:26
+26 }
 (gdb) backtrace
-#0  0x00000000002ecd9c in core::sync::atomic::atomic_load<u8> (dst=0x320b40 <kernel::log::LOG_COLLECTOR+8>,
-    order=core::sync::atomic::Ordering::Relaxed) at src/sync/atomic.rs:2960
-#1  0x000000000022a11f in core::sync::atomic::AtomicBool::load (self=0x320b40 <kernel::log::LOG_COLLECTOR+8>,
-    order=core::sync::atomic::Ordering::Relaxed)
-    at /.../.rustup/toolchains/nightly-2022-08-30-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/sync/atomic.rs:456
-#2  0x000000000025d49f in spin::mutex::spin::SpinMutex<kernel::log::Log, spin::relax::Spin>::is_locked<kernel::log::Log, spin::relax::Spin> (self=0x320b40 <kernel::log::LOG_COLLECTOR+8>)
-    at /.../.cargo/registry/src/github.com-1ecc6299db9ec823/spin-0.9.4/src/mutex/spin.rs:192
-#3  spin::mutex::spin::SpinMutex<kernel::log::Log, spin::relax::Spin>::lock<kernel::log::Log, spin::relax::Spin> (
-    self=0x320b40 <kernel::log::LOG_COLLECTOR+8>)
-    at /.../.cargo/registry/src/github.com-1ecc6299db9ec823/spin-0.9.4/src/mutex/spin.rs:171
-#4  spin::mutex::Mutex<kernel::log::Log, spin::relax::Spin>::lock<kernel::log::Log, spin::relax::Spin> (
-    self=0x320b40 <kernel::log::LOG_COLLECTOR+8>)
-    at /.../.cargo/registry/src/github.com-1ecc6299db9ec823/spin-0.9.4/src/mutex.rs:170
-#5  kernel::log::{impl#4}::event (self=0x320b38 <kernel::log::LOG_COLLECTOR>, event=0x10000200c10)
-    at kernel/src/log/mod.rs:241
-...
-#11 0x00000000002b85a2 in ku::time::correlation_interval::CorrelationInterval<1>::datetime_with_resolution<1, 1000> (
-    self=0x10000200fa8, tsc=...) at ku/src/time/correlation_interval.rs:61
-#12 0x00000000002b8059 in ku::time::correlation_interval::CorrelationInterval<1>::datetime<1, 1000> (
-    atomic_correlation_interval=0x344030 <kernel::SYSTEM_INFO+48>, tsc=...) at ku/src/time/correlation_interval.rs:46
-#13 0x00000000002b4d08 in ku::time::rtc::Rtc::datetime<1000> (tsc=...) at ku/src/time/rtc.rs:22
-#14 0x00000000002b4656 in ku::time::datetime_ms (tsc=...) at ku/src/time/mod.rs:49
-#15 0x000000000025cb47 in kernel::log::Log::log_metadata (self=0x320b41 <kernel::log::LOG_COLLECTOR+9>,
-    level=0x30c030 <kernel::kernel_main::CALLSITE::META+32>, metadata=...) at kernel/src/log/mod.rs:144
-#16 0x000000000025cabe in kernel::log::Log::log_event (self=0x320b41 <kernel::log::LOG_COLLECTOR+9>,
-    event=0x100002012b0, tsc=...) at kernel/src/log/mod.rs:133
-#17 0x000000000025d512 in kernel::log::{impl#4}::event (self=0x320b38 <kernel::log::LOG_COLLECTOR>,
-    event=0x100002012b0) at kernel/src/log/mod.rs:241
-...
+#0  core::core_arch::x86::sse2::_mm_pause ()
+    at /.../.rustup/toolchains/nightly-2023-09-16-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/../../stdarch/crates/core_arch/src/x86/sse2.rs:26
+#1  0x0000000000270b59 in core::hint::spin_loop ()
+    at /.../.rustup/toolchains/nightly-2023-09-16-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/hint.rs:175
+#2  core::sync::atomic::spin_loop_hint ()
+    at /.../.rustup/toolchains/nightly-2023-09-16-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/sync/atomic.rs:3652
+#3  0x0000000000235995 in spin::relax::{impl#0}::relax ()
+    at /.../.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.9.8/src/relax.rs:29
+#4  spin::mutex::spin::SpinMutex<kernel::log::Log, spin::relax::Spin>::lock<kernel::log::Log, spin::relax::Spin> (
+    self=0x2e1938 <kernel::log::LOG_COLLECTOR+184>)
+    at /.../.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.9.8/src/mutex/spin.rs:187
+#5  spin::mutex::Mutex<kernel::log::Log, spin::relax::Spin>::lock<kernel::log::Log, spin::relax::Spin> (
+    self=0x2e1938 <kernel::log::LOG_COLLECTOR+184>)
+    at /.../.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.9.8/src/mutex.rs:186
+#6  ku::sync::spinlock::Spinlock<kernel::log::Log>::lock<kernel::log::Log> (
+    self=0x2e1880 <kernel::log::LOG_COLLECTOR>) at ku/src/sync/spinlock.rs:163
+#7  0x000000000022d338 in kernel::log::{impl#4}::event (self=0x2e1880 <kernel::log::LOG_COLLECTOR>,
+    event=0x100001ffb48) at kernel/src/log/mod.rs:322
+#8  0x000000000029418e in tracing_core::dispatch::Dispatch::event (
+    self=0x2e2840 <tracing_core::dispatch::GLOBAL_DISPATCH>, event=0x100001ffb48) at src/dispatch.rs:752
+#9  0x00000000002941f3 in tracing_core::event::{impl#0}::dispatch::{closure#0} (
+    current=0x2e2840 <tracing_core::dispatch::GLOBAL_DISPATCH>) at src/event.rs:35
+#10 0x00000000002940a3 in tracing_core::dispatch::get_default<(), tracing_core::event::{impl#0}::dispatch::{closure_env#0}> (f=...) at src/dispatch.rs:500
+#11 0x00000000002941c0 in tracing_core::event::Event::dispatch (
+--Type <RET> for more, q to quit, c to continue without paging--
+    metadata=0x2d9468 <ku::time::correlation_interval::CorrelationInterval<_>::datetime_with_resolution::__CALLSITE::__META>, fields=0x100001ffc48) at src/event.rs:34
+#12 0x000000000028df2a in ku::time::correlation_interval::{impl#0}::datetime_with_resolution::{closure#0}<1, 1000> (
+    value_set=<error reading variable: Cannot access memory at address 0x0>)
+    at /.../.cargo/git/checkouts/tracing-e9bbb56ea31f0c18/b8c45cc/tracing/src/macros.rs:876
+#13 0x000000000028d5f7 in ku::time::correlation_interval::CorrelationInterval<1>::datetime_with_resolution<1, 1000> (
+    self=0x100001ffed8, tsc=...) at ku/src/time/correlation_interval.rs:62
+#14 0x000000000028c9c1 in ku::time::correlation_interval::CorrelationInterval<1>::datetime<1, 1000> (
+    atomic_correlation_interval=0x324030 <kernel::SYSTEM_INFO+48>, tsc=...) at ku/src/time/correlation_interval.rs:46
+#15 0x000000000028f1d9 in ku::time::rtc::Rtc::datetime<1000> (tsc=...) at ku/src/time/rtc.rs:22
+#16 0x000000000028e888 in ku::time::datetime_ms (tsc=...) at ku/src/time/mod.rs:45
+#17 0x000000000022cab2 in kernel::log::Log::log_metadata (self=0x2e1939 <kernel::log::LOG_COLLECTOR+185>,
+    level=0x2d9468 <ku::time::correlation_interval::CorrelationInterval<_>::datetime_with_resolution::__CALLSITE::__META>, metadata=...) at kernel/src/log/mod.rs:210
+#18 0x000000000022ca19 in kernel::log::Log::log_event (self=0x2e1939 <kernel::log::LOG_COLLECTOR+185>,
+    event=0x100002001b8, timestamp=...) at kernel/src/log/mod.rs:197
+#19 0x000000000022d359 in kernel::log::{impl#4}::event (self=0x2e1880 <kernel::log::LOG_COLLECTOR>,
+    event=0x100002001b8) at kernel/src/log/mod.rs:322
+#20 0x000000000029418e in tracing_core::dispatch::Dispatch::event (
+    self=0x2e2840 <tracing_core::dispatch::GLOBAL_DISPATCH>, event=0x100002001b8) at src/dispatch.rs:752
+#21 0x00000000002941f3 in tracing_core::event::{impl#0}::dispatch::{closure#0} (
+    current=0x2e2840 <tracing_core::dispatch::GLOBAL_DISPATCH>) at src/event.rs:35
+#22 0x00000000002940a3 in tracing_core::dispatch::get_default<(), tracing_core::event::{impl#0}::dispatch::{closure_env#0}> (f=...) at src/dispatch.rs:500
+#23 0x00000000002941c0 in tracing_core::event::Event::dispatch (
+    metadata=0x2d9468 <ku::time::correlation_interval::CorrelationInterval<_>::datetime_with_resolution::__CALLSITE::__META>, fields=0x100002002b8) at src/event.rs:34
+#24 0x000000000028defa in ku::time::correlation_interval::{impl#0}::datetime_with_resolution::{closure#0}<1, 1000000000--Type <RET> for more, q to quit, c to continue without paging--
+> (value_set=<error reading variable: Cannot access memory at address 0x0>)
+    at /.../.cargo/git/checkouts/tracing-e9bbb56ea31f0c18/b8c45cc/tracing/src/macros.rs:876
+#25 0x000000000028cf87 in ku::time::correlation_interval::CorrelationInterval<1>::datetime_with_resolution<1, 1000000000> (self=0x10000200548, tsc=...) at ku/src/time/correlation_interval.rs:62
+#26 0x000000000028cac1 in ku::time::correlation_interval::CorrelationInterval<1>::datetime<1, 1000000000> (
+    atomic_correlation_interval=0x324030 <kernel::SYSTEM_INFO+48>, tsc=...) at ku/src/time/correlation_interval.rs:46
+#27 0x000000000028f189 in ku::time::rtc::Rtc::datetime<1000000000> (tsc=...) at ku/src/time/rtc.rs:22
+#28 0x000000000028e858 in ku::time::datetime (tsc=...) at ku/src/time/mod.rs:39
+#29 0x00000000002570a7 in kernel::time::rtc::interrupt () at kernel/src/time/rtc.rs:31
+#30 0x000000000026f518 in kernel::trap::pic::rtc (_context=...) at kernel/src/trap/mod.rs:824
+#31 0x0000000000216b85 in x86_64::instructions::hlt ()
+    at /.../.cargo/registry/src/index.crates.io-6f17d22bba15001f/x86_64-0.14.10/src/instructions/mod.rs:18
+#32 0x00000000002174f9 in 1_hw_3_high_resolution_date::wait_for_two_correlation_points ()
+    at kernel/tests/1-hw-3-high-resolution-date.rs:195
+#33 0x0000000000218e10 in 1_hw_3_high_resolution_date::high_resolution_date ()
+    at kernel/tests/1-hw-3-high-resolution-date.rs:121
+#34 0x0000000000216f41 in core::ops::function::Fn::call<fn(), ()> ()
+    at /.../.rustup/toolchains/nightly-2023-09-16-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/function.rs:79
+#35 0x000000000021b6ce in kernel::{impl#0}::run<fn()> (self=0x200cf8) at kernel/src/lib.rs:247
+#36 0x000000000022c156 in kernel::test_runner (tests=...) at kernel/src/lib.rs:258
+#37 0x000000000021b225 in 1_hw_3_high_resolution_date::test_main ()
+    at kernel/tests/1-hw-3-high-resolution-date.rs:1
+#38 0x000000000021752a in 1_hw_3_high_resolution_date::test_entry (boot_info=0x10000000000)
+    at kernel/tests/gen_main/mod.rs:12
+#39 0x000000000021b20c in 1_hw_3_high_resolution_date::__impl_start (boot_info=0x10000000000)
+    at /.../.cargo/registry/src/index.crates.io-6f17d22bba15001f/bootloader-0.9.23/src/lib.rs:39
+(gdb)
 ```
 
-Фрейм `#2` сообщает нам, что код крутится в `SpinMutex<kernel::log::Log>`, принадлежащей
+Фрейм `#4` говорит нам, что код крутится в `SpinMutex<kernel::log::Log>`, принадлежащей
 [`kernel::log::LOG_COLLECTOR`](../../doc/kernel/log/static.LOG_COLLECTOR.html):
+```console
+#4  spin::mutex::spin::SpinMutex<kernel::log::Log, spin::relax::Spin>::lock<kernel::log::Log, spin::relax::Spin> (
+    self=0x2e1938 <kernel::log::LOG_COLLECTOR+184>)
+    at /.../.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.9.8/src/mutex/spin.rs:187
 ```
-#2  0x000000000025d49f in spin::mutex::spin::SpinMutex<kernel::log::Log, spin::relax::Spin>::is_locked<kernel::log::Log, spin::relax::Spin> (self=0x320b40 <kernel::log::LOG_COLLECTOR+8>)
+Фрейм `#5` сообщает, где вызывается повторный захват блокировки --- в строке `kernel/src/log/mod.rs:322` метода `event()`:
+```console
+#7  0x000000000022d338 in kernel::log::{impl#4}::event (self=0x2e1880 <kernel::log::LOG_COLLECTOR>,
+    event=0x100001ffb48) at kernel/src/log/mod.rs:322
 ```
-Фрейм `#5` сообщает где вызывается повторный захват блокировки --- в строке `kernel/src/log/mod.rs:241` метода `event()`:
+А по фрейму `#19` видно, что блокировка уже была захвачена той же строкой кода:
+```console
+#19 0x000000000022d359 in kernel::log::{impl#4}::event (self=0x2e1880 <kernel::log::LOG_COLLECTOR>,
+    event=0x100002001b8) at kernel/src/log/mod.rs:322
 ```
-#5  kernel::log::{impl#4}::event (self=0x320b38 <kernel::log::LOG_COLLECTOR>, event=0x10000200c10)
-    at kernel/src/log/mod.rs:241
-```
-А по фрейму `#17` видно, что блокировка уже была захвачена той же строкой кода:
-```
-#17 0x000000000025d512 in kernel::log::{impl#4}::event (self=0x320b38 <kernel::log::LOG_COLLECTOR>,
-    event=0x100002012b0) at kernel/src/log/mod.rs:241
+А во фреймах `#13` и `#25` видно проблемную строку, которая и привела к зацикливанию и взаимоблокировке:
+```console
+#13 0x000000000028d5f7 in ku::time::correlation_interval::CorrelationInterval<1>::datetime_with_resolution<1, 1000> (
+    self=0x100001ffed8, tsc=...) at ku/src/time/correlation_interval.rs:62
+#25 0x000000000028cf87 in ku::time::correlation_interval::CorrelationInterval<1>::datetime_with_resolution<1, 1000000000> (self=0x10000200548, tsc=...) at ku/src/time/correlation_interval.rs:62
 ```
 
 Отладить метод
-[`fn CorrelationInterval::datetime_with_resolution()`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#method.datetime_with_resolution).
-с помощью журналирования можно разорвав бесконечную рекурсию.
+[`fn CorrelationInterval::datetime_with_resolution()`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#method.datetime_with_resolution)
+с помощью журналирования можно, если разорвать бесконечную рекурсию.
 Например, не вызывая функции времени из журналирования.
 Для этого служит формат
 [`kernel::log::Format::Timeless`](../../doc/kernel/log/enum.Format.html#variant.Timeless).
@@ -239,8 +386,8 @@ static LOG_COLLECTOR: LogCollector = LogCollector::new(Format::Timeless, Level::
 [`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html):
 из поля
 [`kernel::log::LogCollector::log`](../../doc/kernel/log/struct.LogCollector.html#structfield.log).
-Если на нём возникает [взаимоблокировка](https://en.wikipedia.org/wiki/Deadlock).
-А перемешивание записей журнала не мешает отладке или вообще не возникает при использования только одного процессора.
+Если на нём возникает [взаимоблокировка](https://en.wikipedia.org/wiki/Deadlock),
+а перемешивание записей журнала не мешает отладке или вообще не возникает при использовании только одного процессора.
 
 
 ### Запуск тестов
@@ -252,19 +399,34 @@ static LOG_COLLECTOR: LogCollector = LogCollector::new(Format::Timeless, Level::
 [`kernel/tests/time.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/time.rs):
 
 ```console
-$ (cd kernel; cargo test --test 1-hw-3-high-resolution-date)
+/.../nikka$ (cd kernel; cargo test --test 1-hw-3-high-resolution-date)
 ...
-time::high_resolution_date----------------------------------
-10:39:50.562 0 D waiting for the RTC to tick twice
-10:39:52.001 0 D measuring; timer_ticks = 102
-10:39:57.015 0 D measured; samples = 100; min = PT0.049911511S; max = PT0.050046701S; mean = PT0.049999155S; deviation = PT0.000020516S
-10:39:57.024 0 D restrictions; min_delta = PT0.040S; max_delta = PT0.060S; min_mean = PT0.049500S; max_mean = PT0.050500S; min_deviation = PT0.000000100S; max_deviation = PT0.005S
-time::high_resolution_date------------------------- [passed]
+1_hw_3_high_resolution_date::high_resolution_date---------
+16:50:10 0 D waiting for the RTC to tick twice
+16:50:12.003 0 D measuring; timer_ticks = 102
+16:50:17.019 0 D measured; samples = 100; min = PT0.043444808S; max = PT0.050378112S; mean = PT0.049998107S; deviation = PT0.000809628S
+16:50:17.023 0 D restrictions; min_delta = PT0.040S; max_delta = PT0.060S; min_mean = PT0.049500S; max_mean = PT0.050500S; min_deviation = PT0.000000100S; max_deviation = PT0.005S
+1_hw_3_high_resolution_date::high_resolution_date [passed]
+
+1_hw_3_high_resolution_date::points_beyond_interval-------
+16:50:17.027 0 D waiting for the RTC to tick twice
+16:50:19.001 0 D before_boot = 2023-09-17 16:50:07.091008303 UTC
+16:50:19.007 0 D boot = 2023-09-17 16:50:10.008804597 UTC
+16:50:19.011 0 D now = 2023-09-17 16:50:19.000589843 UTC
+16:50:19.013 0 D future = 2023-09-17 16:50:21.918491449 UTC
+16:50:19.015 0 D left = 2023-09-17 16:50:07.091008303 UTC; right = 2023-09-17 16:50:10.008804597 UTC; difference = PT2.917796294S
+16:50:19.029 0 D left = 2023-09-17 16:50:10.008804597 UTC; right = 2023-09-17 16:50:19.000589843 UTC; difference = PT8.991785246S
+16:50:19.041 0 D left = 2023-09-17 16:50:19.000589843 UTC; right = 2023-09-17 16:50:21.918491449 UTC; difference = PT2.917901606S
+1_hw_3_high_resolution_date::points_beyond_interval [passed]
+
+1_hw_3_high_resolution_date::stress-----------------------
+16:50:19.065 0 D waiting for the RTC to tick twice
+1_hw_3_high_resolution_date::stress-------------- [passed]
 ```
 
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- ku/src/time/correlation_interval.rs |   26 ++++++++++++++++++++++++--
+ ku/src/time/correlation_interval.rs | 26 ++++++++++++++++++++++++--
  1 file changed, 24 insertions(+), 2 deletions(-)
 ```

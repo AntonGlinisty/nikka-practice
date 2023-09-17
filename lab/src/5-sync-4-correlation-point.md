@@ -3,7 +3,7 @@
 Структура
 [`ku::time::correlation_point::CorrelationPoint`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html)
 из файла [`ku/src/time/correlation_point.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/time/correlation_point.rs)
-предназначена для привязки тактов процессора к другим часам в один момент времени.
+предназначена для привязки счётчика тактов процессора к другим часам в один и тот же момент времени.
 Она содержит поля:
 
 - [`CorrelationPoint::tsc`](../../doc/ku/time/correlation_point/struct.CorrelationPoint.html#structfield.tsc) со значением счётчика тактов процессора.
@@ -54,11 +54,11 @@
 Можно было бы завести блокировку на доступ к полям
 [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html),
 но это потребовало бы захватывать её из прерывания.
-Это практически гарантированно приведёт к проблемам:
+Что практически гарантированно приведёт к проблемам:
 
 - Захват этой блокировки должен ещё и запрещать прерывания. Иначе возможна [взаимоблокировка](https://en.wikipedia.org/wiki/Deadlock), подумайте почему. А Nikka предпочитает не отключать прерывания на потенциально длительное время удержания какой-нибудь блокировки.
 - Иногда прерывание будет ждать другой код, пока он не отпустит эту блокировку. Обычно прерывания являются более приоритетной деятельностью, поэтому возникнет нежелательная [инверсия приоритетов](https://en.wikipedia.org/wiki/Priority_inversion).
-- Писать мы хотим из прерывания в режиме ядра, а читать --- из режима пользователя. При этом с одной стороны, ядро должно обеспечить для кода пользователя согласованность чтения. А с другой --- оно не должно допустить чтобы злонамеренный код из пользовательского режима мог заблокировать ядро, в том числе навечно.
+- Писать мы хотим из прерывания в режиме ядра. А читать, --- в том числе, из режима пользователя. При этом с одной стороны, ядро должно обеспечить для кода пользователя согласованность чтения. А с другой --- оно не должно допустить чтобы злонамеренный код из пользовательского режима мог заблокировать ядро, в том числе навечно.
 
 Вообще, захват блокировок из прерываний --- очень плохая идея.
 
@@ -100,7 +100,7 @@
 В нашем случае писатель один, что дополнительно упрощает дело.
 Алгоритм его действий:
 - Раз он один, значит до начала обновления им структуры [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html), её значение заведомо согласованно. А [`AtomicCorrelationPoint::sequence`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence) содержит чётное число.
-- Писатель атомарно инкрементирует поле [`AtomicCorrelationPoint::sequence`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence). Оно становится нечётным, символизируя что идёт обновление.
+- Писатель атомарно инкрементирует поле [`AtomicCorrelationPoint::sequence`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence). Оно становится нечётным, символизируя, что идёт обновление.
 - После этого писатель заполняет поля [`AtomicCorrelationPoint::count`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.count) и [`AtomicCorrelationPoint::tsc`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.tsc).
 - Последним действием писатель атомарно инкрементирует поле [`AtomicCorrelationPoint::sequence`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#structfield.sequence). Это действие сигнализирует всем читателям, что обновление завершено и структура находится в согласованном состоянии.
 
@@ -150,7 +150,7 @@ fn AtomicCorrelationPoint::load(&self) -> CorrelationPoint
 до тех пор пока не удалось прочитать
 [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
 согласованно.
-В нём таже пригодится функция
+В нём также пригодится функция
 [`core::hint::spin_loop()`](https://doc.rust-lang.org/nightly/core/hint/fn.spin_loop.html),
 которая сообщает процессору, что он находится в цикле активного ожидания внешнего события.
 
@@ -243,42 +243,56 @@ fn AtomicCorrelationPoint::inc(&self, tsc: i64)
 запускаются в режиме ядра и используют прерывания для запуска конкурентного кода.
 
 ```console
-$ (cd kernel; cargo test --test 5-sync-4-correlation-point)
+/.../nikka$ (cd kernel; cargo test --test 5-sync-4-correlation-point)
 ...
-time::correlation_point_reader------------------------------
-10:35:25 0 D same = 0; different = 1; point = CorrelationPoint { count: 1000, tsc: 1000 }
-10:35:26 0 D same = 1082; different = 542; point = CorrelationPoint { count: 1082000, tsc: 1082000 }
-10:35:27 0 D same = 2166; different = 1084; point = CorrelationPoint { count: 2166000, tsc: 2166000 }
-10:35:28 0 D same = 3253; different = 1627; point = CorrelationPoint { count: 3253000, tsc: 3253000 }
-10:35:29 0 D same = 4340; different = 2170; point = CorrelationPoint { count: 4338000, tsc: 4338000 }
-10:35:30 0 D same = 5422; different = 2712; point = CorrelationPoint { count: 5422000, tsc: 5422000 }
-10:35:31 0 D same = 6506; different = 3254; point = CorrelationPoint { count: 6506000, tsc: 6506000 }
-10:35:32 0 D same = 7594; different = 3798; point = CorrelationPoint { count: 7594000, tsc: 7594000 }
-10:35:33 0 D same = 8678; different = 4340; point = CorrelationPoint { count: 8678000, tsc: 8678000 }
-10:35:34 0 D same = 9762; different = 4882; point = CorrelationPoint { count: 9762000, tsc: 9762000 }
-10:35:35 0 D same = 10848; different = 5425; point = CorrelationPoint { count: 10849000, tsc: 10849000 }
-10:35:36 0 D same = 11936; different = 5968; point = CorrelationPoint { count: 11934000, tsc: 11934000 }
-10:35:37 0 D same = 13022; different = 6512; point = CorrelationPoint { count: 13022000, tsc: 13022000 }
-10:35:38 0 D same = 14108; different = 7055; point = CorrelationPoint { count: 14109000, tsc: 14109000 }
-10:35:39 0 D same = 15184; different = 7593; point = CorrelationPoint { count: 15185000, tsc: 15185000 }
-10:35:40 0 D same = 16270; different = 8135; point = CorrelationPoint { count: 16269000, tsc: 16269000 }
-10:35:41 0 D same = 17356; different = 8679; point = CorrelationPoint { count: 17357000, tsc: 17357000 }
-10:35:42 0 D same = 18438; different = 9220; point = CorrelationPoint { count: 18438000, tsc: 18438000 }
-10:35:43 0 D same = 19520; different = 9761; point = CorrelationPoint { count: 19521000, tsc: 19521000 }
-time::correlation_point_reader--------------------- [passed]
+5_sync_4_correlation_point::correlation_point_reader--------
+16:38:34 0 D same = 200; different = 107; point = CorrelationPoint { count: 213000, tsc: 426000 }
+16:38:35 0 D same = 908; different = 482; point = CorrelationPoint { count: 962000, tsc: 1924000 }
+16:38:36 0 D same = 1627; different = 863; point = CorrelationPoint { count: 1725000, tsc: 3450000 }
+16:38:37 0 D same = 2346; different = 1244; point = CorrelationPoint { count: 2486000, tsc: 4972000 }
+16:38:38 0 D same = 3067; different = 1625; point = CorrelationPoint { count: 3249000, tsc: 6498000 }
+16:38:39 0 D same = 3784; different = 2006; point = CorrelationPoint { count: 4010000, tsc: 8020000 }
+16:38:40 0 D same = 4503; different = 2387; point = CorrelationPoint { count: 4773000, tsc: 9546000 }
+16:38:41 0 D same = 5222; different = 2768; point = CorrelationPoint { count: 5534000, tsc: 11068000 }
+16:38:42 0 D same = 5942; different = 3148; point = CorrelationPoint { count: 6294000, tsc: 12588000 }
+16:38:43 0 D same = 6651; different = 3525; point = CorrelationPoint { count: 7049000, tsc: 14098000 }
+16:38:44 0 D same = 7366; different = 3904; point = CorrelationPoint { count: 7806000, tsc: 15612000 }
+16:38:45 0 D same = 8083; different = 4284; point = CorrelationPoint { count: 8565999, tsc: 17131998 }
+16:38:46 0 D same = 8800; different = 4663; point = CorrelationPoint { count: 9325000, tsc: 18650000 }
+16:38:47 0 D same = 9516; different = 5043; point = CorrelationPoint { count: 10085000, tsc: 20170000 }
+16:38:48 0 D same = 10231; different = 5422; point = CorrelationPoint { count: 10842000, tsc: 21684000 }
+16:38:49 0 D same = 10948; different = 5802; point = CorrelationPoint { count: 11602000, tsc: 23204000 }
+16:38:50 0 D same = 11660; different = 6180; point = CorrelationPoint { count: 12358000, tsc: 24716000 }
+16:38:51 0 D same = 12378; different = 6559; point = CorrelationPoint { count: 13117000, tsc: 26234000 }
+16:38:52 0 D same = 13091; different = 6938; point = CorrelationPoint { count: 13874000, tsc: 27748000 }
+16:38:53 0 D same = 13809; different = 7318; point = CorrelationPoint { count: 14633999, tsc: 29267998 }
+16:38:54 0 D same = 14524; different = 7696; point = CorrelationPoint { count: 15390000, tsc: 30780000 }
+16:38:55 0 D same = 15228; different = 8070; point = CorrelationPoint { count: 16138000, tsc: 32276000 }
+16:38:56 0 D same = 15921; different = 8438; point = CorrelationPoint { count: 16874000, tsc: 33748000 }
+16:38:57 0 D same = 16622; different = 8809; point = CorrelationPoint { count: 17617000, tsc: 35234000 }
+16:38:58 0 D same = 17299; different = 9168; point = CorrelationPoint { count: 18333999, tsc: 36667998 }
+16:38:59 0 D same = 17990; different = 9534; point = CorrelationPoint { count: 19066000, tsc: 38132000 }
+16:39:00 0 D same = 18674; different = 9895; point = CorrelationPoint { count: 19789000, tsc: 39578000 }
+5_sync_4_correlation_point::correlation_point_reader [passed]
 
-time::correlation_point_writer------------------------------
-10:35:43 0 D iteration = 0; failure_count = 0; success_count = 0; point = CorrelationPoint { count: 0, tsc: 0 }
-10:35:44 0 D iteration = 840; failure_count = 90828; success_count = 220580; point = CorrelationPoint { count: 840, tsc: 840 }
-10:35:45 0 D iteration = 2396; failure_count = 258876; success_count = 628295; point = CorrelationPoint { count: 2396, tsc: 2396 }
-10:35:46 0 D iteration = 3958; failure_count = 427572; success_count = 1037519; point = CorrelationPoint { count: 3958, tsc: 3958 }
-10:35:47 0 D iteration = 5345; failure_count = 570102; success_count = 1472279; point = CorrelationPoint { count: 5345, tsc: 5345 }
-10:35:48 0 D iteration = 6383; failure_count = 660408; success_count = 1958120; point = CorrelationPoint { count: 6383, tsc: 6383 }
-10:35:49 0 D iteration = 7433; failure_count = 751845; success_count = 2449799; point = CorrelationPoint { count: 7434, tsc: 7434 }
-10:35:50 0 D iteration = 8485; failure_count = 843282; success_count = 2941927; point = CorrelationPoint { count: 8485, tsc: 8485 }
-10:35:51 0 D iteration = 9529; failure_count = 934110; success_count = 3430565; point = CorrelationPoint { count: 9529, tsc: 9529 }
-10:35:51 0 D iteration = 10000; failure_count = 975087; success_count = 3650638
-time::correlation_point_writer--------------------- [passed]
+5_sync_4_correlation_point::correlation_point_writer--------
+16:39:00 0 D iteration = 0; failure_count = 0; success_count = 0; point = CorrelationPoint { count: 0, tsc: 0 }
+16:39:01 0 D iteration = 966; failure_count = 144083; success_count = 211805; point = CorrelationPoint { count: 966, tsc: 1932 }
+16:39:02 0 D iteration = 2325; failure_count = 346723; success_count = 509584; point = CorrelationPoint { count: 2326, tsc: 4652 }
+16:39:03 0 D iteration = 3684; failure_count = 549214; success_count = 807221; point = CorrelationPoint { count: 3685, tsc: 7370 }
+16:39:04 0 D iteration = 5018; failure_count = 747451; success_count = 1109919; point = CorrelationPoint { count: 5018, tsc: 10036 }
+16:39:05 0 D iteration = 5487; failure_count = 807952; success_count = 1473640; point = CorrelationPoint { count: 5487, tsc: 10974 }
+16:39:06 0 D iteration = 5959; failure_count = 868840; success_count = 1839664; point = CorrelationPoint { count: 5959, tsc: 11918 }
+16:39:07 0 D iteration = 6445; failure_count = 931534; success_count = 2216461; point = CorrelationPoint { count: 6445, tsc: 12890 }
+16:39:08 0 D iteration = 6935; failure_count = 994744; success_count = 2595594; point = CorrelationPoint { count: 6935, tsc: 13870 }
+16:39:09 0 D iteration = 7424; failure_count = 1057825; success_count = 2974704; point = CorrelationPoint { count: 7424, tsc: 14848 }
+16:39:10 0 D iteration = 7914; failure_count = 1121035; success_count = 3354853; point = CorrelationPoint { count: 7914, tsc: 15828 }
+16:39:11 0 D iteration = 8404; failure_count = 1184245; success_count = 3734031; point = CorrelationPoint { count: 8404, tsc: 16808 }
+16:39:12 0 D iteration = 8874; failure_count = 1244875; success_count = 4098568; point = CorrelationPoint { count: 8874, tsc: 17748 }
+16:39:13 0 D iteration = 9332; failure_count = 1303957; success_count = 4453354; point = CorrelationPoint { count: 9332, tsc: 18664 }
+16:39:14 0 D iteration = 9792; failure_count = 1363297; success_count = 4810096; point = CorrelationPoint { count: 9792, tsc: 19584 }
+16:39:14 0 D iteration = 10000; failure_count = 1390129; success_count = 4970533
+5_sync_4_correlation_point::correlation_point_writer [passed]
 ```
 
 > ### Как устроен тест
@@ -309,7 +323,7 @@ time::correlation_point_writer--------------------- [passed]
 > которые являются одной из конкурентных активностей в компьютере.
 > Тогда в голову приходит вариант запустить стресс--тест,
 > в котором писатель будет работать в прерывании, а читатель --- в обычном коде, прерываемом периодически этим прерыванием.
-> Собственно
+> Собственно,
 > [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
 > предназначен именно для такого сценария использования, в котором прерывание поступает от источника времени --- RTC или PIT.
 > Тики RTC, происходящие раз в секунду, точно не подходят для стресс--теста.
@@ -330,7 +344,7 @@ time::correlation_point_writer--------------------- [passed]
 > Тогда между каждыми двумя инструкциями кода читателя будет запускаться код писателя.
 > Правда, так как читатель работает в цикле ожидания корректности структуры
 > [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html),
-> если писатель будет обновлять её на каждом прерывании --- между каждыми двумя инструкциями читателя,
+> если писатель будет обновлять её на каждом прерывании --- между каждыми двумя инструкциями читателя, ---
 > то читатель никогда не дождётся своего условия выхода из цикла и зависнет.
 > Поэтому писатель должен будет на значительное количество итераций такой
 > пошаговой отладки прекращать обновление
@@ -358,10 +372,10 @@ time::correlation_point_writer--------------------- [passed]
 > обработчика прерываний, которому мы не можем передать произвольный набор аргументов.
 > По той же причине его внутренне состояние, которое нужно сохранять между вызовами обработчика,
 > тоже записывается в статические переменные.
-> Переменные, которые использует, в том числе, обработчик прерывания, дополнительно сделаны атомарными,
-> так как формально к ним есть конкурентный доступ.
+> Переменные, которые использует, в том числе, обработчик прерывания, дополнительно сделаны атомарными.
+> Так как формально к ним есть конкурентный доступ.
 > Плюс Rust не даст работать с изменяемой статической переменной без `unsafe`,
-> как раз, чтобы защищать от непредумышленных гонок.
+> чтобы защищать от непредумышленных гонок.
 > А вот атомарные типы
 > [помечены](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicUsize.html#impl-Sync-for-AtomicUsize)
 > типажом
@@ -435,7 +449,7 @@ time::correlation_point_writer--------------------- [passed]
 > [`AtomicCorrelationPoint::load()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.load).
 > Который должен вернуть управление, только когда писатель прекратит обновлять `POINT` и перейдёт в режим бездействия.
 > После чего читатель отключает трассировку повторным переключением флаг `switch_trap_flag()` ---
-> когда она включена он работает очень медленно.
+> когда она включена, он работает очень медленно.
 > И проверяет согласованность полученного от
 > [`AtomicCorrelationPoint::load()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.load)
 > значения
@@ -510,34 +524,35 @@ time::correlation_point_writer--------------------- [passed]
 >> }
 >> ```
 >>
->> В отладочной сборке на запись в журнал одной строки ушло 112209 инструкций процессора,
->> последняя из них располагалась по адресу `0v216D07`.
->> А также было потрачено 5.742 KiB стека по адресам `[0x100002001c8, 0x100002018c0)`
+>> В отладочной сборке на запись в журнал одной строки ушло 144218 инструкций процессора,
+>> последняя из них располагалась по адресу `0v28_838E`.
+>> А также было потрачено 4.203 KiB стека по адресам `[0v100_0200_0000, 0v100_0200_10D0)`
 >> ```console
->> $ (cd kernel; cargo test --test 5-sync-4-correlation-point)
+>> /.../nikka$ (cd kernel; cargo test --test 5-sync-4-correlation-point)
 >> ...
->> time::down_the_rabbit_hole----------------------------------
->> 21:10:12 0 D waiting for the RTC to tick twice
->> 21:10:14.001 0 D how many instructions does it take to log something?
->> 21:10:14.022 0 D how many instructions does it take to log something?
->> 21:10:14.436 0 D instruction_count = 121954; used_stack_space = Ok([0x100001ffbd8, 0x100002012d0), size 5.742 KiB); last_traced_instruction_address = Ok(Virt(0v2180F7))
->> 21:10:14.460 0 D time_to_log_a_message = 2.198 ms; time_to_log_a_message_in_the_stepping_mode = 432.808 ms; stepping_slowdown_ratio = 196.9484863163476
->> time::down_the_rabbit_hole------------------------- [passed]
+>> 5_sync_4_correlation_point::down_the_rabbit_hole------------
+>> 16:41:38 0 D waiting for the RTC to tick twice
+>> 16:41:40 0 D how many instructions does it take to log something?; rflags = IF PF
+>> 16:41:40 0 D how many instructions does it take to log something?; rflags = IF TF PF
+>> 16:41:40 0 D instruction_count = 144218; used_stack_space = [0v100_0200_0000, 0v100_0200_10D0), size 4.203 KiB; last_traced_instruction_address = 0v28_838E
+>> 16:41:40 0 D time_to_log_a_message = 5.422 ms; time_to_log_a_message_in_the_stepping_mode = 621.737 ms; stepping_slowdown_ratio = 114.67242158650633
+>> 5_sync_4_correlation_point::down_the_rabbit_hole--- [passed]
+>> 16:41:40 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 >> ```
 >> Возможно вы заметили, что второе сообщение `how many ...`, которое печаталось под трассировкой, появлялось на экране медленнее.
 >>
->> В релизной сборке на запись в журнал одной строки ушло 6874 инструкций и 1.141 KiB стека:
+>> В релизной сборке на запись в журнал одной строки ушло 10503 инструкций и 1.000 KiB стека:
 >>
 >> ```console
->> $ (cd kernel; cargo test --test 5-sync-4-correlation-point --release)
+>> /.../nikka$ (cd kernel; cargo test --test 5-sync-4-correlation-point --release)
 >> ...
->> time::down_the_rabbit_hole----------------------------------
->> 21:09:33 0 D waiting for the RTC to tick twice
->> 21:09:35.001 0 D how many instructions does it take to log something?
->> 21:09:35.001 0 D how many instructions does it take to log something?
->> 21:09:35.011 0 D instruction_count = 7624; used_stack_space = Ok([0x10000201890, 0x10000201d20), size 1.141 KiB); last_traced_instruction_address = Ok(Virt(0v20AA12))
->> 21:09:35.014 0 D time_to_log_a_message = 549.737 us; time_to_log_a_message_in_the_stepping_mode = 10.388 ms; stepping_slowdown_ratio = 18.89630272070954
->> time::down_the_rabbit_hole------------------------- [passed]
+>> 5_sync_4_correlation_point::down_the_rabbit_hole------------
+>> 16:45:53 0 D waiting for the RTC to tick twice
+>> 16:45:55 0 D how many instructions does it take to log something?; rflags = IF
+>> 16:45:55 0 D how many instructions does it take to log something?; rflags = IF TF
+>> 16:45:55 0 D instruction_count = 10503; used_stack_space = [0v100_0200_1990, 0v100_0200_1D90), size 1.000 KiB; last_traced_instruction_address = 0v21_BD59
+>> 16:45:55 0 D time_to_log_a_message = 1.654 ms; time_to_log_a_message_in_the_stepping_mode = 37.214 ms; stepping_slowdown_ratio = 22.494754670444543
+>> 5_sync_4_correlation_point::down_the_rabbit_hole--- [passed]
 >> ```
 >>
 >>> Теперь вы можете, например, построить гистограмму количества раз, сколько исполнялись инструкции по разным адресам.
@@ -559,6 +574,6 @@ time::correlation_point_writer--------------------- [passed]
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- ku/src/time/correlation_point.rs |   40 +++++++++++++++++++++++++++++++--------
- 1 file changed, 32 insertions(+), 8 deletions(-)
+ ku/src/time/correlation_point.rs | 55 +++++++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 45 insertions(+), 10 deletions(-)
 ```

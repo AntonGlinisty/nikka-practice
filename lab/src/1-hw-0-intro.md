@@ -61,8 +61,10 @@
 чтобы контролировать ошибку такой оценки и корректировать её с учётом новых данных.
 
 ```console
- kernel/src/time/rtc.rs              |   65 ++++++++++++++++++++++++++++++++----
- ku/src/time/correlation_interval.rs |   26 +++++++++++++-
- ku/src/time/correlation_point.rs    |   40 +++++++++++++++++-----
- 3 files changed, 115 insertions(+), 16 deletions(-)
+ kernel/src/time/rtc.rs              | 70 ++++++++++++++++++++++++++++++++++++++++++++++++-------
+ ku/src/sync/sequence_lock.rs        | 76 +++++++++++++++++++++++++++++++++++++++++++++++++++--------
+ ku/src/sync/spinlock.rs             | 97 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--------------
+ ku/src/time/correlation_interval.rs | 26 +++++++++++++++++++--
+ ku/src/time/correlation_point.rs    | 55 +++++++++++++++++++++++++++++++++++--------
+ 5 files changed, 276 insertions(+), 48 deletions(-)
 ```

@@ -167,7 +167,7 @@ interrupts::without_interrupts(|| {
 
 То есть, она
 
-- Выключает все [прерывания](https://en.wikipedia.org/wiki/Interrupt), в том числе [немаскируемые](https://en.wikipedia.org/wiki/Non-maskable_interrupt), на время конфигурирования микросхемы. Иначе она может остаться в [некоррекном состоянии](https://wiki.osdev.org/RTC#Avoiding_NMI_and_Other_Interrupts_While_Programming).
+- Выключает все [прерывания](https://en.wikipedia.org/wiki/Interrupt), в том числе [немаскируемые](https://en.wikipedia.org/wiki/Non-maskable_interrupt), на время конфигурирования микросхемы. Иначе она может остаться в [некорректном состоянии](https://wiki.osdev.org/RTC#Avoiding_NMI_and_Other_Interrupts_While_Programming).
 - Выключает переход на летнее время --- `!`[`RegisterB::DAYLIGHT_SAVING`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.DAYLIGHT_SAVING).
 - Включает [прерывание](https://en.wikipedia.org/wiki/Interrupt), посылаемое процессору микросхемой после обновления показаний времени при тике, --- [`RegisterB::UPDATE_ENDED_INTERRUPT`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.UPDATE_ENDED_INTERRUPT).
 - Остальные настройки оставляет без изменений.
@@ -539,69 +539,137 @@ return None;
 Вы увидите сборку, запуск эмулятора [`qemu`](https://en.wikipedia.org/wiki/QEMU), сообщения журнала об инициализации ядра и прогоне тестов:
 
 ```console
-$ (cd kernel; cargo test --test 1-hw-1-rtc)
+/.../nikka$ (cd kernel; cargo test --test 1-hw-1-rtc)
 ...
-Running: `qemu-system-x86_64 -drive format=raw,file=/.../shad-os/target/kernel/debug/deps/bootimage-time-8696ef78d2ec023a.bin -no-reboot -m size=50M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none`
-00:00:00 0 I RTC init; acknowledged_settings = USE_24_HOUR_FORMAT | USE_BINARY_FORMAT | UPDATE_ENDED_INTERRUPT
+Running: `qemu-system-x86_64 -drive format=raw,file=/.../nikka/target/kernel/debug/deps/bootimage-1_hw_1_rtc-416dde23a6046d3f.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none -drive file=../fs.img,index=1,media=disk,driver=raw`
+00:00:00 0 I RTC init; acknowledged_settings = RegisterB(USE_24_HOUR_FORMAT | UPDATE_ENDED_INTERRUPT)
 00:00:00 0 I time init
-00:00:00 0 I Nikka booted; now = 1970-01-01 00:00:00 UTC; tsc = Tsc(5345850832)
+00:00:00 0 I Nikka booted; now = 1970-01-01 00:00:00 UTC; tsc = Tsc(2314149074)
 00:00:00 0 I GDT init
 00:00:00 0 I traps init
-running 4 tests
+running 2 tests
 
-time::rtc_read_inconsistent---------------------------------
-00:00:00 0 D start = 1970-01-01 00:00:00 UTC
-panicked at 'the RTC date does not pass the sanity check', kernel/tests/time.rs:43:5
+1_hw_1_rtc::different_rtc_formats-------------------------
+00:00:00 0 D hour_24 = 0; hour_12 = 12; pm = 0
+panicked at kernel/tests/1-hw-1-rtc.rs:41:9:
+assertion `left == right` failed
+  left: 0
+ right: 12
 --------------------------------------------------- [failed]
-00:00:00 0 I exit qemu; exit_code = FAILURE
-error: test failed, to rerun pass '--test time'
+00:00:00 0 I exit qemu; exit_code = ExitCode(FAILURE)
+error: test failed, to rerun pass `--test 1-hw-1-rtc`
+
+Caused by:
+  process didn't exit successfully: `bootimage runner /.../nikka/target/kernel/debug/deps/1_hw_1_rtc-416dde23a6046d3f` (exit status: 5)
+note: test exited abnormally; to see the full output pass --nocapture to the harness.
 ```
 
 Если запустить тест из корня репозитория, то вы столкнётесь ошибкой:
 
 ```console
-error: language item required, but not found: `eh_personality`
-  |
-  = note: this can occur when a binary crate with `#![no_std]` is compiled for a target where `eh_personality` is defined in the standard library
-  = help: you may be able to compile for a target that doesn't need `eh_personality`, specify a target with `--target` or in `.cargo/config`
+/.../nikka$ cargo test
+...
+   Compiling lib v0.1.0 (/.../nikka/user/lib)
+error[E0152]: found duplicate lang item `panic_impl`
+  --> user/lib/src/lib.rs:73:1
+   |
+73 | fn panic(panic_info: &PanicInfo) -> ! {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: the lang item is first defined in crate `std` (which `tracing_core` depends on)
+   = note: first definition in `std` loaded from /.../.rustup/toolchains/nightly-2023-09-16-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/lib/libstd-19964a87984cce8a.rlib
+   = note: second definition in the local crate (`lib`)
+
+For more information about this error, try `rustc --explain E0152`.
+error: could not compile `lib` (lib) due to previous error
+warning: build failed, waiting for other jobs to finish...
 ```
 
 Это ожидаемо, запускайте тест из директории `kernel`.
 
-До решения задачи тест `fn rtc_read_inconsistent()` из файла
-[`kernel/tests/time.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/time.rs)
-падает:
+До решения задач тесты из файла
+[`kernel/tests/1-hw-1-rtc.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/1-hw-1-rtc.rs)
+падают:
 
 ```console
-time::rtc_read_inconsistent---------------------------------
-00:00:00 0 D start = 1970-01-01 00:00:00 UTC
-panicked at 'the RTC date does not pass the sanity check', kernel/tests/time.rs:43:5
+1_hw_1_rtc::different_rtc_formats-------------------------
+00:00:00 0 D hour_24 = 0; hour_12 = 12; pm = 0
+panicked at kernel/tests/1-hw-1-rtc.rs:41:9:
+assertion `left == right` failed
+  left: 0
+ right: 12
 --------------------------------------------------- [failed]
 ```
 
-А после выполнения задачи он должен проходить:
+А после выполнения задачи они должны проходить:
 
 ```console
-$ (cd kernel; cargo test --test 1-hw-1-rtc)
+/.../nikka$ (cd kernel; cargo test --test 1-hw-1-rtc)
 ...
-time::rtc_read_inconsistent---------------------------------
-10:25:26 0 D start = 2022-09-17 10:25:26 UTC
-10:25:27 0 D now = 2022-09-17 10:25:27 UTC
-10:25:28 0 D now = 2022-09-17 10:25:28 UTC
-10:25:29 0 D now = 2022-09-17 10:25:29 UTC
-10:25:30 0 D now = 2022-09-17 10:25:30 UTC
-10:25:31 0 D now = 2022-09-17 10:25:31 UTC
-10:25:32 0 D now = 2022-09-17 10:25:32 UTC
-10:25:33 0 D now = 2022-09-17 10:25:33 UTC
-10:25:34 0 D now = 2022-09-17 10:25:34 UTC
-10:25:35 0 D now = 2022-09-17 10:25:35 UTC
-time::rtc_read_inconsistent------------------------ [passed]
+Running: `qemu-system-x86_64 -drive format=raw,file=/.../nikka/target/kernel/debug/deps/bootimage-1_hw_1_rtc-416dde23a6046d3f.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none -drive file=../fs.img,index=1,media=disk,driver=raw`
+16:22:20 0 I RTC init; acknowledged_settings = RegisterB(USE_24_HOUR_FORMAT | UPDATE_ENDED_INTERRUPT)
+16:22:20 0 I time init
+16:22:20 0 I Nikka booted; now = 2023-09-17 16:22:20 UTC; tsc = Tsc(2392673640)
+16:22:20 0 I GDT init
+16:22:20 0 I traps init
+running 2 tests
+
+1_hw_1_rtc::different_rtc_formats-------------------------
+16:22:20 0 D hour_24 = 0; hour_12 = 12; pm = 0
+16:22:20 0 D hour_24 = 1; hour_12 = 1; pm = 0
+16:22:20 0 D hour_24 = 2; hour_12 = 2; pm = 0
+16:22:20 0 D hour_24 = 3; hour_12 = 3; pm = 0
+16:22:20 0 D hour_24 = 4; hour_12 = 4; pm = 0
+16:22:20 0 D hour_24 = 5; hour_12 = 5; pm = 0
+16:22:20 0 D hour_24 = 6; hour_12 = 6; pm = 0
+16:22:20 0 D hour_24 = 7; hour_12 = 7; pm = 0
+16:22:20 0 D hour_24 = 8; hour_12 = 8; pm = 0
+16:22:20 0 D hour_24 = 9; hour_12 = 9; pm = 0
+16:22:20 0 D hour_24 = 10; hour_12 = 10; pm = 0
+16:22:20 0 D hour_24 = 11; hour_12 = 11; pm = 0
+16:22:20 0 D hour_24 = 12; hour_12 = 12; pm = 1
+16:22:20 0 D hour_24 = 13; hour_12 = 1; pm = 1
+16:22:20 0 D hour_24 = 14; hour_12 = 2; pm = 1
+16:22:20 0 D hour_24 = 15; hour_12 = 3; pm = 1
+16:22:20 0 D hour_24 = 16; hour_12 = 4; pm = 1
+16:22:20 0 D hour_24 = 17; hour_12 = 5; pm = 1
+16:22:20 0 D hour_24 = 18; hour_12 = 6; pm = 1
+16:22:20 0 D hour_24 = 19; hour_12 = 7; pm = 1
+16:22:20 0 D hour_24 = 20; hour_12 = 8; pm = 1
+16:22:20 0 D hour_24 = 21; hour_12 = 9; pm = 1
+16:22:20 0 D hour_24 = 22; hour_12 = 10; pm = 1
+16:22:20 0 D hour_24 = 23; hour_12 = 11; pm = 1
+1_hw_1_rtc::different_rtc_formats---------------- [passed]
+
+1_hw_1_rtc::rtc_read_inconsistent-------------------------
+16:22:20 0 D waiting for the RTC to tick at least once
+16:22:21 0 D start = 2023-09-17 16:22:21 UTC
+16:22:22 0 D rtc_count = 1; new_rtc_count = 2
+16:22:22 0 D now = 2023-09-17 16:22:22 UTC; rtc_count = 2
+16:22:23 0 D rtc_count = 2; new_rtc_count = 3
+16:22:23 0 D now = 2023-09-17 16:22:23 UTC; rtc_count = 3
+16:22:24 0 D rtc_count = 3; new_rtc_count = 4
+16:22:24 0 D now = 2023-09-17 16:22:24 UTC; rtc_count = 4
+16:22:25 0 D rtc_count = 4; new_rtc_count = 5
+16:22:25 0 D now = 2023-09-17 16:22:25 UTC; rtc_count = 5
+16:22:26 0 D rtc_count = 5; new_rtc_count = 6
+16:22:26 0 D now = 2023-09-17 16:22:26 UTC; rtc_count = 6
+16:22:27 0 D rtc_count = 6; new_rtc_count = 7
+16:22:27 0 D now = 2023-09-17 16:22:27 UTC; rtc_count = 7
+16:22:28 0 D rtc_count = 7; new_rtc_count = 8
+16:22:28 0 D now = 2023-09-17 16:22:28 UTC; rtc_count = 8
+16:22:29 0 D rtc_count = 8; new_rtc_count = 9
+16:22:29 0 D now = 2023-09-17 16:22:29 UTC; rtc_count = 9
+16:22:30 0 D rtc_count = 9; new_rtc_count = 10
+16:22:30 0 D now = 2023-09-17 16:22:30 UTC; rtc_count = 10
+1_hw_1_rtc::rtc_read_inconsistent---------------- [passed]
+16:22:30 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ```
 
 
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/time/rtc.rs |   65 ++++++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 59 insertions(+), 6 deletions(-)
+ kernel/src/time/rtc.rs | 70 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 62 insertions(+), 8 deletions(-)
 ```
