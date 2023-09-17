@@ -1,6 +1,7 @@
 use std::{
     alloc::Layout,
     ffi::c_void,
+    fs::File,
     num::NonZeroUsize,
 };
 
@@ -70,12 +71,12 @@ unsafe impl BigAllocator for BigForPipe {
         assert_eq!(layout.align() % Page::SIZE, 0);
 
         let ptr = unsafe {
-            mman::mmap(
+            mman::mmap::<File>(
                 None,
                 NonZeroUsize::new(layout.size()).expect("useless call to map an empty block"),
                 ProtFlags::PROT_NONE,
                 MapFlags::MAP_ANONYMOUS | MapFlags::MAP_PRIVATE,
-                -1,
+                None,
                 0,
             )
             .unwrap()
@@ -109,12 +110,12 @@ unsafe impl BigAllocator for BigForPipe {
         assert_eq!(block.size(), self.reserved.size() / 2);
         assert!(self.reserved.contains_block(block));
 
-        let ptr = mman::mmap(
+        let ptr = mman::mmap::<File>(
             NonZeroUsize::new(block.start_address().into_usize()),
             NonZeroUsize::new(block.size()).unwrap(),
             ProtFlags::PROT_READ | ProtFlags::PROT_WRITE,
             MapFlags::MAP_ANONYMOUS | MapFlags::MAP_SHARED | MapFlags::MAP_FIXED,
-            -1,
+            None,
             0,
         )
         .unwrap();

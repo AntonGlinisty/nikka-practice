@@ -99,6 +99,7 @@ const FAIL: text::Color = text::Color::LIGHT_RED;
 
 bitflags! {
     /// Код выхода из qemu при запуске тестов.
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     pub struct ExitCode: u8 {
         /// Успешное завершение --- все тесты прошли.
         const SUCCESS = 1;
@@ -110,6 +111,7 @@ bitflags! {
 
 bitflags! {
     /// Разбивка на подсистемы для возможности инициализации только части из них в тестах.
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     pub struct Subsystems: usize {
         /// Память: подсистема физической памяти.
         const PHYS_MEMORY = 1 << 0;
@@ -122,7 +124,7 @@ bitflags! {
 
         /// Все части подсистемы памяти.
         const MEMORY =
-            Self::PHYS_MEMORY.bits | Self::VIRT_MEMORY.bits | Self::MAIN_FRAME_ALLOCATOR.bits;
+            Self::PHYS_MEMORY.bits() | Self::VIRT_MEMORY.bits() | Self::MAIN_FRAME_ALLOCATOR.bits();
 
         /// Процессы: системные вызовы.
         const SYSCALL = 1 << 4;
@@ -134,7 +136,7 @@ bitflags! {
         const SCHEDULER = 1 << 6;
 
         /// Все части подсистемы процессов.
-        const PROCESS = Self::SYSCALL.bits | Self::PROCESS_TABLE.bits | Self::SCHEDULER.bits;
+        const PROCESS = Self::SYSCALL.bits() | Self::PROCESS_TABLE.bits() | Self::SCHEDULER.bits();
 
         /// Симметричной многопроцессорности: контроллер прерываний Local APIC.
         const LOCAL_APIC = 1 << 7;
@@ -146,7 +148,7 @@ bitflags! {
         const BOOT_APS = 1 << 9;
 
         /// Все части подсистемы симметричной многопроцессорности.
-        const SMP = Self::LOCAL_APIC.bits | Self::CPUS.bits | Self::BOOT_APS.bits;
+        const SMP = Self::LOCAL_APIC.bits() | Self::CPUS.bits() | Self::BOOT_APS.bits();
     }
 }
 
@@ -218,7 +220,7 @@ pub fn exit_qemu(exit_code: ExitCode) -> ! {
     const EXIT_PORT: u16 = 0xF4;
 
     unsafe {
-        io::outb(EXIT_PORT, exit_code.bits);
+        io::outb(EXIT_PORT, exit_code.bits());
     }
 
     halt()

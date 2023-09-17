@@ -5,6 +5,7 @@ use bitflags::bitflags;
 bitflags! {
     /// [Причина некорректности](https://wiki.osdev.org/Exceptions#Error_code)
     /// обращения к странице виртуальной памяти.
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     pub struct PageFaultInfo: usize {
         /// Страница отображена, но нарушены флаги доступа к ней.
         const PRESENT = 1 << 0;

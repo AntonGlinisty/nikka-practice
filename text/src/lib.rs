@@ -32,6 +32,7 @@ use cursor::{
 use grid::Buffer;
 
 bitflags! {
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     pub struct Color: u8 {
         const BLACK = 0;
 
@@ -39,25 +40,25 @@ bitflags! {
         const GREEN = 1 << 1;
         const BLUE = 1 << 0;
 
-        const CYAN = Self::GREEN.bits | Self::BLUE.bits;
-        const MAGENTA = Self::RED.bits | Self::BLUE.bits;
-        const YELLOW = Self::RED.bits | Self::GREEN.bits;
+        const CYAN = Self::GREEN.bits() | Self::BLUE.bits();
+        const MAGENTA = Self::RED.bits() | Self::BLUE.bits();
+        const YELLOW = Self::RED.bits() | Self::GREEN.bits();
 
-        const GRAY = Self::RED.bits | Self::GREEN.bits | Self::BLUE.bits;
+        const GRAY = Self::RED.bits() | Self::GREEN.bits() | Self::BLUE.bits();
 
         const LIGHT = 1 << 3;
 
-        const DARK_GRAY = Self::LIGHT.bits | Self::BLACK.bits;
+        const DARK_GRAY = Self::LIGHT.bits() | Self::BLACK.bits();
 
-        const LIGHT_RED = Self::LIGHT.bits | Self::RED.bits;
-        const LIGHT_GREEN = Self::LIGHT.bits | Self::GREEN.bits;
-        const LIGHT_BLUE = Self::LIGHT.bits | Self::BLUE.bits;
+        const LIGHT_RED = Self::LIGHT.bits() | Self::RED.bits();
+        const LIGHT_GREEN = Self::LIGHT.bits() | Self::GREEN.bits();
+        const LIGHT_BLUE = Self::LIGHT.bits() | Self::BLUE.bits();
 
-        const LIGHT_CYAN = Self::LIGHT.bits | Self::CYAN.bits;
-        const LIGHT_MAGENTA = Self::LIGHT.bits | Self::MAGENTA.bits;
-        const LIGHT_YELLOW = Self::LIGHT.bits | Self::YELLOW.bits;
+        const LIGHT_CYAN = Self::LIGHT.bits() | Self::CYAN.bits();
+        const LIGHT_MAGENTA = Self::LIGHT.bits() | Self::MAGENTA.bits();
+        const LIGHT_YELLOW = Self::LIGHT.bits() | Self::YELLOW.bits();
 
-        const WHITE = Self::LIGHT.bits | Self::GRAY.bits;
+        const WHITE = Self::LIGHT.bits() | Self::GRAY.bits();
     }
 }
 
@@ -73,13 +74,11 @@ impl Attribute {
         foreground: Color,
         background: Color,
     ) -> Attribute {
-        Attribute(background.bits << Self::BACKGROUND_SHIFT | foreground.bits)
+        Attribute(background.bits() << Self::BACKGROUND_SHIFT | foreground.bits())
     }
 
     pub const fn background(&self) -> Color {
-        Color {
-            bits: self.0 >> Self::BACKGROUND_SHIFT,
-        }
+        Color::from_bits(self.0 >> Self::BACKGROUND_SHIFT).expect("undefined color")
     }
 
     const BACKGROUND_SHIFT: u8 = 4;

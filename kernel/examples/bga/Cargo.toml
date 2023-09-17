@@ -13,9 +13,9 @@ bitflags = "*"
 bootloader = { version = "0.9.*", features = ["map_physical_memory"] }
 chrono = { version = "*", default-features = false }
 derive_more = { version = "*" }
-embedded-graphics = "*"
-embedded-graphics-core = "*"
-embedded-plots = "*"
+embedded-graphics = "=0.7.1"
+embedded-graphics-core = "=0.3.3"
+embedded-plots = "=0.2.0"
 tinypci = { git = "https://github.com/sergey-v-galtsev/tinypci", version = "*", default-features = false }
 x86 = "*"
 x86_64 = "*"

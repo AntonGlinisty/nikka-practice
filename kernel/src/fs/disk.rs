@@ -150,6 +150,7 @@ impl Disk {
     fn wait_ready(&self) -> Result<()> {
         bitflags! {
             /// Регистр статуса.
+            #[derive(Clone, Copy, Debug, Eq, PartialEq)]
             struct Status: u8 {
                 const ERROR = 1 << 0;
                 const FAILURE = 1 << 5;

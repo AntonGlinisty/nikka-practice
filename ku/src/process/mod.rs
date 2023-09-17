@@ -32,6 +32,7 @@ pub use trap_info::{
 
 bitflags! {
     /// Состояние пользовательского процесса.
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     pub struct State: usize {
         /// Процесс только что создан и не готов к запуску.
         const EXOFORK = 0;

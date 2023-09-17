@@ -10,7 +10,7 @@ mod process_helpers;
 
 init!(Subsystems::MEMORY);
 
-const LOOP_ELF: &[u8] = include_bytes!("../../target/kernel/user/loop");
+const LOOP_ELF: &[u8] = page_aligned!("../../target/kernel/user/loop");
 
 #[test_case]
 fn create_process() {

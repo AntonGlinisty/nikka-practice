@@ -17,7 +17,7 @@ mod process_helpers;
 
 init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::PROCESS);
 
-const TRAP_HANDLER_ELF: &[u8] = include_bytes!("../../target/kernel/user/trap_handler");
+const TRAP_HANDLER_ELF: &[u8] = page_aligned!("../../target/kernel/user/trap_handler");
 
 #[test_case]
 fn trap_handler() {

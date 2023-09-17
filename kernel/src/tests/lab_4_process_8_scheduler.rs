@@ -19,9 +19,9 @@ mod process_helpers;
 
 init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::PROCESS);
 
-const EXIT_ELF: &[u8] = include_bytes!("../../target/kernel/user/exit");
-const PAGE_FAULT_ELF: &[u8] = include_bytes!("../../target/kernel/user/page_fault");
-const SCHED_YIELD_ELF: &[u8] = include_bytes!("../../target/kernel/user/sched_yield");
+const EXIT_ELF: &[u8] = page_aligned!("../../target/kernel/user/exit");
+const PAGE_FAULT_ELF: &[u8] = page_aligned!("../../target/kernel/user/page_fault");
+const SCHED_YIELD_ELF: &[u8] = page_aligned!("../../target/kernel/user/sched_yield");
 
 #[test_case]
 fn syscall_sched_yield() {

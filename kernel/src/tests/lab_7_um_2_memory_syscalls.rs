@@ -49,7 +49,7 @@ mod process_helpers;
 
 init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::PROCESS);
 
-const MEMORY_ALLOCATOR_ELF: &[u8] = include_bytes!("../../target/kernel/user/memory_syscalls");
+const MEMORY_ALLOCATOR_ELF: &[u8] = page_aligned!("../../target/kernel/user/memory_syscalls");
 
 #[test_case]
 fn map_syscall_group() {

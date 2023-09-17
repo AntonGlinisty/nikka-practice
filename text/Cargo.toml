@@ -13,7 +13,7 @@ bitflags = "*"
 lazy_static = { version = "*", features = ["spin_no_std"] }
 spin = "*"
 static_assertions = "*"
-volatile = "*"
+volatile = "=0.4.5"
 x86 = "*"
 x86_64 = "*"
 

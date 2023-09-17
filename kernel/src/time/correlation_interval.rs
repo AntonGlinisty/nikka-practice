@@ -54,10 +54,14 @@ impl<const TICKS_PER_SECOND: i64> CorrelationInterval<TICKS_PER_SECOND> {
         let datetime = if correlation_interval.elapsed_count() > 0 {
             correlation_interval.datetime_with_resolution::<PARTS_PER_SECOND>(tsc)
         } else {
-            NaiveDateTime::from_timestamp(correlation_interval.prev.count() / TICKS_PER_SECOND, 0)
+            NaiveDateTime::from_timestamp_opt(
+                correlation_interval.prev.count() / TICKS_PER_SECOND,
+                0,
+            )
+            .expect(UNEXPECTED_TIMESTAMP)
         };
 
-        DateTime::from_utc(datetime, Utc)
+        DateTime::from_naive_utc_and_offset(datetime, Utc)
     }
 
     /// Возвращает реальное время, которое соответствует тику номер `tsc` процессора.
@@ -73,7 +77,7 @@ impl<const TICKS_PER_SECOND: i64> CorrelationInterval<TICKS_PER_SECOND> {
         tsc: Tsc,
     ) -> NaiveDateTime {
         // TODO: your code here.
-        NaiveDateTime::from_timestamp(self.prev.count() / TICKS_PER_SECOND, 0) // TODO: remove before flight.
+        NaiveDateTime::from_timestamp_opt(self.prev.count() / TICKS_PER_SECOND, 0).expect(UNEXPECTED_TIMESTAMP) // TODO: remove before flight.
     }
 
     /// Возвращает частоту процессора с точки зрения часов,
@@ -200,3 +204,7 @@ pub mod test_scaffolding {
         correlation_interval.datetime_with_resolution::<PARTS_PER_SECOND>(tsc)
     }
 }
+
+/// Сообщение для паники при обнаружении заведомо некорректной даты с точки зрения [`chrono`].
+const UNEXPECTED_TIMESTAMP: &str =
+    "unexpected timestamp - more than ca. 262_000 years away from common era";

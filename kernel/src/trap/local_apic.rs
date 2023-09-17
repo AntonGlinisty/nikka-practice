@@ -364,6 +364,7 @@ bitflags! {
     ///
     /// <https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.pdf>,
     /// 10.6.1 Interrupt Command Register (ICR)
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     struct InterruptCommand: u32 {
         /// Выполнить инициализацию процессора.
         const INIT = 0b101 << 8;

@@ -61,6 +61,7 @@ fn bga_frame_buffer() -> Result<Phys> {
     const BGA_PCI_DEVICE_ID: u16 = 0x1111;
 
     bitflags! {
+        #[derive(Clone, Copy, Eq, PartialEq)]
         struct Bar: u32 {
             const ADDRESS_MASK_16 = 0x_FFF0;
             const ADDRESS_MASK_32 = 0x_FFFF_FFF0;

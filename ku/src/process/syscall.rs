@@ -7,6 +7,7 @@ use bitflags::bitflags;
 
 bitflags! {
     /// Код выхода пользовательской программы, передаваемый в `syscall::exit()`.
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     pub struct ExitCode: usize {
         /// Пользовательская программа завершилась успешно.
         const OK = 0;
@@ -21,6 +22,7 @@ bitflags! {
 
 bitflags! {
     /// Номера системных вызовов.
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     pub struct Syscall: usize {
         /// Номер системного вызова `exit()`.
         const EXIT = 0;
@@ -57,6 +59,7 @@ pub struct SyscallResult(pub usize);
 
 bitflags! {
     /// Код ошибки, возвращаемый из системных вызовов.
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     pub struct ResultCode: usize {
         /// Код для [`Result::Ok`].
         const OK = 0;

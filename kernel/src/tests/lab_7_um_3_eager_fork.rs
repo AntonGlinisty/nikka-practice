@@ -47,8 +47,8 @@ mod process_helpers;
 
 init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::PROCESS);
 
-const EAGER_FORK_ELF: &[u8] = include_bytes!("../../target/kernel/user/eager_fork");
-const EXIT_ELF: &[u8] = include_bytes!("../../target/kernel/user/exit");
+const EAGER_FORK_ELF: &[u8] = page_aligned!("../../target/kernel/user/eager_fork");
+const EXIT_ELF: &[u8] = page_aligned!("../../target/kernel/user/exit");
 
 #[test_case]
 fn t1_exofork_syscall() {

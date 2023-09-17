@@ -41,7 +41,7 @@ mod process_helpers;
 
 init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::PROCESS);
 
-const COW_FORK_ELF: &[u8] = include_bytes!("../../target/kernel/user/cow_fork");
+const COW_FORK_ELF: &[u8] = page_aligned!("../../target/kernel/user/cow_fork");
 
 #[test_case]
 fn cow_fork() {

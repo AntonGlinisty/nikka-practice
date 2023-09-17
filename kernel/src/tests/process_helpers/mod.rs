@@ -102,3 +102,15 @@ fn check(
         "the entry point is not executable",
     );
 }
+
+#[macro_export]
+macro_rules! page_aligned {
+    ($path:expr) => {{
+        #[repr(C, align(4096))]
+        struct PageAligned<T: ?Sized>(T);
+
+        const BYTES: &'static PageAligned<[u8]> = &PageAligned(*include_bytes!($path));
+
+        &BYTES.0
+    }};
+}

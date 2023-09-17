@@ -9,7 +9,7 @@ repository = "https://gitlab.com/sergey-v-galtsev/nikka-public"
 version = "0.3.0"
 
 [dependencies]
-acpi = "*"
+acpi = "=4.1.1"
 bitflags = "*"
 bootloader = { version = "0.9.*", features = ["map_physical_memory"] }
 chrono = { version = "*", default-features = false }
@@ -26,7 +26,7 @@ spin = "*"
 static_assertions = "*"
 tracing = { git = "https://github.com/tokio-rs/tracing", version = "*", default-features = false }
 tracing-core = { git = "https://github.com/tokio-rs/tracing", version = "*", default-features = false }
-volatile = "*"
+volatile = "=0.4.5"
 x86 = "*"
 x86_64 = "*"
 xmas-elf = "*"

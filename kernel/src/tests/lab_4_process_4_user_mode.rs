@@ -22,7 +22,7 @@ mod process_helpers;
 
 init!(Subsystems::MEMORY);
 
-const PAGE_FAULT_ELF: &[u8] = include_bytes!("../../target/kernel/user/page_fault");
+const PAGE_FAULT_ELF: &[u8] = page_aligned!("../../target/kernel/user/page_fault");
 
 #[test_case]
 fn user_mode_page_fault() {

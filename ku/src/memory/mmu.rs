@@ -174,6 +174,7 @@ pub type PageTable = [PageTableEntry; PAGE_TABLE_ENTRY_COUNT];
 bitflags! {
     /// Флаги в записи таблицы страниц.
     /// Аналогичны [`x86_64::structures::paging::page_table::PageTableFlags`].
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     pub struct PageTableFlags: usize {
         /// Страница отображена в память.
         const PRESENT = 1 << 0;

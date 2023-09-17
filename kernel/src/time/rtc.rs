@@ -1,5 +1,4 @@
 use core::{
-    convert::From,
     hint,
     sync::atomic::{
         AtomicI64,
@@ -30,6 +29,13 @@ use ku::time::{
 
 use crate::{
     SYSTEM_INFO,
+    error::{
+        Error::{
+            self,
+            InvalidArgument,
+        },
+        Result,
+    },
     log::{
         error,
         info,
@@ -123,6 +129,7 @@ pub(crate) fn enable_next_interrupt() {
 
 bitflags! {
     /// Регистр статуса RTC.
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     struct RegisterA: u8 {
         const UPDATE_IN_PROGRESS = 1 << 7;
     }
@@ -130,6 +137,7 @@ bitflags! {
 
 bitflags! {
     /// Регистр настроек RTC.
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     pub struct RegisterB: u8 {
         /// Включает переход на летнее время.
         const DAYLIGHT_SAVING = 1 << 0;
@@ -164,6 +172,7 @@ bitflags! {
 
 bitflags! {
     /// Регистр статуса прерывания RTC. Сбрасывается при чтении.
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     struct RegisterC: u8 {
         /// Микросхема сгенерировала прерывание как минимум одного из типов.
         const INTERRUPT = 1 << 7;
@@ -181,6 +190,7 @@ bitflags! {
 
 bitflags! {
     /// Регистр сохранности данных в памяти RTC при выключении.
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     struct RegisterD: u8 {
         /// Есть заряд в батарейке.
         /// Поэтому данные в памяти RTC валидны, в том числе дата и время.
@@ -248,16 +258,18 @@ impl Date {
     }
 }
 
-impl From<Date> for NaiveDateTime {
-    fn from(date: Date) -> NaiveDateTime {
+impl TryFrom<Date> for NaiveDateTime {
+    type Error = Error;
+
+    fn try_from(date: Date) -> Result<Self> {
         if date == Date::default() {
-            Self::default()
+            Ok(Self::default())
         } else {
-            NaiveDate::from_ymd(date.year.into(), date.month.into(), date.day.into()).and_hms(
-                date.hour.into(),
-                date.minute.into(),
-                date.second.into(),
-            )
+            NaiveDate::from_ymd_opt(date.year.into(), date.month.into(), date.day.into())
+                .and_then(|result| {
+                    result.and_hms_opt(date.hour.into(), date.minute.into(), date.second.into())
+                })
+                .ok_or(InvalidArgument)
         }
     }
 }
@@ -307,7 +319,9 @@ fn is_time_valid() -> bool {
 /// Переводит текущее время RTC в [секунды с момента начала Unix--эпохи](https://en.wikipedia.org/wiki/Unix_time).
 /// Предполагает, что микросхема RTC хранит [всемирное координированное время (Coordinated Universal Time, UTC)](https://en.wikipedia.org/wiki/Coordinated_Universal_Time).
 fn timestamp() -> Option<i64> {
-    Date::read().map(|date| DateTime::<Utc>::from_utc(date.into(), Utc).timestamp())
+    Date::read()
+        .and_then(|date| date.try_into().ok())
+        .map(|date| DateTime::<Utc>::from_naive_utc_and_offset(date, Utc).timestamp())
 }
 
 /// Переводит значение `x` из формата RTC `format` в двоичный.

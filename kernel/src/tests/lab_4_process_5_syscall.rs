@@ -16,8 +16,8 @@ mod process_helpers;
 
 init!(Subsystems::MEMORY | Subsystems::SYSCALL);
 
-const EXIT_ELF: &[u8] = include_bytes!("../../target/kernel/user/exit");
-const LOG_VALUE_ELF: &[u8] = include_bytes!("../../target/kernel/user/log_value");
+const EXIT_ELF: &[u8] = page_aligned!("../../target/kernel/user/exit");
+const LOG_VALUE_ELF: &[u8] = page_aligned!("../../target/kernel/user/log_value");
 
 #[test_case]
 fn syscall_exit() {
