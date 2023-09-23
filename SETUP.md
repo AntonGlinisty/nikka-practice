@@ -57,7 +57,14 @@ git remote add student $ADDRESS
 git pull --rebase
 ```
 
-### Установка Rust
+### Установка qemu и Rust
+
+Для лабораторных работ нам понадобится эмулятор компьютера --- `qemu`.
+Поставьте его командой
+
+```
+sudo apt install qemu-system-x86 qemu-utils
+```
 
 В корне репозитория выполните команду
 
