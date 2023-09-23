@@ -43,3 +43,20 @@ if [[ -f $TMP/limit ]]; then
     echo "concurrent command limit exceeded"
     exit 1
 fi
+
+export TMP=$(mktemp -d)
+
+(cd no_repeat_test && $JOBSERVER 5)
+
+a=$(cat $TMP/a)
+if [[ $(cat $TMP/a | wc -c) -ne 3 || $a != *"a"* || $a != *"b"* || $a != *"c"* ]]; then
+    echo "repeating execs detected"
+    exit 1
+fi
+
+b=$(cat $TMP/b)
+if [[ $(cat $TMP/b | wc -c) -ne 3 || $b != *"a"* || $b != *"b"* || $b != *"c"* ]]; then
+    echo "repeating execs detected"
+    exit 1
+fi
+
