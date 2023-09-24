@@ -1,15 +1,13 @@
-use alloc::vec::Vec;
-use core::{
-    ptr::NonNull,
-    result,
+use alloc::{
+    alloc::Global,
+    vec::Vec,
 };
+use core::ptr::NonNull;
 
 use acpi::{
-    AcpiError,
     AcpiHandler,
     AcpiTables,
     PhysicalMapping,
-    PlatformInfo,
     platform::{
         ProcessorInfo,
         ProcessorState,
@@ -68,7 +66,17 @@ impl Acpi {
     /// Аргумент `phys2virt` --- виртуальная страница, с которой начинается линейное отображение
     /// всей физической памяти в виртуальную, см. [`phys2virt::map()`].
     pub(super) fn new(phys2virt: Page) -> Result<Self> {
-        let platform_info = match platform_info(phys2virt) {
+        let acpi_mapper = AcpiMapper { phys2virt };
+
+        let acpi_tables = match unsafe { AcpiTables::search_for_rsdp_bios(acpi_mapper) } {
+            Ok(acpi_tables) => acpi_tables,
+            Err(acpi_error) => {
+                warn!(?acpi_error, "failed to find ACPI tables");
+                return Err(Unimplemented);
+            },
+        };
+
+        let platform_info = match acpi_tables.platform_info() {
             Ok(platform_info) => platform_info,
             Err(acpi_error) => {
                 warn!(?acpi_error, "failed to parse ACPI tables");
@@ -119,7 +127,7 @@ impl Acpi {
 /// Возвращает [`Apic`] если в `interrupt_model` из таблиц ACPI указан соответствующий
 /// контроллер прерываний.
 /// Иначе возвращает ошибку [`Error::Unimplemented`].
-fn apic(interrupt_model: InterruptModel) -> Result<Apic> {
+fn apic(interrupt_model: InterruptModel<'_, Global>) -> Result<Apic<'_, Global>> {
     if let InterruptModel::Apic(apic) = interrupt_model {
         Ok(apic)
     } else {
@@ -127,18 +135,8 @@ fn apic(interrupt_model: InterruptModel) -> Result<Apic> {
     }
 }
 
-/// Выполняет поиск в памяти таблиц ACPI с помощью библиотеки [`acpi`].
-/// И возвращает найденную информацию.
-/// Аргумент `phys2virt` --- виртуальная страница, с которой начинается линейное отображение
-/// всей физической памяти в виртуальную, см. [`phys2virt::map()`].
-fn platform_info(phys2virt: Page) -> result::Result<PlatformInfo, AcpiError> {
-    let acpi_mapper = AcpiMapper { phys2virt };
-    let acpi_tables = unsafe { AcpiTables::search_for_rsdp_bios(acpi_mapper)? };
-    acpi_tables.platform_info()
-}
-
 /// Возвращает идентификаторы доступных Application Processor по входной структуре `cpus`.
-fn usable_aps(cpus: &ProcessorInfo) -> Vec<CpuId> {
+fn usable_aps(cpus: &ProcessorInfo<'_, Global>) -> Vec<CpuId> {
     cpus.application_processors
         .iter()
         .filter(|cpu| cpu.state == ProcessorState::WaitingForSipi)

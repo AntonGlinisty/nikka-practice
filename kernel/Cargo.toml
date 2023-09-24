@@ -9,7 +9,7 @@ repository = "https://gitlab.com/sergey-v-galtsev/nikka-public"
 version = "0.3.0"
 
 [dependencies]
-acpi = "=4.1.1"
+acpi = "*"
 bitflags = "*"
 bootloader = { version = "0.9.*", features = ["map_physical_memory"] }
 chrono = { version = "*", default-features = false }
