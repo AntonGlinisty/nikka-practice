@@ -104,6 +104,15 @@
   second_deadline: 01-02-2024 23:59
   enabled: true
   tasks:
+    - task: gdb
+      score: 100
+
+      url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/gdb
+      allow_list:
+        - sem/gdb/key.txt
+      check:
+        - cd sem/gdb && cargo run
+
     - task: asm
       score: 100
 

@@ -4,7 +4,7 @@ QEMU_NOX = $(QEMU_OPTIONS) -nographic -serial mon:stdio
 QEMU_CURSES = $(QEMU_OPTIONS) -display curses -serial file:serial.out
 
 QUIT_MESSAGE = "To quit QEMU type Ctrl-A then X. For QEMU console type Ctrl-A then C.\n"
-WAIT_MESSAGE = "Waiting for GDB to attach. Run 'make gdb' in a separate console.\n"
+WAIT_MESSAGE = "Will wait for GDB to attach. Run 'make gdb' in a separate console after qemu starts.\n"
 
 BUILD_MODE = debug
 
@@ -31,6 +31,7 @@ run: install
 
 run-gdb: install
 	@echo $(WAIT_MESSAGE)
+	@echo
 	@( \
 		cd kernel; \
 		rm --force serial.out; \
@@ -39,6 +40,7 @@ run-gdb: install
 
 nox: install
 	@echo $(QUIT_MESSAGE)
+	@echo
 	@( \
 		cd kernel; \
 		rm --force serial.out; \
@@ -48,6 +50,7 @@ nox: install
 nox-gdb: install
 	@echo $(QUIT_MESSAGE)
 	@echo $(WAIT_MESSAGE)
+	@echo
 	@( \
 		cd kernel; \
 		rm --force serial.out; \

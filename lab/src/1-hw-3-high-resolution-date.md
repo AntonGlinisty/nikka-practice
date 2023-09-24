@@ -246,17 +246,21 @@ Running: `qemu-system-x86_64 -drive format=raw,file=/.../nikka/target/kernel/deb
 
 В другой консоли создадим командный файл для gdb с указанием ELF--файла теста:
 ```console
-/.../nikka$ cat > gdbinit
+/.../nikka$ cat > gdbinit-test <<EOF
 set architecture i386:x86-64
 set disassembly-flavor intel
+set print asm-demangle on
 target remote localhost:1234
 file /.../nikka/target/kernel/debug/deps/1_hw_3_high_resolution_date-683176186a322834
+EOF
 ```
 
 Запустим gdb с этим командным файлом, дадим команду `continue`, чтобы эмулятор запустил ядро.
-А когда оно зависнет, нажмём `<Ctrl-C>` и выполним команду `backtrace`:
+А когда оно зависнет, нажмём `<Ctrl-C>` и выполним команду `backtrace`.
+Использование `peda` может привести к тому, что `<Ctrl-C>` не отработает нормально.
+Если возникает такая проблема, закомментируйте строчку `source ~/peda/peda.py` в `~/.gdbinit`.
 ```console
-~/nikka$ gdb -command=gdbinit
+~/nikka$ gdb -command=gdbinit-test
 ...
 0x000000000000fff0 in ?? ()
 (gdb) continue
