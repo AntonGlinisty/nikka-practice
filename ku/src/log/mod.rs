@@ -722,3 +722,25 @@ pub static LOG_COLLECTOR: LogCollector = LogCollector::new(Level::DEBUG);
 /// Размер префикса сообщения, который записывается в журнал в случае,
 /// когда сообщение не влезает в буфер журнала целиком.
 const PLAN_B_MAX_MESSAGE_SIZE: usize = 128;
+
+/// Аналог [`std::dbg!()`](https://doc.rust-lang.org/std/macro.dbg.html).
+#[macro_export]
+macro_rules! dbg {
+    () => {
+        $crate::log::debug!("[{}:{}]", core::file!(), core::line!())
+    };
+
+    ($expression:expr $(,)?) => {
+        match $expression {
+            value => {
+                $crate::log::debug!("[{}:{}] {} = {:#?}",
+                    core::file!(), core::line!(), core::stringify!($expression), &value);
+                value
+            }
+        }
+    };
+
+    ($($expression:expr),+ $(,)?) => {
+        ($($crate::dbg!($expression)),+,)
+    };
+}

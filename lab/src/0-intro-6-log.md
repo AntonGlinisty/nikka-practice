@@ -214,6 +214,27 @@ static LOG_COLLECTOR: ... = LogCollector::new(..., Level::INFO);
 Рядом есть и [более подробная документация по синтаксису макросов журналирования](../../doc/tracing/index.html#using-the-macros).
 
 
+### Отладочный макрос [`ku::dbg!()`](../../doc/ku/macro.dbg.html)
+
+Также есть аналог макроса
+[`std::dbg!()`](https://doc.rust-lang.org/std/macro.dbg.html) ---
+[`ku::dbg!()`](../../doc/ku/macro.dbg.html).
+Можно пользоваться для отладочной печати им:
+```rust
+use ku::dbg;
+...
+dbg!(hour_24, hour_12, pm);
+dbg!(parse_hour(pack(bcd(hour_12), pm), RegisterB::empty()));
+```
+Печатает он через [`debug!()`](../../doc/tracing/macro.debug.html):
+```console
+14:54:33 0 D [kernel/tests/1-hw-1-rtc.rs:32] hour_24 = 0
+14:54:33 0 D [kernel/tests/1-hw-1-rtc.rs:32] hour_12 = 12
+14:54:33 0 D [kernel/tests/1-hw-1-rtc.rs:32] pm = 0
+14:54:33 0 D [kernel/tests/1-hw-1-rtc.rs:33] parse_hour(pack(bcd(hour_12), pm), RegisterB::empty()) = 0
+```
+
+
 > ### Характеристики журналирования
 >
 > Журналирование в Nikka:
