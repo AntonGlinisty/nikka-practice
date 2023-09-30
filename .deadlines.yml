@@ -140,6 +140,15 @@
       check:
         - cd sem/context && cargo test -- --nocapture --test-threads=1
 
+    - task: asm_syscall
+      score: 100
+
+      url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/asm_syscall
+      allow_list:
+        - sem/asm_syscall/src/lib.rs
+      check:
+        - cd sem/asm_syscall && cargo test
+
 - group: lab-2-memory
   start: 28-09-2023 18:00
   deadline: 12-10-2023 23:59
