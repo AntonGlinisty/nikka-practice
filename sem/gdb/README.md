@@ -47,6 +47,12 @@ echo "DONE! debug your program with gdb and enjoy"
 gdb binary
 ```
 
+Если у вас нет нужных динамических библиотек, можно анализировать статически собранный бинарник:
+
+```
+gdb binary.static
+```
+
 3. Поставьте `breakpoint` на функцию `check_key()` и запустите программу.
 
 ```
@@ -60,6 +66,25 @@ run
 b check_key
 run
 ```
+
+Если `gdb` ломается с ошибкой использования `libthread_db`
+
+```
+gdb-peda$ run
+Starting program: /.../nikka/sem/gdb/binary.static
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+Cannot find user-level thread for LWP 192000: debugger service failed
+```
+
+можно изменить путь поиска этой библиотеки, чтобы `gdb` её не нашёл:
+
+```
+gdb-peda$ set libthread-db-search-path /
+gdb-peda$ run
+```
+
+Также можно попробовать использовать `lldb` вместо `gdb`.
 
 4. Пошагайте по инструкциям и попробуйте понять что происходит.
 

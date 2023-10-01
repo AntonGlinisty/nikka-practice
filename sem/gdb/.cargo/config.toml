@@ -6,4 +6,6 @@ rustflags = [
     "opt-level=0",
     "--codegen",
     "relocation-model=dynamic-no-pic",
+    "--codegen",
+    "target-feature=+crt-static",
 ]

@@ -24,6 +24,10 @@ fn main() -> Result<(), Error> {
 
         Ok(())
     } else {
+        println!(
+            "Use gdb or lldb to analyze check_key() at address {:#?}.",
+            check_key as *const (),
+        );
         Err(Error::from(InvalidData))
     }
 }

@@ -111,7 +111,7 @@
       allow_list:
         - sem/gdb/key.txt
       check:
-        - cd sem/gdb && cargo run
+        - cd sem/gdb && ./binary.static
 
     - task: asm
       score: 100
