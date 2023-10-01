@@ -16,8 +16,16 @@ let new_settings = ...
 
 ```rust
 extern "x86-interrupt" fn rtc(_context: TrapContext) {
-    TRAP_STATS[RTC].inc();
     rtc::interrupt();
+    generic_pic_interrupt(RTC);
+}
+
+
+fn generic_pic_interrupt(number: usize) {
+    TRAP_STATS[number].inc();
+    unsafe {
+        pic8259::end_of_interrupt(number - PIC_BASE);
+    }
 }
 ```
 

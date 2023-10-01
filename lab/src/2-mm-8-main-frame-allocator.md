@@ -85,6 +85,7 @@ fn MainFrameAllocator::allocate(&mut self) -> Result<Frame>
 
 в файле [`kernel/src/memory/main_frame_allocator.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/main_frame_allocator.rs).
 Он выделяет и возвращает свободный фрейм.
+Количество ссылок на этот фрейм он выставляет равным единице.
 Как обычно, верните ошибку
 [`Error::NoFrame`](../../doc/kernel/error/enum.Error.html#variant.NoFrame),
 если свободных физических фреймов не осталось.
@@ -124,6 +125,15 @@ fn MainFrameAllocator::deallocate(
 Если `frame` уже является
 [`FrameInfo::Free`](../../doc/kernel/memory/main_frame_allocator/enum.FrameInfo.html#variant.Free),
 стоит запаниковать.
+
+Это обратный метод к
+[`MainFrameAllocator::allocate()`](../../doc/kernel/memory/main_frame_allocator/struct.MainFrameAllocator.html#method.allocate).
+То есть, пара вызовов
+```rust
+let frame = main_frame_allocator.allocate()?;
+main_frame_allocator.deallocate(frame);
+```
+должна вернуть `main_frame_allocator` в исходное состояние.
 
 Однако освобождение фрейма, который помечен как
 [`FrameInfo::Absent`](../../doc/kernel/memory/main_frame_allocator/enum.FrameInfo.html#variant.Absent) ---

@@ -95,7 +95,7 @@ impl BootFrameAllocator {
 можно сделать соответствующий
 [`Block::<Frame>`](../../doc/ku/memory/block/struct.Block.html)
 с помощью метода
-[`Block::<Frame>::new_u64(start, end)`](../../doc/ku/memory/block/struct.Block.html#method.new_u64).
+[`Block::<Frame>::from_index(start, end)`](../../doc/ku/memory/block/struct.Block.html#method.from_index).
 
 
 ### Задача 1 --- [`BootFrameAllocator`](../../doc/kernel/memory/boot_frame_allocator/struct.BootFrameAllocator.html)
@@ -126,12 +126,12 @@ fn BootFrameAllocator::new(
 error: comparison operators cannot be chained
   --> src/memory/boot_frame_allocator.rs:34:39
    |
-34 |                 memory_region = %Block<Frame>::new_u64(start, end),
+34 |                 memory_region = %Block<Frame>::from_index(start, end),
    |                                       ^     ^
    |
 help: use `::<...>` instead of `<...>` to specify type or const arguments
    |
-34 |                 memory_region = %Block::<Frame>::new_u64(start, end),
+34 |                 memory_region = %Block::<Frame>::from_index(start, end),
    |                                       ++
 
 ```
@@ -142,7 +142,7 @@ Rust использует
 ```rust
 fn new(memory_map: &MemoryMap) -> Self {
     ...
-    let block = Block::new_u64(start, end);
+    let block = Block::from_index(start, end);
     ...
     Self {
         block,
@@ -156,8 +156,8 @@ fn new(memory_map: &MemoryMap) -> Self {
 error[E0282]: type annotations needed
   --> src/memory/boot_frame_allocator.rs:33:34
    |
-33 |                 memory_region = %Block::new_u64(start, end),
-   |                                  ^^^^^^^^^^^^^^ cannot infer type for type parameter `T`
+33 |                 memory_region = %Block::from_index(start, end),
+   |                                  ^^^^^^^^^^^^^^^^^ cannot infer type for type parameter `T`
 
 For more information about this error, try `rustc --explain E0282`.
 ```
@@ -314,40 +314,45 @@ fn BootFrameAllocator::allocate() -> Result<Frame>
 ```console
 $ (cd kernel; cargo test --test 2-mm-1-block --test 2-mm-1-boot-frame-allocator)
 ...
-2_mm_1_block::block-----------------------------------------
-17:38:22 0 D start = 0; end = 0; block = [0v0, 0v0), size 0 B
-17:38:22 0 D start = 0; end = 33; block = [0v0, 0v21), size 33 B
-17:38:22 0 D start = 0; end = 66; block = [0v0, 0v42), size 66 B
-17:38:22 0 D start = 0; end = 99; block = [0v0, 0v63), size 99 B
-17:38:22 0 D start = 25; end = 33; block = [0v19, 0v21), size 8 B
-17:38:22 0 D start = 25; end = 66; block = [0v19, 0v42), size 41 B
-17:38:22 0 D start = 25; end = 99; block = [0v19, 0v63), size 74 B
-17:38:23 0 D start = 50; end = 66; block = [0v32, 0v42), size 16 B
-17:38:23 0 D start = 50; end = 99; block = [0v32, 0v63), size 49 B
-17:38:23 0 D start = 50; end = 132; block = [0v32, 0v84), size 82 B
-17:38:23 0 D start = 75; end = 99; block = [0v4B, 0v63), size 24 B
-17:38:23 0 D start = 75; end = 132; block = [0v4B, 0v84), size 57 B
-17:38:23 0 D start = 75; end = 165; block = [0v4B, 0vA5), size 90 B
-2_mm_1_block::block-------------------------------- [passed]
-17:38:23 0 I exit qemu; exit_code = SUCCESS
-...
-2_mm_1_boot_frame_allocator::sanity_check-------------------
-17:38:25 0 D free_frames = 31306; min_free_frames = 28672; qemu_memory_frames = 32768
-17:38:25 0 D managed = 31306; used = 0
-2_mm_1_boot_frame_allocator::sanity_check---------- [passed]
+2_mm_1_boot_frame_allocator::t1_sanity_check----------------
+20:58:48 0 D free_frames = 31260; min_free_frames = 28672; qemu_memory_frames = 32768
+20:58:48 0 D managed = 31260; used = 0
+2_mm_1_boot_frame_allocator::t1_sanity_check------- [passed]
 
-2_mm_1_boot_frame_allocator::allocate-----------------------
-17:38:25 0 D frames = [Frame(32735 @ 0p7FDF000), Frame(32734 @ 0p7FDE000)]
-2_mm_1_boot_frame_allocator::allocate-------------- [passed]
+2_mm_1_boot_frame_allocator::t2_allocate_block--------------
+20:58:48 0 D requested = 0 B; allocated = [0p7FE_0000, 0p7FE_0000), size 0 B; allocated_frame_count = 0
+20:58:48 0 D requested = 1 B; allocated = [0p7FD_F000, 0p7FE_0000), size 4.000 KiB; allocated_frame_count = 1
+20:58:48 0 D requested = 2 B; allocated = [0p7FD_E000, 0p7FD_F000), size 4.000 KiB; allocated_frame_count = 1
+20:58:48 0 D requested = 3.997 KiB; allocated = [0p7FD_D000, 0p7FD_E000), size 4.000 KiB; allocated_frame_count = 1
+20:58:48 0 D requested = 3.998 KiB; allocated = [0p7FD_C000, 0p7FD_D000), size 4.000 KiB; allocated_frame_count = 1
+20:58:49 0 D requested = 3.999 KiB; allocated = [0p7FD_B000, 0p7FD_C000), size 4.000 KiB; allocated_frame_count = 1
+20:58:49 0 D requested = 4.000 KiB; allocated = [0p7FD_A000, 0p7FD_B000), size 4.000 KiB; allocated_frame_count = 1
+20:58:49 0 D requested = 4.001 KiB; allocated = [0p7FD_8000, 0p7FD_A000), size 8.000 KiB; allocated_frame_count = 2
+20:58:49 0 D requested = 4.002 KiB; allocated = [0p7FD_6000, 0p7FD_8000), size 8.000 KiB; allocated_frame_count = 2
+20:58:49 0 D requested = 7.997 KiB; allocated = [0p7FD_4000, 0p7FD_6000), size 8.000 KiB; allocated_frame_count = 2
+20:58:49 0 D requested = 7.998 KiB; allocated = [0p7FD_2000, 0p7FD_4000), size 8.000 KiB; allocated_frame_count = 2
+20:58:49 0 D requested = 7.999 KiB; allocated = [0p7FD_0000, 0p7FD_2000), size 8.000 KiB; allocated_frame_count = 2
+20:58:49 0 D requested = 8.000 KiB; allocated = [0p7FC_E000, 0p7FD_0000), size 8.000 KiB; allocated_frame_count = 2
+20:58:49 0 D requested = 8.001 KiB; allocated = [0p7FC_B000, 0p7FC_E000), size 12.000 KiB; allocated_frame_count = 3
+20:58:49 0 D requested = 8.002 KiB; allocated = [0p7FC_8000, 0p7FC_B000), size 12.000 KiB; allocated_frame_count = 3
+20:58:49 0 D requested = 11.997 KiB; allocated = [0p7FC_5000, 0p7FC_8000), size 12.000 KiB; allocated_frame_count = 3
+20:58:49 0 D requested = 11.998 KiB; allocated = [0p7FC_2000, 0p7FC_5000), size 12.000 KiB; allocated_frame_count = 3
+20:58:49 0 D requested = 11.999 KiB; allocated = [0p7FB_F000, 0p7FC_2000), size 12.000 KiB; allocated_frame_count = 3
+20:58:49 0 D requested = 12.000 KiB; allocated = [0p7FB_C000, 0p7FB_F000), size 12.000 KiB; allocated_frame_count = 3
+2_mm_1_boot_frame_allocator::t2_allocate_block----- [passed]
 
-2_mm_1_boot_frame_allocator::allocated_frames_are_unique----
-17:38:25 0 D free_frames = 31304
-17:38:25 0 D prev_frame = 32733 @ 0p7FDD000; frame = 32732 @ 0p7FDC000
-17:38:25 0 D prev_frame = 22733 @ 0p58CD000; frame = 22732 @ 0p58CC000
-17:38:26 0 D prev_frame = 12733 @ 0p31BD000; frame = 12732 @ 0p31BC000
-17:38:26 0 D prev_frame = 2733 @ 0pAAD000; frame = 2732 @ 0pAAC000
-2_mm_1_boot_frame_allocator::allocated_frames_are_unique [passed]
-17:38:26 0 I exit qemu; exit_code = SUCCESS
+2_mm_1_boot_frame_allocator::t3_allocate--------------------
+20:58:49 0 D frames = [Frame(32699 @ 0p7FB_B000), Frame(32698 @ 0p7FB_A000)]; frame_count = 32736
+2_mm_1_boot_frame_allocator::t3_allocate----------- [passed]
+
+2_mm_1_boot_frame_allocator::t4_allocated_frames_are_unique-
+20:58:49 0 D free_frames = 31222; frame_count = 32736
+20:58:49 0 D prev_frame = 32697 @ 0p7FB_9000; frame = 32696 @ 0p7FB_8000
+20:58:49 0 D prev_frame = 22697 @ 0p58A_9000; frame = 22696 @ 0p58A_8000
+20:58:49 0 D prev_frame = 12697 @ 0p319_9000; frame = 12696 @ 0p319_8000
+20:58:49 0 D prev_frame = 2697 @ 0pA8_9000; frame = 2696 @ 0pA8_8000
+2_mm_1_boot_frame_allocator::t4_allocated_frames_are_unique [passed]
+20:58:49 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ```
 
 
@@ -460,7 +465,7 @@ fn init(boot_info: &'static BootInfo) {
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/memory/boot_frame_allocator.rs |   45 +++++++++++++++++++++++++++---
- ku/src/memory/block.rs                    |    8 ++++-
- 2 files changed, 48 insertions(+), 5 deletions(-)
+ kernel/src/memory/boot_frame_allocator.rs | 50 ++++++++++++++++++++++++++++++++++++++++++++------
+ ku/src/memory/block.rs                    | 12 ++++++++++--
+ 2 files changed, 54 insertions(+), 8 deletions(-)
 ```

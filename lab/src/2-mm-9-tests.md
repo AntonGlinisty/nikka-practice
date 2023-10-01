@@ -8,11 +8,11 @@
 ```console
 $ (cd kernel; cargo test --test 2-mm-*)
     Finished test [unoptimized + debuginfo] target(s) in 0.08s
-     Running tests/2-mm-1-block.rs (/.../tmp/shad-os/target/kernel/debug/deps/2_mm_1_block-f2c7db20fb3d2656)
+     Running tests/2-mm-1-block.rs (.../nikka/target/kernel/debug/deps/2_mm_1_block-f2c7db20fb3d2656)
 Building bootloader
    Compiling bootloader v0.9.22 (/.../.cargo/registry/src/github.com-1ecc6299db9ec823/bootloader-0.9.22)
     Finished release [optimized + debuginfo] target(s) in 0.95s
-Running: `qemu-system-x86_64 -drive format=raw,file=/.../tmp/shad-os/target/kernel/debug/deps/bootimage-2_mm_1_block-f2c7db20fb3d2656.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none`
+Running: `qemu-system-x86_64 -drive format=raw,file=.../nikka/target/kernel/debug/deps/bootimage-2_mm_1_block-f2c7db20fb3d2656.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none`
 19:38:12 0 I RTC init; acknowledged_settings = USE_24_HOUR_FORMAT | UPDATE_ENDED_INTERRUPT
 19:38:12 0 I time init
 19:38:12 0 I Nikka booted; now = 2022-10-09 19:38:12 UTC; tsc = Tsc(2295235227)
@@ -36,11 +36,11 @@ running 1 tests
 19:38:13 0 D start = 75; end = 165; block = [0v4B, 0vA5), size 90 B
 2_mm_1_block::block-------------------------------- [passed]
 19:38:13 0 I exit qemu; exit_code = SUCCESS
-     Running tests/2-mm-1-boot-frame-allocator.rs (/.../tmp/shad-os/target/kernel/debug/deps/2_mm_1_boot_frame_allocator-687c8353e5574705)
+     Running tests/2-mm-1-boot-frame-allocator.rs (.../nikka/target/kernel/debug/deps/2_mm_1_boot_frame_allocator-687c8353e5574705)
 Building bootloader
    Compiling bootloader v0.9.22 (/.../.cargo/registry/src/github.com-1ecc6299db9ec823/bootloader-0.9.22)
     Finished release [optimized + debuginfo] target(s) in 0.96s
-Running: `qemu-system-x86_64 -drive format=raw,file=/.../tmp/shad-os/target/kernel/debug/deps/bootimage-2_mm_1_boot_frame_allocator-687c8353e5574705.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none`
+Running: `qemu-system-x86_64 -drive format=raw,file=.../nikka/target/kernel/debug/deps/bootimage-2_mm_1_boot_frame_allocator-687c8353e5574705.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none`
 19:38:15 0 I RTC init; acknowledged_settings = USE_24_HOUR_FORMAT | UPDATE_ENDED_INTERRUPT
 19:38:15 0 I time init
 19:38:15 0 I Nikka booted; now = 2022-10-09 19:38:15 UTC; tsc = Tsc(2230097572)
@@ -68,11 +68,11 @@ running 3 tests
 19:38:16 0 D prev_frame = 2733 @ 0pAAD000; frame = 2732 @ 0pAAC000
 2_mm_1_boot_frame_allocator::allocated_frames_are_unique [passed]
 19:38:16 0 I exit qemu; exit_code = SUCCESS
-     Running tests/2-mm-2-page-allocator.rs (/.../tmp/shad-os/target/kernel/debug/deps/2_mm_2_page_allocator-0d16673aec3ec8e4)
+     Running tests/2-mm-2-page-allocator.rs (.../nikka/target/kernel/debug/deps/2_mm_2_page_allocator-0d16673aec3ec8e4)
 Building bootloader
    Compiling bootloader v0.9.22 (/.../.cargo/registry/src/github.com-1ecc6299db9ec823/bootloader-0.9.22)
     Finished release [optimized + debuginfo] target(s) in 0.97s
-Running: `qemu-system-x86_64 -drive format=raw,file=/.../tmp/shad-os/target/kernel/debug/deps/bootimage-2_mm_2_page_allocator-0d16673aec3ec8e4.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none`
+Running: `qemu-system-x86_64 -drive format=raw,file=.../nikka/target/kernel/debug/deps/bootimage-2_mm_2_page_allocator-0d16673aec3ec8e4.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none`
 19:38:17 0 I RTC init; acknowledged_settings = USE_24_HOUR_FORMAT | UPDATE_ENDED_INTERRUPT
 19:38:17 0 I time init
 19:38:17 0 I Nikka booted; now = 2022-10-09 19:38:17 UTC; tsc = Tsc(2240178158)
@@ -102,11 +102,11 @@ running 4 tests
 19:38:17 0 D requested_size = 38.000 KiB; block = [0v7FFFFFFF2000, 0v7FFFFFFFC000), size 40.000 KiB, Page[~128.000 TiB, ~128.000 TiB)
 2_mm_2_page_allocator::allocate_block-------------- [passed]
 19:38:17 0 I exit qemu; exit_code = SUCCESS
-     Running tests/2-mm-4-translate.rs (/.../tmp/shad-os/target/kernel/debug/deps/2_mm_4_translate-792b889b8b2abc13)
+     Running tests/2-mm-4-translate.rs (.../nikka/target/kernel/debug/deps/2_mm_4_translate-792b889b8b2abc13)
 Building bootloader
    Compiling bootloader v0.9.22 (/.../.cargo/registry/src/github.com-1ecc6299db9ec823/bootloader-0.9.22)
     Finished release [optimized + debuginfo] target(s) in 0.94s
-Running: `qemu-system-x86_64 -drive format=raw,file=/.../tmp/shad-os/target/kernel/debug/deps/bootimage-2_mm_4_translate-792b889b8b2abc13.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none`
+Running: `qemu-system-x86_64 -drive format=raw,file=.../nikka/target/kernel/debug/deps/bootimage-2_mm_4_translate-792b889b8b2abc13.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none`
 19:38:19 0 I RTC init; acknowledged_settings = USE_24_HOUR_FORMAT | UPDATE_ENDED_INTERRUPT
 19:38:19 0 I time init
 19:38:19 0 I Nikka booted; now = 2022-10-09 19:38:19 UTC; tsc = Tsc(2260321974)
@@ -135,11 +135,11 @@ running 2 tests
 19:38:19 0 D pte = PageTableEntry(0)
 2_mm_4_translate::map_intermediate------------------- [passed]
 19:38:19 0 I exit qemu; exit_code = SUCCESS
-     Running tests/2-mm-5-map.rs (/.../tmp/shad-os/target/kernel/debug/deps/2_mm_5_map-eb5fc3d25a039e4c)
+     Running tests/2-mm-5-map.rs (.../nikka/target/kernel/debug/deps/2_mm_5_map-eb5fc3d25a039e4c)
 Building bootloader
    Compiling bootloader v0.9.22 (/.../.cargo/registry/src/github.com-1ecc6299db9ec823/bootloader-0.9.22)
     Finished release [optimized + debuginfo] target(s) in 0.93s
-Running: `qemu-system-x86_64 -drive format=raw,file=/.../tmp/shad-os/target/kernel/debug/deps/bootimage-2_mm_5_map-eb5fc3d25a039e4c.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none`
+Running: `qemu-system-x86_64 -drive format=raw,file=.../nikka/target/kernel/debug/deps/bootimage-2_mm_5_map-eb5fc3d25a039e4c.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none`
 19:38:21 0 I RTC init; acknowledged_settings = USE_24_HOUR_FORMAT | UPDATE_ENDED_INTERRUPT
 19:38:21 0 I time init
 19:38:21 0 I Nikka booted; now = 2022-10-09 19:38:21 UTC; tsc = Tsc(2289679569)
@@ -157,11 +157,11 @@ running 1 tests
 19:38:22 0 D slice = [0v7FFFFEFFF000, 0v7FFFFFFFF000), size 16.000 MiB, Virt[~128.000 TiB, ~128.000 TiB)
 2_mm_5_map::map_slice------------------------ [passed]
 19:38:25.077 0 I exit qemu; exit_code = SUCCESS
-     Running tests/2-mm-8-main-frame-allocator.rs (/.../tmp/shad-os/target/kernel/debug/deps/2_mm_8_main_frame_allocator-5e980c813edc491b)
+     Running tests/2-mm-8-main-frame-allocator.rs (.../nikka/target/kernel/debug/deps/2_mm_8_main_frame_allocator-5e980c813edc491b)
 Building bootloader
    Compiling bootloader v0.9.22 (/.../.cargo/registry/src/github.com-1ecc6299db9ec823/bootloader-0.9.22)
     Finished release [optimized + debuginfo] target(s) in 0.94s
-Running: `qemu-system-x86_64 -drive format=raw,file=/.../tmp/shad-os/target/kernel/debug/deps/bootimage-2_mm_8_main_frame_allocator-5e980c813edc491b.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none`
+Running: `qemu-system-x86_64 -drive format=raw,file=.../nikka/target/kernel/debug/deps/bootimage-2_mm_8_main_frame_allocator-5e980c813edc491b.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none`
 19:38:26 0 I RTC init; acknowledged_settings = USE_24_HOUR_FORMAT | UPDATE_ENDED_INTERRUPT
 19:38:26 0 I time init
 19:38:26 0 I Nikka booted; now = 2022-10-09 19:38:26 UTC; tsc = Tsc(2328791295)
