@@ -23,17 +23,16 @@ use super::spinlock::Spinlock;
 /// поэтому писатели никогда не ждут читателей.
 ///
 /// См. также:
-/// - [Writing a seqlock in Rust.](https://pitdicker.github.io/Writing-a-seqlock-in-Rust/)
-/// - [Can Seqlocks Get Along With Programming Language Memory Models?](https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf)
-/// - [Crate seqlock.](https://docs.rs/seqlock/0.1.2/seqlock/)
+///   - [Writing a seqlock in Rust.](https://pitdicker.github.io/Writing-a-seqlock-in-Rust/)
+///   - [Can Seqlocks Get Along With Programming Language Memory Models?](https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf)
+///   - [Crate seqlock.](https://docs.rs/seqlock/0.1.2/seqlock/)
 pub struct SequenceLock<T: Copy> {
     /// Защищаемые данные.
     data: UnsafeCell<T>,
 
-    /// Возрастающая последовательность чисел,
-    /// которая позволяет понять:
-    /// - Взята ли блокировка на запись.
-    /// - Согласованно ли прочитаны данные.
+    /// Возрастающая последовательность чисел, которая позволяет понять:
+    ///   - Взята ли блокировка на запись.
+    ///   - Согласованно ли прочитаны данные.
     sequence: AtomicU64,
 }
 
@@ -50,9 +49,9 @@ impl<T: Copy> SequenceLock<T> {
     /// При этом ожидает в активном цикле освобождения блокировки, если она уже захвачена.
     ///
     /// Возвращает [`SequenceLockGuard`], который:
-    /// - Позволяет читать и писать в защищаемые [`SequenceLock`] данные
-    /// с помощью типажей [`Deref`] и [`DerefMut`] соответственно.
-    /// - Автоматически освобождает блокировку в реализации типажа [`Drop`].
+    ///   - Позволяет читать и писать в защищаемые [`SequenceLock`] данные
+    ///     с помощью типажей [`Deref`] и [`DerefMut`] соответственно.
+    ///   - Автоматически освобождает блокировку в реализации типажа [`Drop`].
     pub fn write_lock(&self) -> SequenceLockGuard<'_, T> {
         // TODO: your code here.
         unimplemented!();
@@ -118,7 +117,7 @@ unsafe impl<T: Copy + Send> Sync for SequenceLock<T> {
 /// Захваченный на запись [`SequenceLock`].
 ///
 /// - Позволяет читать и писать в защищаемые [`SequenceLock`] данные
-/// с помощью типажей [`Deref`] и [`DerefMut`] соотвественно.
+///   с помощью типажей [`Deref`] и [`DerefMut`] соотвественно.
 /// - Автоматически освобождает блокировку в реализации типажа [`Drop`].
 pub struct SequenceLockGuard<'a, T: Copy> {
     /// Захваченный на запись [`SequenceLock`].

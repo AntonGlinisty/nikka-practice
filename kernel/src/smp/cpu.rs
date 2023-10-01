@@ -143,7 +143,8 @@ impl Cpu {
 
         // A double fault means there is an error in the kernel.
         // So a common double fault stack for all CPUs is sufficient as long as
-        // double_fault() handler in trap/mod.rs locks and never unlocks a common mutex and does not return.
+        // `double_fault()` handler in `trap/mod.rs` locks
+        // and never unlocks a common mutex and does not return.
         result.tss.interrupt_stack_table[usize::from(DOUBLE_FAULT_IST_INDEX)] =
             EXCEPTION_STACKS.lock().double_fault_rsp().into();
         result.tss.interrupt_stack_table[usize::from(PAGE_FAULT_IST_INDEX)] =
@@ -238,8 +239,8 @@ impl Cpu {
     }
 
     /// Каждому CPU нужно два стека:
-    /// - для обычного кода ядра и
-    /// - для обработчика [Page Fault](https://en.wikipedia.org/wiki/Page_fault).
+    ///   - для обычного кода ядра и
+    ///   - для обработчика [Page Fault](https://en.wikipedia.org/wiki/Page_fault).
     const STACKS_PER_CPU: usize = 2;
 }
 

@@ -110,7 +110,9 @@ extern "C" fn syscall_trampoline() -> ! {
 /// задаваемый `rip` и `rsp`.
 extern "C" fn syscall(
     // https://wiki.osdev.org/System_V_ABI#x86-64:
-    // Parameters to functions are passed in the registers rdi, rsi, rdx, rcx, r8, r9, and further values are passed on the stack in reverse order.
+    // Parameters to functions are passed in the registers
+    // rdi, rsi, rdx, rcx, r8, r9,
+    // and further values are passed on the stack in reverse order.
     number: usize, // rdi
     arg0: usize,   // rsi
     arg1: usize,   // rdx
@@ -385,8 +387,8 @@ fn check_page_flags(flags: usize) -> Result<PageTableFlags> {
 /// Целевой процесс может совпадать с `process`.
 ///
 /// Модифицировать можно:
-/// - Либо самого себя, задавая [`Pid::Current`] или явно собственный идентификатор [`Pid::Id`].
-/// - Либо свой непосредственно дочерний процесс, задавая его идентификатор.
+///   - Либо самого себя, задавая [`Pid::Current`] или явно собственный идентификатор [`Pid::Id`].
+///   - Либо свой непосредственно дочерний процесс, задавая его идентификатор.
 fn check_process_permissions(
     process: SpinlockGuard<Process>,
     dst_pid: usize,

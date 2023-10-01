@@ -11,8 +11,10 @@ use num_traits::{
     NumCast,
     cast,
 };
-// FloatCore is used for a substitute of `f64::abs()`. `f64::abs()` is declared in `std` whilst this is a `#[no_std]` library.
-// Moreover, `f64::abs()` from `std` uses FPU but this library is used in the kernel which is compiled with `+soft-float`.
+// FloatCore is used for a substitute of `f64::abs()`.
+// `f64::abs()` is declared in `std` whilst this is a `#[no_std]` library.
+// Moreover, `f64::abs()` from `std` uses FPU but this library is used in the kernel
+// which is compiled with `+soft-float`.
 // However, rustc fails to recognize that FloatCore is really used.
 #[allow(unused_imports)]
 use num_traits::float::FloatCore;
@@ -43,21 +45,27 @@ use super::{
 ///
 /// Похожа на стандартную, но недоступную нам в `#[no_std]`--окружении структуру
 /// [`std::time::Instant`](https://doc.rust-lang.org/std/time/struct.Instant.html).
-/// Обе описывают [монотонно возрастающее время](https://blog.codeminer42.com/the-monotonic-clock-and-why-you-should-care-about-it/).
-/// То есть время, не ходящее "назад" ни при переводе часов на летнее время, ни при корректировке неточно идущих часов.
-/// Но такое время может никак не соответствовать [реальному времени](https://en.wikipedia.org/wiki/Civil_time).
+/// Обе описывают
+/// [монотонно возрастающее время](https://blog.codeminer42.com/the-monotonic-clock-and-why-you-should-care-about-it/).
+/// То есть время, не ходящее "назад" ни при переводе часов на летнее время,
+/// ни при корректировке неточно идущих часов.
+/// Но такое время может никак не соответствовать
+/// [реальному времени](https://en.wikipedia.org/wiki/Civil_time).
 ///
 /// # Note
 ///
-/// [`Tsc`] задаёт корректно определенную и монотонно возрастающую точку во времени только на текущем компьютере и только до его перезапуска.
+/// [`Tsc`] задаёт корректно определенную и монотонно возрастающую точку во времени
+/// только на текущем компьютере и только до его перезапуска.
 /// Её бессмысленно сохранять в персистентном хранилище вроде файла или посылать по сети.
-/// Типажи [`Serialize`] и [`Deserialize`] используются только для передачи [`Tsc`] между ядром и пространством пользователя.
+/// Типажи [`Serialize`] и [`Deserialize`] используются только для
+/// передачи [`Tsc`] между ядром и пространством пользователя.
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Tsc(i64);
 
 /// Описывает интервал между двумя моментами времени [`Tsc`].
 ///
-/// Наивно предполагает, что используемый ею счётчик тактов процессора как минимум инвариантен и согласован между процессорами.
+/// Наивно предполагает, что используемый ею счётчик тактов процессора как минимум
+/// инвариантен и согласован между процессорами.
 /// Похожа на стандартную, но недоступную нам в `#[no_std]`--окружении структуру
 /// [`std::time::Duration`](https://doc.rust-lang.org/std/time/struct.Duration.html).
 #[derive(Clone, Copy, Default, Eq, Ord, PartialEq, PartialOrd)]
@@ -168,8 +176,8 @@ impl TryFrom<Duration> for TscDuration {
     type Error = Error;
 
     /// Преобразует [`Duration`] в [`TscDuration`]:
-    /// - С помощью [`Rtc`], если уже прошло два тика [`Rtc`].
-    /// - Иначе, с помощью [`Pit`], если уже прошло два тика [`Pit`].
+    ///   - С помощью [`Rtc`], если уже прошло два тика [`Rtc`].
+    ///   - Иначе, с помощью [`Pit`], если уже прошло два тика [`Pit`].
     ///
     /// Возвращает ошибку [`Error::NoData`], если пока ни [`Rtc`] ни [`Pit`] не тикнули дважды.
     fn try_from(duration: Duration) -> Result<Self> {
@@ -190,8 +198,8 @@ impl TryFrom<TscDuration> for Duration {
     type Error = Error;
 
     /// Преобразует [`TscDuration`] в [`Duration`]:
-    /// - С помощью [`Rtc`], если уже прошло два тика [`Rtc`].
-    /// - Иначе, с помощью [`Pit`], если уже прошло два тика [`Pit`].
+    ///   - С помощью [`Rtc`], если уже прошло два тика [`Rtc`].
+    ///   - Иначе, с помощью [`Pit`], если уже прошло два тика [`Pit`].
     ///
     /// Возвращает ошибку [`Error::NoData`], если пока ни [`Rtc`] ни [`Pit`] не тикнули дважды.
     fn try_from(tsc_duration: TscDuration) -> Result<Self> {
@@ -208,7 +216,8 @@ impl TryFrom<TscDuration> for Duration {
 /// Возвращает [номер текущего такта процессора](https://en.wikipedia.org/wiki/Time_Stamp_Counter) в некоторый момент времени своего исполнения.
 #[inline(always)]
 pub fn tsc() -> i64 {
-    // Do not use `x86::fence::lfence()` and `x86::time::rdtsc()` because they are not marked as `#[inline]`.
+    // Do not use `x86::fence::lfence()` and `x86::time::rdtsc()`
+    // because they are not marked as `#[inline]`.
     unsafe {
         x86_64::_mm_lfence();
         x86_64::_rdtsc()
@@ -218,8 +227,8 @@ pub fn tsc() -> i64 {
 }
 
 /// Возвращает частоту процессора, вычисленную:
-/// - С помощью [`Rtc`], если уже прошло два тика [`Rtc`].
-/// - Иначе, с помощью [`Pit`], если уже прошло два тика [`Pit`].
+///   - С помощью [`Rtc`], если уже прошло два тика [`Rtc`].
+///   - Иначе, с помощью [`Pit`], если уже прошло два тика [`Pit`].
 ///
 /// Возвращает [`None`], если пока ни [`Rtc`] ни [`Pit`] не тикнули дважды.
 fn tsc_per_second() -> Option<Hz> {
@@ -229,9 +238,9 @@ fn tsc_per_second() -> Option<Hz> {
 /// Переводит дробное значение `value` в более удобную для человека форму.
 ///
 /// Возвращает отмасштабированное значение и суффикс масштаба:
-/// - [`m` --- милли-](https://en.wikipedia.org/wiki/Milli-),
-/// - [`u` --- микро-](https://en.wikipedia.org/wiki/Micro-) или
-/// - [`n` --- нано-](https://en.wikipedia.org/wiki/Nano-).
+///   - [`m` --- милли-](https://en.wikipedia.org/wiki/Milli-),
+///   - [`u` --- микро-](https://en.wikipedia.org/wiki/Micro-) или
+///   - [`n` --- нано-](https://en.wikipedia.org/wiki/Nano-).
 fn fractional_prefix(value: f64) -> (f64, &'static str) {
     // Alas, `number_prefix` does not support fractional prefixes.
     iter::successors(Some(value), |x| Some(x * 1000.0))

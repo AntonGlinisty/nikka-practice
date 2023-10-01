@@ -35,8 +35,9 @@ pub struct TrapInfo {
     /// на который указывает [`TrapInfo::context`].
     /// Это происходит при рекурсивном исключении ---
     /// то есть когда исключение происходит внутри обработчика исключений.
-    /// В этом случае функции `lib::syscall::trap_trampoline` и `lib::syscall::trap_handler_invoker`
-    /// сохранят адрес возврата на тот же стек [`TrapInfo::context`].
+    /// В этом случае функции `lib::syscall::trap_trampoline` и
+    /// `lib::syscall::trap_handler_invoker` сохранят адрес возврата на тот же стек
+    /// [`TrapInfo::context`].
     /// Что приведёт к перезаписи содержимого [`TrapInfo`].
     /// Поле [`TrapInfo::return_address_placeholder`] служит для избежания перезаписи
     /// существенных полей --- оно имеет тот же размер и расположение, как и адрес возврата.

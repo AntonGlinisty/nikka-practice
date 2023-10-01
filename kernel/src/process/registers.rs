@@ -59,7 +59,9 @@ impl Registers {
     ) -> Self {
         Self {
             // https://wiki.osdev.org/System_V_ABI#x86-64:
-            // Parameters to functions are passed in the registers rdi, rsi, rdx, rcx, r8, r9, and further values are passed on the stack in reverse order.
+            // Parameters to functions are passed in the registers
+            // rdi, rsi, rdx, rcx, r8, r9,
+            // and further values are passed on the stack in reverse order.
             rax: 0,
             gpr1: [0; 3],
             rdi,

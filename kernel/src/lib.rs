@@ -55,9 +55,9 @@ pub mod time;
 /// Система обработки [прерываний](https://en.wikipedia.org/wiki/Interrupt).
 ///
 /// External Interrupts in the x86 system:
-/// - [Part 1. Interrupt controller evolution](https://habr.com/en/post/446312/)
-/// - [Part 2. Linux kernel boot options](https://habr.com/en/post/501660/)
-/// - [Part 3. Interrupt routing setup in a chipset, with the example of coreboot](https://habr.com/en/post/501912/)
+///   - [Part 1. Interrupt controller evolution](https://habr.com/en/post/446312/)
+///   - [Part 2. Linux kernel boot options](https://habr.com/en/post/501660/)
+///   - [Part 3. Interrupt routing setup in a chipset, with the example of coreboot](https://habr.com/en/post/501912/)
 pub mod trap;
 
 use core::{

@@ -17,8 +17,13 @@ pub const TICKS_PER_SECOND: u32 = 2 * 2 * 5;
 
 const_assert!(TICKS_PER_SECOND * DIVISOR == BASE);
 
+/// Устаревший
+/// [программируемый таймер](https://en.wikipedia.org/wiki/Programmable_interval_timer)
+/// [Intel 8253/8254](https://en.wikipedia.org/wiki/Intel_8253).
+///
 /// [Синглтон](https://en.wikipedia.org/wiki/Singleton_pattern),
-/// позволяющий узнать показания [Intel 8253/8254](https://en.wikipedia.org/wiki/Intel_8253)
+/// позволяющий узнать показания
+/// [Intel 8253/8254](https://en.wikipedia.org/wiki/Intel_8253)
 /// ([programmable interval timer, PIT](https://en.wikipedia.org/wiki/Programmable_interval_timer))
 /// как из ядра, так и
 /// из [пространства пользователя](https://en.wikipedia.org/wiki/User_space_and_kernel_space).

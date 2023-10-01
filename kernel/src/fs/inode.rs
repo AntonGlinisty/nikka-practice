@@ -163,9 +163,8 @@ impl Inode {
     /// Обновляет как время модификации выделенной записи, так и время модификации самой директории.
     ///
     /// Возвращает ошибки:
-    ///
-    /// - [`Error::FileExists`] если запись с таким именем уже есть.
-    /// - [`Error::InvalidArgument`] если `kind` равен [`Kind::Unused`].
+    ///   - [`Error::FileExists`] если запись с таким именем уже есть.
+    ///   - [`Error::InvalidArgument`] если `kind` равен [`Kind::Unused`].
     pub(super) fn insert(
         &mut self,
         name: &str,

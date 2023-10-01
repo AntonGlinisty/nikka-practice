@@ -306,7 +306,8 @@ fn check_read_tx(
         if expected.commit {
             let (got, more_data) = data.split_at(expected.data.len());
 
-            // The main point of the stress test - check that read yields the same data that was written.
+            // The main point of the stress test ---
+            // check that read yields the same data that was written.
             assert_eq!(*got, *expected.data);
 
             data = more_data;

@@ -14,6 +14,8 @@ use super::{
 /// Частота тиков RTC.
 pub const TICKS_PER_SECOND: i64 = 1;
 
+/// [Часы реального времени](https://en.wikipedia.org/wiki/Real-time_clock).
+///
 /// [Синглтон](https://en.wikipedia.org/wiki/Singleton_pattern),
 /// позволяющий узнать показания часов реального времени как из ядра, так и
 /// из [пространства пользователя](https://en.wikipedia.org/wiki/User_space_and_kernel_space).

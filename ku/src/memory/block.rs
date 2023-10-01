@@ -228,8 +228,8 @@ where
     /// Преобразует `Block<Virt>` или `Block<Page>` в указатель на константный `Q`.
     ///
     /// Возвращает ошибки:
-    /// - [`Error::InvalidArgument`] если блок не соответствует типу `Q` по размеру.
-    /// - [`Error::InvalidAlignment`] если блок не соответствует типу `Q` по выравниванию.
+    ///   - [`Error::InvalidArgument`] если блок не соответствует типу `Q` по размеру.
+    ///   - [`Error::InvalidAlignment`] если блок не соответствует типу `Q` по выравниванию.
     pub fn try_into_ptr<Q>(self) -> Result<*const Q> {
         if self.size() == mem::size_of::<Q>() {
             self.start_address().try_into_ptr::<Q>()
@@ -241,8 +241,8 @@ where
     /// Преобразует `Block<Virt>` или `Block<Page>` в указатель на изменяемый `Q`.
     ///
     /// Возвращает ошибки:
-    /// - [`Error::InvalidArgument`] если блок не соответствует типу `Q` по размеру.
-    /// - [`Error::InvalidAlignment`] если блок не соответствует типу `Q` по выравниванию.
+    ///   - [`Error::InvalidArgument`] если блок не соответствует типу `Q` по размеру.
+    ///   - [`Error::InvalidAlignment`] если блок не соответствует типу `Q` по выравниванию.
     pub fn try_into_mut_ptr<Q>(self) -> Result<*mut Q> {
         if self.size() == mem::size_of::<Q>() {
             self.start_address().try_into_mut_ptr::<Q>()
@@ -254,9 +254,9 @@ where
     /// Преобразует `Block<Virt>` или `Block<Page>` в неизменяемую ссылку на `Q`.
     ///
     /// Возвращает ошибки:
-    /// - [`Error::InvalidArgument`] если блок не соответствует типу `Q` по размеру.
-    /// - [`Error::InvalidAlignment`] если блок не соответствует типу `Q` по выравниванию.
-    /// - [`Error::Null`] если адрес блока нулевой.
+    ///   - [`Error::InvalidArgument`] если блок не соответствует типу `Q` по размеру.
+    ///   - [`Error::InvalidAlignment`] если блок не соответствует типу `Q` по выравниванию.
+    ///   - [`Error::Null`] если адрес блока нулевой.
     ///
     /// # Safety
     ///
@@ -274,9 +274,9 @@ where
     /// Преобразует `Block<Virt>` или `Block<Page>` в изменяемую ссылку на `Q`.
     ///
     /// Возвращает ошибки:
-    /// - [`Error::InvalidArgument`] если блок не соответствует типу `Q` по размеру.
-    /// - [`Error::InvalidAlignment`] если блок не соответствует типу `Q` по выравниванию.
-    /// - [`Error::Null`] если адрес блока нулевой.
+    ///   - [`Error::InvalidArgument`] если блок не соответствует типу `Q` по размеру.
+    ///   - [`Error::InvalidAlignment`] если блок не соответствует типу `Q` по выравниванию.
+    ///   - [`Error::Null`] если адрес блока нулевой.
     ///
     /// # Safety
     ///
@@ -295,9 +295,9 @@ where
     /// Размер среза вычисляется из размера блока и размера типа `Q`.
     ///
     /// Возвращает ошибки:
-    /// - [`Error::InvalidArgument`] если блок не соответствует типу `Q` по размеру.
-    /// - [`Error::InvalidAlignment`] если блок не соответствует типу `Q` по выравниванию.
-    /// - [`Error::Null`] если адрес блока нулевой.
+    ///   - [`Error::InvalidArgument`] если блок не соответствует типу `Q` по размеру.
+    ///   - [`Error::InvalidAlignment`] если блок не соответствует типу `Q` по выравниванию.
+    ///   - [`Error::Null`] если адрес блока нулевой.
     ///
     /// # Safety
     ///
@@ -316,9 +316,9 @@ where
     /// Размер среза вычисляется из размера блока и размера типа `Q`.
     ///
     /// Возвращает ошибки:
-    /// - [`Error::InvalidArgument`] если блок не соответствует типу `Q` по размеру.
-    /// - [`Error::InvalidAlignment`] если блок не соответствует типу `Q` по выравниванию.
-    /// - [`Error::Null`] если адрес блока нулевой.
+    ///   - [`Error::InvalidArgument`] если блок не соответствует типу `Q` по размеру.
+    ///   - [`Error::InvalidAlignment`] если блок не соответствует типу `Q` по выравниванию.
+    ///   - [`Error::Null`] если адрес блока нулевой.
     ///
     /// # Safety
     ///
@@ -337,9 +337,9 @@ where
     /// Размер среза вычисляется из размера блока и размера типа `Q`.
     ///
     /// Возвращает ошибки:
-    /// - [`Error::InvalidArgument`] если блок не соответствует типу `Q` по размеру.
-    /// - [`Error::InvalidAlignment`] если блок не соответствует типу `Q` по выравниванию.
-    /// - [`Error::Null`] если адрес блока нулевой.
+    ///   - [`Error::InvalidArgument`] если блок не соответствует типу `Q` по размеру.
+    ///   - [`Error::InvalidAlignment`] если блок не соответствует типу `Q` по выравниванию.
+    ///   - [`Error::Null`] если адрес блока нулевой.
     ///
     /// # Safety
     ///
@@ -472,34 +472,34 @@ pub trait Memory: Clone + Copy + SizeOf {
     const NAME: &'static str;
 
     /// Тип адреса для базового типа:
-    /// - [`Virt`] для [`Virt`] и [`Page`];
-    /// - [`Phys`] для [`Phys`] и [`Frame`].
+    ///   - [`Virt`] для [`Virt`] и [`Page`];
+    ///   - [`Phys`] для [`Phys`] и [`Frame`].
     type Address: fmt::Display + Ord;
 
     /// Возвращает адрес базового элемента `element`:
-    /// - `element` для `Addr`;
-    /// - `element.address()` для `Frage`.
+    ///   - `element` для `Addr`;
+    ///   - `element.address()` для `Frage`.
     fn address(element: Self) -> Self::Address;
 
     /// Возвращает адрес базового элемента с индексом `index`:
-    /// - `Addr::new(index)` для `Addr`;
-    /// - `Frage::address_by_index(index)` для `Frage`.
+    ///   - `Addr::new(index)` для `Addr`;
+    ///   - `Frage::address_by_index(index)` для `Frage`.
     fn address_by_index(index: usize) -> Result<Self::Address>;
 
     /// Возвращает базовый элемент по его индексу `index`:
-    /// - `Addr::new(index)` для `Addr`;
-    /// - `Frage::from_index(index)` для `Frage`.
+    ///   - `Addr::new(index)` для `Addr`;
+    ///   - `Frage::from_index(index)` для `Frage`.
     fn from_index(index: usize) -> Result<Self>;
 
     /// Возвращает индекс базового элемента `element`:
-    /// - `element.into_usize()` для `Addr`;
-    /// - `element.index()` для `Frage`.
+    ///   - `element.into_usize()` для `Addr`;
+    ///   - `element.index()` для `Frage`.
     fn index(element: Self) -> usize;
 
     /// Возвращает `true` если:
-    /// - Адреса `x` и `y` виртуальные и находятся в одной и той же
-    /// [половине виртуального адресного пространства](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details).
-    /// - Адреса `x` и `y` физические.
+    ///   - Адреса `x` и `y` виртуальные и находятся в одной и той же
+    ///     [половине виртуального адресного пространства](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details).
+    ///   - Адреса `x` и `y` физические.
     fn is_same_half(
         x: Self::Address,
         y: Self::Address,

@@ -96,9 +96,8 @@ impl File {
     /// Обновляет как время модификации выделенной записи, так и время модификации самой директории.
     ///
     /// Возвращает ошибки:
-    ///
-    /// - [`Error::FileExists`] если запись с таким именем уже есть.
-    /// - [`Error::InvalidArgument`] если `kind` равен [`Kind::Unused`].
+    ///   - [`Error::FileExists`] если запись с таким именем уже есть.
+    ///   - [`Error::InvalidArgument`] если `kind` равен [`Kind::Unused`].
     pub fn insert(
         &mut self,
         name: &str,
@@ -121,9 +120,8 @@ impl File {
     /// Если `offset` равен размеру файла, возвращает `0` прочитанных байт.
     ///
     /// Возвращает ошибки:
-    ///
-    /// - [`Error::NotFile`] если [Inode](https://en.wikipedia.org/wiki/Inode) не является файлом.
-    /// - [`Error::InvalidArgument`] если `offset` превышает размер файла.
+    ///   - [`Error::NotFile`] если [Inode](https://en.wikipedia.org/wiki/Inode) не является файлом.
+    ///   - [`Error::InvalidArgument`] если `offset` превышает размер файла.
     pub fn read(
         &mut self,
         offset: usize,

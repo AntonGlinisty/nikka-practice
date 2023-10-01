@@ -22,7 +22,8 @@ pub struct CorrelationPoint {
 }
 
 impl CorrelationPoint {
-    /// Возвращает [`CorrelationPoint`], который соответствует тику `count`, и привязан к такту `tsc` процессора.
+    /// Возвращает [`CorrelationPoint`], который соответствует тику `count`,
+    /// и привязан к такту `tsc` процессора.
     fn new(
         count: i64,
         tsc: i64,
@@ -68,33 +69,34 @@ impl CorrelationPoint {
 
 /// Предназначена для конкурентного доступа к значениям [`CorrelationPoint`].
 ///
-/// То есть [`CorrelationPoint`] и [`AtomicCorrelationPoint`] соотносятся также как примитивный тип [`i64`] и атомарный [`AtomicI64`].
+/// То есть [`CorrelationPoint`] и [`AtomicCorrelationPoint`] соотносятся также как
+/// примитивный тип [`i64`] и атомарный [`AtomicI64`].
 /// Атомарность нужна для того, чтобы конкурентно
-/// - в обработчике прерывания обновлять счётчики [`AtomicCorrelationPoint`];
-/// - а в обычном коде читать эти счётчики, чтобы "посмотреть на часы".
+///   - в обработчике прерывания обновлять счётчики [`AtomicCorrelationPoint`];
+///   - а в обычном коде читать эти счётчики, чтобы "посмотреть на часы".
 ///
 /// Реализует [неблокирующую синхронизацию](https://en.wikipedia.org/wiki/Non-blocking_algorithm)
 /// для согласованного доступа к полям [`AtomicCorrelationPoint`].
 /// Использует упрощённый [sequence lock](https://en.wikipedia.org/wiki/Seqlock).
 ///
 /// См. также:
-/// - [Writing a seqlock in Rust.](https://pitdicker.github.io/Writing-a-seqlock-in-Rust/)
-/// - [Can Seqlocks Get Along With Programming Language Memory Models?](https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf)
-/// - [Crate seqlock.](https://docs.rs/seqlock/0.1.2/seqlock/)
+///   - [Writing a seqlock in Rust.](https://pitdicker.github.io/Writing-a-seqlock-in-Rust/)
+///   - [Can Seqlocks Get Along With Programming Language Memory Models?](https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf)
+///   - [Crate seqlock.](https://docs.rs/seqlock/0.1.2/seqlock/)
 #[derive(Debug, Default)]
 pub struct AtomicCorrelationPoint {
     /// Значение счётчика тиков отслеживаемых часов.
     count: AtomicI64,
 
     /// - Нечётное значение в [`AtomicCorrelationPoint::sequence`] означает,
-    /// что писатель начал обновлять структуру [`AtomicCorrelationPoint`], но ещё не закончил.
-    /// Если читатель обнаруживает структуру в таком состоянии,
-    /// он должен подождать пока писатель закончит обновление.
+    ///   что писатель начал обновлять структуру [`AtomicCorrelationPoint`], но ещё не закончил.
+    ///   Если читатель обнаруживает структуру в таком состоянии,
+    ///   он должен подождать пока писатель закончит обновление.
     /// - Чётное значение в [`AtomicCorrelationPoint::sequence`] означает,
-    /// что значение структуры [`AtomicCorrelationPoint`] согласованно.
-    /// И читатель может его использовать при дополнительном условии,
-    /// что чтение [`AtomicCorrelationPoint::sequence`] вернуло один и тот же результат
-    /// до чтения и после чтения остальных полей.
+    ///   что значение структуры [`AtomicCorrelationPoint`] согласованно.
+    ///   И читатель может его использовать при дополнительном условии,
+    ///   что чтение [`AtomicCorrelationPoint::sequence`] вернуло один и тот же результат
+    ///   до чтения и после чтения остальных полей.
     sequence: AtomicU64,
 
     /// Значение счётчика тактов процессора.

@@ -45,9 +45,8 @@ pub use callsite::Callsite;
 /// ```
 ///
 /// Требует от компилятора
-///
-/// - генерации указателей фреймов (force-frame-pointers=yes) и
-/// - расположения кода по фиксированным адресам (relocation-model=dynamic-no-pic).
+///   - генерации указателей фреймов (force-frame-pointers=yes) и
+///   - расположения кода по фиксированным адресам (relocation-model=dynamic-no-pic).
 ///
 /// Для этого нужно добавить в `.cargo/config.toml` опции
 /// ```toml
