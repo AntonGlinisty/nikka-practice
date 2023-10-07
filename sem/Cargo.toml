@@ -1,4 +1,14 @@
 [workspace]
-members = ["hello_world", "rsh", "jobserver", "gdb", "asm", "rop", "context", "asm_syscall"]
+members = [
+    "hello_world",
+    "rsh",
+    "jobserver",
+    "gdb",
+    "asm",
+    "rop",
+    "context",
+    "asm_syscall",
+    "backtrace",
+]
 
 resolver = "1"
