@@ -1,6 +1,9 @@
 use core::slice;
 
-use ku::memory::size::MiB;
+use ku::{
+    error::Result,
+    memory::size::MiB,
+};
 
 use kernel::{
     Subsystems,
@@ -101,7 +104,7 @@ fn allocated_frames_are_not_used() {
     let _guard = forbid_frame_leaks();
 
     let max_frames_for_intermediates: usize = PAGE_TABLE_ROOT_LEVEL.try_into().unwrap();
-    let poison = 0xDEAD_BEEF_u32;
+    let poison = 0xDEAD_BEEF_DEAD_BEEF_u64;
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
@@ -116,14 +119,15 @@ fn allocated_frames_are_not_used() {
     debug!(start_free_frames, frame_count);
 
     let mut frames_poisoned = 0;
+    let mut prev_frame = None;
 
-    loop {
-        let frame = FRAME_ALLOCATOR.lock().allocate();
-        if frame.is_err() {
-            break;
+    while let Ok(frame) = allocate_frame() {
+        {
+            let mut frame_allocator = FRAME_ALLOCATOR.lock();
+            assert_eq!(frame_allocator.reference_count(frame), Ok(1));
+            frame_allocator.reference(frame);
+            assert_eq!(frame_allocator.reference_count(frame), Ok(2));
         }
-        let frame = frame.unwrap();
-        FRAME_ALLOCATOR.lock().reference(frame);
 
         assert!(
             frame.index() < frame_count,
@@ -133,36 +137,55 @@ fn allocated_frames_are_not_used() {
 
         frames[frames_poisoned] = frame;
 
+        if let Some(prev_frame) = prev_frame {
+            assert_eq!(FRAME_ALLOCATOR.lock().reference_count(prev_frame), Ok(2));
+        }
         unsafe {
             address_space.map_page_to_frame(page, frame, KERNEL_RW).unwrap();
             mmu::flush(page);
-            let slice = page_block.try_into_mut_slice().unwrap();
-            slice.fill(poison);
+        }
+        if let Some(prev_frame) = prev_frame {
+            assert_eq!(FRAME_ALLOCATOR.lock().reference_count(prev_frame), Ok(1));
+        }
+        prev_frame = Some(frame);
 
-            if frames_poisoned % 1000 == 0 {
-                debug!(
-                    frames_poisoned,
-                    %frame,
-                    poison = slice[frames_poisoned % slice.len()],
-                    "poisoning the free memory",
-                );
-            }
+        let slice = unsafe { page_block.try_into_mut_slice().unwrap() };
+        slice.fill(poison);
+
+        if frames_poisoned % 1000 == 0 {
+            debug!(
+                frames_poisoned,
+                %frame,
+                poison = slice[frames_poisoned % slice.len()],
+                "poisoning the free memory",
+            );
         }
 
         frames_poisoned += 1;
     }
 
+    let prev_frame = prev_frame.expect("at least one frame should be free");
+    assert_eq!(FRAME_ALLOCATOR.lock().reference_count(prev_frame), Ok(2));
     unsafe {
         unmap_page(&mut address_space, page).unwrap();
     }
+    assert_eq!(FRAME_ALLOCATOR.lock().reference_count(prev_frame), Ok(1));
 
     let end_free_frames = FRAME_ALLOCATOR.lock().count();
     debug!(start_free_frames, end_free_frames, frames_poisoned);
     assert_eq!(end_free_frames, 0);
     assert!(frames_poisoned >= start_free_frames - max_frames_for_intermediates);
 
-    for i in 0 .. frames_poisoned {
-        FRAME_ALLOCATOR.lock().deallocate(frames[i]);
+    slice::heapsort(&mut frames[.. frames_poisoned], |a, b| a < b);
+    for (a, b) in frames.iter().zip(&frames[1 .. frames_poisoned]) {
+        assert_ne!(a, b, "allocated the same frame twice");
+    }
+
+    for &frame in &frames[.. frames_poisoned] {
+        let mut frame_allocator = FRAME_ALLOCATOR.lock();
+        assert_eq!(frame_allocator.reference_count(frame), Ok(1));
+        frame_allocator.deallocate(frame);
+        assert_eq!(frame_allocator.reference_count(frame), Ok(0));
     }
 
     debug!(free_frames = FRAME_ALLOCATOR.lock().count());
@@ -170,6 +193,10 @@ fn allocated_frames_are_not_used() {
 
     unsafe {
         address_space.unmap_slice(frames).unwrap();
+    }
+
+    fn allocate_frame() -> Result<Frame> {
+        FRAME_ALLOCATOR.lock().allocate()
     }
 }
 
