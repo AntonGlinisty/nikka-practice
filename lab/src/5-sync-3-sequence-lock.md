@@ -312,6 +312,80 @@ _5_sync_2_spinlock::recursive_deadlock::_$u7b$$u7b$closure$u7d$$u7d$::he690e3d8e
 ```
 
 
+> ### Гонка данных
+>
+> В нашей реализации
+> [`SequenceLock`](../../doc/ku/sync/sequence_lock/struct.SequenceLock.html)
+> есть гонка данных, которая формально является
+> [Undefined Behavior](https://doc.rust-lang.org/nomicon/races.html).
+> Причём [Miri](https://github.com/rust-lang/miri) её находит:
+> ```console
+> /.../nikka/ku$ cargo miri test --test 5-sync-3-sequence-lock
+> Preparing a sysroot for Miri (target: x86_64-unknown-linux-gnu)... done
+>     Finished test [unoptimized + debuginfo] target(s) in 0.06s
+>      Running tests/5-sync-3-sequence-lock.rs (/.../nikka/target/miri/x86_64-unknown-linux-gnu/debug/deps/5_sync_3_sequence_lock-091aeae8a41b580f)
+>
+> running 6 tests
+> test exclusive_access ... ok
+> test multiple_exclusive_writers ... ok
+> test multiple_writers ... error: Undefined Behavior: Data race detected between (1) Read on thread `reader_thread #` and (2) Write on thread `writer_thread #` at alloc8. (2) just happened here
+>    --> /.../nikka/ku/src/sync/sequence_lock.rs:197:18
+>     |
+> 197 |         unsafe { &mut *self.sequence_lock.data.get() }
+>     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Data race detected between (1) Read on thread `reader_thread #` and (2) Write on thread `writer_thread #` at alloc8. (2) just happened here
+>     |
+> help: and (1) occurred earlier here
+>    --> /.../nikka/ku/src/sync/sequence_lock.rs:133:29
+>     |
+> 133 |         let data = unsafe { ptr::read_volatile(self.data.get()) };
+>     |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     = help: this indicates a bug in the program: it performed an invalid operation, and caused Undefined Behavior
+>     = help: see https://doc.rust-lang.org/nightly/reference/behavior-considered-undefined.html for further information
+>     = note: BACKTRACE (of the first span):
+>     = note: inside `<ku::sync::sequence_lock::SequenceLockGuard<'_, (usize, usize)> as std::ops::DerefMut>::deref_mut` at /.../nikka/ku/src/sync/sequence_lock.rs:197:18: 197:53
+> note: inside `non_exclusive_writer`
+>    --> ku/tests/5-sync-3-sequence-lock.rs:275:9
+>     |
+> 275 |         lock.0 = i + 1;
+>     |         ^^^^^^
+> note: inside closure
+>    --> ku/tests/5-sync-3-sequence-lock.rs:149:21
+>     |
+> 149 |                     non_exclusive_writer(&SEQUENCE_LOCK, &RUN);
+>     |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>
+> note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+>
+> error: aborting due to previous error
+>
+> error: test failed, to rerun pass `--test 5-sync-3-sequence-lock`
+>
+> Caused by:
+>   process didn't exit successfully: `/.../.rustup/toolchains/nightly-2023-09-16-x86_64-unknown-linux-gnu/bin/cargo-miri runner /.../nikka/target/miri/x86_64-unknown-linux-gnu/debug/deps/5_sync_3_sequence_lock-091aeae8a41b580f` (exit status: 1)
+> note: test exited abnormally; to see the full output pass --nocapture to the harness.
+> ```
+>
+> Пока предлагается оставить всё как есть, так как тут мы сталкиваемся с текущими органичениями языка.
+>
+> В
+> [следующей задаче](../../lab/book/5-sync-4-correlation-point.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-4--%D1%80%D0%B5%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-atomiccorrelationpoint)
+> на секвентную блокировку в частном случае, уже гонки данных не должно быть:
+> ```console
+> /.../nikka/ku$ cargo miri test --test 5-sync-4-correlation-point
+> Preparing a sysroot for Miri (target: x86_64-unknown-linux-gnu)... done
+>    Compiling ku v0.1.0 (/.../nikka/ku)
+>     Finished test [unoptimized + debuginfo] target(s) in 0.49s
+>      Running tests/5-sync-4-correlation-point.rs (/.../nikka/target/miri/x86_64-unknown-linux-gnu/debug/deps/5_sync_4_correlation_point-a4a526eb7ffb5ab4)
+>
+> running 3 tests
+> test atomic_correlation_point ... ok
+> test correlation_point ... ok
+> test single_writer ... ok
+>
+> test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+> ```
+
+
 ### Проверьте себя
 
 На этот раз тесты находятся не в `kernel`, а в `ku` ---
