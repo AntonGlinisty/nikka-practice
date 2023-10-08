@@ -98,20 +98,32 @@ fn read_write_speed() {
     let (block_bitmap, inode) = fs_helpers::single_inode_fs(Kind::File);
     let mut file = make_file(&inode, &block_bitmap);
 
-    let mut buffer = [0x77; MiB];
+    let mut buffer = vec![0x77_u8; 10 * MiB];
+    let size = Size::from_slice(&buffer);
     let timer = time::timer();
     file.write(0, &buffer).unwrap();
     let elapsed = timer.elapsed();
-    debug!(size = %Size::from_slice(&buffer), %elapsed, "disk read speed");
+    debug!(
+        throughput_per_second = %throughput_per_second(size, elapsed),
+        %size,
+        %elapsed,
+        "disk read speed",
+    );
 
     buffer.fill(0);
 
-    let timeout = TscDuration::try_from(Duration::milliseconds(200)).unwrap();
+    let timeout = TscDuration::try_from(Duration::seconds(2)).unwrap();
 
     let timer = time::timer();
     file.read(0, &mut buffer).unwrap();
     let elapsed = timer.elapsed();
-    debug!(size = %Size::from_slice(&buffer), %elapsed, %timeout, "file system read speed");
+    debug!(
+        throughput_per_second = %throughput_per_second(size, elapsed),
+        %size,
+        %elapsed,
+        %timeout,
+        "file system read speed",
+    );
     assert!(elapsed < timeout);
 
     assert_eq!(buffer[123456], 0x77);
@@ -120,7 +132,13 @@ fn read_write_speed() {
     let timer = time::timer();
     file.write(0, &buffer).unwrap();
     let elapsed = timer.elapsed();
-    debug!(size = %Size::from_slice(&buffer), %elapsed, %timeout, "file system write speed");
+    debug!(
+        throughput_per_second = %throughput_per_second(size, elapsed),
+        %size,
+        %elapsed,
+        %timeout,
+        "file system write speed",
+    );
     assert!(elapsed < timeout);
 
     let timer = time::timer();
@@ -128,7 +146,22 @@ fn read_write_speed() {
         flush_block(block).unwrap();
     }
     let elapsed = timer.elapsed();
-    debug!(size = %Size::from_slice(&buffer), %elapsed, "disk write speed");
+    debug!(
+        throughput_per_second = %throughput_per_second(size, elapsed),
+        %size,
+        %elapsed,
+        "disk write speed",
+    );
+
+    fn throughput_per_second(
+        size: Size,
+        elapsed: TscDuration,
+    ) -> Size {
+        let elapsed: Duration = elapsed.try_into().unwrap();
+        let throughput_per_second = u128::try_from(size.num_bytes()).unwrap() * 1_000_000 /
+            u128::try_from(elapsed.num_microseconds().unwrap()).unwrap();
+        Size::bytes(throughput_per_second.try_into().unwrap())
+    }
 }
 
 #[test_case]
