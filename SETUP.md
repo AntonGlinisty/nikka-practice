@@ -94,5 +94,4 @@ git commit -m 'Solve task: hello_world.'  # Сообщения выбирайт�
 ```
 
 Отправьте своё решение на сервер командой `git push student HEAD:submit/TASK_NAME`, где TASK_NAME нужно заменить на название задачи. Название можно взять из таблицы gdoc или с сайта os.manytask.org. Ваш сабмит должен появиться по ссылке `SUBMITS` на [os.manytask.org](https://os.manytask.org).
-После успешного прохождения тестов вам должно начислиться 100 баллов в
-[таблице с баллами](https://docs.google.com/spreadsheets/d/1FFkcx2dDeMH0OQhlrbGiXQ5kUG6K_Y3rgBlk3kKVves).
+После успешного прохождения тестов вам должно начислиться 100 баллов в таблице с баллами.
