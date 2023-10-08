@@ -42,7 +42,8 @@ use crate::{
     },
 };
 
-/// Обработчик прерываний [часов реального времени (Real-time clock, RTC)](https://en.wikipedia.org/wiki/Real-time_clock).
+/// Обработчик прерываний
+/// [часов реального времени (Real-time clock, RTC)](https://en.wikipedia.org/wiki/Real-time_clock).
 pub(crate) fn interrupt() {
     if interrupt_status().contains(RegisterC::UPDATE_ENDED_INTERRUPT) &&
         let Some(timestamp) = timestamp()
@@ -64,11 +65,13 @@ pub(crate) fn interrupt() {
     }
 }
 
-/// Инициализация микросхемы [часов реального времени (Real-time clock, RTC)](https://en.wikipedia.org/wiki/Real-time_clock).
+/// Инициализация микросхемы
+/// [часов реального времени (Real-time clock, RTC)](https://en.wikipedia.org/wiki/Real-time_clock).
 ///
-/// Во время изменения настроек RTC
-/// запрещает все [прерывания](https://en.wikipedia.org/wiki/Interrupt),
-/// в том числе [немаскируемые](https://en.wikipedia.org/wiki/Non-maskable_interrupt).
+/// Во время изменения настроек RTC запрещает все
+/// [прерывания](https://en.wikipedia.org/wiki/Interrupt),
+/// в том числе
+/// [немаскируемые](https://en.wikipedia.org/wiki/Non-maskable_interrupt).
 /// Иначе она может остаться в
 /// [некорректном состоянии](https://wiki.osdev.org/RTC#Avoiding_NMI_and_Other_Interrupts_While_Programming).
 pub(super) fn init() {
@@ -77,29 +80,42 @@ pub(super) fn init() {
     let mut acknowledged_settings = RegisterB::empty();
 
     interrupts::without_interrupts(|| {
+        let address = DISABLE_NMI | REGISTER_B;
         defer! {
             rtc_read(!DISABLE_NMI);
         }
 
-        old_settings = RegisterB::from_bits(rtc_read(DISABLE_NMI | REGISTER_B)).unwrap();
-        new_settings =
-            (old_settings & !RegisterB::DAYLIGHT_SAVING) | RegisterB::UPDATE_ENDED_INTERRUPT;
-        rtc_write(DISABLE_NMI | REGISTER_B, new_settings.bits());
-        acknowledged_settings = RegisterB::from_bits(rtc_read(DISABLE_NMI | REGISTER_B)).unwrap();
+        /// Такого не должно происходить, все 8 бит в [`RegisterB`] определены.
+        const UNDEFINED_FLAG_FOUND: &str = "undefined flag found in RTC register B";
 
+        old_settings = RegisterB::from_bits(rtc_read(address)).expect(UNDEFINED_FLAG_FOUND);
+        if old_settings.contains(RegisterB::DAYLIGHT_SAVING) {
+            error!("RTC time is not in UTC (DST is on), expect the system time to be incorrect");
+        }
+
+        new_settings = old_settings | RegisterB::UPDATE_ENDED_INTERRUPT;
+        rtc_write(address, new_settings.bits());
+
+        acknowledged_settings =
+            RegisterB::from_bits(rtc_read(address)).expect(UNDEFINED_FLAG_FOUND);
         SETTINGS.store(acknowledged_settings.bits(), Ordering::Relaxed);
     });
 
     if acknowledged_settings == new_settings {
         let rtc = SYSTEM_INFO.rtc();
+        let timestamp = timestamp();
         rtc.store_prev(CorrelationPoint::invalid(
-            timestamp().unwrap_or(0) * TICKS_PER_SECOND,
+            timestamp.unwrap_or(0) * TICKS_PER_SECOND,
         ));
 
-        if is_time_valid() {
-            info!(?acknowledged_settings, "RTC init");
-        } else {
+        if !is_time_valid() {
             error!("RTC reports low battery, its time and date values are incorrect");
+        } else if timestamp.is_none() {
+            error!("failed to read time and date from RTC consistently");
+        } else if timestamp == Some(0) {
+            error!("wrong time and date from RTC");
+        } else {
+            info!(?acknowledged_settings, "RTC init");
         }
     } else {
         error!(
@@ -119,8 +135,11 @@ pub fn error() -> Duration {
     Duration::nanoseconds(ERROR.load(Ordering::Relaxed))
 }
 
-/// Говорит микросхеме RTC, что процессор обработал [прерывание](https://en.wikipedia.org/wiki/Interrupt) от неё.
-/// То есть, посылает ей [end of interrupt (EOI)](https://en.wikipedia.org/wiki/End_of_interrupt).
+/// Говорит микросхеме RTC, что процессор обработал
+/// [прерывание](https://en.wikipedia.org/wiki/Interrupt)
+/// от неё.
+/// То есть, посылает ей
+/// [end of interrupt (EOI)](https://en.wikipedia.org/wiki/End_of_interrupt).
 ///
 /// См. [Interrupts and Register C](https://wiki.osdev.org/RTC#Interrupts_and_Register_C).
 pub(crate) fn enable_next_interrupt() {
@@ -155,13 +174,19 @@ bitflags! {
         /// Генерировать сигнал с конфигурируемой частотой но отдельном выходе микросхемы.
         const SQUARE_WAVE = 1 << 3;
 
-        /// Включает [прерывание](https://en.wikipedia.org/wiki/Interrupt), посылаемое процессору микросхемой после обновления показаний времени при тике.
+        /// Включает
+        /// [прерывание](https://en.wikipedia.org/wiki/Interrupt),
+        /// посылаемое процессору микросхемой после обновления показаний времени при тике.
         const UPDATE_ENDED_INTERRUPT = 1 << 4;
 
-        /// Включает [прерывание](https://en.wikipedia.org/wiki/Interrupt), посылаемое процессору при срабатывании будильника.
+        /// Включает
+        /// [прерывание](https://en.wikipedia.org/wiki/Interrupt),
+        /// посылаемое процессору при срабатывании будильника.
         const ALARM_INTERRUPT = 1 << 5;
 
-        /// Включает периодическое [прерывание](https://en.wikipedia.org/wiki/Interrupt) с конфигурируемой частотой.
+        /// Включает периодическое
+        /// [прерывание](https://en.wikipedia.org/wiki/Interrupt)
+        /// с конфигурируемой частотой.
         const PERIODIC_INTERRUPT = 1 << 6;
 
         /// Сообщает микросхеме, что процессор меняет дату и время.
@@ -213,13 +238,16 @@ bitflags! {
     second
 )]
 struct Date {
-    /// Год по [григорианскому календарю](https://en.wikipedia.org/wiki/Gregorian_calendar).
+    /// Год по
+    /// [григорианскому календарю](https://en.wikipedia.org/wiki/Gregorian_calendar).
     year: u16,
 
-    /// Месяц по [григорианскому календарю](https://en.wikipedia.org/wiki/Gregorian_calendar).
+    /// Месяц по
+    /// [григорианскому календарю](https://en.wikipedia.org/wiki/Gregorian_calendar).
     month: u8,
 
-    /// День месяца по [григорианскому календарю](https://en.wikipedia.org/wiki/Gregorian_calendar).
+    /// День месяца по
+    /// [григорианскому календарю](https://en.wikipedia.org/wiki/Gregorian_calendar).
     day: u8,
 
     /// Час.
@@ -320,8 +348,10 @@ fn is_time_valid() -> bool {
     register_d.contains(RegisterD::VALID_RAM_AND_TIME)
 }
 
-/// Переводит текущее время RTC в [секунды с момента начала Unix--эпохи](https://en.wikipedia.org/wiki/Unix_time).
-/// Предполагает, что микросхема RTC хранит [всемирное координированное время (Coordinated Universal Time, UTC)](https://en.wikipedia.org/wiki/Coordinated_Universal_Time).
+/// Переводит текущее время RTC в
+/// [секунды с момента начала Unix--эпохи](https://en.wikipedia.org/wiki/Unix_time).
+/// Предполагает, что микросхема RTC хранит
+/// [всемирное координированное время (Coordinated Universal Time, UTC)](https://en.wikipedia.org/wiki/Coordinated_Universal_Time).
 fn timestamp() -> Option<i64> {
     Date::read()
         .and_then(|date| date.try_into().ok())
@@ -332,7 +362,8 @@ fn timestamp() -> Option<i64> {
 ///
 /// `format` может быть как
 /// [двоично--десятичным](https://en.wikipedia.org/wiki/Binary-coded_decimal), так и
-/// [двоичным](https://en.wikipedia.org/wiki/Binary_number), см. [`RegisterB`].
+/// [двоичным](https://en.wikipedia.org/wiki/Binary_number),
+/// см. [`RegisterB`].
 ///
 /// [Подробнее про формат времени в RTC](https://wiki.osdev.org/CMOS#Format_of_Bytes).
 fn parse_value(
@@ -366,8 +397,11 @@ static ERROR: AtomicI64 = AtomicI64::new(0);
 /// Копия текущих настроек микросхемы --- [`RegisterB`].
 static SETTINGS: AtomicU8 = AtomicU8::new(0);
 
-/// Запрет [немаскируемых прерываний](https://en.wikipedia.org/wiki/Non-maskable_interrupt).
-/// Разделяет тот же номер [порта ввода--вывода](https://wiki.osdev.org/Port_IO), что и [`ADDRESS_PORT`].
+/// Запрет
+/// [немаскируемых прерываний](https://en.wikipedia.org/wiki/Non-maskable_interrupt).
+/// Разделяет тот же номер
+/// [порта ввода--вывода](https://wiki.osdev.org/Port_IO),
+/// что и [`ADDRESS_PORT`].
 const DISABLE_NMI: u8 = 1 << 7;
 
 /// Адрес регистра статуса RTC.
