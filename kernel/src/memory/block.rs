@@ -363,6 +363,15 @@ impl Block<Virt> {
         Self::new(start, end).unwrap()
     }
 
+    /// Преобразует указатель на `T` в [`Block<Virt>`].
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если указатель не корректен.
+    pub fn from_mut_ptr<T>(x: *mut T) -> Self {
+        Self::from_ptr(x)
+    }
+
     /// Преобразует ссылку на `T` в [`Block<Virt>`].
     ///
     /// # Panics
@@ -370,6 +379,15 @@ impl Block<Virt> {
     /// Паникует, если ссылка не корректна.
     pub fn from_ref<T>(x: &T) -> Self {
         Self::from_ptr(x)
+    }
+
+    /// Преобразует ссылку на `T` в [`Block<Virt>`].
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если ссылка не корректна.
+    pub fn from_mut<T>(x: &mut T) -> Self {
+        Self::from_mut_ptr(x)
     }
 
     /// Преобразует срез элементов типа `T` в [`Block<Virt>`].

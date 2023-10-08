@@ -87,7 +87,7 @@ impl Process {
         info: &'static mut ProcessInfo,
         log: ReadBuffer,
     ) -> Self {
-        let info = Block::from_ref(info);
+        let info = Block::from_mut(info);
 
         Self {
             address_space: Spinlock::new(address_space),
@@ -118,7 +118,7 @@ impl Process {
         address_space.switch_to();
         let (read_buffer, write_buffer) = super::map_log(&mut address_space)?;
         let info = super::map_process_info(&mut address_space, stack, write_buffer)?;
-        let info = Block::from_ref(info);
+        let info = Block::from_mut(info);
         self.address_space.lock().switch_to();
 
         Ok(Self {

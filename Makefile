@@ -18,7 +18,7 @@ RUST_PATH = $(HOME)/.cargo/bin
 
 export PATH := $(RUST_PATH):$(PATH)
 
-CRATES = ku serial text kernel
+CRATES = ku serial text kernel sem
 
 all: test run
 
@@ -74,9 +74,13 @@ FORCE:
 
 test: install
 	@( \
+		rustup component add clippy --toolchain nightly-2023-09-16-x86_64-unknown-linux-gnu; \
+		rustup component add rustfmt --toolchain nightly-2023-09-16-x86_64-unknown-linux-gnu; \
 		for crate in $(CRATES); do \
 			cd $$crate; \
 			RUST_BACKTRACE=1 cargo test || exit 1; \
+			cargo clippy || exit 1; \
+			cargo fmt --check || exit 1; \
 			cd - >/dev/null; \
 		done; \
 	)

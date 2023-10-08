@@ -265,7 +265,7 @@ impl BootStack {
             set_cs_rip_to_64bit,
             kernel_code: SmallGdt::kernel_code(),
             _padding: 0,
-            cpu: Virt::from_ref(cpu),
+            cpu: Virt::from_mut(cpu),
             initialized: Virt::from_ref(initialized),
             kernel_stack,
             gdt,

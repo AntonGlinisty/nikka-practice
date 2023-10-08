@@ -449,7 +449,7 @@ impl AddressSpace {
         &mut self,
         element: &'static mut T,
     ) -> Result<()> {
-        self.unmap_slice(Block::<Virt>::from_ref(element).try_into_mut_slice::<T>()?)
+        self.unmap_slice(Block::<Virt>::from_mut(element).try_into_mut_slice::<T>()?)
     }
 
     /// Проверяет доступность блока виртуальной памяти `block` на чтение и

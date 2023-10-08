@@ -272,7 +272,9 @@ impl Tag for VirtTag {
 #[doc(hidden)]
 pub trait IsVirt {
     fn from_ptr<T: ?Sized>(ptr: *const T) -> Self;
+    fn from_mut_ptr<T: ?Sized>(ptr: *mut T) -> Self;
     fn from_ref<T: ?Sized>(x: &T) -> Self;
+    fn from_mut<T: ?Sized>(x: &mut T) -> Self;
     fn into_ptr_u8(self) -> *const u8;
     fn into_mut_ptr_u8(self) -> *mut u8;
     fn try_into_ptr<T>(self) -> Result<*const T>;
@@ -434,13 +436,31 @@ impl Virt {
         Self::new(ptr as *const () as usize).expect("bad pointer")
     }
 
+    /// Преобразует указатель на `T` в [`Virt`].
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если указатель не корректен.
+    pub fn from_mut_ptr<T: ?Sized>(ptr: *mut T) -> Self {
+        Self::from_ptr(ptr)
+    }
+
     /// Преобразует ссылку на `T` в [`Virt`].
     ///
     /// # Panics
     ///
     /// Паникует, если ссылка не корректна.
     pub fn from_ref<T: ?Sized>(x: &T) -> Self {
-        Self::from_ptr(x as *const T)
+        Self::from_ptr(x)
+    }
+
+    /// Преобразует ссылку на `T` в [`Virt`].
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если ссылка не корректна.
+    pub fn from_mut<T: ?Sized>(x: &mut T) -> Self {
+        Self::from_mut_ptr(x)
     }
 
     /// Преобразует [`Virt`] в указатель на константный [`u8`].
@@ -586,8 +606,16 @@ impl IsVirt for Virt {
         Virt::from_ptr::<T>(ptr)
     }
 
+    fn from_mut_ptr<T: ?Sized>(ptr: *mut T) -> Self {
+        Virt::from_mut_ptr::<T>(ptr)
+    }
+
     fn from_ref<T: ?Sized>(x: &T) -> Self {
         Virt::from_ref::<T>(x)
+    }
+
+    fn from_mut<T: ?Sized>(x: &mut T) -> Self {
+        Virt::from_mut::<T>(x)
     }
 
     fn into_ptr_u8(self) -> *const u8 {
