@@ -15,7 +15,7 @@ use kernel::{
 
 mod init;
 
-init!(Subsystems::MEMORY | Subsystems::SYSCALL | Subsystems::LOCAL_APIC);
+init!(Subsystems::MEMORY | Subsystems::LOCAL_APIC);
 
 #[test_case]
 fn mapped_properly() {

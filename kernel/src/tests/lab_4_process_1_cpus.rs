@@ -22,7 +22,7 @@ use kernel::{
 
 mod init;
 
-init!(Subsystems::MEMORY | Subsystems::SYSCALL | Subsystems::LOCAL_APIC | Subsystems::CPUS);
+init!(Subsystems::MEMORY | Subsystems::LOCAL_APIC | Subsystems::CPUS);
 
 #[test_case]
 fn initialized() {

@@ -24,7 +24,7 @@ use kernel::{
 
 mod init;
 
-init!(Subsystems::MEMORY | Subsystems::SYSCALL);
+init!(Subsystems::MEMORY);
 
 #[test_case]
 fn ap_init() {
