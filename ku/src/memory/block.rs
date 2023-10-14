@@ -594,6 +594,11 @@ impl<T: Tag> Memory for Frage<T> {
 
 #[cfg(test)]
 mod test {
+    use crate::error::Error::{
+        InvalidArgument,
+        Overflow,
+    };
+
     use super::{
         super::{
             Page,
@@ -607,46 +612,138 @@ mod test {
     fn grow_forward() {
         assert!(Block::<Phys>::from_index(0, 1).is_ok());
         assert!(Block::<Phys>::from_index(1, 1).is_ok());
-        assert!(Block::<Phys>::from_index(1, 0).is_err());
+        assert_eq!(Block::<Phys>::from_index(1, 0), Err(InvalidArgument));
+    }
+
+    #[test]
+    fn full_halves() {
+        let lower_half_first_page = LOWER_HALF_FIRST / Page::SIZE;
+        let lower_half_last_page = LOWER_HALF_LAST / Page::SIZE;
+        let higher_half_first_page = HIGHER_HALF_FIRST / Page::SIZE;
+        let higher_half_last_page = HIGHER_HALF_LAST / Page::SIZE;
+
+        let half_size = LOWER_HALF_LAST - LOWER_HALF_FIRST + 1;
+        assert_eq!(half_size, HIGHER_HALF_LAST - HIGHER_HALF_FIRST + 1);
+
+        // This way it works.
+        let full_lower_half =
+            Block::<Page>::from_index(lower_half_first_page, lower_half_last_page + 1).unwrap();
+        assert!(full_lower_half.contains_address(Virt::new(LOWER_HALF_FIRST).unwrap()));
+        assert!(full_lower_half.contains_address(Virt::new(LOWER_HALF_LAST).unwrap()));
+        assert_eq!(full_lower_half.size(), half_size);
+        assert_eq!(full_lower_half.end_address(), Err(InvalidArgument));
+        assert_eq!(
+            Block::<Page>::from_index(lower_half_first_page, lower_half_last_page + 2),
+            Err(InvalidArgument),
+        );
+        assert_eq!(
+            Block::<Page>::from_index(
+                lower_half_first_page.wrapping_sub(1),
+                lower_half_last_page + 1,
+            ),
+            Err(Overflow),
+        );
+
+        // But this way it should not:
+        // ```rust
+        // Block::new(
+        //     Page::from_index(lower_half_first_page).unwrap(),
+        //     Page::from_index(lower_half_last_page + 1).unwrap(),
+        // )
+        // ```
+        // Because `Page::from_index(lower_half_last_page + 1)` has an invalid virtual address:
+        assert_eq!(
+            Page::from_index(lower_half_last_page + 1),
+            Err(InvalidArgument),
+        );
+
+        let full_higher_half =
+            Block::<Page>::from_index(higher_half_first_page, higher_half_last_page + 1).unwrap();
+        assert!(full_higher_half.contains_address(Virt::new(HIGHER_HALF_LAST).unwrap()));
+        assert_eq!(full_higher_half.end_address(), Err(Overflow));
+        assert_eq!(full_higher_half.size(), half_size);
+        assert_eq!(
+            Block::<Page>::from_index(higher_half_first_page, higher_half_last_page + 2),
+            Err(Overflow),
+        );
+        assert_eq!(
+            Block::<Page>::from_index(higher_half_first_page - 1, higher_half_last_page + 1),
+            Err(InvalidArgument),
+        );
+
+        let full_lower_half =
+            Block::<Virt>::from_index(LOWER_HALF_FIRST, LOWER_HALF_LAST + 1).unwrap();
+        assert!(full_lower_half.contains_address(Virt::new(LOWER_HALF_FIRST).unwrap()));
+        assert!(full_lower_half.contains_address(Virt::new(LOWER_HALF_LAST).unwrap()));
+        assert_eq!(full_lower_half.size(), half_size);
+        assert_eq!(full_lower_half.end_address(), Err(InvalidArgument));
+        assert_eq!(
+            Block::<Virt>::from_index(LOWER_HALF_FIRST, LOWER_HALF_LAST + 2),
+            Err(InvalidArgument),
+        );
+        assert_eq!(
+            Block::<Virt>::from_index(LOWER_HALF_FIRST.wrapping_sub(1), LOWER_HALF_LAST + 1),
+            Err(InvalidArgument),
+        );
+
+        // `HIGHER_HALF_LAST + 1` will overflow so
+        // full higher half `Block<Virt>` is impossible to create and store.
+        let full_higher_half =
+            Block::<Virt>::from_index(HIGHER_HALF_FIRST, HIGHER_HALF_LAST.wrapping_add(1));
+        assert_eq!(full_higher_half, Err(InvalidArgument));
+        assert_eq!(
+            Block::<Virt>::from_index(HIGHER_HALF_FIRST, HIGHER_HALF_LAST.wrapping_add(2)),
+            Err(InvalidArgument),
+        );
+        assert_eq!(
+            Block::<Virt>::from_index(HIGHER_HALF_FIRST - 1, HIGHER_HALF_LAST.wrapping_add(1)),
+            Err(InvalidArgument),
+        );
     }
 
     #[test]
     fn enforce_same_virt_half() {
-        let lower_half_last = 0x0000_7FFF_FFFF_FFFF;
-        assert!(Block::<Virt>::from_index(0, lower_half_last).is_ok());
-        assert!(Block::<Virt>::from_index(0, lower_half_last + 1).is_ok());
+        assert!(Block::<Virt>::from_index(0, LOWER_HALF_LAST).is_ok());
+        assert!(Block::<Virt>::from_index(0, LOWER_HALF_LAST + 1).is_ok());
 
-        let inside_lower_half = Virt::new(lower_half_last / 2).unwrap();
-        let inside_higher_half = Virt::new(0xFFFF_FFFF_0000_0000).unwrap();
-        assert!(Block::new(inside_lower_half, inside_higher_half).is_err());
+        let inside_lower_half = Virt::new(INSIDE_LOWER_HALF).unwrap();
+        let inside_higher_half = Virt::new(INSIDE_HIGHER_HALF).unwrap();
+        assert_eq!(
+            Block::new(inside_lower_half, inside_higher_half),
+            Err(InvalidArgument),
+        );
+        assert_eq!(
+            Block::<Virt>::from_index(INSIDE_LOWER_HALF, INSIDE_HIGHER_HALF),
+            Err(InvalidArgument),
+        );
 
         let lower_half_last =
-            Page::new(Virt::new(lower_half_last - (Page::SIZE - 1)).unwrap()).unwrap();
-        let inside_lower_half = Page::new(
-            Virt::new((lower_half_last.address().into_usize() + Page::SIZE) / 2).unwrap(),
-        )
-        .unwrap();
+            Page::new(Virt::new(LOWER_HALF_LAST - (Page::SIZE - 1)).unwrap()).unwrap();
+        let inside_lower_half = Page::new(inside_lower_half).unwrap();
         let inside_higher_half = Page::new(inside_higher_half).unwrap();
         assert!(Block::<Page>::from_index(0, lower_half_last.index()).is_ok());
         assert!(Block::<Page>::from_index(0, lower_half_last.index() + 1).is_ok());
-        assert!(Block::<Page>::from_index(0, lower_half_last.index() + 2).is_err());
-        assert!(Block::new(inside_lower_half, inside_higher_half).is_err());
+        assert_eq!(
+            Block::<Page>::from_index(0, lower_half_last.index() + 2),
+            Err(InvalidArgument),
+        );
+        assert_eq!(
+            Block::new(inside_lower_half, inside_higher_half),
+            Err(InvalidArgument),
+        );
+        assert_eq!(
+            Block::<Page>::from_index(inside_lower_half.index(), inside_higher_half.index()),
+            Err(InvalidArgument),
+        );
     }
 
     #[test]
     fn enclosing() {
-        let lower_half_first = 0x0;
-        let lower_half_last = 0x0000_7FFF_FFFF_FFFF;
-        let higher_half_first = 0xFFFF_8000_0000_0000;
-        let higher_half_last = 0xFFFF_FFFF_FFFF_FFFF;
-        let inside_lower_half = (lower_half_last / (2 * Page::SIZE)) * Page::SIZE;
-        let inside_higher_half = 0xFFFF_FFFF_0000_0000;
-
         for base in [
-            lower_half_first,
-            higher_half_first,
-            inside_lower_half,
-            inside_higher_half,
+            LOWER_HALF_FIRST,
+            HIGHER_HALF_FIRST,
+            INSIDE_LOWER_HALF,
+            INSIDE_HIGHER_HALF,
         ] {
             for shift in [0, 1] {
                 let start_virt = base + shift;
@@ -667,10 +764,10 @@ mod test {
         }
 
         for base in [
-            lower_half_first + 2 * Page::SIZE - 1,
-            lower_half_last,
-            higher_half_first + 2 * Page::SIZE - 1,
-            higher_half_last,
+            LOWER_HALF_FIRST + 2 * Page::SIZE - 1,
+            LOWER_HALF_LAST,
+            HIGHER_HALF_FIRST + 2 * Page::SIZE - 1,
+            HIGHER_HALF_LAST,
         ] {
             for shift in [0, 1] {
                 let end_virt = base - shift;
@@ -681,14 +778,14 @@ mod test {
                     (end_virt - (Page::SIZE - shift), end_page - 2),
                     (end_virt - (Page::SIZE - shift) - 1, end_page - 2),
                 ] {
-                    assert!(
-                        Block::<Virt>::from_index(start_virt, end_virt).unwrap().enclosing() ==
-                            Block::<Page>::from_index(start_page, end_page).unwrap(),
+                    assert_eq!(
+                        Block::<Virt>::from_index(start_virt, end_virt).unwrap().enclosing(),
+                        Block::<Page>::from_index(start_page, end_page).unwrap(),
                     );
                 }
-                assert!(
-                    Block::<Virt>::from_index(end_virt, end_virt).unwrap().enclosing() ==
-                        Block::<Page>::from_index(end_page - 1, end_page - 1).unwrap(),
+                assert_eq!(
+                    Block::<Virt>::from_index(end_virt, end_virt).unwrap().enclosing(),
+                    Block::<Page>::from_index(end_page - 1, end_page - 1).unwrap(),
                 );
             }
         }
@@ -698,10 +795,26 @@ mod test {
     fn bad_address() {
         let phys_end = 1 << 52;
         assert!(Block::<Phys>::from_index(phys_end - 1, phys_end).is_ok());
-        assert!(Block::<Phys>::from_index(phys_end, phys_end).is_err());
-        assert!(Block::<Phys>::from_index(phys_end - 1, phys_end + 1).is_err());
+        assert_eq!(
+            Block::<Phys>::from_index(phys_end, phys_end),
+            Err(InvalidArgument),
+        );
+        assert_eq!(
+            Block::<Phys>::from_index(phys_end - 1, phys_end + 1),
+            Err(InvalidArgument),
+        );
 
-        let bad_virt = 1 << 49;
-        assert!(Block::<Virt>::from_index(bad_virt, bad_virt).is_err());
+        let bad_virt = 1 << 48;
+        assert_eq!(
+            Block::<Virt>::from_index(bad_virt, bad_virt),
+            Err(InvalidArgument),
+        );
     }
+
+    const LOWER_HALF_FIRST: usize = 0x0;
+    const LOWER_HALF_LAST: usize = 0x0000_7FFF_FFFF_FFFF;
+    const HIGHER_HALF_FIRST: usize = 0xFFFF_8000_0000_0000;
+    const HIGHER_HALF_LAST: usize = 0xFFFF_FFFF_FFFF_FFFF;
+    const INSIDE_LOWER_HALF: usize = (LOWER_HALF_LAST / (2 * Page::SIZE)) * Page::SIZE;
+    const INSIDE_HIGHER_HALF: usize = 0xFFFF_FFFF_0000_0000;
 }
