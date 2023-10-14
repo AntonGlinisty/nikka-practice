@@ -39,6 +39,16 @@ pub struct Info {
 }
 
 impl Info {
+    /// Инициализирует статистику аллокатора нулями.
+    pub(super) const fn new() -> Self {
+        Self {
+            allocated: Counter::new(),
+            allocations: Counter::new(),
+            pages: Counter::new(),
+            requested: Counter::new(),
+        }
+    }
+
     /// Сколько памяти в байтах было выделено аллокатором.
     pub fn allocated(&self) -> Counter {
         self.allocated
@@ -62,13 +72,15 @@ impl Info {
     /// Сколько памяти в байтах потеряно на фрагментацию в текущий момент времени.
     /// Равно `allocated().balance() - requested().balance()`.
     pub fn fragmentation_loss(&self) -> usize {
-        self.allocated.balance() - self.requested.balance()
+        self.pages.balance() * Page::SIZE - self.requested.balance()
     }
 
     /// Сколько памяти в процентах потеряно на фрагментацию в текущий момент времени.
     /// Равно `100.0 * fragmentation_loss() / allocated().balance()`.
     pub fn fragmentation_loss_percentage(&self) -> f64 {
-        self.fragmentation_loss() as f64 / cmp::max(self.allocated.balance(), 1) as f64 * 100.0
+        let total = self.pages.balance() * Page::SIZE;
+
+        self.fragmentation_loss() as f64 / cmp::max(total, 1) as f64 * 100.0
     }
 
     /// Проверка, соблюдены ли ожидаемые инварианты:
@@ -85,6 +97,54 @@ impl Info {
             self.requested.balance() <= self.allocated.balance() &&
             self.requested.negative() <= self.allocated.negative() &&
             self.allocated.balance() <= self.pages.balance() * Page::SIZE
+    }
+
+    /// Добавляет в счётчики одну операцию выделения памяти:
+    ///   - Запрошено `requested` байт.
+    ///   - Реально выделено `allocated` байт.
+    ///   - Для операции дополнительно пришлось выделить `allocated_pages` виртуальных страниц.
+    pub fn allocation(
+        &mut self,
+        requested: usize,
+        allocated: usize,
+        allocated_pages: usize,
+    ) {
+        self.allocated.increase(allocated);
+        self.allocations.increase(1);
+        self.pages.increase(allocated_pages);
+        self.requested.increase(requested);
+    }
+
+    /// Добавляет в счётчики одну операцию освобождения памяти:
+    ///   - Запрошено освобождение `requested` байт.
+    ///   - Реально освобождено `deallocated` байт.
+    ///   - При этом освободились `deallocated_pages` виртуальных страниц.
+    pub fn deallocation(
+        &mut self,
+        requested: usize,
+        deallocated: usize,
+        deallocated_pages: usize,
+    ) {
+        self.allocated.decrease(deallocated);
+        self.allocations.decrease(1);
+        self.pages.decrease(deallocated_pages);
+        self.requested.decrease(requested);
+    }
+
+    /// Учитывает в счётчиках выделение `allocated_pages` виртуальных страниц.
+    pub fn pages_allocation(
+        &mut self,
+        allocated_pages: usize,
+    ) {
+        self.pages.increase(allocated_pages);
+    }
+
+    /// Учитывает в счётчиках освобождение `deallocated_pages` виртуальных страниц.
+    pub fn pages_deallocation(
+        &mut self,
+        allocated_pages: usize,
+    ) {
+        self.pages.decrease(allocated_pages);
     }
 }
 
@@ -164,12 +224,12 @@ impl AtomicInfo {
         allocated_pages: usize,
     ) {
         self.sequence.fetch_add(1, Ordering::Acquire);
-        self.allocated.add(allocated);
-        self.allocations.add(1);
+        self.allocated.increase(allocated);
+        self.allocations.increase(1);
         if allocated_pages > 0 {
-            self.pages.add(allocated_pages);
+            self.pages.increase(allocated_pages);
         }
-        self.requested.add(requested);
+        self.requested.increase(requested);
         self.sequence.fetch_add(1, Ordering::Release);
     }
 
@@ -184,12 +244,32 @@ impl AtomicInfo {
         deallocated_pages: usize,
     ) {
         self.sequence.fetch_add(1, Ordering::Acquire);
-        self.allocations.sub(1);
-        self.requested.sub(requested);
-        self.allocated.sub(deallocated);
+        self.allocated.decrease(deallocated);
+        self.allocations.decrease(1);
         if deallocated_pages > 0 {
-            self.pages.sub(deallocated_pages);
+            self.pages.decrease(deallocated_pages);
         }
+        self.requested.decrease(requested);
+        self.sequence.fetch_add(1, Ordering::Release);
+    }
+
+    /// Учитывает в счётчиках выделение `allocated_pages` виртуальных страниц.
+    pub fn pages_allocation(
+        &self,
+        allocated_pages: usize,
+    ) {
+        self.sequence.fetch_add(1, Ordering::Acquire);
+        self.pages.increase(allocated_pages);
+        self.sequence.fetch_add(1, Ordering::Release);
+    }
+
+    /// Учитывает в счётчиках освобождение `deallocated_pages` виртуальных страниц.
+    pub fn pages_deallocation(
+        &self,
+        allocated_pages: usize,
+    ) {
+        self.sequence.fetch_add(1, Ordering::Acquire);
+        self.pages.decrease(allocated_pages);
         self.sequence.fetch_add(1, Ordering::Release);
     }
 
@@ -269,6 +349,14 @@ pub struct Counter {
 }
 
 impl Counter {
+    /// Инициализирует счётчик нулём.
+    const fn new() -> Self {
+        Self {
+            negative: 0,
+            positive: 0,
+        }
+    }
+
     /// Суммарный размер соответствующего параметра для операций освобождения памяти.
     pub fn negative(&self) -> usize {
         self.negative
@@ -290,6 +378,22 @@ impl Counter {
     /// соответствующие величины для освобождений памяти.
     fn is_valid(&self) -> bool {
         self.negative <= self.positive
+    }
+
+    /// Добавить к счётчику величину `value`.
+    fn increase(
+        &mut self,
+        value: usize,
+    ) {
+        self.positive += value;
+    }
+
+    /// Вычесть из счётчика величину `value`.
+    fn decrease(
+        &mut self,
+        value: usize,
+    ) {
+        self.negative += value;
     }
 }
 
@@ -369,7 +473,7 @@ impl AtomicCounter {
     }
 
     /// Добавить к счётчику величину `value`.
-    fn add(
+    fn increase(
         &self,
         value: usize,
     ) {
@@ -377,7 +481,7 @@ impl AtomicCounter {
     }
 
     /// Вычесть из счётчика величину `value`.
-    fn sub(
+    fn decrease(
         &self,
         value: usize,
     ) {

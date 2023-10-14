@@ -226,14 +226,6 @@ pub fn exit_qemu(exit_code: ExitCode) -> ! {
     halt()
 }
 
-/// Обработчик ошибок аллокации памяти.
-#[alloc_error_handler]
-#[cold]
-#[inline(never)]
-fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
-    panic!("failed to allocate memory, layout = {:?}", layout)
-}
-
 /// Определяет интерфейс запуска теста.
 pub trait Testable {
     /// Запускает тест.

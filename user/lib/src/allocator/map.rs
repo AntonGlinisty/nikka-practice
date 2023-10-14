@@ -10,10 +10,8 @@ use core::{
 
 use ku::{
     allocator::{
-        AtomicInfo,
         BigAllocator,
         DryAllocator,
-        Info,
         Initialize,
     },
     error::{
@@ -37,18 +35,13 @@ use crate::syscall;
 
 /// Аллокатор памяти общего назначения в пространстве пользователя, реализованный через
 /// системные вызовы [`syscall::map()`], [`syscall::unmap()`] и [`syscall::copy_mapping()`].
-pub(crate) struct MapAllocator;
+pub(super) struct MapAllocator;
 
 impl MapAllocator {
     /// Аллокатор памяти общего назначения в пространстве пользователя, реализованный через
     /// системные вызовы [`syscall::map()`], [`syscall::unmap()`] и [`syscall::copy_mapping()`].
-    pub const fn new() -> MapAllocator {
-        MapAllocator
-    }
-
-    /// Статистика аллокатора общего назначения.
-    pub fn info(&self) -> Info {
-        INFO.load()
+    pub(super) const fn new() -> Self {
+        Self
     }
 }
 
@@ -59,7 +52,6 @@ unsafe impl BigAllocator for MapAllocator {
     ) -> Result<Block<Page>> {
         if layout.align() <= Page::SIZE {
             let block = Block::from_index(0, Page::count_up(layout.size()))?;
-            INFO.allocation(block.size(), block.size(), block.count());
             syscall::map(Pid::Current, block, PageTableFlags::USER_ACCESSIBLE)
         } else {
             Err(InvalidAlignment)
@@ -68,9 +60,8 @@ unsafe impl BigAllocator for MapAllocator {
 
     unsafe fn unreserve(
         &mut self,
-        block: Block<Page>,
+        _block: Block<Page>,
     ) -> Result<()> {
-        INFO.deallocation(block.size(), block.size(), block.count());
         Ok(())
     }
 
@@ -80,8 +71,6 @@ unsafe impl BigAllocator for MapAllocator {
         sub_block: Block<Page>,
     ) -> Result<()> {
         if old_block.contains_block(sub_block) {
-            INFO.allocation(sub_block.size(), sub_block.size(), sub_block.count());
-            INFO.deallocation(old_block.size(), old_block.size(), old_block.count());
             Ok(())
         } else {
             Err(InvalidArgument)
@@ -169,6 +158,3 @@ unsafe impl Allocator for MapAllocator {
         Self::new().dry_shrink(ptr, old_layout, new_layout).map_err(|_| AllocError)
     }
 }
-
-/// Статистика аллокатора общего назначения.
-static INFO: AtomicInfo = AtomicInfo::new();

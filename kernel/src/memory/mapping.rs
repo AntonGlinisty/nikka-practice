@@ -58,7 +58,7 @@ pub struct Mapping {
 impl Mapping {
     /// Запоминает корневой узел таблицы страниц `page_table_root`.
     /// И начало "окна", в которое отображена вся физическая память, --- `phys2virt`.
-    pub(super) fn new(
+    pub(super) const fn new(
         page_table_root: Frame,
         phys2virt: Page,
     ) -> Self {

@@ -49,7 +49,7 @@ impl BlockCache {
     /// [синглтоне](https://en.wikipedia.org/wiki/Singleton_pattern)
     /// [`struct@BLOCK_CACHE`].
     ///
-    /// Резервирует в [`struct@BASE_ADDRESS_SPACE`] блок виртуальных страниц,
+    /// Резервирует в [`BASE_ADDRESS_SPACE`] блок виртуальных страниц,
     /// достаточный для отображения один в один `block_count` блоков файловой системы.
     pub(super) fn init(
         disk: Disk,

@@ -9,6 +9,7 @@ extern crate alloc;
 
 use alloc::{
     boxed::Box,
+    collections::BTreeMap,
     vec::Vec,
 };
 use core::{
@@ -21,7 +22,11 @@ use ku::{
         debug,
         info,
     },
-    memory::Page,
+    memory::{
+        Page,
+        Virt,
+        size::MiB,
+    },
 };
 
 use lib::{
@@ -37,6 +42,9 @@ fn main() {
 
     info!(test_case = "grow_and_shrink");
     memory_allocator_grow_and_shrink();
+
+    info!(test_case = "memory_allocator_stress");
+    memory_allocator_stress(10_000);
 }
 
 fn generate_page_fault() -> ! {

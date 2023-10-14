@@ -8,7 +8,6 @@
 #![feature(allocator_api)]
 #![feature(asm_const)]
 #![feature(naked_functions)]
-#![feature(slice_ptr_get)]
 #![no_std]
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(missing_docs)]

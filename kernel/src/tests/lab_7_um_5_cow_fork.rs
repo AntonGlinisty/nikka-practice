@@ -45,8 +45,6 @@ const COW_FORK_ELF: &[u8] = page_aligned!("../../target/kernel/user/cow_fork");
 
 #[test_case]
 fn cow_fork() {
-    let _guard = forbid_frame_leaks();
-
     static START_FREE_FRAMES: AtomicUsize = AtomicUsize::new(0);
     static ONE_PROCESS_FRAMES: AtomicUsize = AtomicUsize::new(0);
     static PARENTS: Spinlock<Vec<(Pid, Pid)>> = Spinlock::new(Vec::new());
@@ -81,16 +79,20 @@ fn cow_fork() {
         }
     }
 
-    START_FREE_FRAMES.store(FRAME_ALLOCATOR.lock().count(), Ordering::Relaxed);
-    let pid = process_helpers::allocate(COW_FORK_ELF).pid();
-    ONE_PROCESS_FRAMES.store(
-        START_FREE_FRAMES.load(Ordering::Relaxed) - FRAME_ALLOCATOR.lock().count(),
-        Ordering::Relaxed,
-    );
+    {
+        let _guard = forbid_frame_leaks();
 
-    Scheduler::enqueue(pid);
+        START_FREE_FRAMES.store(FRAME_ALLOCATOR.lock().count(), Ordering::Relaxed);
+        let pid = process_helpers::allocate(COW_FORK_ELF).pid();
+        ONE_PROCESS_FRAMES.store(
+            START_FREE_FRAMES.load(Ordering::Relaxed) - FRAME_ALLOCATOR.lock().count(),
+            Ordering::Relaxed,
+        );
 
-    while Scheduler::run_one() {}
+        Scheduler::enqueue(pid);
+
+        while Scheduler::run_one() {}
+    }
 
     assert!(
         TRAP_STATS[PAGE_FAULT].count() > 100,

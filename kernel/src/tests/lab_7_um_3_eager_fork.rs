@@ -130,8 +130,6 @@ fn t1_exofork_syscall() {
 
 #[test_case]
 fn t2_eager_fork() {
-    let _guard = forbid_frame_leaks();
-
     let start_page_fault_count = TRAP_STATS[PAGE_FAULT].count();
 
     static PARENTS: Spinlock<Vec<(Pid, Pid)>> = Spinlock::new(Vec::new());
@@ -145,11 +143,15 @@ fn t2_eager_fork() {
         }
     }
 
-    let pid = process_helpers::allocate(EAGER_FORK_ELF).pid();
+    {
+        let _guard = forbid_frame_leaks();
 
-    Scheduler::enqueue(pid);
+        let pid = process_helpers::allocate(EAGER_FORK_ELF).pid();
 
-    while Scheduler::run_one() {}
+        Scheduler::enqueue(pid);
+
+        while Scheduler::run_one() {}
+    }
 
     assert_eq!(
         TRAP_STATS[PAGE_FAULT].count(),

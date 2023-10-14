@@ -9,7 +9,15 @@ pub mod dry;
 /// Статистика аллокатора общего назначения.
 mod info;
 
+/// Аллокатор верхнего уровня.
+/// По запрошенному размеру определяет из какого аллокатора будет выделяться память.
+mod dispatcher;
+
+/// Аллокатор, выделяющий память блоками одинакового размера.
+mod fixed_size;
+
 pub use big::BigAllocator;
+pub use dispatcher::Dispatcher;
 pub use dry::{
     DryAllocator,
     Initialize,

@@ -3,6 +3,7 @@ extern crate alloc;
 use alloc::{
     alloc::Layout,
     boxed::Box,
+    collections::BTreeMap,
     vec::Vec,
 };
 use core::{
@@ -26,11 +27,13 @@ use kernel::{
         Block,
         FRAME_ALLOCATOR,
         Page,
+        Virt,
         mmu::{
             PageTableEntry,
             PageTableFlags,
             USER_RW,
         },
+        size::MiB,
         test_scaffolding::{
             forbid_frame_leaks,
             mapping,
@@ -44,8 +47,6 @@ init!(Subsystems::MEMORY);
 
 #[test_case]
 fn basic() {
-    let _guard = forbid_frame_leaks();
-
     memory_allocator_basic();
 }
 
@@ -82,8 +83,6 @@ fn shrink_is_not_a_noop() {
 
 #[test_case]
 fn grow_and_shrink() {
-    let _guard = forbid_frame_leaks();
-
     memory_allocator_grow_and_shrink();
 }
 
@@ -117,6 +116,11 @@ fn paged_realloc_is_cheap() {
     }
 
     assert!(prev_frames.is_empty());
+}
+
+#[test_case]
+fn stress() {
+    memory_allocator_stress(10_000);
 }
 
 fn check_frames<T>(

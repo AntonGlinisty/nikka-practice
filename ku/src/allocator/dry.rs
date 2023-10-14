@@ -37,7 +37,7 @@ pub unsafe trait DryAllocator {
     ///
     /// Вызывающая сторона должна гарантировать
     /// [то же самое](https://doc.rust-lang.org/nightly/core/alloc/trait.Allocator.html#safety-1),
-    /// что требуется при вызове [`core::alloc::Allocator::deallocate`].
+    /// что требуется при вызове [`core::alloc::Allocator::deallocate()`].
     unsafe fn dry_deallocate(
         &mut self,
         ptr: NonNull<u8>,
@@ -52,7 +52,7 @@ pub unsafe trait DryAllocator {
     ///
     /// Вызывающая сторона должна гарантировать
     /// [то же самое](https://doc.rust-lang.org/nightly/core/alloc/trait.Allocator.html#safety-2),
-    /// что требуется при вызове [`core::alloc::Allocator::grow`].
+    /// что требуется при вызове [`core::alloc::Allocator::grow()`].
     unsafe fn dry_grow(
         &mut self,
         ptr: NonNull<u8>,
@@ -67,7 +67,7 @@ pub unsafe trait DryAllocator {
     ///
     /// Вызывающая сторона должна гарантировать
     /// [то же самое](https://doc.rust-lang.org/nightly/core/alloc/trait.Allocator.html#safety-4),
-    /// что требуется при вызове [`core::alloc::Allocator::shrink`].
+    /// что требуется при вызове [`core::alloc::Allocator::shrink()`].
     unsafe fn dry_shrink(
         &mut self,
         ptr: NonNull<u8>,

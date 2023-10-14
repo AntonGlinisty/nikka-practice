@@ -6,15 +6,7 @@ use core::{
     ptr,
 };
 
-use lazy_static::lazy_static;
-
-use ku::{
-    allocator::{
-        AtomicInfo,
-        Info,
-    },
-    sync::spinlock::Spinlock,
-};
+use ku::sync::spinlock::Spinlock;
 
 use crate::{
     allocator::Big,
@@ -57,9 +49,6 @@ use crate::error::Error;
 /// Структура для работы с виртуальным адресным пространством.
 #[derive(Debug, Default)]
 pub struct AddressSpace {
-    /// Статистика аллокатора общего назначения.
-    info: AtomicInfo,
-
     /// Тип виртуального адресного пространства для записи в журнал:
     ///   - [`Kind::Invalid`] --- некорректное;
     ///   - [`Kind::Base`] --- базовое;
@@ -87,7 +76,6 @@ impl AddressSpace {
             PageAllocator::new(unsafe { mapping.page_table_ref(mapping.page_table_root()) });
 
         let address_space = Self {
-            info: AtomicInfo::new(),
             kind: Kind::Base,
             mapping,
             page_allocator,
@@ -99,6 +87,17 @@ impl AddressSpace {
         address_space
     }
 
+    /// Возвращает пустое [`AddressSpace`].
+    /// В отличие от [`AddressSpace::default()`] доступна в константном контексте.
+    pub(crate) const fn zero() -> Self {
+        Self {
+            kind: Kind::Base,
+            mapping: Mapping::new(Frame::zero(), Page::zero()),
+            page_allocator: PageAllocator::zero(),
+            pid: None,
+        }
+    }
+
     /// Создаёт копию адресного пространства с копией страничного отображения.
     /// См. [`Mapping::duplicate()`].
     pub(crate) fn duplicate(&self) -> Result<Self> {
@@ -108,7 +107,6 @@ impl AddressSpace {
             PageAllocator::new(unsafe { mapping.page_table_ref(mapping.page_table_root()) });
 
         let address_space = Self {
-            info: AtomicInfo::new(),
             kind: Kind::Process,
             mapping,
             page_allocator,
@@ -127,16 +125,6 @@ impl AddressSpace {
         flags: PageTableFlags,
     ) -> Big {
         Big::new(self, flags)
-    }
-
-    /// Статистика аллокатора общего назначения.
-    pub(crate) fn info(&self) -> Info {
-        self.info.load()
-    }
-
-    /// Статистика аллокатора общего назначения.
-    pub(crate) fn info_mut(&mut self) -> &mut AtomicInfo {
-        &mut self.info
     }
 
     /// Возвращает страничное отображение данного виртуального адресного пространства.
@@ -552,13 +540,13 @@ enum Kind {
     Process,
 }
 
-lazy_static! {
-    /// Базовое виртуальное адресное пространство.
-    /// Создаётся загрузчиком до старта ядра и донастраивается ядром.
-    /// Все остальные адресные пространства получаются из него и его копий
-    /// с помощью метода [`AddressSpace::duplicate()`].
-    pub static ref BASE_ADDRESS_SPACE: Spinlock<AddressSpace> = Spinlock::new(AddressSpace::default());
-}
+/// Базовое виртуальное адресное пространство.
+///
+/// Создаётся загрузчиком до старта ядра и донастраивается ядром.
+/// Все остальные адресные пространства получаются из него и его копий
+/// с помощью метода [`AddressSpace::duplicate()`].
+#[allow(rustdoc::private_intra_doc_links)]
+pub static BASE_ADDRESS_SPACE: Spinlock<AddressSpace> = Spinlock::new(AddressSpace::zero());
 
 #[doc(hidden)]
 pub(super) mod test_scaffolding {

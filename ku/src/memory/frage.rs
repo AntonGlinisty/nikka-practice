@@ -52,6 +52,12 @@ impl<T: Tag> Frage<T> {
         }
     }
 
+    /// Возвращает нулевой [`Frage`] --- [`Frame`] или [`Page`].
+    /// В отличие от [`Frage::default()`] доступна в константном контексте.
+    pub const fn zero() -> Self {
+        Self(Addr::zero())
+    }
+
     /// Возвращает начальный адрес --- [`Phys`] или [`Virt`] ---
     /// для [`Frame`] или [`Page`] соответственно.
     pub fn address(&self) -> Addr<T> {

@@ -34,10 +34,10 @@ fn basic() {
 
 #[test_case]
 fn full_capacity() {
-    let _guard = forbid_frame_leaks();
+    let mut pids = Vec::with_capacity(PROCESS_SLOT_COUNT);
+    let mut slots = Vec::with_capacity(PROCESS_SLOT_COUNT);
 
-    let mut pids = Vec::new();
-    let mut slots = Vec::new();
+    let _guard = forbid_frame_leaks();
 
     while pids.len() < PROCESS_SLOT_COUNT {
         let pid = dummy_process().expect("failed to create the test process");

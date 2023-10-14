@@ -65,22 +65,13 @@ unsafe impl BigAllocator for Big<'_> {
             return Err(InvalidAlignment);
         }
 
-        let block = self.address_space.allocate(layout.size())?;
-        self.address_space
-            .info_mut()
-            .allocation(block.size(), block.size(), block.count());
-
-        Ok(block)
+        self.address_space.allocate(layout.size())
     }
 
     unsafe fn unreserve(
         &mut self,
-        block: Block<Page>,
+        _block: Block<Page>,
     ) -> Result<()> {
-        self.address_space
-            .info_mut()
-            .deallocation(block.size(), block.size(), block.count());
-
         Ok(())
     }
 
@@ -90,17 +81,6 @@ unsafe impl BigAllocator for Big<'_> {
         sub_block: Block<Page>,
     ) -> Result<()> {
         if old_block.contains_block(sub_block) {
-            self.address_space.info_mut().allocation(
-                sub_block.size(),
-                sub_block.size(),
-                sub_block.count(),
-            );
-            self.address_space.info_mut().deallocation(
-                old_block.size(),
-                old_block.size(),
-                old_block.count(),
-            );
-
             Ok(())
         } else {
             Err(InvalidArgument)

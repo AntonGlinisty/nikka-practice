@@ -31,7 +31,7 @@ pub(crate) struct MemoryAllocator<'a> {
 impl MemoryAllocator<'_> {
     /// Возвращает аллокатор памяти общего назначения внутри `address_space`.
     /// Выделяемая им память будет отображена с флагами `flags`.
-    pub fn new(
+    pub const fn new(
         address_space: &Spinlock<AddressSpace>,
         flags: PageTableFlags,
     ) -> MemoryAllocator {
