@@ -3,7 +3,7 @@
 В Nikka функционал для работы с LAPIC реализован в структуре
 [`kernel::smp::local_apic::LocalApic`](../../doc/kernel/smp/local_apic/struct.LocalApic.html)
 в файле [`kernel/src/smp/local_apic.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/smp/local_apic.rs).
-В частности, у него есть такие статические методы:
+В частности, у неё есть такие статические методы:
 
 - [`LocalApic::init()`](../../doc/kernel/smp/local_apic/struct.LocalApic.html#method.init) инициализирует local APIC, например включает прерывание таймера.
 - [`LocalApic::id()`](../../doc/kernel/smp/local_apic/struct.LocalApic.html#method.id) позволяет узнать идентификатор local APIC и текущего CPU.
@@ -11,17 +11,15 @@
 - [`LocalApic::get()`](../../doc/kernel/smp/local_apic/struct.LocalApic.html#method.get) возвращает структуру [`LocalApic`](../../doc/kernel/smp/local_apic/struct.LocalApic.html) данного CPU.
 
 
-### Задача 2 --- инициализация работы с `LocalApic`
+### Задача 3 --- инициализация работы с `LocalApic`
 
 Интерфейс для работы с local APIC в [x86-64](https://en.wikipedia.org/wiki/X86-64) представляет собой выровненную область размером 4 килобайта в физической памяти --- один физический фрейм.
 Такой тип интерфейса называется
 [Memory--mapped I/O (MMIO)](https://en.wikipedia.org/wiki/Memory-mapped_I/O).
-Чтобы пользоваться MMIO нужно, во-первых, отобразить его физический адрес в текущее виртуальное адресное пространство.
-А во-вторых, указать процессору, что данный диапазон памяти не нужно кэшировать.
-Для этого требуется выставить флаги
-[`PageTableFlags::NO_CACHE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.NO_CACHE) и
-[`PageTableFlags::WRITE_THROUGH`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.WRITE_THROUGH) в
-[`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html).
+Чтобы пользоваться MMIO, нужно:
+
+- Во-первых, отобразить его физический адрес в текущее виртуальное адресное пространство.
+- А во-вторых, указать процессору, что данный диапазон памяти не нужно кэшировать. Для этого требуется выставить флаги [`PageTableFlags::NO_CACHE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.NO_CACHE) и [`PageTableFlags::WRITE_THROUGH`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.WRITE_THROUGH) в [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html).
 
 Каждый процессор имеет собственный local APIC, потому он и называется локальным (local).
 LAPIC находится на том же кристалле, что и процессор и связан с ним выделенным каналом.
@@ -56,13 +54,15 @@ LAPIC находится на том же кристалле, что и проц
 fn LocalApic::map(address: Phys) -> Result<()>
 ```
 
+в файле
+[`kernel/src/smp/local_apic.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/smp/local_apic.rs).
+
 Физический адрес MMIO local APIC он принимает на вход.
 А для определения нужного виртуального адреса вам пригодится функция
 [`LocalApic::get()`](../../doc/kernel/smp/local_apic/struct.LocalApic.html#method.get).
 Также могут пригодиться
 
-- [`kernel::memory::BASE_ADDRESS_SPACE`](../../doc/kernel/memory/struct.BASE_ADDRESS_SPACE.html),
-- [`kernel::memory::address_space::AddressSpace::unmap_page()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.unmap_page),
+- [`kernel::memory::BASE_ADDRESS_SPACE`](../../doc/kernel/memory/static.BASE_ADDRESS_SPACE.html),
 - [`kernel::memory::address_space::AddressSpace::map_page_to_frame()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.map_page_to_frame),
 - [`kernel::memory::Frame`](../../doc/kernel/memory/type.Frame.html),
 - [`kernel::memory::Page`](../../doc/kernel/memory/type.Page.html),
@@ -77,16 +77,17 @@ fn LocalApic::map(address: Phys) -> Result<()>
 ```console
 $ (cd kernel; cargo test --test 4-process-1-local-apic)
 ...
-4_process_1_local_apic::mapped_properly-----------------
-20:26:39 0 I Local APIC; local_apic = 0v334000; frame = Frame(1043968 @ 0pFEE00000); flags = PRESENT | WRITABLE | WRITE_THROUGH | NO_CACHE | ACCESSED | DIRTY | NO_EXECUTE
-20:26:39 0 I cpu = 0
-4_process_1_local_apic::mapped_properly-------- [passed]
+4_process_1_local_apic::mapped_properly-------------------------
+17:31:59 0 I Local APIC; local_apic = 0v3E_9000; frame = Frame(1043968 @ 0pFEE0_0000); flags = PageTableFlags(PRESENT | WRITABLE | WRITE_THROUGH | NO_CACHE | ACCESSED | DIRTY)
+17:31:59 0 I cpu = 0
+4_process_1_local_apic::mapped_properly---------------- [passed]
+17:31:59 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ```
 
 
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/smp/local_apic.rs |   19 +++++++++++++++++--
+ kernel/src/smp/local_apic.rs | 19 +++++++++++++++++--
  1 file changed, 17 insertions(+), 2 deletions(-)
 ```

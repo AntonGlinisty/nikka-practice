@@ -9,14 +9,15 @@ if [ -z "$test" ]; then
     exit 1
 fi
 
-command=$(
-    (
-        cd kernel || true; \
-        cargo test --no-run --test $test >/dev/null; \
-        timeout 1 cargo test --test $test 2>/dev/null | grep qemu | head --lines 1 | cut --fields=2 --delimiter='`'
-    )
+(
+    cd kernel 2>/dev/null || true; \
+    cargo test --no-run --test $test >/dev/null 2>/dev/null
 )
 
 echo "Waiting for GDB to attach. Run 'make gdb' in a separate console."
+echo
 
-$command -gdb tcp::1234 -S
+(
+    cd kernel 2>/dev/null || true; \
+    cargo test --test $test -- -gdb tcp::1234 -S
+)

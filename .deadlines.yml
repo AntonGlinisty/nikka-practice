@@ -221,9 +221,73 @@
       check:
         - cd sem/backtrace && cargo test -- --nocapture --test-threads=1
 
-- group: lab-4-process
+- group: lab-3-smp
   start: 19-10-2023 18:00
   deadline: 02-11-2023 23:59
+  second_deadline: 01-02-2024 23:59
+  enabled: true
+  tasks:
+    - task: big-allocator
+      score: 100
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-1-big.html
+      allow_list: &allow_lab_3
+        - kernel/src/allocator/big.rs
+        - kernel/src/memory/address_space.rs
+        - kernel/src/memory/boot_frame_allocator.rs
+        - kernel/src/memory/main_frame_allocator.rs
+        - kernel/src/memory/mapping.rs
+        - kernel/src/memory/page_allocator.rs
+        - kernel/src/smp/ap_init.rs
+        - kernel/src/smp/cpu.rs
+        - kernel/src/smp/local_apic.rs
+        - kernel/src/time/rtc.rs
+        - ku/src/allocator/big.rs
+        - ku/src/allocator/dispatcher.rs
+        - ku/src/allocator/fixed_size.rs
+        - ku/src/memory/block.rs
+        - ku/src/sync/sequence_lock.rs
+        - ku/src/sync/spinlock.rs
+        - ku/src/time/correlation_interval.rs
+        - ku/src/time/correlation_point.rs
+      check:
+        - cd kernel && cargo test --test 2-mm-* --test 3-allocator-1-big
+
+    - task: small-allocator
+      score: 150
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-5-small.html
+      allow_list: *allow_lab_3
+      check:
+        - cd kernel && cargo test --test 2-mm-* --test 3-allocator-1-big --test 3-allocator-5-small
+
+    - task: local-apic
+      score: 50
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-1-local-apic.html
+      allow_list: *allow_lab_3
+      check:
+        - cd kernel && cargo test --test 2-mm-* --test 4-process-1-local-apic
+
+    - task: cpus
+      score: 50
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-2-cpus.html
+      allow_list: *allow_lab_3
+      check:
+        - cd kernel && cargo test --test 2-mm-* --test 4-process-2-cpus
+
+    - task: ap-init
+      score: 150
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-5-ap-init.html
+      allow_list: *allow_lab_3
+      check:
+        - cd kernel && cargo test --test 2-mm-* --test 5-sync-5-ap-init
+
+- group: lab-4-process
+  start: 02-11-2023 18:00
+  deadline: 16-11-2023 23:59
   second_deadline: 01-02-2024 23:59
   enabled: true
   tasks:
@@ -231,7 +295,7 @@
       score: 100
 
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-3-elf.html
-      allow_list: &allow_lab_3
+      allow_list: &allow_lab_4
         - kernel/src/memory/address_space.rs
         - kernel/src/memory/boot_frame_allocator.rs
         - kernel/src/memory/main_frame_allocator.rs
@@ -254,7 +318,7 @@
       score: 50
 
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-4-permission-checks.html
-      allow_list: *allow_lab_3
+      allow_list: *allow_lab_4
       check:
         - cd kernel && cargo test --test 2-mm-* --test 4-process-4-permission-checks
 
@@ -262,7 +326,7 @@
       score: 150
 
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-5-user-mode.html
-      allow_list: *allow_lab_3
+      allow_list: *allow_lab_4
       check:
         - cd kernel && cargo test --test 2-mm-* --test 4-process-5-user-mode
 
@@ -270,69 +334,9 @@
       score: 200
 
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-6-syscall.html
-      allow_list: *allow_lab_3
+      allow_list: *allow_lab_4
       check:
         - cd kernel && cargo test --test 2-mm-* --test 4-process-6-syscall --test 4-process-4-log-value
-
-- group: lab-4-concurrency
-  start: 02-11-2023 18:00
-  deadline: 16-11-2023 23:59
-  second_deadline: 01-02-2024 23:59
-  enabled: true
-  tasks:
-    - task: memory-allocator
-      score: 100
-
-      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-1-big.html
-      allow_list: &allow_lab_4
-        - kernel/src/memory/address_space.rs
-        - kernel/src/memory/boot_frame_allocator.rs
-        - kernel/src/memory/main_frame_allocator.rs
-        - kernel/src/memory/mapping.rs
-        - kernel/src/memory/page_allocator.rs
-        - kernel/src/process/elf.rs
-        - kernel/src/process/process.rs
-        - kernel/src/process/registers.rs
-        - kernel/src/process/scheduler.rs
-        - kernel/src/process/syscall.rs
-        - kernel/src/process/table.rs
-        - kernel/src/smp/ap_init.rs
-        - kernel/src/smp/cpu.rs
-        - kernel/src/smp/local_apic.rs
-        - kernel/src/time/rtc.rs
-        - ku/src/allocator/big.rs
-        - ku/src/memory/block.rs
-        - ku/src/sync/sequence_lock.rs
-        - ku/src/sync/spinlock.rs
-        - ku/src/time/correlation_interval.rs
-        - ku/src/time/correlation_point.rs
-        - user/lib/src/syscall.rs
-      check:
-        - cd kernel && cargo test --test 2-mm-* --test 3-allocator-1-big
-
-    - task: local-apic
-      score: 50
-
-      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-1-local-apic.html
-      allow_list: *allow_lab_4
-      check:
-        - cd kernel && cargo test --test 2-mm-* --test 4-process-1-local-apic
-
-    - task: cpus
-      score: 50
-
-      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-2-cpus.html
-      allow_list: *allow_lab_4
-      check:
-        - cd kernel && cargo test --test 2-mm-* --test 4-process-2-cpus
-
-    - task: ap-init
-      score: 150
-
-      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-5-ap-init.html
-      allow_list: *allow_lab_4
-      check:
-        - cd kernel && cargo test --test 2-mm-* --test 5-sync-5-ap-init
 
     - task: table
       score: 100

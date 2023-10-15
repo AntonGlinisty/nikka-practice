@@ -73,7 +73,7 @@ fn init(boot_info: &'static BootInfo) {
 она делает структуру
 [`BootFrameAllocator`](../../doc/kernel/memory/boot_frame_allocator/struct.BootFrameAllocator.html).
 Затем она инициализирует глобальную переменную
-[`BASE_ADDRESS_SPACE`](../../doc/kernel/memory/struct.BASE_ADDRESS_SPACE.html)
+[`BASE_ADDRESS_SPACE`](../../doc/kernel/memory/static.BASE_ADDRESS_SPACE.html)
 для управления адресным пространством структурой
 [`AddressSpace`](../../doc/kernel/memory/struct.AddressSpace.html).
 Затем глобальный аллокатор физических фреймов

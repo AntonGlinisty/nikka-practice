@@ -1,5 +1,8 @@
 ## Загрузка Application Processor
 
+Эта задача не обязательная, без её выполнения дальнейший код должен работать.
+Её цель --- запустить все процессоры в системе.
+
 Перед тем как приступить к запуску AP, процессор BSP должен собрать всю информацию о системе: общее число CPU, их APIC ID и адреса, по которым располагаются MMIO для LAPIC.
 Эту информацию собирает BIOS или UEFI, а ядро получает её от него в таблицах
 [Advanced Configuration and Power Interface (ACPI)](https://en.wikipedia.org/wiki/Advanced_Configuration_and_Power_Interface).
@@ -11,11 +14,11 @@
 Непосредственно запуск AP из BSP происходит в функции
 [`kernel::smp::ap_init::boot_ap()`](../../doc/kernel/smp/ap_init/fn.boot_ap.html)
 в файле [`kernel/src/smp/ap_init.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/smp/ap_init.rs).
-BSP указывает адрес, c которого начинать выполнение кода загрузки AP, передавая его в
+BSP указывает адрес, c которого начинать выполнение кода загрузки AP, передавая его через
 [inter-processor interrupt](https://en.wikipedia.org/wiki/Inter-processor_interrupt) (IPI)
 с помощью метода
 [`kernel::smp::local_apic::LocalApic::send_init()`](../../doc/kernel/smp/local_apic/struct.LocalApic.html#method.send_init).
-BSP должен передать AP код загрузчика, слепок которого находится в функции
+BSP должен подготовить для AP код загрузчика, слепок которого находится в функции
 [`kernel::smp::ap_init::switch_from_real_mode_to_long_mode()`](../../doc/kernel/smp/ap_init/fn.switch_from_real_mode_to_long_mode.html)
 в файле [`kernel/src/smp/ap_init.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/smp/ap_init.rs).
 Проблема в том, что AP ещё находится в [16-битном реальном режиме](https://en.wikipedia.org/wiki/Real_mode), в котором может адресовать только 1 мегабайт памяти.
@@ -31,7 +34,7 @@ BSP должен передать AP код загрузчика, слепок �
 Или адрес корневой таблицы страниц, который можно записать в `CR3` как есть.
 Это сделано, чтобы:
 
-- Не нужно было в функции [`switch_from_real_mode_to_long_mode()`](../../doc/kernel/smp/ap_init/fn.switch_from_real_mode_to_long_mode.html) на 16-битном ассемблере строить GDT, таблицы страниц и т.д. То есть для максимального упрощения ассемблерной части кода.
+- Не нужно было в функции [`switch_from_real_mode_to_long_mode()`](../../doc/kernel/smp/ap_init/fn.switch_from_real_mode_to_long_mode.html) на 16-битном ассемблере строить GDT, таблицы страниц и т.д. То есть, для максимального упрощения ассемблерной части кода.
 - Содержимое системных регистров процессора на всех AP гарантированно совпадало с аналогичными регистрами BSP. То есть, чтобы можно было один раз правильно настроить системные регистры BSP, и автоматически получить правильные и согласованные по системе в целом настройки всех процессоров. Естественно, исключая те системные регистры, которые должны быть разными и настраиваются в предыдущих задачах в [`kernel::smp::cpu::Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html).
 
 Вся эта информация передаётся в виде структуры
@@ -67,7 +70,7 @@ BSP должен передать AP код загрузчика, слепок �
 Код загрузчика
 [`switch_from_real_mode_to_long_mode()`](../../doc/kernel/smp/ap_init/fn.switch_from_real_mode_to_long_mode.html)
 переводит процессор в защищённый режим, настраивает сегменты кода и данных ядра и виртуальную память, необходимую для перехода к выполнению кода на языке Rust.
-После этого она переключается с временного стека в стек ядра, который мы подготовили в
+После этого он переключается с временного стека в стек ядра, который мы подготовили в
 [предыдущей задаче](../../lab/book/4-process-2-cpus.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-3--%D0%B2%D0%B5%D0%BA%D1%82%D0%BE%D1%80-%D1%81%D1%82%D1%80%D1%83%D0%BA%D1%82%D1%83%D1%80-kernelsmpcpucpu).
 И переходит в функцию
 [`kernel::smp::ap_init::ap_kernel_main()`](../../doc/kernel/smp/ap_init/fn.ap_kernel_main.html)
@@ -104,7 +107,7 @@ BSP должен передать AP код загрузчика, слепок �
 [`kernel::smp::ap_init::signal_initialized()`](../../doc/kernel/smp/ap_init/fn.signal_initialized.html).
 
 
-### Задача 4 --- переключение AP в 64-битный режим
+### Задача 5 --- переключение AP в 64-битный режим
 
 Реализуйте [функцию](../../doc/kernel/smp/ap_init/fn.switch_from_real_mode_to_long_mode.html)
 
@@ -112,10 +115,13 @@ BSP должен передать AP код загрузчика, слепок �
 fn switch_from_real_mode_to_long_mode() -> !
 ```
 
+в файле
+[`kernel/src/smp/ap_init.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/smp/ap_init.rs).
+
 Она:
 
 - Запускается в [16-битном реальном режиме](https://en.wikipedia.org/wiki/Real_mode) и в процессе работы переключается в [64-битный режим](https://en.wikipedia.org/wiki/Long_mode) напрямую, минуя [32-х битный защищённый режим](https://en.wikipedia.org/wiki/Protected_mode). Это делается аналогично статье [Entering Long Mode Directly](https://wiki.osdev.org/Entering_Long_Mode_Directly). Но гораздо проще, так как все нужные структуры и значения регистров код на Rust копирует с BSP в [`kernel::smp::ap_init::BootStack`](../../doc/kernel/smp/ap_init/struct.BootStack.html).
-- Должна настроить сегментные регистры и переключиться на временный стек по адресу записанному в константе [`kernel::smp::ap_init::BOOT_STACK`](../../doc/kernel/smp/ap_init/constant.BOOT_STACK.html).
+- Должна настроить сегментные регистры и переключиться на временный стек по адресу, записанному в константе [`kernel::smp::ap_init::BOOT_STACK`](../../doc/kernel/smp/ap_init/constant.BOOT_STACK.html).
 - Инициализирует системные регистры, переданные через временный стек. В частности, страничное отображение и GDT.
 - После инициализации GDT, переинициализирует сегментные регистры селекторами новой GDT. Для переинициализации `CS` можно использовать [`far ret`](https://www.felixcloutier.com/x86/ret). Использовать [`far jmp`](https://www.felixcloutier.com/x86/jmp) не получится, так как для него селектор сегмента кода должен быть константой, а нам хочется передать селектор кода переменной. Она записана в поле [`BootStack::kernel_code`](../../doc/kernel/smp/ap_init/struct.BootStack.html#structfield.kernel_code). Обратите внимание на следующий момент в документации [`far ret`](https://www.felixcloutier.com/x86/ret): `In 64-bit mode ... the default operation size of far returns is 32 bits`.
 - Далее, после метки `set_cs_rip_to_64bit`, забирает с временного стека аргументы для функции [`ap_kernel_main()`](../../doc/kernel/smp/ap_init/fn.ap_kernel_main.html). И помещает их в регистры, в соответствии с [x86-64 C ABI](https://wiki.osdev.org/System_V_ABI#x86-64).
@@ -192,7 +198,7 @@ fn switch_from_real_mode_to_long_mode() -> !
 И, чтобы знать в каком режиме дизассемблировать код, ему либо нужна подсказка,
 либо он должен хранить состояние процессора.
 Иначе он будет показывать ерунду, которая сбивает с толку.
-Теоретически понимать в каком режиме находится процессор мог бы отладчик,
+Теоретически, понимать в каком режиме находится процессор мог бы отладчик,
 но не произвольный дизассемблер вроде `objdump`.
 Поэтому кроме мнемоник в дизассемблере в этой задаче полезно обращать внимание и на машинные коды.
 
@@ -279,13 +285,18 @@ End of assembler dump.
 Аналогично можно указать архитектуру при подключении `gdb` к `qemu`.
 Сначала запустите тест, чтобы подглядеть нужные аргументы `qemu`:
 ``` console
-$ cd kernel; cargo test --test 5-sync-5-ap-init 2>/dev/null | grep qemu
+$ cd kernel
+$ cargo test --test 5-sync-5-ap-init 2>/dev/null | grep qemu
 Running: `qemu-system-x86_64 -drive format=raw,file=/.../target/kernel/debug/deps/bootimage-5_sync_5_ap_init-91a7e203d980f479.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none`
 ...
 ```
 Дальше в одной консоли запустите `qemu`, взяв команду из теста и добавив к ней опции `-gdb tcp::1234 -S`:
 ```console
 $ qemu-system-x86_64 -drive format=raw,file=/.../target/kernel/debug/deps/bootimage-5_sync_5_ap_init-91a7e203d980f479.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none -gdb tcp::1234 -S
+```
+Или
+```
+$ cargo test --test 5-sync-5-ap-init -- -gdb tcp::1234 -S
 ```
 Он будет ждать подключения `gdb`.
 
@@ -361,36 +372,36 @@ Dump of assembler code from 0x7000 to 0x7100:
 ```console
 $ (cd kernel; cargo test --test 5-sync-5-ap-init)
 ...
-5_sync_5_ap_init::ap_init----------------------------
-20:26:45 0 I acpi = Acpi { local_apic_address: Phys(0pFEE00000), bsp_id: 0, ap_ids: [1, 2, 3] }
-20:26:45 0 I Local APIC init; cpu = 0; cpu_count = 4; local_apic_address = 0pFEE00000
-20:26:46 0 D set FS register to Cpu structure address; cpu = 0; fs = 0v7FFFFFEB8000
-20:26:46 0 I Bootstrap Processor; cpu = 0
-20:26:46 0 D boot_stack = { efer: 0xD01, cr4: 0x20, cr3: 0x1000, cr0: 0x80010011, gdt: { base: 0p007FD8, limit: 0x0027 }, kernel_code: SegmentSelector { index: 1, rpl: Ring0 }, kernel_data: SegmentSelector { index: 2, rpl: Ring0 }, set_cs_rip_to_64bit: 0p7035, kernel_stack: 0v7FFFFFEE9000, cpu: 0v7FFFFFEB8100, initialized: 0v10000200418 }
-20:26:46 1 D set FS register to Cpu structure address; cpu = 1; fs = 0v7FFFFFEB8100
-20:26:46 1 I report for duty; cpu = 1
-20:26:46 0 I cpu = 1; duration = 30.504 ms; "boot Application Processor"
-20:26:46 1 I arrived at the barrier; cpu = 1; cpu_count = 4; cpus_waiting = 0; last = false
-20:26:46 0 D boot_stack = { efer: 0xD01, cr4: 0x20, cr3: 0x1000, cr0: 0x80010011, gdt: { base: 0p007FD8, limit: 0x0027 }, kernel_code: SegmentSelector { index: 1, rpl: Ring0 }, kernel_data: SegmentSelector { index: 2, rpl: Ring0 }, set_cs_rip_to_64bit: 0p7035, kernel_stack: 0v7FFFFFF09000, cpu: 0v7FFFFFEB8200, initialized: 0v10000200418 }
-20:26:46 2 D set FS register to Cpu structure address; cpu = 2; fs = 0v7FFFFFEB8200
-20:26:46 2 I report for duty; cpu = 2
-20:26:46 0 I cpu = 2; duration = 30.957 ms; "boot Application Processor"
-20:26:46 2 I arrived at the barrier; cpu = 2; cpu_count = 4; cpus_waiting = 1; last = false
-20:26:46 0 D boot_stack = { efer: 0xD01, cr4: 0x20, cr3: 0x1000, cr0: 0x80010011, gdt: { base: 0p007FD8, limit: 0x0027 }, kernel_code: SegmentSelector { index: 1, rpl: Ring0 }, kernel_data: SegmentSelector { index: 2, rpl: Ring0 }, set_cs_rip_to_64bit: 0p7035, kernel_stack: 0v7FFFFFF29000, cpu: 0v7FFFFFEB8300, initialized: 0v10000200418 }
-20:26:46 3 D set FS register to Cpu structure address; cpu = 3; fs = 0v7FFFFFEB8300
-20:26:46 3 I report for duty; cpu = 3
-20:26:46 0 I cpu = 3; duration = 30.971 ms; "boot Application Processor"
-20:26:46 3 I arrived at the barrier; cpu = 3; cpu_count = 4; cpus_waiting = 2; last = false
-20:26:46 0 I arrived at the barrier; cpu = 0; cpu_count = 4; cpus_waiting = 3; last = true
-20:26:46 1 I all CPUs have arrived at the barrier; cpu = 1; cpu_count = 4
-20:26:46 3 I all CPUs have arrived at the barrier; cpu = 3; cpu_count = 4
-20:26:46 0 I all CPUs have arrived at the barrier; cpu = 0; cpu_count = 4
-20:26:46 2 I all CPUs have arrived at the barrier; cpu = 2; cpu_count = 4
-20:26:47.485 1 I AP halted; cpu = 1
-20:26:47.491 3 I AP halted; cpu = 3
-20:26:47.495 0 I racy_counter = 14031486; race_free_counter = 20000000
-5_sync_5_ap_init::ap_init------------------- [passed]
-20:26:47.503 0 I exit qemu; exit_code = SUCCESS
+5_sync_5_ap_init::ap_init------------------------------------
+17:38:45 0 I acpi = Acpi { local_apic_address: Phys(0pFEE00000), bsp_id: 0, ap_ids: [1, 2, 3] }
+17:38:45 0 I Local APIC init; cpu = 0; cpu_count = 4; local_apic_address = 0pFEE0_0000
+17:38:45 0 D set FS register to Cpu structure address; cpu = 0; fs = 0v7FFF_FFE7_B000
+17:38:45 0 I Bootstrap Processor; cpu = 0
+17:38:45 0 D boot_stack = { efer: 0xD00, cr4: 0x20, cr3: 0x1000, cr0: 0x80010011, gdt: { base: 0p007FD8, limit: 0x0027 }, kernel_code: SegmentSelector { index: 1, rpl: Ring0 }, kernel_data: SegmentSelector { index: 2, rpl: Ring0 }, set_cs_rip_to_64bit: 0p7035, kernel_stack: 0v7FFF_FFED_C000, cpu: 0v7FFF_FFE7_B100, initialized: 0v100_0020_03F7 }
+17:38:45 1 D set FS register to Cpu structure address; cpu = 1; fs = 0v7FFF_FFE7_B100
+17:38:45 1 I report for duty; cpu = 1
+17:38:45 0 I cpu = 1; duration = 28.831 ms; "boot Application Processor"
+17:38:45 1 I arrived at the barrier; cpu = 1; cpu_count = 4; cpus_waiting = 0; last = false
+17:38:45 0 D boot_stack = { efer: 0xD00, cr4: 0x20, cr3: 0x1000, cr0: 0x80010011, gdt: { base: 0p007FD8, limit: 0x0027 }, kernel_code: SegmentSelector { index: 1, rpl: Ring0 }, kernel_data: SegmentSelector { index: 2, rpl: Ring0 }, set_cs_rip_to_64bit: 0p7035, kernel_stack: 0v7FFF_FFF1_C000, cpu: 0v7FFF_FFE7_B200, initialized: 0v100_0020_03F7 }
+17:38:45 2 D set FS register to Cpu structure address; cpu = 2; fs = 0v7FFF_FFE7_B200
+17:38:45 0 I cpu = 2; duration = 20.438 ms; "boot Application Processor"
+17:38:45 2 I report for duty; cpu = 2
+17:38:45 2 I arrived at the barrier; cpu = 2; cpu_count = 4; cpus_waiting = 1; last = false
+17:38:45 0 D boot_stack = { efer: 0xD00, cr4: 0x20, cr3: 0x1000, cr0: 0x80010011, gdt: { base: 0p007FD8, limit: 0x0027 }, kernel_code: SegmentSelector { index: 1, rpl: Ring0 }, kernel_data: SegmentSelector { index: 2, rpl: Ring0 }, set_cs_rip_to_64bit: 0p7035, kernel_stack: 0v7FFF_FFF5_C000, cpu: 0v7FFF_FFE7_B300, initialized: 0v100_0020_03F7 }
+17:38:45 3 D set FS register to Cpu structure address; cpu = 3; fs = 0v7FFF_FFE7_B300
+17:38:45 0 I cpu = 3; duration = 25.497 ms; "boot Application Processor"
+17:38:45 3 I report for duty; cpu = 3
+17:38:45 0 I arrived at the barrier; cpu = 0; cpu_count = 4; cpus_waiting = 2; last = false
+17:38:45 3 I arrived at the barrier; cpu = 3; cpu_count = 4; cpus_waiting = 3; last = true
+17:38:45 1 I all CPUs have arrived at the barrier; cpu = 1; cpu_count = 4
+17:38:45 0 I all CPUs have arrived at the barrier; cpu = 0; cpu_count = 4
+17:38:45 3 I all CPUs have arrived at the barrier; cpu = 3; cpu_count = 4
+17:38:45 2 I all CPUs have arrived at the barrier; cpu = 2; cpu_count = 4
+17:38:46.345 1 I AP halted; cpu = 1
+17:38:46.355 3 I AP halted; cpu = 3
+17:38:46.373 0 I racy_counter = 10200547; race_free_counter = 20000000
+5_sync_5_ap_init::ap_init--------------------------- [passed]
+17:38:46.383 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ```
 
 > Попробуйте реализовать `RACY_COUNTER` из теста без `unsafe`.
@@ -399,6 +410,6 @@ $ (cd kernel; cargo test --test 5-sync-5-ap-init)
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/smp/ap_init.rs |   55 +++++++++++++++++++++++++++++++++++++++++++---
+ kernel/src/smp/ap_init.rs | 55 ++++++++++++++++++++++++++++++++++++++++++++++++++++---
  1 file changed, 52 insertions(+), 3 deletions(-)
 ```

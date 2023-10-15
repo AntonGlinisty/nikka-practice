@@ -24,7 +24,7 @@
   - [`FS`](https://wiki.osdev.org/CPU_Registers_x86-64#FS.base.2C_GS.base) --- доступен для программных нужд.
 
 
-### Задача 3 --- вектор структур [`kernel::smp::cpu::Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html)
+### Задача 4 --- вектор структур [`kernel::smp::cpu::Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html)
 
 
 #### Инициализация TSS и регистра `TR`
@@ -34,6 +34,8 @@
 ```rust
 fn Cpu::set_tss()
 ```
+в файле
+[`kernel/src/smp/cpu.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/smp/cpu.rs).
 
 Он должен завести в GDT запись для Task State Segment текущего процессора.
 И загрузить её в [`TR`](https://wiki.osdev.org/CPU_Registers_x86-64#TR) своего CPU.
@@ -91,12 +93,13 @@ fn Cpu::set_fs()
 [`Cpu::this`](../../doc/kernel/smp/cpu/struct.Cpu.html#structfield.this),
 обращаясь к самому этому полю относительно регистра `FS`,
 то есть используя логический адрес `<сегментный_регистр>:<смещение>`.
-А дальше, имея линейный адрес структуры
-[`Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html)
-получить её саму и дальше обращаться к её полям и методам без использования `FS`.
-Что уже можно делать в Rust безо всякого ассемблера.
+Затем, имея линейный адрес структуры
+[`Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html),
+получить её саму.
+И дальше обращаться к её полям и методам без использования `FS`.
+Что уже можно делать в Rust без помощи ассемблера.
 
-По умолчанию код пользователя не может менять регистры `FS` и `GS`, так это и оставим.
+По умолчанию, код пользователя не может менять регистры `FS` и `GS`. Так это и оставим.
 Если бы мы разрешили ему их менять, например для реализации
 [thread-local storage (TLS)](https://en.wikipedia.org/wiki/Thread-local_storage),
 нам также понадобилась бы инструкция
@@ -144,8 +147,8 @@ unsafe fn Cpu::get() -> &'static mut Cpu
 Поэтому нам придётся использовать обращение через инициализированный в предыдущей задаче регистр `FS`.
 
 Тут придётся использовать ассемблер, например прибегнуть к макросу
-[`asm!()`](https://doc.rust-lang.org/core/arch/macro.asm.html),
-документацию на который можно посмотреть в
+[`asm!()`](https://doc.rust-lang.org/core/arch/macro.asm.html).
+Документацию на который можно посмотреть в
 [Rust By Example](https://doc.rust-lang.org/nightly/rust-by-example/unsafe/asm.html) и
 [The Rust Reference](https://doc.rust-lang.org/nightly/reference/inline-assembly.html).
 
@@ -162,31 +165,8 @@ unsafe fn Cpu::get() -> &'static mut Cpu
 [`Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html)
 можно с помощью
 [`Virt`](../../doc/kernel/memory/type.Virt.html).
-Который выполнит необходимые проверки на валидность этого адреса.
+Он выполнит необходимые проверки на валидность этого адреса.
 В случае, если проверки не пройдут и вернётся ошибка, можно паниковать.
-
-Так как поменялось назначение сегментного регистра `FS`,
-поправьте код метода
-[`Registers::switch_to()`](../../doc/kernel/process/registers/struct.Registers.html#method.switch_to)
-который вы реализовали в
-[задаче про переключение процессора в режим пользователя](../../lab/book/4-process-5-user-mode.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-3--%D0%BF%D0%B5%D1%80%D0%B5%D0%BA%D0%BB%D1%8E%D1%87%D0%B5%D0%BD%D0%B8%D0%B5-%D0%BF%D1%80%D0%BE%D1%86%D0%B5%D1%81%D1%81%D0%BE%D1%80%D0%B0-%D0%B2-%D1%80%D0%B5%D0%B6%D0%B8%D0%BC-%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8F-%D0%B8-%D0%B2%D0%BE%D0%B7%D0%B2%D1%80%D0%B0%D1%82-%D0%B8%D0%B7-%D0%BD%D0%B5%D0%B3%D0%BE).
-А также код метода
-[`kernel::process::syscall::syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html),
-который участвует в
-[диспетчеризации системных вызовов](../../lab/book/4-process-6-syscall.html#%D0%94%D0%B8%D1%81%D0%BF%D0%B5%D1%82%D1%87%D0%B5%D1%80%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D0%BD%D1%8B%D1%85-%D0%B2%D1%8B%D0%B7%D0%BE%D0%B2%D0%BE%D0%B2)
-и был добавлен в соответствующей
-[задаче](../../lab/book/4-process-6-syscall.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-4--%D0%BF%D0%BE%D0%B4%D0%B4%D0%B5%D1%80%D0%B6%D0%BA%D0%B0-%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D0%BD%D1%8B%D1%85-%D0%B2%D1%8B%D0%B7%D0%BE%D0%B2%D0%BE%D0%B2).
-Теперь `RSP` нужно писать не в стек, а по адресу `FS:offset`, где `offset` --- смещение `RSP` ядра в структуре
-[`Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html).
-Для этого смещения есть константа
-[`kernel::smp::cpu::KERNEL_RSP_OFFSET_IN_CPU`](../../doc/kernel/smp/cpu/constant.KERNEL_RSP_OFFSET_IN_CPU.html).
-А запись `RSP` в стек и его сохранение в
-[`syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html)
-нужно будет удалить.
-Обратите внимание, что в ассемблере всё также нужно использовать запись `FS:offset`.
-Высокоуровневые методы вроде
-[`Cpu::get()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.get)
-доступны только для Rust--кода --- до переключения стека невозможно корректно позвать Rust--функцию.
 
 
 #### Инициализация вектора структур [`kernel::smp::cpu::Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html)
@@ -227,17 +207,34 @@ fn init_cpu_vec(cpu_count: usize) -> Result<Vec<Cpu>>
 ```console
 $ (cd kernel; cargo test --test 4-process-2-cpus)
 ...
-4_process_2_cpus::initialized---------------------------
-20:26:42 0 I cpu = 0; local_apic_id = 0
-20:26:42 0 I cpu = 0; kernel_stack = 0v7FFFFFEB8000; frame = Frame(32427 @ 0p7EAB000); flags = PRESENT | WRITABLE | ACCESSED | DIRTY | NO_EXECUTE
-4_process_2_cpus::initialized------------------ [passed]
-20:26:43 0 I exit qemu; exit_code = SUCCESS
+4_process_2_cpus::initialized-----------------------------------
+17:35:43 0 I cpu = 0; local_apic_id = 0
+4_process_2_cpus::initialized-------------------------- [passed]
+
+4_process_2_cpus::kernel_stacks---------------------------------
+17:35:43 0 I cpu = 0; stack_guard = [0v7FFF_FFE7_C000, 0v7FFF_FFE7_D000), size 4.000 KiB; stack = [0v7FFF_FFE7_D000, 0v7FFF_FFE9_C000), size 124.000 KiB
+17:35:43 0 I cpu = 0; stack_page = 34359737981 @ 0v7FFF_FFE7_D000; stack_frame = Frame(32600 @ 0p7F5_8000); stack_flags = PageTableFlags(PRESENT | WRITABLE | ACCESSED | DIRTY)
+17:35:43 0 I cpu = 0; stack_guard_page = 34359737980 @ 0v7FFF_FFE7_C000; stack_guard_frame = NoFrame; stack_guard_flags = PageTableFlags(0x0)
+17:35:43 0 I cpu = 1; stack_guard = [0v7FFF_FFEB_C000, 0v7FFF_FFEB_D000), size 4.000 KiB; stack = [0v7FFF_FFEB_D000, 0v7FFF_FFED_C000), size 124.000 KiB
+17:35:43 0 I cpu = 1; stack_page = 34359738045 @ 0v7FFF_FFEB_D000; stack_frame = Frame(32536 @ 0p7F1_8000); stack_flags = PageTableFlags(PRESENT | WRITABLE | ACCESSED | DIRTY)
+17:35:43 0 I cpu = 1; stack_guard_page = 34359738044 @ 0v7FFF_FFEB_C000; stack_guard_frame = NoFrame; stack_guard_flags = PageTableFlags(0x0)
+17:35:43 0 I cpu = 2; stack_guard = [0v7FFF_FFEF_C000, 0v7FFF_FFEF_D000), size 4.000 KiB; stack = [0v7FFF_FFEF_D000, 0v7FFF_FFF1_C000), size 124.000 KiB
+17:35:43 0 I cpu = 2; stack_page = 34359738109 @ 0v7FFF_FFEF_D000; stack_frame = Frame(32472 @ 0p7ED_8000); stack_flags = PageTableFlags(PRESENT | WRITABLE | ACCESSED | DIRTY)
+17:35:43 0 I cpu = 2; stack_guard_page = 34359738108 @ 0v7FFF_FFEF_C000; stack_guard_frame = NoFrame; stack_guard_flags = PageTableFlags(0x0)
+17:35:43 0 I cpu = 3; stack_guard = [0v7FFF_FFF3_C000, 0v7FFF_FFF3_D000), size 4.000 KiB; stack = [0v7FFF_FFF3_D000, 0v7FFF_FFF5_C000), size 124.000 KiB
+17:35:43 0 I cpu = 3; stack_page = 34359738173 @ 0v7FFF_FFF3_D000; stack_frame = Frame(32408 @ 0p7E9_8000); stack_flags = PageTableFlags(PRESENT | WRITABLE | ACCESSED | DIRTY)
+17:35:43 0 I cpu = 3; stack_guard_page = 34359738172 @ 0v7FFF_FFF3_C000; stack_guard_frame = NoFrame; stack_guard_flags = PageTableFlags(0x0)
+17:35:43 0 I stack_a = [0v7FFF_FFE7_D000, 0v7FFF_FFE9_C000), size 124.000 KiB; stack_b = [0v7FFF_FFEB_D000, 0v7FFF_FFED_C000), size 124.000 KiB
+17:35:43 0 I stack_a = [0v7FFF_FFEB_D000, 0v7FFF_FFED_C000), size 124.000 KiB; stack_b = [0v7FFF_FFEF_D000, 0v7FFF_FFF1_C000), size 124.000 KiB
+17:35:43 0 I stack_a = [0v7FFF_FFEF_D000, 0v7FFF_FFF1_C000), size 124.000 KiB; stack_b = [0v7FFF_FFF3_D000, 0v7FFF_FFF5_C000), size 124.000 KiB
+4_process_2_cpus::kernel_stacks------------------------ [passed]
+17:35:43 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ```
 
 
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/smp/cpu.rs |   54 ++++++++++++++++++++++++++++++++++++++++++--------
+ kernel/src/smp/cpu.rs | 54 ++++++++++++++++++++++++++++++++++++++++++++++--------
  1 file changed, 46 insertions(+), 8 deletions(-)
 ```

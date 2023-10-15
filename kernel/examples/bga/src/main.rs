@@ -89,7 +89,7 @@ type Color = Rgb565;
 const SCREEN_SIZE: Size = Size::new(1024, 768);
 
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
-    kernel::init_subsystems(boot_info, Subsystems::all());
+    kernel::init_subsystems(boot_info, Subsystems::MEMORY);
 
     let mut frame_buffer = bga::init(SCREEN_SIZE).unwrap();
 

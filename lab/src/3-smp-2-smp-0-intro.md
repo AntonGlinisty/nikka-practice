@@ -39,7 +39,7 @@ local [Advanced Programmable Interrupt Controller](https://en.wikipedia.org/wiki
 ```
 
 Однако, будьте готовы к тому что на написание и отладку
-[задачи 4](../../lab/book/5-sync-5-ap-init.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-4--%D0%BF%D0%B5%D1%80%D0%B5%D0%BA%D0%BB%D1%8E%D1%87%D0%B5%D0%BD%D0%B8%D0%B5-ap-%D0%B2-64-%D0%B1%D0%B8%D1%82%D0%BD%D1%8B%D0%B9-%D1%80%D0%B5%D0%B6%D0%B8%D0%BC)
+[задачи 5](../../lab/book/5-sync-5-ap-init.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-5--%D0%BF%D0%B5%D1%80%D0%B5%D0%BA%D0%BB%D1%8E%D1%87%D0%B5%D0%BD%D0%B8%D0%B5-ap-%D0%B2-64-%D0%B1%D0%B8%D1%82%D0%BD%D1%8B%D0%B9-%D1%80%D0%B5%D0%B6%D0%B8%D0%BC)
 может потребоваться много времени.
 Также может потребоваться изучить ассемблер различных режимов работы процессора архитектуры
 [x86-64](https://en.wikipedia.org/wiki/X86-64).

@@ -65,7 +65,7 @@ fn BlockCache::init(
 [`kernel/src/fs/block_cache.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/fs/block_cache.rs).
 
 Он должен зарезервировать в
-[`kernel::memory::BASE_ADDRESS_SPACE`](../../doc/kernel/memory/struct.BASE_ADDRESS_SPACE.html)
+[`kernel::memory::BASE_ADDRESS_SPACE`](../../doc/kernel/memory/static.BASE_ADDRESS_SPACE.html)
 блок виртуальных страниц, достаточный для хранения `block_count` блоков файловой системы.
 И записать соответствующее значение в
 [`BLOCK_CACHE`](../../doc/kernel/fs/block_cache/struct.BLOCK_CACHE.html).
