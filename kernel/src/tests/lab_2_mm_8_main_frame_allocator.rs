@@ -488,6 +488,82 @@ fn duplicate_works() {
     }
 }
 
+#[test_case]
+fn tlb_flush() {
+    let _guard = forbid_frame_leaks();
+
+    let old_mark = 1111111;
+    let new_mark = 2222222;
+
+    let old_frame = get_marked_frame(old_mark);
+    let new_frame = get_marked_frame(new_mark);
+
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+
+    let page = address_space.allocate(Page::SIZE).unwrap().into_iter().next().unwrap();
+
+    unsafe {
+        address_space
+            .map_page_to_frame(page, old_frame, KERNEL_RW)
+            .expect("failed to map a page frame");
+    }
+
+    let current_mark = get_page_mark(page);
+    debug!(%page, %old_frame, current_mark, old_mark, "the page is currently mapped to the old frame and should contain its old mark");
+    assert_eq!(current_mark, old_mark);
+
+    unsafe {
+        address_space
+            .map_page_to_frame(page, new_frame, KERNEL_RW)
+            .expect("failed to map a page frame");
+    }
+
+    let current_mark = get_page_mark(page);
+    debug!(%page, %new_frame, current_mark, new_mark, "the page is currently mapped to the new frame and should contain its new mark");
+    assert_eq!(current_mark, new_mark);
+
+    unsafe {
+        unmap_page(&mut address_space, page).unwrap();
+    }
+
+    FRAME_ALLOCATOR.lock().deallocate(old_frame);
+    FRAME_ALLOCATOR.lock().deallocate(new_frame);
+
+    fn get_marked_frame(mark: u64) -> Frame {
+        let frame = FRAME_ALLOCATOR.lock().allocate().expect("failed to allocate a frame");
+        FRAME_ALLOCATOR.lock().reference(frame);
+        FRAME_ALLOCATOR.lock().reference(frame);
+
+        let mut address_space = BASE_ADDRESS_SPACE.lock();
+
+        let page = address_space.allocate(Page::SIZE).unwrap().into_iter().next().unwrap();
+
+        unsafe {
+            address_space
+                .map_page_to_frame(page, frame, KERNEL_RW)
+                .expect("failed to map a page frame");
+        }
+
+        unsafe {
+            page.address().try_into_mut_ptr::<u64>().unwrap().write_volatile(mark);
+        }
+
+        let frame_mark = get_page_mark(page);
+        debug!(%frame, %page, frame_mark);
+        assert_eq!(mark, get_page_mark(page));
+
+        unsafe {
+            unmap_page(&mut address_space, page).unwrap();
+        }
+
+        frame
+    }
+
+    fn get_page_mark(page: Page) -> u64 {
+        unsafe { page.address().try_into_ptr::<u64>().unwrap().read_volatile() }
+    }
+}
+
 fn translate(
     address_space: &mut AddressSpace,
     virt: Virt,
