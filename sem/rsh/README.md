@@ -167,7 +167,7 @@ $ echo hello |tail -n 10 |wc -c
 5. Некоторые системные вызовы ожидают аргументом тип удовлетворяющий `NixPath`:
    `fn open<P: ?Sized + NixPath>(path: &P, oflag: OFlag, mode: Mode) -> Result<RawFd>`.
    Чтобы получить `NixPath` из `CString`, нужно позвать метод `as_c_str()`.
-6. `execve` имеет сигнатуру `fn execvp<S: AsRef<CStr>>(filename: &CStr, args: &[S])`.
+6. `execvp` имеет сигнатуру `fn execvp<S: AsRef<CStr>>(filename: &CStr, args: &[S])`.
    Вместо первого аргумента можно передать `&CString`, а вместо второго `&Vec<CString>`.
     ```rust
     let cmd: Command;

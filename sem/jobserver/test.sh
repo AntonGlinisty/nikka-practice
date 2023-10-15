@@ -31,7 +31,7 @@ export TMP=$(mktemp -d)
 (cd two_dirs_test && $JOBSERVER 10)
 
 if [[ $(uniq $TMP/out | wc -l) == 2 ]]; then
-    echo "two recursive make commands should run in paraller"
+    echo "two recursive make commands should run in parallel"
     exit 1
 fi
 

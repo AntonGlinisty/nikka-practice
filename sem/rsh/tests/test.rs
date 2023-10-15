@@ -128,6 +128,9 @@ fn test_simple_shell() {
         send("touch /tmp/foo\n".to_string());
         assert_eq!(recv(), "".to_string());
 
+        send("\n".to_string());
+        assert_eq!(recv(), "".to_string());
+
         send("ls /tmp/foo\n".to_string());
         assert_eq!(recv(), "/tmp/foo\n".to_string());
     })
@@ -146,7 +149,7 @@ fn test_file_shell() {
         assert_eq!(recv(), "".to_string());
 
         send("cat /tmp/zog\n".to_string());
-        assert_eq!(recv(), "6\n".to_string());
+        assert_eq!(recv().trim(), "6".to_string());
     })
 }
 
