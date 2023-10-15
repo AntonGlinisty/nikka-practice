@@ -64,7 +64,7 @@
         - ku/src/time/correlation_interval.rs
         - ku/src/time/correlation_point.rs
       check:
-        - cd kernel && cargo test --test 1-hw-1-rtc
+        - cd kernel && cargo test --test 1-hw-1-rtc && cargo test --test 1-hw-1-rtc -- -rtc base=2050-12-31T23:59:53 && cargo test --test 1-hw-1-rtc -- -rtc base=2050-01-01T11:59:53
 
     - task: spinlock
       score: 100
