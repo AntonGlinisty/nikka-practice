@@ -218,6 +218,10 @@ impl TryFrom<TscDuration> for Duration {
 pub fn tsc() -> i64 {
     // Do not use `x86::fence::lfence()` and `x86::time::rdtsc()`
     // because they are not marked as `#[inline]`.
+    if cfg!(miri) {
+        return 1;
+    }
+
     unsafe {
         x86_64::_mm_lfence();
         x86_64::_rdtsc()

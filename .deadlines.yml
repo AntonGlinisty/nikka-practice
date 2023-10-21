@@ -88,7 +88,7 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-4-correlation-point.html
       allow_list: *allow_lab_1
       check:
-        - cd ku && cargo test --test 5-sync-4-correlation-point && cd - && cd kernel && cargo test --test 5-sync-4-correlation-point
+        - cd ku && cargo test --test 5-sync-4-correlation-point && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 5-sync-4-correlation-point && cd - && cd kernel && cargo test --test 5-sync-4-correlation-point
 
     - task: high-resolution-date
       score: 50
