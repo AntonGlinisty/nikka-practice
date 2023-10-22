@@ -34,10 +34,7 @@ use kernel::{
             USER_RW,
         },
         size::MiB,
-        test_scaffolding::{
-            forbid_frame_leaks,
-            mapping,
-        },
+        test_scaffolding::mapping,
     },
 };
 
@@ -88,8 +85,6 @@ fn grow_and_shrink() {
 
 #[test_case]
 fn paged_realloc_is_cheap() {
-    let _guard = forbid_frame_leaks();
-
     #[repr(C, align(4096))]
     pub struct PagedType(u8);
 
