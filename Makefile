@@ -74,8 +74,9 @@ FORCE:
 
 test: install
 	@( \
-		rustup component add clippy --toolchain nightly-2023-09-16-x86_64-unknown-linux-gnu; \
-		rustup component add rustfmt --toolchain nightly-2023-09-16-x86_64-unknown-linux-gnu; \
+		rustup component add clippy; \
+		rustup component add miri; \
+		rustup component add rustfmt; \
 		for crate in $(CRATES); do \
 			cd $$crate; \
 			RUST_BACKTRACE=1 cargo test || exit 1; \
@@ -83,6 +84,12 @@ test: install
 			cargo fmt --check || exit 1; \
 			cd - >/dev/null; \
 		done; \
+		cd ku; \
+		MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 1-time-5-correlation-point; \
+		cd - >/dev/null; \
+		cd sem/rwlock; \
+		MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test -- --nocapture --test-threads=1; \
+		cd - >/dev/null; \
 	)
 
 test-gdb: install

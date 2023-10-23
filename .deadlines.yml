@@ -285,6 +285,21 @@
       check:
         - cd kernel && cargo test --test 2-mm-* --test 5-sync-5-ap-init
 
+- group: atomic
+  start: 26-10-2023 18:00
+  deadline: 09-11-2023 23:59
+  second_deadline: 01-02-2024 23:59
+  enabled: true
+  tasks:
+    - task: rwlock
+      score: 150
+
+      url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/rwlock
+      allow_list:
+        - sem/rwlock/src/sync.rs
+      check:
+        - cd sem/rwlock && cargo test -- --nocapture --test-threads=1 && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test -- --nocapture --test-threads=1
+
 - group: lab-4-process
   start: 02-11-2023 18:00
   deadline: 16-11-2023 23:59
