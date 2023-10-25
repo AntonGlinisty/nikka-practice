@@ -291,6 +291,15 @@
   second_deadline: 01-02-2024 23:59
   enabled: true
   tasks:
+    - task: atomic
+      score: 50
+
+      url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/atomic
+      allow_list:
+        - sem/atomic/src/impl.s
+      check:
+        - cd sem/atomic && cargo test -- --nocapture --test-threads=1
+
     - task: rwlock
       score: 150
 

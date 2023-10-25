@@ -10,6 +10,7 @@ members = [
     "asm_syscall",
     "backtrace",
     "rwlock",
+    "atomic",
 ]
 
 resolver = "1"

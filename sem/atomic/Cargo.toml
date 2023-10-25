@@ -1,0 +1,12 @@
+[package]
+authors = ["Sergey V. Galtsev <sergey-v-galtsev@gitlab.com>"]
+edition = "2021"
+license = "AGPL-3.0-or-later"
+name = "atomic"
+version = "0.3.0"
+
+[dev-dependencies]
+ntest_timeout = { version = "*" }
+
+[build-dependencies]
+anyhow = "*"
