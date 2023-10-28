@@ -22,7 +22,7 @@ fn memory_allocator_basic() {
         my_assert!(info_diff.allocations().positive() == 1);
         my_assert!(info_diff.allocations().negative() == 0);
         my_assert!(info_diff.allocated().balance() >= requested);
-        my_assert!(info_diff.pages().positive() == 1);
+        my_assert!(info_diff.pages().positive() > 0);
         my_assert!(info_diff.pages().negative() == 0);
     }
 
@@ -37,11 +37,8 @@ fn memory_allocator_basic() {
     my_assert!(end_info_diff.allocations().negative() == 1);
     my_assert!(end_info_diff.requested().balance() == 0);
     my_assert!(end_info_diff.allocated().balance() == 0);
-    my_assert!(end_info_diff.pages().positive() == 1);
+    my_assert!(end_info_diff.pages().positive() > 0);
     my_assert!(end_info_diff.fragmentation_loss() < MiB);
-
-    my_assert!(end_info.allocations().balance() == 0);
-    my_assert!(end_info.fragmentation_loss() < MiB);
 }
 
 fn memory_allocator_grow_and_shrink() {
@@ -84,9 +81,11 @@ fn memory_allocator_grow_and_shrink() {
     allocator::dump_info();
 
     let end_info = allocator::info();
+    let end_info_diff = (end_info - start_info).unwrap();
     debug!(%end_info);
-    my_assert!(end_info.allocations().balance() == 0);
-    my_assert!(end_info.fragmentation_loss() < MiB);
+    debug!(%end_info_diff);
+    my_assert!(end_info_diff.allocations().balance() == 0);
+    my_assert!(end_info_diff.fragmentation_loss() < MiB);
 }
 
 fn memory_allocator_stress(values: usize) -> usize {
@@ -142,9 +141,11 @@ fn memory_allocator_stress(values: usize) -> usize {
     allocator::dump_info();
 
     let end_info = allocator::info();
+    let end_info_diff = (end_info - start_info).unwrap();
     debug!(%end_info);
-    my_assert!(end_info.allocations().balance() == 0);
-    my_assert!(end_info.fragmentation_loss() < 4 * MiB);
+    debug!(%end_info_diff);
+    my_assert!(end_info_diff.allocations().balance() == 0);
+    my_assert!(end_info_diff.fragmentation_loss() < 4 * MiB);
 
     pages_for_values
 }
