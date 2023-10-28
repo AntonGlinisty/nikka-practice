@@ -31,4 +31,4 @@ x86_64 = "*"
 nix = { version = "*", features = ["mman"] }
 ntest_timeout = { version = "*" }
 rand = { version = "*", default-features = false, features = ["small_rng"] }
-tracing-subscriber = { git = "https://github.com/tokio-rs/tracing" }
+tracing-subscriber = { git = "https://github.com/tokio-rs/tracing", features = ["env-filter"] }

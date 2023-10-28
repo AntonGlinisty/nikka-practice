@@ -66,6 +66,23 @@ impl<T: Allocator> Dispatcher<T> {
         self.info.load()
     }
 
+    /// Возвращает статистику аллокатора, как суммарную, так и с разбивкой по компонентам.
+    ///
+    /// В случае конкурентных запросов к аллокатору статистика может быть несогласованной.
+    pub fn detailed_info(&self) -> DetailedInfo {
+        let mut detailed_info = DetailedInfo {
+            total: self.info(),
+            fallback: self.fallback_info.load(),
+            fixed_size: [Info::new(); FIXED_SIZE_COUNT],
+        };
+
+        for (info, allocator) in detailed_info.fixed_size.iter_mut().zip(&self.fixed_size) {
+            *info = *allocator.lock().info();
+        }
+
+        detailed_info
+    }
+
     /// Находит индекс [`FixedSizeAllocator`], который отвечает за заданный `layout`.
     ///
     /// Возвращает [`None`], если такого нет.
@@ -80,8 +97,9 @@ impl<T: Allocator> Dispatcher<T> {
 
     /// Возвращает размер блоков памяти, за которые отвечает аллокатор
     /// по индексу `index` в массиве [`Dispatcher::fixed_size`].
+    #[allow(unused)]
     fn get_size(index: usize) -> usize {
-        (index + 1) * MIN_SIZE
+        get_size(index)
     }
 
     /// Выделяет блок памяти с помощью аллокатора `fallback`.
@@ -229,28 +247,101 @@ unsafe impl<T: Allocator> GlobalAlloc for Dispatcher<T> {
     }
 }
 
-impl<T: Allocator> fmt::Display for Dispatcher<T> {
+/// Детальная статистика аллокатора [`Dispatcher`].
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DetailedInfo {
+    /// Общая статистика аллокатора [`Dispatcher`].
+    total: Info,
+
+    /// Статистика выделений и освобождений через [`Dispatcher::fallback`].
+    fallback: Info,
+
+    /// Статистика аллокаторов [`FixedSizeAllocator`] для разных размеров блоков.
+    fixed_size: [Info; FIXED_SIZE_COUNT],
+}
+
+#[allow(rustdoc::private_intra_doc_links)]
+impl DetailedInfo {
+    /// Общая статистика аллокатора [`Dispatcher`].
+    pub fn total(&self) -> &Info {
+        &self.total
+    }
+
+    /// Статистика выделений и освобождений через [`Dispatcher::fallback`].
+    pub fn fallback(&self) -> &Info {
+        &self.fallback
+    }
+
+    /// Статистика аллокаторов [`FixedSizeAllocator`] для разных размеров блоков.
+    pub fn fixed_size(&self) -> &[Info] {
+        &self.fixed_size
+    }
+
+    /// Проверяет инварианты статистики аллокатора.
+    ///
+    /// Требует эксклюзивного доступа к аллокатору в момент снятия детальной статистики.
+    /// Иначе из-за конкурентных операций статистики разойдутся.
+    pub fn is_valid(&self) -> bool {
+        if !self.total.is_valid() || !self.fallback.is_valid() {
+            return false;
+        }
+
+        if let Ok(mut balance) = self.total - self.fallback {
+            for fixed_size in self.fixed_size {
+                if !fixed_size.is_valid() {
+                    return false;
+                }
+
+                if let Ok(new_balance) = balance - fixed_size {
+                    balance = new_balance;
+                } else {
+                    return false;
+                }
+            }
+
+            balance == Info::new()
+        } else {
+            false
+        }
+    }
+}
+
+impl fmt::Display for DetailedInfo {
     fn fmt(
         &self,
         formatter: &mut fmt::Formatter,
     ) -> fmt::Result {
+        let separator = if formatter.alternate() {
+            "\n    "
+        } else {
+            " "
+        };
+
         write!(
             formatter,
-            "{{ total: {}, fallback: {}",
-            self.info(),
-            self.fallback_info.load(),
+            "{{{}valid: {},{}total: {},{}fallback: {}",
+            separator,
+            self.is_valid(),
+            separator,
+            self.total,
+            separator,
+            self.fallback,
         )?;
 
         for (index, fixed_size) in self.fixed_size.iter().enumerate() {
-            let fixed_size = fixed_size.lock().info();
-
             if fixed_size.allocations().positive() > 0 {
-                let size = Self::get_size(index);
-                write!(formatter, ", size_{}: {}", size, fixed_size)?;
+                let size = get_size(index);
+                write!(formatter, ",{separator}size_{size}: {fixed_size}")?;
             }
         }
 
-        write!(formatter, " }}")
+        let separator = if formatter.alternate() {
+            ",\n"
+        } else {
+            " "
+        };
+
+        write!(formatter, "{separator}}}")
     }
 }
 
@@ -264,9 +355,15 @@ enum Operation {
     Deallocation,
 }
 
+/// Возвращает размер блоков памяти, за которые отвечает аллокатор
+/// по индексу `index` в массиве [`Dispatcher::fixed_size`].
+fn get_size(index: usize) -> usize {
+    (index + 1) * MIN_SIZE
+}
+
 /// Количество аллокаторов фиксированного размера [`FixedSizeAllocator`],
 /// которыми управляет [`Dispatcher`].
-const FIXED_SIZE_COUNT: usize = (4 * Page::SIZE - 1) / MIN_SIZE;
+const FIXED_SIZE_COUNT: usize = (Page::SIZE - 1) / MIN_SIZE;
 
 /// Вспомогательная константа для инициализации массива [`Dispatcher::fixed_size`]
 /// в константной функции [`Dispatcher::new()`].

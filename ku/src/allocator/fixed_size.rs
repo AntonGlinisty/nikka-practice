@@ -38,8 +38,13 @@ impl FixedSizeAllocator {
     }
 
     /// Статистика аллокатора.
-    pub(super) fn info(&self) -> Info {
-        self.info
+    pub(super) fn info(&self) -> &Info {
+        &self.info
+    }
+
+    /// Статистика аллокатора.
+    pub(super) fn info_mut(&mut self) -> &mut Info {
+        &mut self.info
     }
 
     /// Возвращает `true`, если у аллокатора больше нет свободных блоков.

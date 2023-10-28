@@ -28,6 +28,7 @@ pub struct BigForPipe {
     mirrored_buffer: Block<Page>,
 }
 
+#[allow(unused)]
 impl BigForPipe {
     pub fn new() -> Self {
         Self {

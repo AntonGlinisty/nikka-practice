@@ -1,4 +1,5 @@
 #![deny(warnings)]
+#![feature(allocator_api)]
 #![feature(slice_group_by)]
 
 use std::{

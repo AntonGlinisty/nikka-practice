@@ -31,7 +31,7 @@ pub fn info() -> Info {
 
 /// Распечатывает детальную статистику аллокатора.
 pub fn dump_info() {
-    debug!(allocator_info = %GLOBAL_ALLOCATOR);
+    debug!(allocator_info = %GLOBAL_ALLOCATOR.detailed_info());
 }
 
 /// Обработчик ошибок выделения памяти.

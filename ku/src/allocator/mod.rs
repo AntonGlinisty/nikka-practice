@@ -17,7 +17,10 @@ mod dispatcher;
 mod fixed_size;
 
 pub use big::BigAllocator;
-pub use dispatcher::Dispatcher;
+pub use dispatcher::{
+    DetailedInfo,
+    Dispatcher,
+};
 pub use dry::{
     DryAllocator,
     Initialize,

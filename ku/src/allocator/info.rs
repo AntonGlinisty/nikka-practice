@@ -71,8 +71,12 @@ impl Info {
 
     /// Сколько памяти в байтах потеряно на фрагментацию в текущий момент времени.
     /// Равно `allocated().balance() - requested().balance()`.
+    ///
+    /// Если эта [`Info`] --- разность между двумя другими, то
+    /// [`Info::fragmentation_loss()`] формально может быть отрицательным.
+    /// В этом случае возвращается `0`.
     pub fn fragmentation_loss(&self) -> usize {
-        self.pages.balance() * Page::SIZE - self.requested.balance()
+        (self.pages.balance() * Page::SIZE).saturating_sub(self.requested.balance())
     }
 
     /// Сколько памяти в процентах потеряно на фрагментацию в текущий момент времени.
@@ -89,7 +93,7 @@ impl Info {
     ///   - Реально выделенный объём памяти не может быть меньше запрошенного.
     ///   - Текущий объём выделенной память не может быть больше суммарного объёма
     ///     текущих выделенных страниц.
-    fn is_valid(&self) -> bool {
+    pub fn is_valid(&self) -> bool {
         self.allocated.is_valid() &&
             self.allocations.is_valid() &&
             self.pages.is_valid() &&
