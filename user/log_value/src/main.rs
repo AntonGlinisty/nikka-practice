@@ -70,7 +70,7 @@ fn main() {
     my_assert!(
         result == Err(PermissionDenied),
         "expected Err(PermissionDenied), got another error",
-        ResultCode::from(result).bits(),
+        ResultCode::from(result).into(),
     );
 
     let block = Block::from_index(0, 0);
@@ -84,7 +84,7 @@ fn main() {
     my_assert!(
         result == Err(InvalidArgument) || result == Err(Null),
         "expected Err(InvalidArgument) or Err(Null), got another error",
-        ResultCode::from(result).bits(),
+        ResultCode::from(result).into(),
     );
 
     let invalid_utf8 = b"\xFF";
@@ -93,7 +93,7 @@ fn main() {
     my_assert!(
         result == Err(InvalidArgument),
         "expected Err(InvalidArgument), got another error",
-        ResultCode::from(result).bits(),
+        ResultCode::from(result).into(),
     );
 
     let result = log_something(0x1_0000, 0xFFFF_FFFF_0000_0000, 0);
@@ -101,7 +101,7 @@ fn main() {
     my_assert!(
         result == Err(InvalidArgument),
         "expected Err(InvalidArgument), got another error",
-        ResultCode::from(result).bits(),
+        ResultCode::from(result).into(),
     );
 
     let result = log_something(0xFFFF_FFFF_FFFF_0000, 0x10_0000, 0);
@@ -112,7 +112,7 @@ fn main() {
     my_assert!(
         result == Err(InvalidArgument) || result == Err(Overflow),
         "expected Err(InvalidArgument) or Err(Overflow), got another error",
-        ResultCode::from(result).bits(),
+        ResultCode::from(result).into(),
     );
 }
 
@@ -136,5 +136,5 @@ fn log_something(
     size: usize,
     value: usize,
 ) -> Result<()> {
-    syscall::syscall(Syscall::LOG_VALUE.bits(), start, size, value, 0, 0).map(|_| ())
+    syscall::syscall(Syscall::LogValue, start, size, value, 0, 0).map(|_| ())
 }

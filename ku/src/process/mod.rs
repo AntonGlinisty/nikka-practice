@@ -17,7 +17,10 @@ pub mod syscall;
 /// Информация об исключении процессора.
 pub mod trap_info;
 
-use bitflags::bitflags;
+use num_enum::{
+    IntoPrimitive,
+    TryFromPrimitive,
+};
 
 pub use mini_context::MiniContext;
 pub use pid::Pid;
@@ -34,17 +37,16 @@ pub use trap_info::{
     TrapInfo,
 };
 
-bitflags! {
-    /// Состояние пользовательского процесса.
-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-    pub struct State: usize {
-        /// Процесс только что создан и не готов к запуску.
-        const EXOFORK = 0;
+/// Состояние пользовательского процесса.
+#[derive(Clone, Copy, Debug, Eq, IntoPrimitive, PartialEq, TryFromPrimitive)]
+#[repr(usize)]
+pub enum State {
+    /// Процесс только что создан и не готов к запуску.
+    Exofork = 0,
 
-        /// Процесс готов к вытеснению, но не выполняется в данный момент.
-        const RUNNABLE = 1;
+    /// Процесс готов к вытеснению, но не выполняется в данный момент.
+    Runnable = 1,
 
-        /// Процесс выполняется в данный момент.
-        const RUNNING = 2;
-    }
+    /// Процесс выполняется в данный момент.
+    Running = 2,
 }

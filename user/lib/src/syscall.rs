@@ -42,7 +42,7 @@ use crate::syscall;
 /// Освобождает слот таблицы процессов и возвращается в контекст ядра,
 /// из которого пользовательский процесс был запущен.
 pub fn exit(code: usize) -> ! {
-    syscall(Syscall::EXIT.bits(), code, 0, 0, 0, 0).unwrap();
+    syscall(Syscall::Exit, code, 0, 0, 0, 0).unwrap();
 
     unreachable!();
 }
@@ -57,7 +57,7 @@ pub fn log_value(
     let block = Block::<Virt>::from_slice(message.as_bytes());
 
     syscall(
-        Syscall::LOG_VALUE.bits(),
+        Syscall::LogValue,
         block.start_address().into_usize(),
         block.size(),
         value,
@@ -73,7 +73,7 @@ pub fn log_value(
 /// забирает у него CPU.
 #[allow(unused_must_use)]
 pub fn sched_yield() {
-    syscall(Syscall::SCHED_YIELD.bits(), 0, 0, 0, 0, 0);
+    syscall(Syscall::SchedYield, 0, 0, 0, 0, 0);
 }
 
 /// Системный вызов [`syscall::exofork()`].
@@ -87,7 +87,7 @@ pub fn sched_yield() {
 // Inline is needed for the correctness of exofork().
 #[inline(always)]
 pub fn exofork() -> Result<Pid> {
-    let (child_pid, process_info) = syscall(Syscall::EXOFORK.bits(), 0, 0, 0, 0, 0)?;
+    let (child_pid, process_info) = syscall(Syscall::Exofork, 0, 0, 0, 0, 0)?;
     let child_pid = Pid::from_usize(child_pid)?;
     if child_pid == Pid::Current {
         info::set_process_info(unsafe { Virt::new(process_info)?.try_into_mut::<ProcessInfo>()? });
@@ -107,7 +107,7 @@ pub fn map(
     flags: PageTableFlags,
 ) -> Result<Block<Page>> {
     let (address, _) = syscall(
-        Syscall::MAP.bits(),
+        Syscall::Map,
         dst_pid.into_usize(),
         dst_block.start_address().into_usize(),
         dst_block.size(),
@@ -129,7 +129,7 @@ pub fn unmap(
     dst_block: Block<Page>,
 ) -> Result<()> {
     syscall(
-        Syscall::UNMAP.bits(),
+        Syscall::Unmap,
         dst_pid.into_usize(),
         dst_block.start_address().into_usize(),
         dst_block.size(),
@@ -156,7 +156,7 @@ pub fn copy_mapping(
 ) -> Result<()> {
     if src_block.count() == dst_block.count() {
         syscall(
-            Syscall::COPY_MAPPING.bits(),
+            Syscall::CopyMapping,
             dst_pid.into_usize(),
             src_block.start_address().into_usize(),
             dst_block.start_address().into_usize(),
@@ -172,15 +172,15 @@ pub fn copy_mapping(
 /// Системный вызов [`syscall::set_state()`].
 ///
 /// Переводит целевой процесс, заданный идентификатором `dst_pid`, в заданное состояние `state`.
-/// Ставит его в очередь планировщика в случае [`State::RUNNABLE`].
+/// Ставит его в очередь планировщика в случае [`State::Runnable`].
 pub fn set_state(
     dst_pid: Pid,
     state: State,
 ) -> Result<()> {
     syscall(
-        Syscall::SET_STATE.bits(),
+        Syscall::SetState,
         dst_pid.into_usize(),
-        state.bits(),
+        state.into(),
         0,
         0,
         0,
@@ -200,7 +200,7 @@ pub fn set_trap_handler(
     TRAP_HANDLER.store(trap_handler as *mut _, Ordering::Relaxed);
 
     syscall(
-        Syscall::SET_TRAP_HANDLER.bits(),
+        Syscall::SetTrapHandler,
         dst_pid.into_usize(),
         trap_handler_trampoline as *const () as usize,
         trap_handler_stack.start_address().into_usize(),
@@ -214,7 +214,7 @@ pub fn set_trap_handler(
 // Inline is needed for the correctness of exofork().
 #[inline(always)]
 pub fn syscall(
-    number: usize,
+    number: Syscall,
     arg0: usize,
     arg1: usize,
     arg2: usize,

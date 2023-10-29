@@ -319,7 +319,7 @@ fn map_pages_to_frames(
 /// [`lib::syscall::set_state(dst_pid, state)`](https://sergey-v-galtsev.gitlab.io/labs-description/doc/lib/syscall/fn.set_state.html).
 ///
 /// Переводит целевой процесс, заданный идентификатором `dst_pid`, в заданное состояние `state`.
-/// Ставит его в очередь планировщика в случае [`State::RUNNABLE`].
+/// Ставит его в очередь планировщика в случае [`State::Runnable`].
 fn set_state(
     process: SpinlockGuard<Process>,
     dst_pid: usize,

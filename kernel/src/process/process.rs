@@ -96,7 +96,7 @@ impl Process {
             parent: None,
             pid: Pid::Current,
             registers: Registers::new(context, info.start_address().into_usize()),
-            state: State::RUNNABLE,
+            state: State::Runnable,
             trap_handler_context: TrapHandlerContext::default(),
         }
     }
@@ -128,7 +128,7 @@ impl Process {
             parent: Some(self.pid),
             pid: Pid::Current,
             registers: self.registers.duplicate(rax, rdi, info.start_address().into_usize()),
-            state: State::EXOFORK,
+            state: State::Exofork,
             trap_handler_context: TrapHandlerContext::default(),
         })
     }
@@ -264,7 +264,7 @@ impl Process {
         debug!("set current_process");
         let registers = &mut process.registers as *mut Registers;
 
-        process.state = State::RUNNING;
+        process.state = State::Running;
 
         debug!(%pid, registers = %process.registers, "entering the user mode");
 

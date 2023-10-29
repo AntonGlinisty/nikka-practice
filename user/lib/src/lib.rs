@@ -60,7 +60,7 @@ pub extern "C" fn _start(process_info: &'static mut ProcessInfo) -> ! {
         main();
     }
 
-    syscall::exit(ExitCode::OK.bits());
+    syscall::exit(ExitCode::Ok.into());
 }
 
 /// Обработчик паники.
@@ -73,7 +73,7 @@ fn panic(panic_info: &PanicInfo) -> ! {
     } else {
         error!(message = %panic_info);
     }
-    syscall::exit(ExitCode::PANIC.bits());
+    syscall::exit(ExitCode::Panic.into());
 }
 
 /// Задаёт функцию `main()` пользовательского процесса.

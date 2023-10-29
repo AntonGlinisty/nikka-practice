@@ -76,7 +76,7 @@ fn t1_exofork_syscall() {
         set_state(
             Table::get(parent_pid).unwrap(),
             unrelated_process_pid.into_usize(),
-            State::RUNNABLE.bits(),
+            State::Runnable.into(),
         ),
         Err(PermissionDenied),
     );
@@ -90,7 +90,7 @@ fn t1_exofork_syscall() {
         set_state(
             Table::get(parent_pid).unwrap(),
             child_pid.into_usize(),
-            State::RUNNING.bits(),
+            State::Running.into(),
         ),
         Err(InvalidArgument),
     );
@@ -98,7 +98,7 @@ fn t1_exofork_syscall() {
     let result = set_state(
         Table::get(parent_pid).unwrap(),
         child_pid.into_usize(),
-        State::RUNNABLE.bits(),
+        State::Runnable.into(),
     );
     assert!(result.is_ok());
 
@@ -106,7 +106,7 @@ fn t1_exofork_syscall() {
         set_state(
             Table::get(parent_pid).unwrap(),
             child_pid.into_usize(),
-            State::RUNNABLE.bits(),
+            State::Runnable.into(),
         ),
         Err(PermissionDenied),
     );

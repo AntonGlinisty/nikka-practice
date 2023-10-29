@@ -37,7 +37,7 @@ fn exit(code: usize) -> ! {
             syscall
             ",
 
-            in("rdi") Syscall::EXIT.bits(),
+            in("rdi") usize::from(Syscall::Exit),
             in("rsi") code,
 
             options(noreturn),
