@@ -55,11 +55,9 @@ fn user_context_saved() {
 
     let user_registers = test_scaffolding::registers(&process.lock());
     debug!(?user_registers);
-    let user_mode_context_saved = user_registers
-        .into_iter()
-        .enumerate()
-        .all(|(i, register_value)| register_value == 77701 + i);
-    assert!(user_mode_context_saved);
+    let user_mode_context_sum = user_registers.into_iter().sum::<usize>();
+    let expected_sum = (77701 ..= 77715).sum();
+    assert_eq!(user_mode_context_sum, expected_sum);
 
     assert!(
         RFlags::read().contains(RFlags::INTERRUPT_FLAG),

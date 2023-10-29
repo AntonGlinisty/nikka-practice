@@ -79,7 +79,7 @@ fn exofork(
 [`lib::syscall::syscall()`](../../doc/lib/syscall/fn.syscall.html)
 возвращает два поля в кортеже --- `child_pid` и `process_info`:
 ```rust
-let (child_pid, process_info) = syscall(Syscall::EXOFORK.bits(), 0, 0, 0, 0, 0)?;
+let (child_pid, process_info) = syscall(Syscall::Exofork.bits(), 0, 0, 0, 0, 0)?;
 ```
 В поле `child_pid` должен быть
 [`Pid::Id`](../../doc/ku/process/pid/enum.Pid.html#variant.Id)
@@ -124,7 +124,7 @@ fn set_state(
 
 Он переводит целевой процесс, заданный идентификатором `dst_pid`, в заданное состояние `state`.
 И ставит его в очередь планировщика в случае
-[`State::RUNNABLE`](../../doc/ku/process/struct.State.html#associatedconstant.RUNNABLE).
+[`State::Runnable`](../../doc/ku/process/enum.State.html#variant.Runnable).
 Не забудьте
 [проверить права доступа](../../lab/book/6-um-2-memory-syscalls.html#check_process_permissions)
 процесса `process` к процессу `dst_pid`.
@@ -290,7 +290,7 @@ fn eager_fork() -> Result<bool>
 И запускает потомка системным вызовом
 [`lib::syscall::set_state()`](../../doc/lib/syscall/fn.set_state.html),
 устанавливая его состояние в
-[`State::RUNNABLE`](../../doc/ku/process/struct.State.html#associatedconstant.RUNNABLE).
+[`State::Runnable`](../../doc/ku/process/enum.State.html#variant.Runnable).
 В потомке ничего не делает.
 Возвращает `true` в процессе потомка и `false` в процессе родителя.
 
@@ -413,7 +413,7 @@ $ (cd kernel; cargo test --test 6-um-3-eager-fork)
 15:27:01.931 0 I free; slot = Process { pid: 2:1, address_space: "2:1" @ 0p7CC4000, { rip: 0v1002759D, rsp: 0v7F7FFFFFD968 } }; process_count = 3
 15:27:01.941 0 I switch to; address_space = "base" @ 0p1000
 15:27:01.945 0 I drop the current address space; address_space = "2:1" @ 0p7CC4000; switch_to = "base" @ 0p1000
-15:27:02.017 0 I syscall = "exit"; pid = 2:1; code = 0; reason = Some(OK)
+15:27:02.017 0 I syscall = "exit"; pid = 2:1; code = 0; reason = Some(Ok)
 15:27:02.023 0 D leaving the user mode; pid = 2:1
 15:27:02.027 0 I dequeue; pid = Some(1:1)
 15:27:02.031 0 I switch to; address_space = "1:1" @ 0p7D4C000
@@ -486,7 +486,7 @@ $ (cd kernel; cargo test --test 6-um-3-eager-fork)
 15:27:03.701 0 I free; slot = Process { pid: 1:1, address_space: "1:1" @ 0p7D4C000, { rip: 0v1001D938, rsp: 0v7F7FFFFFD1A8 } }; process_count = 7
 15:27:03.709 0 I switch to; address_space = "base" @ 0p1000
 15:27:03.715 0 I drop the current address space; address_space = "1:1" @ 0p7D4C000; switch_to = "base" @ 0p1000
-15:27:03.791 0 I syscall = "exit"; pid = 1:1; code = 0; reason = Some(OK)
+15:27:03.791 0 I syscall = "exit"; pid = 1:1; code = 0; reason = Some(Ok)
 15:27:03.797 0 D leaving the user mode; pid = 1:1
 15:27:03.801 0 I dequeue; pid = Some(0:1)
 15:27:03.805 0 I switch to; address_space = "0:1" @ 0p7DF2000
@@ -533,7 +533,7 @@ $ (cd kernel; cargo test --test 6-um-3-eager-fork)
 15:27:04.947 0 I free; slot = Process { pid: 5:0, address_space: "5:0" @ 0p7CFD000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 9
 15:27:04.955 0 I switch to; address_space = "base" @ 0p1000
 15:27:04.961 0 I drop the current address space; address_space = "5:0" @ 0p7CFD000; switch_to = "base" @ 0p1000
-15:27:05.039 0 I syscall = "exit"; pid = 5:0; code = 0; reason = Some(OK)
+15:27:05.039 0 I syscall = "exit"; pid = 5:0; code = 0; reason = Some(Ok)
 15:27:05.045 0 D leaving the user mode; pid = 5:0
 15:27:05.049 0 I dequeue; pid = Some(6:0)
 15:27:05.053 0 I switch to; address_space = "6:0" @ 0p7AE8000
@@ -550,7 +550,7 @@ $ (cd kernel; cargo test --test 6-um-3-eager-fork)
 15:27:05.155 0 I free; slot = Process { pid: 7:0, address_space: "7:0" @ 0p7A3F000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 8
 15:27:05.165 0 I switch to; address_space = "base" @ 0p1000
 15:27:05.171 0 I drop the current address space; address_space = "7:0" @ 0p7A3F000; switch_to = "base" @ 0p1000
-15:27:05.251 0 I syscall = "exit"; pid = 7:0; code = 0; reason = Some(OK)
+15:27:05.251 0 I syscall = "exit"; pid = 7:0; code = 0; reason = Some(Ok)
 15:27:05.255 0 D leaving the user mode; pid = 7:0
 15:27:05.261 0 I dequeue; pid = Some(2:2)
 15:27:05.265 0 I switch to; address_space = "2:2" @ 0p7CC4000
@@ -561,7 +561,7 @@ $ (cd kernel; cargo test --test 6-um-3-eager-fork)
 15:27:05.323 0 I free; slot = Process { pid: 2:2, address_space: "2:2" @ 0p7CC4000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 7
 15:27:05.333 0 I switch to; address_space = "base" @ 0p1000
 15:27:05.337 0 I drop the current address space; address_space = "2:2" @ 0p7CC4000; switch_to = "base" @ 0p1000
-15:27:05.417 0 I syscall = "exit"; pid = 2:2; code = 0; reason = Some(OK)
+15:27:05.417 0 I syscall = "exit"; pid = 2:2; code = 0; reason = Some(Ok)
 15:27:05.423 0 D leaving the user mode; pid = 2:2
 15:27:05.427 0 I dequeue; pid = Some(0:1)
 15:27:05.431 0 I switch to; address_space = "0:1" @ 0p7DF2000
@@ -578,7 +578,7 @@ $ (cd kernel; cargo test --test 6-um-3-eager-fork)
 15:27:05.993 0 I free; slot = Process { pid: 0:1, address_space: "0:1" @ 0p7DF2000, { rip: 0v1002C383, rsp: 0v7F7FFFFFB9E8 } }; process_count = 7
 15:27:06.003 0 I switch to; address_space = "base" @ 0p1000
 15:27:06.001 0 I drop the current address space; address_space = "0:1" @ 0p7DF2000; switch_to = "base" @ 0p1000
-15:27:06.077 0 I syscall = "exit"; pid = 0:1; code = 0; reason = Some(OK)
+15:27:06.077 0 I syscall = "exit"; pid = 0:1; code = 0; reason = Some(Ok)
 15:27:06.081 0 D leaving the user mode; pid = 0:1
 15:27:06.085 0 I dequeue; pid = Some(4:0)
 15:27:06.091 0 I switch to; address_space = "4:0" @ 0p7D0C000
@@ -589,7 +589,7 @@ $ (cd kernel; cargo test --test 6-um-3-eager-fork)
 15:27:06.149 0 I free; slot = Process { pid: 4:0, address_space: "4:0" @ 0p7D0C000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 6
 15:27:06.157 0 I switch to; address_space = "base" @ 0p1000
 15:27:06.163 0 I drop the current address space; address_space = "4:0" @ 0p7D0C000; switch_to = "base" @ 0p1000
-15:27:06.243 0 I syscall = "exit"; pid = 4:0; code = 0; reason = Some(OK)
+15:27:06.243 0 I syscall = "exit"; pid = 4:0; code = 0; reason = Some(Ok)
 15:27:06.249 0 D leaving the user mode; pid = 4:0
 15:27:06.253 0 I dequeue; pid = Some(8:0)
 15:27:06.257 0 I switch to; address_space = "8:0" @ 0p7940000
@@ -600,7 +600,7 @@ $ (cd kernel; cargo test --test 6-um-3-eager-fork)
 15:27:06.313 0 I free; slot = Process { pid: 8:0, address_space: "8:0" @ 0p7940000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 5
 15:27:06.323 0 I switch to; address_space = "base" @ 0p1000
 15:27:06.327 0 I drop the current address space; address_space = "8:0" @ 0p7940000; switch_to = "base" @ 0p1000
-15:27:06.407 0 I syscall = "exit"; pid = 8:0; code = 0; reason = Some(OK)
+15:27:06.407 0 I syscall = "exit"; pid = 8:0; code = 0; reason = Some(Ok)
 15:27:06.413 0 D leaving the user mode; pid = 8:0
 15:27:06.417 0 I dequeue; pid = Some(3:0)
 15:27:06.421 0 I switch to; address_space = "3:0" @ 0p7C1C000
@@ -617,7 +617,7 @@ $ (cd kernel; cargo test --test 6-um-3-eager-fork)
 15:27:06.635 0 I free; slot = Process { pid: 6:0, address_space: "6:0" @ 0p7AE8000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 4
 15:27:06.643 0 I switch to; address_space = "base" @ 0p1000
 15:27:06.649 0 I drop the current address space; address_space = "6:0" @ 0p7AE8000; switch_to = "base" @ 0p1000
-15:27:06.729 0 I syscall = "exit"; pid = 6:0; code = 0; reason = Some(OK)
+15:27:06.729 0 I syscall = "exit"; pid = 6:0; code = 0; reason = Some(Ok)
 15:27:06.733 0 D leaving the user mode; pid = 6:0
 15:27:06.737 0 I dequeue; pid = Some(1:2)
 15:27:06.743 0 I switch to; address_space = "1:2" @ 0p7DB3000
@@ -634,7 +634,7 @@ $ (cd kernel; cargo test --test 6-um-3-eager-fork)
 15:27:06.849 0 I free; slot = Process { pid: 2:3, address_space: "2:3" @ 0p7D0F000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 3
 15:27:06.859 0 I switch to; address_space = "base" @ 0p1000
 15:27:06.865 0 I drop the current address space; address_space = "2:3" @ 0p7D0F000; switch_to = "base" @ 0p1000
-15:27:06.945 0 I syscall = "exit"; pid = 2:3; code = 0; reason = Some(OK)
+15:27:06.945 0 I syscall = "exit"; pid = 2:3; code = 0; reason = Some(Ok)
 15:27:06.949 0 D leaving the user mode; pid = 2:3
 15:27:06.955 0 I dequeue; pid = Some(3:0)
 15:27:06.959 0 I switch to; address_space = "3:0" @ 0p7C1C000
@@ -643,7 +643,7 @@ $ (cd kernel; cargo test --test 6-um-3-eager-fork)
 15:27:07.057 0 I free; slot = Process { pid: 3:0, address_space: "3:0" @ 0p7C1C000, { rip: 0v1002C383, rsp: 0v7F7FFFFFB9E8 } }; process_count = 2
 15:27:07.067 0 I switch to; address_space = "base" @ 0p1000
 15:27:07.071 0 I drop the current address space; address_space = "3:0" @ 0p7C1C000; switch_to = "base" @ 0p1000
-15:27:07.149 0 I syscall = "exit"; pid = 3:0; code = 0; reason = Some(OK)
+15:27:07.149 0 I syscall = "exit"; pid = 3:0; code = 0; reason = Some(Ok)
 15:27:07.153 0 D leaving the user mode; pid = 3:0
 15:27:07.159 0 I dequeue; pid = Some(1:2)
 15:27:07.163 0 I switch to; address_space = "1:2" @ 0p7DB3000
@@ -654,7 +654,7 @@ $ (cd kernel; cargo test --test 6-um-3-eager-fork)
 15:27:07.219 0 I free; slot = Process { pid: 1:2, address_space: "1:2" @ 0p7DB3000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 1
 15:27:07.229 0 I switch to; address_space = "base" @ 0p1000
 15:27:07.235 0 I drop the current address space; address_space = "1:2" @ 0p7DB3000; switch_to = "base" @ 0p1000
-15:27:07.313 0 I syscall = "exit"; pid = 1:2; code = 0; reason = Some(OK)
+15:27:07.313 0 I syscall = "exit"; pid = 1:2; code = 0; reason = Some(Ok)
 15:27:07.319 0 D leaving the user mode; pid = 1:2
 15:27:07.323 0 I dequeue; pid = Some(9:0)
 15:27:07.327 0 I switch to; address_space = "9:0" @ 0p7896000
@@ -671,7 +671,7 @@ $ (cd kernel; cargo test --test 6-um-3-eager-fork)
 15:27:07.425 0 I free; slot = Process { pid: 9:0, address_space: "9:0" @ 0p7896000, { rip: 0v1004AB7C, rsp: 0v7F7FFFFFD3D8 } }; process_count = 0
 15:27:07.435 0 I switch to; address_space = "base" @ 0p1000
 15:27:07.439 0 I drop the current address space; address_space = "9:0" @ 0p7896000; switch_to = "base" @ 0p1000
-15:27:07.521 0 I syscall = "exit"; pid = 9:0; code = 0; reason = Some(OK)
+15:27:07.521 0 I syscall = "exit"; pid = 9:0; code = 0; reason = Some(Ok)
 15:27:07.527 0 D leaving the user mode; pid = 9:0
 15:27:07.531 0 I dequeue; pid = None
 15:27:07.541 0 D parent = 0:1; process = 1:2

@@ -259,7 +259,7 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-5-small.html
       allow_list: *allow_lab_3
       check:
-        - cd kernel && cargo test --test 2-mm-* --test 3-allocator-1-big --test 3-allocator-5-small
+        - cd kernel && cargo test --test 2-mm-* --test 3-allocator-1-big --test 3-allocator-5-small && cd - && cd ku && RUST_LOG="ku::sync::spinlock=info" cargo test --test 3-allocator-5-small -- --nocapture --test-threads=1
 
     - task: local-apic
       score: 50
@@ -311,7 +311,7 @@
 
 - group: lab-4-process
   start: 02-11-2023 18:00
-  deadline: 16-11-2023 23:59
+  deadline: 18-11-2023 23:59
   second_deadline: 01-02-2024 23:59
   enabled: true
   tasks:
@@ -325,18 +325,18 @@
         - kernel/src/memory/main_frame_allocator.rs
         - kernel/src/memory/mapping.rs
         - kernel/src/memory/page_allocator.rs
-        - kernel/src/process/elf.rs
         - kernel/src/process/registers.rs
         - kernel/src/process/syscall.rs
         - kernel/src/time/rtc.rs
         - ku/src/memory/block.rs
+        - ku/src/process/elf.rs
         - ku/src/sync/sequence_lock.rs
         - ku/src/sync/spinlock.rs
         - ku/src/time/correlation_interval.rs
         - ku/src/time/correlation_point.rs
         - user/lib/src/syscall.rs
       check:
-        - cd kernel && cargo test --test 2-mm-* --test 4-process-3-elf
+        - cd kernel && cargo test --test 2-mm-* --test 3-smp-[134]-* --test 4-process-3-elf
 
     - task: permission-checks
       score: 50
@@ -344,7 +344,7 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-4-permission-checks.html
       allow_list: *allow_lab_4
       check:
-        - cd kernel && cargo test --test 2-mm-* --test 4-process-4-permission-checks
+        - cd kernel && cargo test --test 2-mm-* --test 3-smp-[134]-* --test 4-process-4-permission-checks
 
     - task: user-mode
       score: 150
@@ -352,7 +352,7 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-5-user-mode.html
       allow_list: *allow_lab_4
       check:
-        - cd kernel && cargo test --test 2-mm-* --test 4-process-5-user-mode
+        - cd kernel && cargo test --test 2-mm-* --test 3-smp-[134]-* --test 4-process-5-user-mode
 
     - task: syscall
       score: 200
@@ -360,7 +360,7 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-6-syscall.html
       allow_list: *allow_lab_4
       check:
-        - cd kernel && cargo test --test 2-mm-* --test 4-process-6-syscall --test 4-process-4-log-value
+        - cd kernel && cargo test --test 2-mm-* --test 3-smp-[134]-* --test 4-process-6-syscall --test 4-process-4-log-value
 
     - task: table
       score: 100
@@ -368,7 +368,7 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-7-table.html
       allow_list: *allow_lab_4
       check:
-        - cd kernel && cargo test --test 2-mm-* --test 4-process-3-elf --test 4-process-7-table
+        - cd kernel && cargo test --test 2-mm-* --test 3-smp-[134]-* --test 4-process-3-elf --test 4-process-7-table
 
     - task: preemption
       score: 50
@@ -376,7 +376,7 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-8-preemption.html
       allow_list: *allow_lab_4
       check:
-        - cd kernel && cargo test --test 2-mm-* --test 4-process-3-elf --test 4-process-8-preemption
+        - cd kernel && cargo test --test 2-mm-* --test 3-smp-[134]-* --test 4-process-3-elf --test 4-process-8-preemption
 
     - task: scheduler
       score: 50
@@ -384,7 +384,7 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-9-scheduler.html
       allow_list: *allow_lab_4
       check:
-        - cd kernel && cargo test --test 2-mm-* --test 4-process-3-elf --test 4-process-9-scheduler
+        - cd kernel && cargo test --test 2-mm-* --test 3-smp-[134]-* --test 4-process-3-elf --test 4-process-9-scheduler
 
 - group: lab-6-user-memory-tricks
   start: 16-11-2023 18:00
@@ -402,7 +402,6 @@
         - kernel/src/memory/main_frame_allocator.rs
         - kernel/src/memory/mapping.rs
         - kernel/src/memory/page_allocator.rs
-        - kernel/src/process/elf.rs
         - kernel/src/process/mod.rs
         - kernel/src/process/process.rs
         - kernel/src/process/registers.rs
@@ -415,6 +414,7 @@
         - kernel/src/time/rtc.rs
         - ku/src/allocator/big.rs
         - ku/src/memory/block.rs
+        - ku/src/process/elf.rs
         - ku/src/ipc/pipe.rs
         - ku/src/sync/sequence_lock.rs
         - ku/src/sync/spinlock.rs
@@ -479,7 +479,6 @@
         - kernel/src/memory/main_frame_allocator.rs
         - kernel/src/memory/mapping.rs
         - kernel/src/memory/page_allocator.rs
-        - kernel/src/process/elf.rs
         - kernel/src/process/mod.rs
         - kernel/src/process/process.rs
         - kernel/src/process/registers.rs
@@ -492,6 +491,7 @@
         - kernel/src/time/rtc.rs
         - ku/src/allocator/big.rs
         - ku/src/memory/block.rs
+        - ku/src/process/elf.rs
         - ku/src/ipc/pipe.rs
         - ku/src/sync/sequence_lock.rs
         - ku/src/sync/spinlock.rs

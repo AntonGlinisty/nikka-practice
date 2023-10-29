@@ -4,7 +4,7 @@
 И код ядра должен будет что-то сделать с указанной памятью,
 иногда читая или записывая в неё.
 
-Ядро не может доверять коду пользователя, поэтому перед чтением или записью в такие области памяти,
+Ядро не может доверять коду пользователя. Поэтому перед чтением или записью в такие области памяти,
 оно должно проверить, есть ли у пользователя соответствующий доступ.
 За выполнение всех нужных проверок, не только указанного типа,
 отвечают функции системных вызовов в файле [`kernel/src/process/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/syscall.rs), ---
@@ -59,27 +59,27 @@ fn AddressSpace::check_permission_common(
 ```console
 $ (cd kernel; cargo test --test 4-process-4-permission-checks)
 ...
-4_process_4_permission_checks::user_rw--------------------------
-19:41:36 0 D pages = [0v7FFFFFF3B000, 0v7FFFFFF3F000), size 16.000 KiB
-4_process_4_permission_checks::user_rw----------------- [passed]
+4_process_4_permission_checks::non_present------------------
+20:36:40 0 D pages = [0v7FFF_FFE7_4000, 0v7FFF_FFE7_8000), size 16.000 KiB
+4_process_4_permission_checks::non_present--------- [passed]
 
-4_process_4_permission_checks::non_present----------------------
-19:41:36 0 D pages = [0v7FFFFFF37000, 0v7FFFFFF3B000), size 16.000 KiB
-4_process_4_permission_checks::non_present------------- [passed]
+4_process_4_permission_checks::stress-----------------------
+20:36:41 0 D pages = [0v7FFF_FFE7_3000, 0v7FFF_FFE7_4000), size 4.000 KiB
+20:36:41 0 D pages = [0v7FFF_FFE7_1000, 0v7FFF_FFE7_3000), size 8.000 KiB
+20:36:42.659 0 D pages = [0v7FFF_FFE6_E000, 0v7FFF_FFE7_1000), size 12.000 KiB
+20:36:49.731 0 D pages = [0v7FFF_FFE6_A000, 0v7FFF_FFE6_E000), size 16.000 KiB
+4_process_4_permission_checks::stress-------------- [passed]
 
-4_process_4_permission_checks::stress---------------------------
-19:41:36 0 D pages = [0v7FFFFFF36000, 0v7FFFFFF37000), size 4.000 KiB
-19:41:37.093 0 D pages = [0v7FFFFFF34000, 0v7FFFFFF36000), size 8.000 KiB
-19:41:39.177 0 D pages = [0v7FFFFFF31000, 0v7FFFFFF34000), size 12.000 KiB
-19:41:48.835 0 D pages = [0v7FFFFFF2D000, 0v7FFFFFF31000), size 16.000 KiB
-4_process_4_permission_checks::stress------------------ [passed]
-19:42:18.721 0 I exit qemu; exit_code = SUCCESS
+4_process_4_permission_checks::user_rw----------------------
+20:37:14.179 0 D pages = [0v7FFF_FFE6_6000, 0v7FFF_FFE6_A000), size 16.000 KiB
+4_process_4_permission_checks::user_rw------------- [passed]
+20:37:14.195 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ```
 
 
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/memory/address_space.rs |   22 +++++++++++++++++++---
- 1 file changed, 19 insertions(+), 3 deletions(-)
+ kernel/src/memory/address_space.rs | 30 ++++++++++++++++++++++++------
+ 1 file changed, 24 insertions(+), 6 deletions(-)
 ```

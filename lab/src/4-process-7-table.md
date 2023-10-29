@@ -89,7 +89,7 @@ enum Slot {
 Когда нам понадобится обратиться к процессу, нужно будет захватить его спин-блокировку,
 чтобы избежать несогласованного конкурентного изменения структуры
 [`kernel::process::process::Process`](../../doc/kernel/process/process/struct.Process.html).
-Чтобы обратиться с самой таблице процессов
+Чтобы обратиться к самой таблице процессов
 [`static ref kernel::process::table::TABLE: Spinlock<Table>`](../../doc/kernel/process/table/struct.TABLE.html),
 конечно тоже нужно захватить её общую спин-блокировку.
 Но не хочется держать захваченной спин-блокировку всей таблицы, пока мы работаем со структурой
@@ -112,6 +112,9 @@ enum Slot {
 ```rust
 fn Table::new(len: usize) -> Self
 ```
+
+в файле
+[`kernel/src/process/table.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/table.rs).
 
 Он создаёт таблицу процессов
 [`Table::table`](../../doc/kernel/process/struct.Table.html#structfield.table)
@@ -203,7 +206,7 @@ unsafe fn forge_static_lifetime<T>(x: &T) -> &'static T
 [`Spinlock::lock()`](../../doc/ku/sync/spinlock/struct.Spinlock.html#method.lock).
 Спин-блокировка же самой
 [`TABLE`](../../doc/kernel/process/table/struct.TABLE.html)
-будет автоматически разблокирован аналогичным гардом при выходе из функции.
+будет автоматически разблокирована аналогичным гардом при выходе из функции.
 Получается, что она в начале захватывает низкогранулярную блокировку на всю таблицу
 [`TABLE`](../../doc/kernel/process/table/struct.TABLE.html),
 а потом улучшает гранулярность этой блокировки до блокировки одного слота таблицы.
@@ -237,187 +240,89 @@ fn Table::free(process: SpinlockGuard<Process>)
 ```console
 $ (cd kernel; cargo test --test 4-process-7-table)
 ...
-4_process_7_table::basic--------------------------------
-20:26:51 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:26:51 0 I duplicate; address_space = "process" @ 0p7E8A000
-20:26:51 0 I switch to; address_space = "process" @ 0p7E8A000
-20:26:51 0 I switch to; address_space = "base" @ 0p1000
-20:26:51 0 I allocate; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E8A000, { rip: 0v0, rsp: 0v0 } }; process_count = 1
-20:26:51 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:26:51 0 I duplicate; address_space = "process" @ 0p7E74000
-20:26:51 0 I switch to; address_space = "process" @ 0p7E74000
-20:26:51 0 I switch to; address_space = "base" @ 0p1000
-20:26:51 0 I allocate; slot = Process { pid: 1:0, address_space: "1:0" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 2
-20:26:51 0 D pid_1 = 0:0; pid_2 = 1:0
-20:26:51 0 I free; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E8A000, { rip: 0v0, rsp: 0v0 } }; process_count = 1
-20:26:51 0 I drop; address_space = "0:0" @ 0p7E8A000
-20:26:51 0 I free; slot = Process { pid: 1:0, address_space: "1:0" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 0
-20:26:51 0 I drop; address_space = "1:0" @ 0p7E74000
-4_process_7_table::basic----------------------- [passed]
+4_process_7_table::basic------------------------------------
+20:37:39 0 I page allocator init; free_page_count = 33822867456; block = [0v180_0000_0000, 0v7F80_0000_0000), size 126.000 TiB
+20:37:39 0 I duplicate; address_space = "process" @ 0p7E2_6000
+20:37:39 0 I switch to; address_space = "process" @ 0p7E2_6000
+20:37:39 0 I switch to; address_space = "base" @ 0p1000
+20:37:39 0 I allocate; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E2_6000, { rip: 0v0, rsp: 0v0 } }; process_count = 1
+20:37:40 0 I page allocator init; free_page_count = 33822867456; block = [0v180_0000_0000, 0v7F80_0000_0000), size 126.000 TiB
+20:37:40 0 I duplicate; address_space = "process" @ 0p7E0_B000
+20:37:40 0 I switch to; address_space = "process" @ 0p7E0_B000
+20:37:40 0 I switch to; address_space = "base" @ 0p1000
+20:37:40 0 I allocate; slot = Process { pid: 1:0, address_space: "1:0" @ 0p7E0_B000, { rip: 0v0, rsp: 0v0 } }; process_count = 2
+20:37:40 0 D pid_1 = 0:0; pid_2 = 1:0
+20:37:40 0 I free; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E2_6000, { rip: 0v0, rsp: 0v0 } }; process_count = 1
+20:37:40 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 3, unlocks: 3, waits: 0 }
+20:37:40 0 D dropping; spinlock = kernel/src/process/process.rs:65:28; stats = Stats { failures: 0, locks: 2, unlocks: 2, waits: 0 }
+20:37:40 0 I drop; address_space = "0:0" @ 0p7E2_6000
+20:37:40 0 I free; slot = Process { pid: 1:0, address_space: "1:0" @ 0p7E0_B000, { rip: 0v0, rsp: 0v0 } }; process_count = 0
+20:37:40 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 3, unlocks: 3, waits: 0 }
+20:37:40 0 D dropping; spinlock = kernel/src/process/process.rs:65:28; stats = Stats { failures: 0, locks: 2, unlocks: 2, waits: 0 }
+20:37:40 0 I drop; address_space = "1:0" @ 0p7E0_B000
+4_process_7_table::basic--------------------------- [passed]
 
-4_process_7_table::full_capacity------------------------
-20:26:51 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:26:51 0 I duplicate; address_space = "process" @ 0p7E74000
-20:26:51 0 I switch to; address_space = "process" @ 0p7E74000
-20:26:51 0 I switch to; address_space = "base" @ 0p1000
-20:26:51 0 I allocate; slot = Process { pid: 1:1, address_space: "1:1" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 1
-20:26:51 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:26:51 0 I duplicate; address_space = "process" @ 0p7E79000
-20:26:51 0 I switch to; address_space = "process" @ 0p7E79000
-20:26:51 0 I switch to; address_space = "base" @ 0p1000
-20:26:51 0 I allocate; slot = Process { pid: 0:1, address_space: "0:1" @ 0p7E79000, { rip: 0v0, rsp: 0v0 } }; process_count = 2
-20:26:51 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:26:51 0 I duplicate; address_space = "process" @ 0p7E5C000
-20:26:51 0 I switch to; address_space = "process" @ 0p7E5C000
-20:26:51 0 I switch to; address_space = "base" @ 0p1000
-20:26:51 0 I allocate; slot = Process { pid: 2:0, address_space: "2:0" @ 0p7E5C000, { rip: 0v0, rsp: 0v0 } }; process_count = 3
+4_process_7_table::full_capacity----------------------------
+20:37:40 0 I page allocator init; free_page_count = 33822867456; block = [0v180_0000_0000, 0v7F80_0000_0000), size 126.000 TiB
+20:37:40 0 I duplicate; address_space = "process" @ 0p7E0_B000
+20:37:40 0 I switch to; address_space = "process" @ 0p7E0_B000
+20:37:40 0 I switch to; address_space = "base" @ 0p1000
+20:37:40 0 I allocate; slot = Process { pid: 1:1, address_space: "1:1" @ 0p7E0_B000, { rip: 0v0, rsp: 0v0 } }; process_count = 1
+20:37:41.069 0 I page allocator init; free_page_count = 33822867456; block = [0v180_0000_0000, 0v7F80_0000_0000), size 126.000 TiB
+20:37:41.075 0 I duplicate; address_space = "process" @ 0p7E2_6000
+20:37:41.079 0 I switch to; address_space = "process" @ 0p7E2_6000
+20:37:41.085 0 I switch to; address_space = "base" @ 0p1000
+20:37:41.089 0 I allocate; slot = Process { pid: 0:1, address_space: "0:1" @ 0p7E2_6000, { rip: 0v0, rsp: 0v0 } }; process_count = 2
+20:37:41.283 0 I page allocator init; free_page_count = 33822867456; block = [0v180_0000_0000, 0v7F80_0000_0000), size 126.000 TiB
+20:37:41.291 0 I duplicate; address_space = "process" @ 0p7DF_0000
+20:37:41.295 0 I switch to; address_space = "process" @ 0p7DF_0000
+20:37:41.301 0 I switch to; address_space = "base" @ 0p1000
+20:37:41.305 0 I allocate; slot = Process { pid: 2:0, address_space: "2:0" @ 0p7DF_0000, { rip: 0v0, rsp: 0v0 } }; process_count = 3
+20:37:41.497 0 I page allocator init; free_page_count = 33822867456; block = [0v180_0000_0000, 0v7F80_0000_0000), size 126.000 TiB
 ...
-20:27:10.241 0 I drop; address_space = "process" @ 0p6888000
-20:27:10.289 0 I free; slot = Process { pid: 1:1, address_space: "1:1" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 255
-20:27:10.295 0 I drop; address_space = "1:1" @ 0p7E74000
-20:27:10.375 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:10.381 0 I duplicate; address_space = "process" @ 0p7E74000
-20:27:10.385 0 I switch to; address_space = "process" @ 0p7E74000
-20:27:10.391 0 I switch to; address_space = "base" @ 0p1000
-20:27:10.395 0 I allocate; slot = Process { pid: 1:2, address_space: "1:2" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 256
-20:27:10.447 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:10.455 0 I duplicate; address_space = "process" @ 0p6888000
-20:27:10.459 0 I switch to; address_space = "process" @ 0p6888000
-20:27:10.463 0 I switch to; address_space = "base" @ 0p1000
-20:27:10.467 0 I drop; address_space = "process" @ 0p6888000
-20:27:10.503 0 D prev_pid = 1:1; pid = 1:2
-20:27:10.505 0 I free; slot = Process { pid: 1:2, address_space: "1:2" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 255
-20:27:10.513 0 I drop; address_space = "1:2" @ 0p7E74000
-20:27:10.593 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:10.599 0 I duplicate; address_space = "process" @ 0p7E74000
-20:27:10.603 0 I switch to; address_space = "process" @ 0p7E74000
-20:27:10.609 0 I switch to; address_space = "base" @ 0p1000
-20:27:10.613 0 I allocate; slot = Process { pid: 1:3, address_space: "1:3" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 256
-20:27:10.665 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:10.673 0 I duplicate; address_space = "process" @ 0p6888000
-20:27:10.677 0 I switch to; address_space = "process" @ 0p6888000
-20:27:10.681 0 I switch to; address_space = "base" @ 0p1000
-20:27:10.685 0 I drop; address_space = "process" @ 0p6888000
-20:27:10.719 0 D prev_pid = 1:2; pid = 1:3
-20:27:10.723 0 I free; slot = Process { pid: 1:3, address_space: "1:3" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 255
-20:27:10.731 0 I drop; address_space = "1:3" @ 0p7E74000
-20:27:10.809 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:10.817 0 I duplicate; address_space = "process" @ 0p7E74000
-20:27:10.821 0 I switch to; address_space = "process" @ 0p7E74000
-20:27:10.827 0 I switch to; address_space = "base" @ 0p1000
-20:27:10.831 0 I allocate; slot = Process { pid: 1:4, address_space: "1:4" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 256
-20:27:10.883 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:10.889 0 I duplicate; address_space = "process" @ 0p6888000
-20:27:10.893 0 I switch to; address_space = "process" @ 0p6888000
-20:27:10.899 0 I switch to; address_space = "base" @ 0p1000
-20:27:10.903 0 I drop; address_space = "process" @ 0p6888000
-20:27:10.937 0 D prev_pid = 1:3; pid = 1:4
-20:27:10.941 0 I free; slot = Process { pid: 1:4, address_space: "1:4" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 255
-20:27:10.949 0 I drop; address_space = "1:4" @ 0p7E74000
-20:27:11.027 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:11.035 0 I duplicate; address_space = "process" @ 0p7E74000
-20:27:11.039 0 I switch to; address_space = "process" @ 0p7E74000
-20:27:11.043 0 I switch to; address_space = "base" @ 0p1000
-20:27:11.047 0 I allocate; slot = Process { pid: 1:5, address_space: "1:5" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 256
-20:27:11.101 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:11.107 0 I duplicate; address_space = "process" @ 0p6888000
-20:27:11.111 0 I switch to; address_space = "process" @ 0p6888000
-20:27:11.117 0 I switch to; address_space = "base" @ 0p1000
-20:27:11.121 0 I drop; address_space = "process" @ 0p6888000
-20:27:11.155 0 D prev_pid = 1:4; pid = 1:5
-20:27:11.159 0 I free; slot = Process { pid: 1:5, address_space: "1:5" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 255
-20:27:11.165 0 I drop; address_space = "1:5" @ 0p7E74000
-20:27:11.245 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:11.253 0 I duplicate; address_space = "process" @ 0p7E74000
-20:27:11.257 0 I switch to; address_space = "process" @ 0p7E74000
-20:27:11.261 0 I switch to; address_space = "base" @ 0p1000
-20:27:11.265 0 I allocate; slot = Process { pid: 1:6, address_space: "1:6" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 256
-20:27:11.319 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:11.325 0 I duplicate; address_space = "process" @ 0p6888000
-20:27:11.329 0 I switch to; address_space = "process" @ 0p6888000
-20:27:11.335 0 I switch to; address_space = "base" @ 0p1000
-20:27:11.339 0 I drop; address_space = "process" @ 0p6888000
-20:27:11.373 0 D prev_pid = 1:5; pid = 1:6
-20:27:11.377 0 I free; slot = Process { pid: 1:6, address_space: "1:6" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 255
-20:27:11.385 0 I drop; address_space = "1:6" @ 0p7E74000
-20:27:11.463 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:11.471 0 I duplicate; address_space = "process" @ 0p7E74000
-20:27:11.475 0 I switch to; address_space = "process" @ 0p7E74000
-20:27:11.479 0 I switch to; address_space = "base" @ 0p1000
-20:27:11.483 0 I allocate; slot = Process { pid: 1:7, address_space: "1:7" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 256
-20:27:11.535 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:11.543 0 I duplicate; address_space = "process" @ 0p6888000
-20:27:11.547 0 I switch to; address_space = "process" @ 0p6888000
-20:27:11.553 0 I switch to; address_space = "base" @ 0p1000
-20:27:11.557 0 I drop; address_space = "process" @ 0p6888000
-20:27:11.591 0 D prev_pid = 1:6; pid = 1:7
-20:27:11.595 0 I free; slot = Process { pid: 1:7, address_space: "1:7" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 255
-20:27:11.601 0 I drop; address_space = "1:7" @ 0p7E74000
-20:27:11.681 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:11.689 0 I duplicate; address_space = "process" @ 0p7E74000
-20:27:11.691 0 I switch to; address_space = "process" @ 0p7E74000
-20:27:11.697 0 I switch to; address_space = "base" @ 0p1000
-20:27:11.701 0 I allocate; slot = Process { pid: 1:8, address_space: "1:8" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 256
-20:27:11.753 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:11.761 0 I duplicate; address_space = "process" @ 0p6888000
-20:27:11.765 0 I switch to; address_space = "process" @ 0p6888000
-20:27:11.769 0 I switch to; address_space = "base" @ 0p1000
-20:27:11.773 0 I drop; address_space = "process" @ 0p6888000
-20:27:11.809 0 D prev_pid = 1:7; pid = 1:8
-20:27:11.811 0 I free; slot = Process { pid: 1:8, address_space: "1:8" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 255
-20:27:11.819 0 I drop; address_space = "1:8" @ 0p7E74000
-20:27:11.899 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:11.905 0 I duplicate; address_space = "process" @ 0p7E74000
-20:27:11.909 0 I switch to; address_space = "process" @ 0p7E74000
-20:27:11.915 0 I switch to; address_space = "base" @ 0p1000
-20:27:11.919 0 I allocate; slot = Process { pid: 1:9, address_space: "1:9" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 256
-20:27:11.971 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:11.979 0 I duplicate; address_space = "process" @ 0p6888000
-20:27:11.983 0 I switch to; address_space = "process" @ 0p6888000
-20:27:11.987 0 I switch to; address_space = "base" @ 0p1000
-20:27:11.991 0 I drop; address_space = "process" @ 0p6888000
-20:27:12.025 0 D prev_pid = 1:8; pid = 1:9
-20:27:12.029 0 I free; slot = Process { pid: 1:9, address_space: "1:9" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 255
-20:27:12.037 0 I drop; address_space = "1:9" @ 0p7E74000
-20:27:12.117 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:12.125 0 I duplicate; address_space = "process" @ 0p7E74000
-20:27:12.127 0 I switch to; address_space = "process" @ 0p7E74000
-20:27:12.133 0 I switch to; address_space = "base" @ 0p1000
-20:27:12.137 0 I allocate; slot = Process { pid: 1:10, address_space: "1:10" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 256
-20:27:12.189 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:12.197 0 I duplicate; address_space = "process" @ 0p6888000
-20:27:12.201 0 I switch to; address_space = "process" @ 0p6888000
-20:27:12.207 0 I switch to; address_space = "base" @ 0p1000
-20:27:12.211 0 I drop; address_space = "process" @ 0p6888000
-20:27:12.245 0 D prev_pid = 1:9; pid = 1:10
-20:27:12.249 0 I free; slot = Process { pid: 1:10, address_space: "1:10" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 255
-20:27:12.255 0 I drop; address_space = "1:10" @ 0p7E74000
-20:27:12.335 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:12.343 0 I duplicate; address_space = "process" @ 0p7E74000
-20:27:12.345 0 I switch to; address_space = "process" @ 0p7E74000
-20:27:12.351 0 I switch to; address_space = "base" @ 0p1000
-20:27:12.355 0 I allocate; slot = Process { pid: 1:11, address_space: "1:11" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 256
-20:27:12.407 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:12.415 0 I duplicate; address_space = "process" @ 0p6888000
-20:27:12.419 0 I switch to; address_space = "process" @ 0p6888000
-20:27:12.423 0 I switch to; address_space = "base" @ 0p1000
-20:27:12.427 0 I drop; address_space = "process" @ 0p6888000
-20:27:12.463 0 D prev_pid = 1:10; pid = 1:11
+20:38:38.947 0 I duplicate; address_space = "process" @ 0p632_6000
+20:38:38.951 0 I switch to; address_space = "process" @ 0p632_6000
+20:38:38.957 0 I switch to; address_space = "base" @ 0p1000
+20:38:38.961 0 D dropping; spinlock = kernel/src/process/process.rs:65:28; stats = Stats { failures: 0, locks: 0, unlocks: 0, waits: 0 }
+20:38:38.969 0 I drop; address_space = "process" @ 0p632_6000
+20:38:39.283 0 D prev_pid = 1:2; pid = 1:3
+20:38:39.287 0 I free; slot = Process { pid: 1:3, address_space: "1:3" @ 0p7E0_B000, { rip: 0v0, rsp: 0v0 } }; process_count = 255
+20:38:39.295 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 3, unlocks: 3, waits: 0 }
+20:38:39.301 0 D dropping; spinlock = kernel/src/process/process.rs:65:28; stats = Stats { failures: 0, locks: 2, unlocks: 2, waits: 0 }
+20:38:39.307 0 I drop; address_space = "1:3" @ 0p7E0_B000
+20:38:39.731 0 I page allocator init; free_page_count = 33822867456; block = [0v180_0000_0000, 0v7F80_0000_0000), size 126.000 TiB
+20:38:39.739 0 I duplicate; address_space = "process" @ 0p7E0_B000
+20:38:39.743 0 I switch to; address_space = "process" @ 0p7E0_B000
+20:38:39.751 0 I switch to; address_space = "base" @ 0p1000
+20:38:39.755 0 I allocate; slot = Process { pid: 1:4, address_space: "1:4" @ 0p7E0_B000, { rip: 0v0, rsp: 0v0 } }; process_count = 256
+20:38:39.965 0 I page allocator init; free_page_count = 33822867456; block = [0v180_0000_0000, 0v7F80_0000_0000), size 126.000 TiB
+20:38:39.973 0 I duplicate; address_space = "process" @ 0p632_6000
+20:38:39.977 0 I switch to; address_space = "process" @ 0p632_6000
+20:38:39.983 0 I switch to; address_space = "base" @ 0p1000
+20:38:39.987 0 D dropping; spinlock = kernel/src/process/process.rs:65:28; stats = Stats { failures: 0, locks: 0, unlocks: 0, waits: 0 }
+20:38:39.995 0 I drop; address_space = "process" @ 0p632_6000
+20:38:40.301 0 D prev_pid = 1:3; pid = 1:4
 ...
-20:27:22.979 0 I free; slot = Process { pid: 2:0, address_space: "2:0" @ 0p7E5C000, { rip: 0v0, rsp: 0v0 } }; process_count = 2
-20:27:22.987 0 I drop; address_space = "2:0" @ 0p7E5C000
-20:27:23.021 0 I free; slot = Process { pid: 0:1, address_space: "0:1" @ 0p7E79000, { rip: 0v0, rsp: 0v0 } }; process_count = 1
-20:27:23.029 0 I drop; address_space = "0:1" @ 0p7E79000
-20:27:23.063 0 I free; slot = Process { pid: 1:11, address_space: "1:11" @ 0p7E74000, { rip: 0v0, rsp: 0v0 } }; process_count = 0
-20:27:23.069 0 I drop; address_space = "1:11" @ 0p7E74000
-4_process_7_table::full_capacity--------------- [passed]
-20:27:23.107 0 I exit qemu; exit_code = SUCCESS
+20:39:48.755 0 I free; slot = Process { pid: 2:0, address_space: "2:0" @ 0p7DF_0000, { rip: 0v0, rsp: 0v0 } }; process_count = 2
+20:39:48.761 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 3, unlocks: 3, waits: 0 }
+20:39:48.769 0 D dropping; spinlock = kernel/src/process/process.rs:65:28; stats = Stats { failures: 0, locks: 2, unlocks: 2, waits: 0 }
+20:39:48.775 0 I drop; address_space = "2:0" @ 0p7DF_0000
+20:39:49.051 0 I free; slot = Process { pid: 0:1, address_space: "0:1" @ 0p7E2_6000, { rip: 0v0, rsp: 0v0 } }; process_count = 1
+20:39:49.063 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 3, unlocks: 3, waits: 0 }
+20:39:49.071 0 D dropping; spinlock = kernel/src/process/process.rs:65:28; stats = Stats { failures: 0, locks: 2, unlocks: 2, waits: 0 }
+20:39:49.079 0 I drop; address_space = "0:1" @ 0p7E2_6000
+20:39:49.313 0 I free; slot = Process { pid: 1:11, address_space: "1:11" @ 0p7E0_B000, { rip: 0v0, rsp: 0v0 } }; process_count = 0
+20:39:49.321 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 3, unlocks: 3, waits: 0 }
+20:39:49.327 0 D dropping; spinlock = kernel/src/process/process.rs:65:28; stats = Stats { failures: 0, locks: 2, unlocks: 2, waits: 0 }
+20:39:49.335 0 I drop; address_space = "1:11" @ 0p7E0_B000
+4_process_7_table::full_capacity------------------- [passed]
+20:39:49.561 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ```
 
 
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/process/table.rs |  119 +++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 111 insertions(+), 8 deletions(-)
+ kernel/src/process/table.rs | 120 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 112 insertions(+), 8 deletions(-)
 ```

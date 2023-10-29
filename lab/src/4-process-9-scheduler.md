@@ -19,7 +19,7 @@
 
 - [`fn Scheduler::enqueue(pid: Pid)`](../../doc/kernel/process/scheduler/struct.Scheduler.html#method.enqueue) ставит процесс, заданный идентификатором `pid`, в очередь исполнения.
 - [`fn Scheduler::dequeue() -> Option<Pid>`](../../doc/kernel/process/scheduler/struct.Scheduler.html#method.dequeue) достаёт из очереди первый процесс.
-- [`fn Scheduler::run_one() -> bool`](../../doc/kernel/process/scheduler/struct.Scheduler.html#method.run_one) выполняет один цикл работы --- берёт первый процесс из очереди и исполняет его пользовательский код. Если метод [`Process::enter_user_mode()`](../../doc/kernel/process/process/struct.Process.html#method.enter_user_mode) вернёт `true`, то есть процесс был снят с CPU принудительно по прерыванию таймера, [`Scheduler::run_one()`](../../doc/kernel/process/scheduler/struct.Scheduler.html#method.run_one) перепланирует исполнение процесса, ставя его в конец очереди. Метод [`Scheduler::run_one()`](../../doc/kernel/process/scheduler/struct.Scheduler.html#method.run_one) возвращает `true` если в очереди на исполнение нашёлся хотя бы один процесс. Должен корректно обрабатывать ситуацию, когда `pid` есть в очереди планирования, но соответствующего процесса уже нет в [`kernel::process::Table`](../../doc/kernel/process/struct.Table.html).
+- [`fn Scheduler::run_one() -> bool`](../../doc/kernel/process/scheduler/struct.Scheduler.html#method.run_one) выполняет один цикл работы --- берёт первый процесс из очереди и исполняет его пользовательский код. Если метод [`Process::enter_user_mode()`](../../doc/kernel/process/process/struct.Process.html#method.enter_user_mode) вернёт `true`, то есть процесс был снят с CPU принудительно по прерыванию таймера, [`Scheduler::run_one()`](../../doc/kernel/process/scheduler/struct.Scheduler.html#method.run_one) перепланирует исполнение процесса, ставя его в конец очереди. Метод [`Scheduler::run_one()`](../../doc/kernel/process/scheduler/struct.Scheduler.html#method.run_one) возвращает `true` если в очереди на исполнение нашёлся хотя бы один процесс. Он должен корректно обрабатывать ситуацию, когда `pid` есть в очереди планирования, но соответствующего процесса уже нет в [`kernel::process::Table`](../../doc/kernel/process/struct.Table.html).
 
 Метод
 [`fn Scheduler::run() -> !`](../../doc/kernel/process/scheduler/struct.Scheduler.html#method.run)
@@ -38,14 +38,6 @@ extern "x86-interrupt" fn timer(mut context: TrapContext)
 которая зовётся через функцию
 [`x86_64::instructions::hlt()`](../../doc/x86_64/instructions/fn.hlt.html).
 
-Добавьте вызов
-[`Scheduler::run()`](../../doc/kernel/process/scheduler/struct.Scheduler.html#method.run)
-в конец функции
-[`ap_kernel_main()`](../../doc/kernel/smp/ap_init/fn.ap_kernel_main.html)
-в файле
-[`kernel/src/smp/ap_init.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/smp/ap_init.rs),
-чтобы все CPU занялись исполнением процессов.
-
 
 #### Системный вызов [`kernel::process::syscall::sched_yield()`](../../doc/kernel/process/syscall/fn.sched_yield.html)
 
@@ -54,7 +46,7 @@ extern "x86-interrupt" fn timer(mut context: TrapContext)
 реализацию системного вызова
 [`kernel::process::syscall::sched_yield()`](../../doc/kernel/process/syscall/fn.sched_yield.html)
 с номером
-[`ku::process::syscall::Syscall::SCHED_YIELD`](../../doc/ku/process/syscall/struct.Syscall.html#associatedconstant.SCHED_YIELD).
+[`ku::process::syscall::Syscall::SchedYield`](../../doc/ku/process/syscall/enum.Syscall.html#variant.SchedYield).
 Он должен перепланировать процесс в конец очереди и забрать у него CPU функцией
 [`kernel::process::process::Process::sched_yield()`](../../doc/kernel/process/process/struct.Process.html#method.sched_yield),
 которая вернёт управление в другой контекст ядра.
@@ -98,118 +90,137 @@ extern "x86-interrupt" fn timer(mut context: TrapContext)
 ```console
 $ (cd kernel; cargo test --test 4-process-9-scheduler)
 ...
-4_process_9_scheduler::syscall_sched_yield--------------
-20:27:37 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:37 0 I duplicate; address_space = "process" @ 0p7E8A000
-20:27:37 0 I switch to; address_space = "process" @ 0p7E8A000
-20:27:37 0 D extend mapping; block = [0v10000000, 0v10006DA4), size 27.410 KiB; page_block = [0v10000000, 0v10007000), size 28.000 KiB; flags =   R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-20:27:37 0 D elf loadable program header; file_block = [0v201B61, 0v208905), size 27.410 KiB; memory_block = [0v10000000, 0v10006DA4), size 27.410 KiB; flags =   R
-20:27:37 0 D extend mapping; block = [0v10007000, 0v1004EA72), size 286.611 KiB; page_block = [0v10007000, 0v1004F000), size 288.000 KiB; flags = X R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-20:27:37 0 D elf loadable program header; file_block = [0v208911, 0v2505D3), size 287.189 KiB; memory_block = [0v10006DB0, 0v1004EA72), size 287.189 KiB; flags = X R
-20:27:37 0 D elf loadable program header; file_block = [0v2505D9, 0v2506C9), size 240 B; memory_block = [0v1004EA78, 0v1004EB68), size 240 B; flags =  WR
-20:27:37 0 D extend mapping; block = [0v1004F000, 0v10054770), size 21.859 KiB; page_block = [0v1004F000, 0v10055000), size 24.000 KiB; flags =  WR; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-20:27:37 0 D elf loadable program header; file_block = [0v2506C9, 0v2562A9), size 22.969 KiB; memory_block = [0v1004EB68, 0v10054770), size 23.008 KiB; flags =  WR
-20:27:37 0 I switch to; address_space = "base" @ 0p1000
-20:27:37 0 I loaded ELF file; context = { rip: 0v10006E00, rsp: 0v7F7FFFFFF000 }; file_size = 5.307 MiB; process = { pid: <current>, address_space: "process" @ 0p7E8A000, { rip: 0v10006E00, rsp: 0v7F7FFFFFF000 } }
-20:27:37 0 I allocate; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E8A000, { rip: 0v10006E00, rsp: 0v7F7FFFFFF000 } }; process_count = 1
-20:27:37 0 I user process page table entry; entry_point = 0v10006E00; frame = Frame(32361 @ 0p7E69000); flags = PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY
-20:27:37 0 D process_frames = 131
-20:27:37 0 I switch to; address_space = "0:0" @ 0p7E8A000
-20:27:37 0 D entering the user mode; pid = 0:0; registers = { rax: 0x0, rdi: 0x7F7FFFFED000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v10006E00, ss:rsp: 0x001B:0v7F7FFFFFF000, rflags:  } }
-20:27:37 0 W log is not mapped properly; pid = 0:0
-20:27:37 0 I syscall = "sched_yield"; pid = 0:0
-20:27:37 0 D leaving the user mode; pid = 0:0
-20:27:37 0 D returned from the user space; user_registers = [0, 0, 0, 0, 140187732463616, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-20:27:37 0 I switch to; address_space = "0:0" @ 0p7E8A000
-20:27:37 0 D entering the user mode; pid = 0:0; registers = { rax: 0x0, rdi: 0x7F7FFFFED000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v1000801E, ss:rsp: 0x001B:0v7F7FFFFFEE18, rflags:  } }
-20:27:37 0 W log is not mapped properly; pid = 0:0
-20:27:37 0 I syscall = "sched_yield"; pid = 0:0
-20:27:37 0 D leaving the user mode; pid = 0:0
-20:27:37 0 D returned from the user space; user_registers = [0, 0, 0, 0, 140187732463616, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-20:27:37 0 I switch to; address_space = "0:0" @ 0p7E8A000
-20:27:37 0 D entering the user mode; pid = 0:0; registers = { rax: 0x0, rdi: 0x7F7FFFFED000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v1000801E, ss:rsp: 0x001B:0v7F7FFFFFEE18, rflags:  } }
-20:27:37 0 W log is not mapped properly; pid = 0:0
-20:27:37 0 I syscall = "sched_yield"; pid = 0:0
-20:27:37 0 D leaving the user mode; pid = 0:0
-20:27:37 0 I free; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E8A000, { rip: 0v1000801E, rsp: 0v7F7FFFFFEE18 } }; process_count = 0
-20:27:37 0 I switch to; address_space = "base" @ 0p1000
-20:27:37 0 I drop the current address space; address_space = "0:0" @ 0p7E8A000; switch_to = "base" @ 0p1000
-4_process_9_scheduler::syscall_sched_yield----- [passed]
+4_process_9_scheduler::scheduler----------------------------
+20:40:09.385 0 I page allocator init; free_page_count = 33822867456; block = [0v180_0000_0000, 0v7F80_0000_0000), size 126.000 TiB
+20:40:09.399 0 I duplicate; address_space = "process" @ 0p7E2_6000
+20:40:09.405 0 I switch to; address_space = "process" @ 0p7E2_6000
+20:40:09.417 0 D extend mapping; block = [0v1000_0000, 0v1000_8974), size 34.363 KiB; page_block = [0v1000_0000, 0v1000_9000), size 36.000 KiB
+20:40:09.431 0 D elf loadable program header; file_block = [0v8A_1000, 0v8A_9974), size 34.363 KiB; memory_block = [0v1000_0000, 0v1000_8974), size 34.363 KiB
+20:40:09.467 0 D extend mapping; block = [0v1000_9000, 0v1005_3B4B), size 298.823 KiB; page_block = [0v1000_9000, 0v1005_4000), size 300.000 KiB
+20:40:09.477 0 D elf loadable program header; file_block = [0v8A_9980, 0v8F_4B4B), size 300.448 KiB; memory_block = [0v1000_8980, 0v1005_3B4B), size 300.448 KiB
+20:40:09.495 0 D elf loadable program header; file_block = [0v8F_4B50, 0v8F_4C18), size 200 B; memory_block = [0v1005_3B50, 0v1005_3C18), size 200 B
+20:40:09.505 0 D extend mapping; block = [0v1005_4000, 0v1005_ACA0), size 27.156 KiB; page_block = [0v1005_4000, 0v1005_B000), size 28.000 KiB
+20:40:09.515 0 D elf loadable program header; file_block = [0v8F_4C18, 0v8F_BC78), size 28.094 KiB; memory_block = [0v1005_3C18, 0v1005_ACA0), size 28.133 KiB
+20:40:09.551 0 I switch to; address_space = "base" @ 0p1000
+20:40:09.557 0 I loaded ELF file; context = { rip: 0v1000_9A40, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.661 MiB; process = { pid: <current>, address_space: "process" @ 0p7E2_6000, { rip: 0v1000_9A40, rsp: 0v7F7F_FFFF_F000 } }
+20:40:09.575 0 I allocate; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E2_6000, { rip: 0v1000_9A40, rsp: 0v7F7F_FFFF_F000 } }; process_count = 1
+20:40:09.589 0 I user process page table entry; entry_point = 0v1000_9A40; frame = Frame(32255 @ 0p7DF_F000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:40:09.613 0 D process_frames = 160
+20:40:10.265 0 I page allocator init; free_page_count = 33822867456; block = [0v180_0000_0000, 0v7F80_0000_0000), size 126.000 TiB
+20:40:10.275 0 I duplicate; address_space = "process" @ 0p7D8_6000
+20:40:10.281 0 I switch to; address_space = "process" @ 0p7D8_6000
+20:40:10.287 0 D extend mapping; block = [0v1000_0000, 0v1000_8974), size 34.363 KiB; page_block = [0v1000_0000, 0v1000_9000), size 36.000 KiB
+20:40:10.299 0 D elf loadable program header; file_block = [0vF4_B000, 0vF5_3974), size 34.363 KiB; memory_block = [0v1000_0000, 0v1000_8974), size 34.363 KiB
+20:40:10.329 0 D extend mapping; block = [0v1000_9000, 0v1005_3B4B), size 298.823 KiB; page_block = [0v1000_9000, 0v1005_4000), size 300.000 KiB
+20:40:10.339 0 D elf loadable program header; file_block = [0vF5_3980, 0vF9_EB4B), size 300.448 KiB; memory_block = [0v1000_8980, 0v1005_3B4B), size 300.448 KiB
+20:40:10.355 0 D elf loadable program header; file_block = [0vF9_EB50, 0vF9_EC18), size 200 B; memory_block = [0v1005_3B50, 0v1005_3C18), size 200 B
+20:40:10.367 0 D extend mapping; block = [0v1005_4000, 0v1005_ACA0), size 27.156 KiB; page_block = [0v1005_4000, 0v1005_B000), size 28.000 KiB
+20:40:10.377 0 D elf loadable program header; file_block = [0vF9_EC18, 0vFA_5C78), size 28.094 KiB; memory_block = [0v1005_3C18, 0v1005_ACA0), size 28.133 KiB
+20:40:10.407 0 I switch to; address_space = "base" @ 0p1000
+20:40:10.413 0 I loaded ELF file; context = { rip: 0v1000_9A40, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.659 MiB; process = { pid: <current>, address_space: "process" @ 0p7D8_6000, { rip: 0v1000_9A40, rsp: 0v7F7F_FFFF_F000 } }
+20:40:10.427 0 I allocate; slot = Process { pid: 1:0, address_space: "1:0" @ 0p7D8_6000, { rip: 0v1000_9A40, rsp: 0v7F7F_FFFF_F000 } }; process_count = 2
+20:40:10.437 0 I user process page table entry; entry_point = 0v1000_9A40; frame = Frame(32095 @ 0p7D5_F000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:40:10.449 0 D process_frames = 160
+20:40:10.455 0 I dequeue; pid = Some(0:0)
+20:40:10.459 0 I switch to; address_space = "0:0" @ 0p7E2_6000
+20:40:10.465 0 D switched to address_space
+20:40:10.471 0 D set pid
+20:40:10.475 0 D set current_process
+20:40:10.481 0 D entering the user mode; pid = 0:0; registers = { rax: 0x0, rdi: 0x7F7FFFFD5000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v1000_9A40, ss:rsp: 0x001B:0v7F7F_FFFF_F000, rflags: IF } }
+20:40:10.597 0 D leaving the user mode; pid = 0:0
+20:40:10.601 0 I the process was preempted; pid = 0:0; user_context = { mode: user, cs:rip: 0x0023:0v1001_7B8B, ss:rsp: 0x001B:0v7F7F_FFFF_EE98, rflags: IF ZF PF }
+20:40:10.615 0 I returned
+20:40:10.619 0 I dequeue; pid = Some(1:0)
+20:40:10.623 0 I switch to; address_space = "1:0" @ 0p7D8_6000
+20:40:10.629 0 D switched to address_space
+20:40:10.633 0 D set pid
+20:40:10.637 0 D set current_process
+20:40:10.641 0 D entering the user mode; pid = 1:0; registers = { rax: 0x0, rdi: 0x7F7FFFFD5000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v1000_9A40, ss:rsp: 0x001B:0v7F7F_FFFF_F000, rflags: IF } }
+20:40:10.695 0 D leaving the user mode; pid = 1:0
+20:40:10.699 0 I the process was preempted; pid = 1:0; user_context = { mode: user, cs:rip: 0x0023:0v1001_5206, ss:rsp: 0x001B:0v7F7F_FFFF_EEB8, rflags: IF }
+20:40:10.709 0 I returned
+20:40:10.713 0 I dequeue; pid = Some(0:0)
+20:40:10.717 0 I switch to; address_space = "0:0" @ 0p7E2_6000
+20:40:10.721 0 D switched to address_space
+20:40:10.727 0 D set pid
+20:40:10.729 0 D set current_process
+20:40:10.733 0 D entering the user mode; pid = 0:0; registers = { rax: 0x1211F600, rdi: 0x0, rsi: 0x93F98C2A4, { mode: user, cs:rip: 0x0023:0v1001_7B8B, ss:rsp: 0x001B:0v7F7F_FFFF_EE98, rflags: IF ZF PF } }
+20:40:10.751 0 I free; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E2_6000, { rip: 0v1001_7B8B, rsp: 0v7F7F_FFFF_EE98 } }; process_count = 1
+20:40:10.761 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 7, unlocks: 7, waits: 0 }
+20:40:10.771 0 D dropping; spinlock = kernel/src/process/process.rs:65:28; stats = Stats { failures: 0, locks: 3, unlocks: 3, waits: 0 }
+20:40:10.779 0 I switch to; address_space = "base" @ 0p1000
+20:40:10.785 0 I drop the current address space; address_space = "0:0" @ 0p7E2_6000; switch_to = "base" @ 0p1000
+20:40:12.113 0 I syscall = "exit"; pid = 0:0; code = 3141592653589793238; reason = Err(TryFromPrimitiveError { number: 3141592653589793238 })
+20:40:12.121 0 D leaving the user mode; pid = 0:0
+20:40:12.127 0 I dequeue; pid = Some(1:0)
+20:40:12.131 0 I switch to; address_space = "1:0" @ 0p7D8_6000
+20:40:12.135 0 D switched to address_space
+20:40:12.139 0 D set pid
+20:40:12.143 0 D set current_process
+20:40:12.147 0 D entering the user mode; pid = 1:0; registers = { rax: 0x1, rdi: 0x7F7FFFFFEF58, rsi: 0x7F7FFFFFEF30, { mode: user, cs:rip: 0x0023:0v1001_5206, ss:rsp: 0x001B:0v7F7F_FFFF_EEB8, rflags: IF } }
+20:40:12.169 0 I user mode trap; trap = "Page Fault"; number = 14; info = { address: 0v0, code: 0b100 = non-present page | read | user }; context = { mode: user, cs:rip: 0x0023:0v1000_8D94, ss:rsp: 0x001B:0v0, rflags: IF ZF PF }; pid = 1:0
+20:40:12.193 0 I free; slot = Process { pid: 1:0, address_space: "1:0" @ 0p7D8_6000, { rip: 0v1001_5206, rsp: 0v7F7F_FFFF_EEB8 } }; process_count = 0
+20:40:12.209 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 7, unlocks: 7, waits: 0 }
+20:40:12.219 0 D dropping; spinlock = kernel/src/process/process.rs:65:28; stats = Stats { failures: 0, locks: 3, unlocks: 3, waits: 0 }
+20:40:12.229 0 I switch to; address_space = "base" @ 0p1000
+20:40:12.233 0 I drop the current address space; address_space = "1:0" @ 0p7D8_6000; switch_to = "base" @ 0p1000
+20:40:12.811 0 D leaving the user mode; pid = 1:0
+20:40:12.815 0 I dequeue; pid = None
+4_process_9_scheduler::scheduler------------------- [passed]
 
-4_process_9_scheduler::scheduler------------------------
-20:27:37 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:37 0 I duplicate; address_space = "process" @ 0p7E8A000
-20:27:37 0 I switch to; address_space = "process" @ 0p7E8A000
-20:27:37 0 D extend mapping; block = [0v10000000, 0v10007514), size 29.270 KiB; page_block = [0v10000000, 0v10008000), size 32.000 KiB; flags =   R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-20:27:37 0 D elf loadable program header; file_block = [0v750795, 0v757CA9), size 29.270 KiB; memory_block = [0v10000000, 0v10007514), size 29.270 KiB; flags =   R
-20:27:37 0 D extend mapping; block = [0v10008000, 0v100539CD), size 302.450 KiB; page_block = [0v10008000, 0v10054000), size 304.000 KiB; flags = X R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-20:27:37 0 D elf loadable program header; file_block = [0v757CB5, 0v7A4162), size 305.169 KiB; memory_block = [0v10007520, 0v100539CD), size 305.169 KiB; flags = X R
-20:27:37 0 D elf loadable program header; file_block = [0v7A4165, 0v7A4255), size 240 B; memory_block = [0v100539D0, 0v10053AC0), size 240 B; flags =  WR
-20:27:37 0 D extend mapping; block = [0v10054000, 0v10059B80), size 22.875 KiB; page_block = [0v10054000, 0v1005A000), size 24.000 KiB; flags =  WR; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-20:27:37 0 D elf loadable program header; file_block = [0v7A4255, 0v7AA2ED), size 24.148 KiB; memory_block = [0v10053AC0, 0v10059B80), size 24.188 KiB; flags =  WR
-20:27:37 0 I switch to; address_space = "base" @ 0p1000
-20:27:37 0 I loaded ELF file; context = { rip: 0v10007A90, rsp: 0v7F7FFFFFF000 }; file_size = 5.355 MiB; process = { pid: <current>, address_space: "process" @ 0p7E8A000, { rip: 0v10007A90, rsp: 0v7F7FFFFFF000 } }
-20:27:37 0 I allocate; slot = Process { pid: 0:1, address_space: "0:1" @ 0p7E8A000, { rip: 0v10007A90, rsp: 0v7F7FFFFFF000 } }; process_count = 1
-20:27:37 0 I user process page table entry; entry_point = 0v10007A90; frame = Frame(32392 @ 0p7E88000); flags = PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY
-20:27:37 0 D process_frames = 136
-20:27:37 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:27:37 0 I duplicate; address_space = "process" @ 0p7E02000
-20:27:37 0 I switch to; address_space = "process" @ 0p7E02000
-20:27:37 0 D extend mapping; block = [0v10000000, 0v10007514), size 29.270 KiB; page_block = [0v10000000, 0v10008000), size 32.000 KiB; flags =   R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-20:27:37 0 D elf loadable program header; file_block = [0vCAB6CD, 0vCB2BE1), size 29.270 KiB; memory_block = [0v10000000, 0v10007514), size 29.270 KiB; flags =   R
-20:27:37 0 D extend mapping; block = [0v10008000, 0v100539ED), size 302.481 KiB; page_block = [0v10008000, 0v10054000), size 304.000 KiB; flags = X R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-20:27:37 0 D elf loadable program header; file_block = [0vCB2BED, 0vCFF0BA), size 305.200 KiB; memory_block = [0v10007520, 0v100539ED), size 305.200 KiB; flags = X R
-20:27:37 0 D elf loadable program header; file_block = [0vCFF0BD, 0vCFF1AD), size 240 B; memory_block = [0v100539F0, 0v10053AE0), size 240 B; flags =  WR
-20:27:37 0 D extend mapping; block = [0v10054000, 0v10059BA0), size 22.906 KiB; page_block = [0v10054000, 0v1005A000), size 24.000 KiB; flags =  WR; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-20:27:37 0 D elf loadable program header; file_block = [0vCFF1AD, 0vD05245), size 24.148 KiB; memory_block = [0v10053AE0, 0v10059BA0), size 24.188 KiB; flags =  WR
-20:27:37 0 I switch to; address_space = "base" @ 0p1000
-20:27:37 0 I loaded ELF file; context = { rip: 0v10007AB0, rsp: 0v7F7FFFFFF000 }; file_size = 5.354 MiB; process = { pid: <current>, address_space: "process" @ 0p7E02000, { rip: 0v10007AB0, rsp: 0v7F7FFFFFF000 } }
-20:27:37 0 I allocate; slot = Process { pid: 1:0, address_space: "1:0" @ 0p7E02000, { rip: 0v10007AB0, rsp: 0v7F7FFFFFF000 } }; process_count = 2
-20:27:37 0 I user process page table entry; entry_point = 0v10007AB0; frame = Frame(32224 @ 0p7DE0000); flags = PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY
-20:27:37 0 D process_frames = 136
-20:27:37 0 I dequeue; pid = Some(0:0)
-20:27:37 0 I dequeue; pid = Some(0:0)
-20:27:37 0 I dequeue; pid = Some(0:0)
-20:27:37 0 I dequeue; pid = Some(0:1)
-20:27:37 0 I switch to; address_space = "0:1" @ 0p7E8A000
-20:27:37 0 D entering the user mode; pid = 0:1; registers = { rax: 0x0, rdi: 0x7F7FFFFED000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v10007A90, ss:rsp: 0x001B:0v7F7FFFFFF000, rflags: IF } }
-20:27:37 0 D leaving the user mode; pid = 0:1
-20:27:37 0 I the process was preempted; pid = 0:1; user_context = { mode: user, cs:rip: 0x0023:0v1000BDF2, ss:rsp: 0x001B:0v7F7FFFFFEE88, rflags: IF ZF PF }
-20:27:37 0 I returned
-20:27:37 0 I dequeue; pid = Some(1:0)
-20:27:37 0 I switch to; address_space = "1:0" @ 0p7E02000
-20:27:37 0 D entering the user mode; pid = 1:0; registers = { rax: 0x0, rdi: 0x7F7FFFFED000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v10007AB0, ss:rsp: 0x001B:0v7F7FFFFFF000, rflags: IF } }
-20:27:37 0 D leaving the user mode; pid = 1:0
-20:27:37 0 I the process was preempted; pid = 1:0; user_context = { mode: user, cs:rip: 0x0023:0v1000BDF3, ss:rsp: 0x001B:0v7F7FFFFFEEA8, rflags: IF AF PF }
-20:27:37 0 I returned
-20:27:37 0 I dequeue; pid = Some(0:1)
-20:27:37 0 I switch to; address_space = "0:1" @ 0p7E8A000
-20:27:37 0 D entering the user mode; pid = 0:1; registers = { rax: 0x1, rdi: 0x7F7FFFFFEF50, rsi: 0x7F7FFFFFEF20, { mode: user, cs:rip: 0x0023:0v1000BDF2, ss:rsp: 0x001B:0v7F7FFFFFEE88, rflags: IF ZF PF } }
-20:27:37 0 W log is not mapped properly; pid = 0:1
-20:27:37 0 I free; slot = Process { pid: 0:1, address_space: "0:1" @ 0p7E8A000, { rip: 0v10007A4D, rsp: 0v0 } }; process_count = 1
-20:27:37 0 I switch to; address_space = "base" @ 0p1000
-20:27:37 0 I drop the current address space; address_space = "0:1" @ 0p7E8A000; switch_to = "base" @ 0p1000
-20:27:37 0 I syscall = "exit"; pid = 0:1; code = 3141592653589793238; reason = None
-20:27:37 0 D leaving the user mode; pid = 0:1
-20:27:37 0 I dequeue; pid = Some(1:0)
-20:27:37 0 I switch to; address_space = "1:0" @ 0p7E02000
-20:27:37 0 D entering the user mode; pid = 1:0; registers = { rax: 0xD0F79FF, rdi: 0x7F7FFFFFEF70, rsi: 0x7F7FFFFFEF40, { mode: user, cs:rip: 0x0023:0v1000BDF3, ss:rsp: 0x001B:0v7F7FFFFFEEA8, rflags: IF AF PF } }
-20:27:37 0 D trap = "Page Fault"; context = { mode: user, cs:rip: 0x0023:0v10007A61, ss:rsp: 0x001B:0v0, rflags: IF ZF PF }; info = { code: 0b100 = non-present page | read | user, address: 0v0 }
-20:27:37 0 W log is not mapped properly; pid = 1:0
-20:27:37 0 I user mode trap; trap = "Page Fault"; number = 14; info = { code: 0b100 = non-present page | read | user, address: 0v0 }; context = { mode: user, cs:rip: 0x0023:0v10007A61, ss:rsp: 0x001B:0v0, rflags: IF ZF PF }; pid = 1:0
-20:27:37 0 I free; slot = Process { pid: 1:0, address_space: "1:0" @ 0p7E02000, { rip: 0v1000BDF3, rsp: 0v7F7FFFFFEEA8 } }; process_count = 0
-20:27:37 0 I switch to; address_space = "base" @ 0p1000
-20:27:37 0 I drop the current address space; address_space = "1:0" @ 0p7E02000; switch_to = "base" @ 0p1000
-20:27:37 0 D leaving the user mode; pid = 1:0
-20:27:37 0 I dequeue; pid = None
-4_process_9_scheduler::scheduler--------------- [passed]
-20:27:37 0 I exit qemu; exit_code = SUCCESS
+4_process_9_scheduler::syscall_sched_yield------------------
+20:40:13.479 0 I page allocator init; free_page_count = 33822867456; block = [0v180_0000_0000, 0v7F80_0000_0000), size 126.000 TiB
+20:40:13.487 0 I duplicate; address_space = "process" @ 0p7D8_6000
+20:40:13.491 0 I switch to; address_space = "process" @ 0p7D8_6000
+20:40:13.499 0 D extend mapping; block = [0v1000_0000, 0v1000_8234), size 32.551 KiB; page_block = [0v1000_0000, 0v1000_9000), size 36.000 KiB
+20:40:13.507 0 D elf loadable program header; file_block = [0v20_3000, 0v20_B234), size 32.551 KiB; memory_block = [0v1000_0000, 0v1000_8234), size 32.551 KiB
+20:40:13.539 0 D extend mapping; block = [0v1000_9000, 0v1004_F293), size 280.644 KiB; page_block = [0v1000_9000, 0v1005_0000), size 284.000 KiB
+20:40:13.549 0 D elf loadable program header; file_block = [0v20_B240, 0v25_2293), size 284.081 KiB; memory_block = [0v1000_8240, 0v1004_F293), size 284.081 KiB
+20:40:13.565 0 D elf loadable program header; file_block = [0v25_2298, 0v25_2360), size 200 B; memory_block = [0v1004_F298, 0v1004_F360), size 200 B
+20:40:13.575 0 D extend mapping; block = [0v1005_0000, 0v1005_5F20), size 23.781 KiB; page_block = [0v1005_0000, 0v1005_6000), size 24.000 KiB
+20:40:13.585 0 D elf loadable program header; file_block = [0v25_2360, 0v25_8EF8), size 26.898 KiB; memory_block = [0v1004_F360, 0v1005_5F20), size 26.938 KiB
+20:40:13.625 0 I switch to; address_space = "base" @ 0p1000
+20:40:13.629 0 I loaded ELF file; context = { rip: 0v1000_8EF0, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.613 MiB; process = { pid: <current>, address_space: "process" @ 0p7D8_6000, { rip: 0v1000_8EF0, rsp: 0v7F7F_FFFF_F000 } }
+20:40:13.641 0 I allocate; slot = Process { pid: 1:1, address_space: "1:1" @ 0p7D8_6000, { rip: 0v1000_8EF0, rsp: 0v7F7F_FFFF_F000 } }; process_count = 1
+20:40:13.651 0 I user process page table entry; entry_point = 0v1000_8EF0; frame = Frame(32004 @ 0p7D0_4000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:40:13.663 0 D process_frames = 155
+20:40:13.667 0 I switch to; address_space = "1:1" @ 0p7D8_6000
+20:40:13.671 0 D switched to address_space
+20:40:13.675 0 D set pid
+20:40:13.677 0 D set current_process
+20:40:13.681 0 D entering the user mode; pid = 1:1; registers = { rax: 0x0, rdi: 0x7F7FFFFD5000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v1000_8EF0, ss:rsp: 0x001B:0v7F7F_FFFF_F000, rflags:  } }
+20:40:13.695 0 I syscall = "sched_yield"; pid = 1:1
+20:40:13.699 0 D leaving the user mode; pid = 1:1
+20:40:13.703 0 D returned from the user space; user_registers = [0, 0, 0, 0, 140187732365312, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+20:40:13.711 0 I switch to; address_space = "1:1" @ 0p7D8_6000
+20:40:13.715 0 D switched to address_space
+20:40:13.719 0 D set pid
+20:40:13.723 0 D set current_process
+20:40:13.727 0 D entering the user mode; pid = 1:1; registers = { rax: 0x0, rdi: 0x7F7FFFFD5000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v1000_841E, ss:rsp: 0x001B:0v7F7F_FFFF_EEB8, rflags:  } }
+20:40:13.739 0 I syscall = "sched_yield"; pid = 1:1
+20:40:13.743 0 D leaving the user mode; pid = 1:1
+20:40:13.747 0 D returned from the user space; user_registers = [0, 0, 0, 0, 140187732365312, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+20:40:13.755 0 I switch to; address_space = "1:1" @ 0p7D8_6000
+20:40:13.759 0 D switched to address_space
+20:40:13.763 0 D set pid
+20:40:13.767 0 D set current_process
+20:40:13.771 0 D entering the user mode; pid = 1:1; registers = { rax: 0x0, rdi: 0x7F7FFFFD5000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v1000_841E, ss:rsp: 0x001B:0v7F7F_FFFF_EEB8, rflags:  } }
+20:40:13.785 0 I syscall = "sched_yield"; pid = 1:1
+20:40:13.789 0 D leaving the user mode; pid = 1:1
+20:40:13.793 0 I free; slot = Process { pid: 1:1, address_space: "1:1" @ 0p7D8_6000, { rip: 0v1000_841E, rsp: 0v7F7F_FFFF_EEB8 } }; process_count = 0
+20:40:13.805 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 9, unlocks: 9, waits: 0 }
+20:40:13.815 0 D dropping; spinlock = kernel/src/process/process.rs:65:28; stats = Stats { failures: 0, locks: 3, unlocks: 3, waits: 0 }
+20:40:13.823 0 I switch to; address_space = "base" @ 0p1000
+20:40:13.827 0 I drop the current address space; address_space = "1:1" @ 0p7D8_6000; switch_to = "base" @ 0p1000
+4_process_9_scheduler::syscall_sched_yield--------- [passed]
+20:40:14.623 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ```
 
 
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/process/scheduler.rs |   26 +++++++++++++++++++++-----
- 1 file changed, 21 insertions(+), 5 deletions(-)
+ kernel/src/process/scheduler.rs | 26 +++++++++++++++++++++-----
+ kernel/src/process/syscall.rs   | 16 +++++++++++++---
+ 2 files changed, 34 insertions(+), 8 deletions(-)
 ```

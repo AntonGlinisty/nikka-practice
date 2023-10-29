@@ -15,9 +15,9 @@
 [`sysenter` и `sysexit`](https://wiki.osdev.org/SYSENTER#INTEL:_SYSENTER.2FSYSEXIT).
 
 Прежде чем приступать, изучите документацию производителя процессоров на нужные инструкции:
-- [`syscall`](https://www.felixcloutier.com/x86/syscall) и
+- [`syscall`](https://www.felixcloutier.com/x86/syscall),
 - [`sysretq`](https://www.felixcloutier.com/x86/sysret),
-- а также [`sti`](https://www.felixcloutier.com/x86/sti).
+- [`sti`](https://www.felixcloutier.com/x86/sti).
 
 
 ### Задача 4 --- поддержка системных вызовов
@@ -52,7 +52,14 @@ extern "C" fn syscall_trampoline() -> !
 
 в файле [`kernel/src/process/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/syscall.rs).
 
-Она получает управление при выполнении инструкции `syscall` и должна передать управление в написанную на Rust
+Она получает управление при выполнении инструкции `syscall`.
+Свои аргументы эта функция принимает от кода пользователя строго через регистры.
+Вы можете сделать ей собственный ABI, или же ориентироваться на существующий.
+Например, на
+[Linux x86-64 syscall ABI](https://refspecs.linuxbase.org/elf/x86_64-abi-0.99.pdf#subsection.A.2.1).
+Функция
+[`syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html)
+должна передать управление в написанную на Rust
 [функцию](../../doc/kernel/process/syscall/fn.syscall.html)
 
 ```rust
@@ -103,7 +110,7 @@ asm!(
 
 На момент входа в [`syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html)
 регистр `RSP` указывает на стек пользователя.
-Мы не можем ему доверять, --- код режима пользователя мог его переполнить, неправильно выровнять, поместить на недоступный для пользователя адрес, например внутрь данных ядра.
+Мы не можем ему доверять, --- код режима пользователя мог его переполнить, неправильно выровнять, поместить на недоступный для пользователя адрес, например внутрь данных или кода ядра.
 Поэтому прежде чем пользоваться стеком,
 [`syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html)
 переключается в стек ядра.
@@ -169,33 +176,6 @@ panicked at 'kernel mode trap #14 - Page Fault, context: { mode: kernel, cs:rip:
 --------------------------------------------------- [failed]
 ```
 
-Также учтите, что если вы сохранили `RSP` ядра и настроили базу сегментного регистра `FS` на него,
-как предлагалось в
-[предыдущей задаче](../../lab/book/4-process-5-user-mode.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-3--%D0%BF%D0%B5%D1%80%D0%B5%D0%BA%D0%BB%D1%8E%D1%87%D0%B5%D0%BD%D0%B8%D0%B5-%D0%BF%D1%80%D0%BE%D1%86%D0%B5%D1%81%D1%81%D0%BE%D1%80%D0%B0-%D0%B2-%D1%80%D0%B5%D0%B6%D0%B8%D0%BC-%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8F-%D0%B8-%D0%B2%D0%BE%D0%B7%D0%B2%D1%80%D0%B0%D1%82-%D0%B8%D0%B7-%D0%BD%D0%B5%D0%B3%D0%BE),
-то восстановление `RSP` из `FS:0` приведёт к записи в `RSP` состояния до сохранения значения `RSP` на стеке.
-То есть, фактически вытолкнет `RSP` со стека.
-Но он нам ещё понадобится.
-Поэтому после этого действия нужно либо записать `RSP` на стек ещё раз,
-либо просто отступить в стеке на соответствующее количество байт.
-И только после этого уже можно писать в стек часть аргументов функции
-[`syscall()`](../../doc/kernel/process/syscall/fn.syscall.html).
-Если же вы этого не сделаете, то тест `4-process-6-syscall` упадёт сразу же после выполнения
-системного вызова, когда
-[`Registers::switch_to()`](../../doc/kernel/process/registers/struct.Registers.html#method.switch_to)
-тоже захочет взять из `FS:0` сохранённый им указатель на стек ядра:
-```console
-$ (cd kernel; cargo test --test 4-process-6-syscall)
-...
-4_process_6_syscall::syscall_exit-----------------------------
-...
-20:46:18 0 I syscall = "exit"; pid = 0:0; code = 3141592653589793238; reason = None
-20:46:18 0 D trap = "Page Fault"; context = { mode: kernel, cs:rip: 0x0008:0vCE36E6, ss:rsp: 0x0010:0v0, rflags: IF ZF PF }; info = { code: 0b0 = non-present page | read | kernel, address: 0v0 }
-20:46:18 0 E kernel mode trap; trap = "Page Fault"; number = 14; info = { code: 0b0 = non-present page | read | kernel, address: 0v0 }; context = { mode: kernel, cs:rip: 0x0008:0vCE36E6, ss:rsp: 0x0010:0v0, rflags: IF ZF PF }
-panicked at 'kernel mode trap #14 - Page Fault, context: { mode: kernel, cs:rip: 0x0008:0vCE36E6, ss:rsp: 0x0010:0v0, rflags: IF ZF PF }', kernel/src/trap/mod.rs:411:13
---------------------------------------------------- [failed]
-```
-Это артефакт временного решения, который мы исправим в следующей лабораторке.
-
 После переключения стека, аргументы функции
 [`syscall()`](../../doc/kernel/process/syscall/fn.syscall.html),
 которые по [x86-64 C ABI](https://wiki.osdev.org/System_V_ABI#x86-64)
@@ -223,8 +203,8 @@ panicked at 'kernel mode trap #14 - Page Fault, context: { mode: kernel, cs:rip:
 передавая в реализующие конкретные системные вызовы функции нужную часть аргументов `arg0`--`arg4`.
 Пока что нам хватит системных вызовов
 
-- [`kernel::process::syscall::exit()`](../../doc/kernel/process/syscall/fn.exit.html) с номером [`ku::process::syscall::Syscall::EXIT`](../../doc/ku/process/syscall/struct.Syscall.html#associatedconstant.EXIT) и
-- [`kernel::process::syscall::log_value()`](../../doc/kernel/process/syscall/fn.log_value.html) с номером [`ku::process::syscall::Syscall::LOG_VALUE`](../../doc/ku/process/syscall/struct.Syscall.html#associatedconstant.LOG_VALUE).
+- [`kernel::process::syscall::exit()`](../../doc/kernel/process/syscall/fn.exit.html) с номером [`ku::process::syscall::Syscall::Exit`](../../doc/ku/process/syscall/enum.Syscall.html#variant.Exit) и
+- [`kernel::process::syscall::log_value()`](../../doc/kernel/process/syscall/fn.log_value.html) с номером [`ku::process::syscall::Syscall::LogValue`](../../doc/ku/process/syscall/enum.Syscall.html#variant.LogValue).
 
 После выполнения функции, реализующей нужный системный вызов,
 [`syscall()`](../../doc/kernel/process/syscall/fn.syscall.html)
@@ -247,9 +227,9 @@ fn kernel::process::syscall::sysret(
 
 Она
 
-- Записывает результат системного вызова `result` в регистры общего назначения, например в `RAX`, `RDI`, `RSI`, и т.д. Обратите внимание, что признак и код ошибки, если `result` содержит ошибку, нужно записать в один из регистров --- пользовательскому процессу он тоже важен.
-- Записывает в регистр `R11` состояние регистра флагов, которое должно быть в пространстве пользователя. Как минимум должен быть установлен [`RFlags::INTERRUPT_FLAG`](../../doc/ku/process/registers/struct.RFlags.html#associatedconstant.INTERRUPT_FLAG), чтобы процесс не мог монополизировать процессор. Но пока что включение прерываний приведёт к нестабильности теста `4_process_6_syscall::syscall_log_value`. Поэтому предлагается отложить включение [`RFlags::INTERRUPT_FLAG`](../../doc/ku/process/registers/struct.RFlags.html#associatedconstant.INTERRUPT_FLAG) до следующей лабораторки, а пока выключить все флаги при возврате в режим пользователя --- [`RFlags::default()`](../../doc/ku/process/registers/struct.RFlags.html#method.default).
-- Записывает адрес возврата в код пользователя в регистр `RCX`. Функции [`syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html)/[`syscall()`](../../doc/kernel/process/syscall/fn.syscall.html) получили этот адрес в этом же регистре. И должны были его передать вместе с адресом стека пользователя в аргументе `context`.
+- Записывает результат системного вызова `result` в регистры общего назначения, например в `RAX`, `RDI`, `RSI`, и т.д. Обратите внимание, что признак и код ошибки, если `result` содержит ошибку, нужно записать в один из регистров --- пользовательскому процессу он тоже важен. Придумайте свой ABI или руководствуйтесь [Linux x86-64 syscall ABI](https://refspecs.linuxbase.org/elf/x86_64-abi-0.99.pdf#subsection.A.2.1). При этом безусловно сохранять какие-либо регистры пользователя представляется лишней работой. Лучше доверить задачу определения сохраняемых регистров компилятору. А в ABI считать, что все регистры модифицированы.
+- Записывает в регистр `R11` состояние регистра флагов, которое должно быть в пространстве пользователя. Как минимум, должен быть установлен [`RFlags::INTERRUPT_FLAG`](../../doc/ku/process/registers/struct.RFlags.html#associatedconstant.INTERRUPT_FLAG), чтобы процесс не мог монополизировать процессор. Но пока что включение прерываний приведёт к нестабильности теста `4_process_6_syscall::syscall_log_value`. Поэтому предлагается отложить включение [`RFlags::INTERRUPT_FLAG`](../../doc/ku/process/registers/struct.RFlags.html#associatedconstant.INTERRUPT_FLAG) до одной из следующих задач. А пока --- выключить все флаги при возврате в режим пользователя, воспользовавшись [`RFlags::default()`](../../doc/ku/process/registers/struct.RFlags.html#method.default).
+- Записывает адрес возврата в код пользователя в регистр `RCX`. Функции [`syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html)/[`syscall()`](../../doc/kernel/process/syscall/fn.syscall.html) получили этот адрес в том же регистре. И должны были передать его вместе с адресом стека пользователя в аргументе `context`.
 - Переключает регистр `RSP` на стек пользователя.
 - Зануляет все не использованные выше регистры общего назначения, чтобы предотвратить утечку информации из режима ядра в режим пользователя.
 - Выполняет инструкцию [`sysretq`](https://www.felixcloutier.com/x86/sysret), которая передаёт управление в код пользователя в соответствии с настройками в регистрах `Star`, `R11` и `RCX`. Обратите внимание на суффикс `q` у [`sysretq`](https://www.felixcloutier.com/x86/sysret). Если его не указать, ассемблер сгенерирует машинный код для другого режима работы процессора. И до некоторого момента это будет не заметно, так как делать он будет почти то же самое. А потом в неожиданный момент всё сломается и найти такую ошибку будет тяжело.
@@ -270,7 +250,7 @@ fn kernel::process::syscall::exit(
 
 Она выполняет системный вызов `exit(code)` с одним аргументом `code`.
 Код можно, например, записать в журнал как
-[`ku::process::syscall::ExitCode`](../../doc/ku/process/syscall/struct.ExitCode.html).
+[`ku::process::syscall::ExitCode`](../../doc/ku/process/syscall/enum.ExitCode.html).
 Основная же работа этого системного вызова заключается в освобождении слота таблицы процессов методом
 [`kernel::process::table::Table::free()`](../../doc/kernel/process/table/struct.Table.html#method.free)
 и возврате в контекст ядра, из которого пользовательский процесс был запущен.
@@ -406,54 +386,62 @@ fn lib::syscall::syscall(
 ```console
 $ (cd kernel; cargo test --test 4-process-6-syscall)
 ...
-4_process_6_syscall::syscall_exit-----------------------------
-05:13:26 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-05:13:26 0 I duplicate; address_space = "process" @ 0p7F1B000
-05:13:26 0 I switch to; address_space = "process" @ 0p7F1B000
-05:13:26 0 D extend mapping; block = [0v10000000, 0v10007624), size 29.535 KiB; page_block = [0v10000000, 0v10008000), size 32.000 KiB; flags =   R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-05:13:26 0 D elf loadable program header; file_block = [0v201741, 0v208D65), size 29.535 KiB; memory_block = [0v10000000, 0v10007624), size 29.535 KiB; flags =   R
-05:13:26 0 D extend mapping; block = [0v10008000, 0v100547AD), size 305.919 KiB; page_block = [0v10008000, 0v10055000), size 308.000 KiB; flags = X R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-05:13:26 0 D elf loadable program header; file_block = [0v208D71, 0v255EEE), size 308.372 KiB; memory_block = [0v10007630, 0v100547AD), size 308.372 KiB; flags = X R
-05:13:26 0 D elf loadable program header; file_block = [0v255EF1, 0v255FE1), size 240 B; memory_block = [0v100547B0, 0v100548A0), size 240 B; flags =  WR
-05:13:26 0 D extend mapping; block = [0v10055000, 0v1005AAC0), size 22.688 KiB; page_block = [0v10055000, 0v1005B000), size 24.000 KiB; flags =  WR; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-05:13:26 0 D elf loadable program header; file_block = [0v255FE1, 0v25C1D9), size 24.492 KiB; memory_block = [0v100548A0, 0v1005AAC0), size 24.531 KiB; flags =  WR
-05:13:26 0 I switch to; address_space = "base" @ 0p1000
-05:13:26 0 I loaded ELF file; context = { rip: 0v10007BA0, rsp: 0v7F7FFFFFF000 }; file_size = 5.372 MiB; process = { pid: <current>, address_space: "process" @ 0p7F1B000, { rip: 0v10007BA0, rsp: 0v7F7FFFFFF000 } }
-05:13:26 0 I user process page table entry; entry_point = 0v10007BA0; frame = Frame(32507 @ 0p7EFB000); flags = PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY
-05:13:26 0 I switch to; address_space = "0:0" @ 0p7F1B000
-05:13:26 0 D entering the user mode; pid = 0:0; registers = { rax: 0x0, rdi: 0x7F7FFFFEB000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v10007BA0, ss:rsp: 0x001B:0v7F7FFFFFF000, rflags:  } }
-05:13:26 0 I syscall = "exit"; pid = 0:0; code = 3141592653589793238; reason = None
-05:13:26 0 D leaving the user mode; pid = 0:0
-4_process_6_syscall::syscall_exit-------------------- [passed]
+4_process_6_syscall::syscall_exit---------------------------
+20:37:34 0 I page allocator init; free_page_count = 33822867456; block = [0v180_0000_0000, 0v7F80_0000_0000), size 126.000 TiB
+20:37:34 0 I duplicate; address_space = "process" @ 0p7E9_9000
+20:37:34 0 I switch to; address_space = "process" @ 0p7E9_9000
+20:37:34 0 D extend mapping; block = [0v1000_0000, 0v1000_8974), size 34.363 KiB; page_block = [0v1000_0000, 0v1000_9000), size 36.000 KiB
+20:37:34 0 D elf loadable program header; file_block = [0v20_3000, 0v20_B974), size 34.363 KiB; memory_block = [0v1000_0000, 0v1000_8974), size 34.363 KiB
+20:37:34 0 D extend mapping; block = [0v1000_9000, 0v1005_3B4B), size 298.823 KiB; page_block = [0v1000_9000, 0v1005_4000), size 300.000 KiB
+20:37:34 0 D elf loadable program header; file_block = [0v20_B980, 0v25_6B4B), size 300.448 KiB; memory_block = [0v1000_8980, 0v1005_3B4B), size 300.448 KiB
+20:37:34 0 D elf loadable program header; file_block = [0v25_6B50, 0v25_6C18), size 200 B; memory_block = [0v1005_3B50, 0v1005_3C18), size 200 B
+20:37:34 0 D extend mapping; block = [0v1005_4000, 0v1005_ACA0), size 27.156 KiB; page_block = [0v1005_4000, 0v1005_B000), size 28.000 KiB
+20:37:34 0 D elf loadable program header; file_block = [0v25_6C18, 0v25_DC78), size 28.094 KiB; memory_block = [0v1005_3C18, 0v1005_ACA0), size 28.133 KiB
+20:37:34 0 I switch to; address_space = "base" @ 0p1000
+20:37:34 0 I loaded ELF file; context = { rip: 0v1000_9A40, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.661 MiB; process = { pid: <current>, address_space: "process" @ 0p7E9_9000, { rip: 0v1000_9A40, rsp: 0v7F7F_FFFF_F000 } }
+20:37:34 0 I user process page table entry; entry_point = 0v1000_9A40; frame = Frame(32317 @ 0p7E3_D000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:37:34 0 I switch to; address_space = "0:0" @ 0p7E9_9000
+20:37:34 0 D switched to address_space
+20:37:34 0 D set pid
+20:37:34 0 D set current_process
+20:37:34 0 D entering the user mode; pid = 0:0; registers = { rax: 0x0, rdi: 0x7F7FFFFD5000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v1000_9A40, ss:rsp: 0x001B:0v7F7F_FFFF_F000, rflags:  } }
+20:37:35.003 0 I syscall = "exit"; pid = 0:0; code = 3141592653589793238; reason = Err(TryFromPrimitiveError { number: 3141592653589793238 })
+20:37:35.011 0 D leaving the user mode; pid = 0:0
+4_process_6_syscall::syscall_exit------------------ [passed]
 
-4_process_6_syscall::syscall_log_value------------------------
-05:13:27 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-05:13:27 0 I duplicate; address_space = "process" @ 0p7E93000
-05:13:27 0 I switch to; address_space = "process" @ 0p7E93000
-05:13:27 0 D extend mapping; block = [0v10000000, 0v100073F4), size 28.988 KiB; page_block = [0v10000000, 0v10008000), size 32.000 KiB; flags =   R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-05:13:27 0 D elf loadable program header; file_block = [0v760E00, 0v7681F4), size 28.988 KiB; memory_block = [0v10000000, 0v100073F4), size 28.988 KiB; flags =   R
-05:13:27 0 D extend mapping; block = [0v10008000, 0v10052422), size 297.033 KiB; page_block = [0v10008000, 0v10053000), size 300.000 KiB; flags = X R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-05:13:27 0 D elf loadable program header; file_block = [0v768200, 0v7B3222), size 300.033 KiB; memory_block = [0v10007400, 0v10052422), size 300.033 KiB; flags = X R
-05:13:27 0 D elf loadable program header; file_block = [0v7B3228, 0v7B3318), size 240 B; memory_block = [0v10052428, 0v10052518), size 240 B; flags =  WR
-05:13:27 0 D extend mapping; block = [0v10053000, 0v10058680), size 21.625 KiB; page_block = [0v10053000, 0v10059000), size 24.000 KiB; flags =  WR; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-05:13:27 0 D elf loadable program header; file_block = [0v7B3318, 0v7B9458), size 24.312 KiB; memory_block = [0v10052518, 0v10058680), size 24.352 KiB; flags =  WR
-05:13:27 0 I switch to; address_space = "base" @ 0p1000
-05:13:27 0 I loaded ELF file; context = { rip: 0v10008BD0, rsp: 0v7F7FFFFFF000 }; file_size = 5.374 MiB; process = { pid: <current>, address_space: "process" @ 0p7E93000, { rip: 0v10008BD0, rsp: 0v7F7FFFFFF000 } }
-05:13:27 0 I drop; address_space = "0:0" @ 0p7F1B000
-05:13:27 0 I user process page table entry; entry_point = 0v10008BD0; frame = Frame(32370 @ 0p7E72000); flags = PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY
-05:13:27 0 I switch to; address_space = "0:0" @ 0p7E93000
-05:13:27 0 D entering the user mode; pid = 0:0; registers = { rax: 0x0, rdi: 0x7F7FFFFEB000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v10008BD0, ss:rsp: 0x001B:0v7F7FFFFFF000, rflags:  } }
-05:13:27 0 I user space can read the system time; value = 1666588407; hex_value = 0x63561EF7; pid = 0:0
-05:13:27 0 I ; value = 0; hex_value = 0x0; pid = 0:0
-05:13:27 0 W syscall failed; syscall = Some(LOG_VALUE); number = 1; arg0 = 1; arg1 = 1; arg2 = 0; arg3 = 0; arg4 = 1099513729752; error = PermissionDenied
-05:13:27 0 W syscall failed; syscall = Some(LOG_VALUE); number = 1; arg0 = 0; arg1 = 0; arg2 = 0; arg3 = 0; arg4 = 1099513729752; error = Null
-05:13:27 0 W syscall failed; syscall = Some(LOG_VALUE); number = 1; arg0 = 268437376; arg1 = 1; arg2 = 0; arg3 = 0; arg4 = 1099513729752; error = InvalidArgument
-05:13:27 0 W syscall failed; syscall = Some(LOG_VALUE); number = 1; arg0 = 65536; arg1 = 18446744069414584320; arg2 = 0; arg3 = 0; arg4 = 1099513729752; error = InvalidArgument
-05:13:27 0 W syscall failed; syscall = Some(LOG_VALUE); number = 1; arg0 = 18446744073709486080; arg1 = 1048576; arg2 = 0; arg3 = 0; arg4 = 1099513729752; error = Overflow
-05:13:27 0 I syscall = "exit"; pid = 0:0; code = 0; reason = Some(OK)
-05:13:27 0 D leaving the user mode; pid = 0:0
-4_process_6_syscall::syscall_log_value--------------- [passed]
-05:13:27 0 I exit qemu; exit_code = SUCCESS
+4_process_6_syscall::syscall_log_value----------------------
+20:37:35.561 0 I page allocator init; free_page_count = 33822867456; block = [0v180_0000_0000, 0v7F80_0000_0000), size 126.000 TiB
+20:37:35.567 0 I duplicate; address_space = "process" @ 0p7DC_4000
+20:37:35.571 0 I switch to; address_space = "process" @ 0p7DC_4000
+20:37:35.577 0 D extend mapping; block = [0v1000_0000, 0v1000_88B4), size 34.176 KiB; page_block = [0v1000_0000, 0v1000_9000), size 36.000 KiB
+20:37:35.583 0 D elf loadable program header; file_block = [0v8A_E000, 0v8B_68B4), size 34.176 KiB; memory_block = [0v1000_0000, 0v1000_88B4), size 34.176 KiB
+20:37:35.609 0 D extend mapping; block = [0v1000_9000, 0v1005_14D3), size 289.206 KiB; page_block = [0v1000_9000, 0v1005_2000), size 292.000 KiB
+20:37:35.617 0 D elf loadable program header; file_block = [0v8B_68C0, 0v8F_F4D3), size 291.019 KiB; memory_block = [0v1000_88C0, 0v1005_14D3), size 291.019 KiB
+20:37:35.631 0 D elf loadable program header; file_block = [0v8F_F4D8, 0v8F_F5A0), size 200 B; memory_block = [0v1005_14D8, 0v1005_15A0), size 200 B
+20:37:35.639 0 D extend mapping; block = [0v1005_2000, 0v1005_84B0), size 25.172 KiB; page_block = [0v1005_2000, 0v1005_9000), size 28.000 KiB
+20:37:35.647 0 D elf loadable program header; file_block = [0v8F_F5A0, 0v90_6488), size 27.727 KiB; memory_block = [0v1005_15A0, 0v1005_84B0), size 27.766 KiB
+20:37:35.677 0 I switch to; address_space = "base" @ 0p1000
+20:37:35.679 0 I loaded ELF file; context = { rip: 0v1000_AB50, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.666 MiB; process = { pid: <current>, address_space: "process" @ 0p7DC_4000, { rip: 0v1000_AB50, rsp: 0v7F7F_FFFF_F000 } }
+20:37:35.691 0 D dropping; spinlock = kernel/src/process/table.rs:268:36; stats = Stats { failures: 0, locks: 2, unlocks: 2, waits: 0 }
+20:37:35.697 0 D dropping; spinlock = kernel/src/process/process.rs:65:28; stats = Stats { failures: 0, locks: 1, unlocks: 1, waits: 0 }
+20:37:35.703 0 I drop; address_space = "0:0" @ 0p7E9_9000
+20:37:36.687 0 I user process page table entry; entry_point = 0v1000_AB50; frame = Frame(32160 @ 0p7DA_0000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:37:36.695 0 I switch to; address_space = "0:0" @ 0p7DC_4000
+20:37:36.699 0 D switched to address_space
+20:37:36.703 0 D set pid
+20:37:36.705 0 D set current_process
+20:37:36.709 0 D entering the user mode; pid = 0:0; registers = { rax: 0x0, rdi: 0x7F7FFFFD5000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v1000_AB50, ss:rsp: 0x001B:0v7F7F_FFFF_F000, rflags:  } }
+20:37:36.725 0 I user space can read the system time; value = 1698881856; hex_value = 0x6542E140; pid = 0:0
+20:37:36.733 0 I ; value = 0; hex_value = 0x0; pid = 0:0
+20:37:36.739 0 W syscall failed; syscall = Ok(LogValue); number = 1; arg0 = 1; arg1 = 1; arg2 = 0; arg3 = 0; arg4 = 0; error = PermissionDenied
+20:37:36.747 0 W syscall failed; syscall = Ok(LogValue); number = 1; arg0 = 0; arg1 = 0; arg2 = 0; arg3 = 0; arg4 = 0; error = Null
+20:37:36.757 0 W syscall failed; syscall = Ok(LogValue); number = 1; arg0 = 268439768; arg1 = 1; arg2 = 0; arg3 = 0; arg4 = 0; error = InvalidArgument
+20:37:36.765 0 W syscall failed; syscall = Ok(LogValue); number = 1; arg0 = 65536; arg1 = 18446744069414584320; arg2 = 0; arg3 = 0; arg4 = 0; error = InvalidArgument
+20:37:36.775 0 W syscall failed; syscall = Ok(LogValue); number = 1; arg0 = 18446744073709486080; arg1 = 1048576; arg2 = 0; arg3 = 0; arg4 = 0; error = Overflow
+20:37:36.783 0 I syscall = "exit"; pid = 0:0; code = 0; reason = Ok(Ok)
+20:37:36.787 0 D leaving the user mode; pid = 0:0
+4_process_6_syscall::syscall_log_value------------- [passed]
+20:37:36.793 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ```
 
 Если вы увидите в тесте `4_process_6_syscall::syscall_log_value`
@@ -478,7 +466,7 @@ panicked at 'the user mode code has detected an error in syscall::log_value() im
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/process/syscall.rs |  127 +++++++++++++++++++++++++++++++++++++++---
- user/lib/src/syscall.rs       |   54 +++++++++++++++++
- 2 files changed, 173 insertions(+), 8 deletions(-)
+ kernel/src/process/syscall.rs | 151 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--------
+ user/lib/src/syscall.rs       |  57 +++++++++++++++++++++++++++++--
+ 2 files changed, 192 insertions(+), 16 deletions(-)
 ```
