@@ -332,6 +332,7 @@ dependencies = [
  "tracing-core",
  "tracing-subscriber",
  "x86_64",
+ "xmas-elf",
 ]
 
 [[package]]

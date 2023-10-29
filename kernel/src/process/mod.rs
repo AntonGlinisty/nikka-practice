@@ -1,7 +1,3 @@
-/// Загружает [ELF--файлы](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format)
-/// пользовательских процессов и их адресные пространства.
-mod elf;
-
 /// Содержит структуру пользовательского процесса [`Process`].
 #[allow(clippy::module_inception)]
 mod process;
@@ -31,7 +27,10 @@ use ku::{
         ReadBuffer,
         WriteBuffer,
     },
-    process::MiniContext,
+    process::{
+        MiniContext,
+        elf,
+    },
 };
 
 use crate::{

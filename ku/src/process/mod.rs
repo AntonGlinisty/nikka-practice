@@ -1,3 +1,7 @@
+/// Загружает [ELF--файлы](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format)
+/// пользовательских процессов и их адресные пространства.
+pub mod elf;
+
 /// Минимальная информация о контексте исполнения.
 pub mod mini_context;
 

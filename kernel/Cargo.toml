@@ -29,11 +29,13 @@ tracing-core = { git = "https://github.com/tokio-rs/tracing", version = "*", def
 volatile = "=0.4.5"
 x86 = "*"
 x86_64 = "*"
-xmas-elf = "*"
 
 ku = { path = "../ku" }
 pic8259 = { path = "../pic8259" }
 text = { path = "../text" }
+
+[dev-dependencies]
+xmas-elf = "*"
 
 [package.metadata.bootimage]
 # Отвечает за `cargo run`.
