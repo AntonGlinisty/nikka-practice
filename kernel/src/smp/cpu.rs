@@ -158,12 +158,8 @@ impl Cpu {
     /// Пользовательские процессы выполняются независимо на разных ядрах,
     /// следовательно у каждого ядра текущий процесс должен быть своим.
     pub(crate) fn current_process() -> Result<Pid> {
-        if super::test_scaffolding::is_initialized() {
-            let cpu = unsafe { Self::get() };
-            cpu.current_process.ok_or(NoProcess)
-        } else {
-            Ok(Pid::Current)
-        }
+        let cpu = unsafe { Self::get() };
+        cpu.current_process.ok_or(NoProcess)
     }
 
     /// Устанавливает исполняющийся на данном CPU в текущий момент пользовательский процесс.
@@ -171,10 +167,8 @@ impl Cpu {
     /// Пользовательские процессы выполняются независимо на разных ядрах,
     /// следовательно у каждого ядра текущий процесс должен быть своим.
     pub(crate) fn set_current_process(process: Option<Pid>) {
-        if super::test_scaffolding::is_initialized() {
-            let cpu = unsafe { Self::get() };
-            cpu.current_process = process;
-        }
+        let cpu = unsafe { Self::get() };
+        cpu.current_process = process;
     }
 
     /// Возвращает контекст ядра для данного [`Cpu`], то есть с его стеком.
@@ -196,12 +190,8 @@ impl Cpu {
     /// Вытаскивает из [`Cpu`] контекст принудительно вытесненного с этого CPU процесса.
     /// После выполнения этой функции в соответствующем поле [`Cpu`] будет храниться [`None`].
     pub(crate) fn take_user_context() -> Option<ModeContext> {
-        if super::test_scaffolding::is_initialized() {
-            let cpu = unsafe { Self::get() };
-            cpu.user_context.take()
-        } else {
-            None
-        }
+        let cpu = unsafe { Self::get() };
+        cpu.user_context.take()
     }
 
     /// Идентификатор данного CPU, копия идентификатора его local APIC --- [`LocalApic::id()`].

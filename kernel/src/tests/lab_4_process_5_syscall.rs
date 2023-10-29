@@ -14,7 +14,7 @@ use kernel::{
 mod init;
 mod process_helpers;
 
-init!(Subsystems::MEMORY | Subsystems::SYSCALL);
+init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::SYSCALL);
 
 const EXIT_ELF: &[u8] = page_aligned!("../../target/kernel/user/exit");
 const LOG_VALUE_ELF: &[u8] = page_aligned!("../../target/kernel/user/log_value");

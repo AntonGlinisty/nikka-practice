@@ -4,10 +4,7 @@ use core::{
     mem,
 };
 
-use x86::{
-    bits64::registers,
-    msr::IA32_FS_BASE,
-};
+use x86::bits64::registers;
 use x86_64::structures::gdt::SegmentSelector;
 
 use ku::process::{
@@ -19,10 +16,7 @@ use crate::{
     error::Result,
     gdt::Gdt,
     memory::Virt,
-    smp::{
-        self,
-        KERNEL_RSP_OFFSET_IN_CPU,
-    },
+    smp::KERNEL_RSP_OFFSET_IN_CPU,
 };
 
 /// Состояние регистров пользовательского процесса.
@@ -119,8 +113,6 @@ impl Registers {
     #[inline(never)] // For the named label to be a unique link symbol.
     pub(super) unsafe fn switch_to(registers: *mut Registers) {
         let old_kernel_rsp = rsp();
-
-        // TODO: your code here.
 
         asm!(
             "

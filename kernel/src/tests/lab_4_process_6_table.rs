@@ -16,7 +16,7 @@ use kernel::{
 mod init;
 mod process_helpers;
 
-init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::PROCESS);
+init!(Subsystems::MEMORY | Subsystems::PROCESS);
 
 #[test_case]
 fn basic() {

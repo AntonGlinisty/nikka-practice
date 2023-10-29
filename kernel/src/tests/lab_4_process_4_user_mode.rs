@@ -20,7 +20,7 @@ use kernel::{
 mod init;
 mod process_helpers;
 
-init!(Subsystems::MEMORY);
+init!(Subsystems::MEMORY | Subsystems::SMP);
 
 const PAGE_FAULT_ELF: &[u8] = page_aligned!("../../target/kernel/user/page_fault");
 

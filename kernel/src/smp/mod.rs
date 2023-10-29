@@ -117,8 +117,6 @@ fn init_smp(
 
     *CPUS.lock() = cpus;
 
-    test_scaffolding::set_initialized();
-
     Ok(())
 }
 
@@ -129,11 +127,6 @@ lazy_static! {
 
 #[doc(hidden)]
 pub mod test_scaffolding {
-    use core::sync::atomic::{
-        AtomicBool,
-        Ordering,
-    };
-
     use crate::{
         Subsystems,
         error::Result,
@@ -162,17 +155,7 @@ pub mod test_scaffolding {
         super::init_smp(phys2virt, subsystems)
     }
 
-    pub fn is_initialized() -> bool {
-        INITIALIZED.load(Ordering::Relaxed)
-    }
-
     pub fn kernel_stack_zones(cpu: usize) -> (Block<Virt>, Block<Virt>) {
         CPUS.lock()[cpu].kernel_stack().zones()
     }
-
-    pub(super) fn set_initialized() {
-        INITIALIZED.store(true, Ordering::Relaxed);
-    }
-
-    static INITIALIZED: AtomicBool = AtomicBool::new(false);
 }
