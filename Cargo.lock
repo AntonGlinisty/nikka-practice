@@ -291,6 +291,7 @@ dependencies = [
  "lazy_static",
  "memoffset",
  "num-integer",
+ "num_enum",
  "pic8259",
  "postcard",
  "rand",
