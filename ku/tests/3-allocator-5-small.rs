@@ -35,6 +35,7 @@ use ku::{
         Virt,
         size,
     },
+    sync::Spinlock,
 };
 
 use allocator::Fallback;
@@ -50,7 +51,11 @@ fn single_threaded() {
 
     let (allocations, requested) = stress(&allocator, SINGLE_THREADED_ITERATIONS, SEED);
 
-    validate_info(allocations, requested, allocator.detailed_info());
+    static DETAILED_INFO: Spinlock<DetailedInfo> = Spinlock::new(DetailedInfo::new());
+    let mut detailed_info = DETAILED_INFO.lock();
+    allocator.detailed_info(&mut detailed_info);
+
+    validate_info(allocations, requested, &detailed_info);
 }
 
 #[test]
@@ -80,17 +85,21 @@ fn multi_threaded() {
         thread.join().unwrap();
     }
 
+    static DETAILED_INFO: Spinlock<DetailedInfo> = Spinlock::new(DetailedInfo::new());
+    let mut detailed_info = DETAILED_INFO.lock();
+    ALLOCATOR.detailed_info(&mut detailed_info);
+
     validate_info(
         ALLOCATIONS.load(Ordering::Relaxed),
         REQUESTED.load(Ordering::Relaxed),
-        ALLOCATOR.detailed_info(),
+        &detailed_info,
     );
 }
 
 fn validate_info(
     allocations: usize,
     requested: usize,
-    detailed_info: DetailedInfo,
+    detailed_info: &DetailedInfo,
 ) {
     info!(total = %detailed_info.total());
     println!("{detailed_info:#}");

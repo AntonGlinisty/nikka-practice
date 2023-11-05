@@ -6,10 +6,12 @@ mod memory_allocator;
 
 use ku::{
     allocator::{
+        DetailedInfo,
         Dispatcher,
         Info,
     },
     log::debug,
+    sync::Spinlock,
 };
 
 use crate::memory::{
@@ -31,7 +33,12 @@ pub fn info() -> Info {
 
 /// Распечатывает детальную статистику аллокатора.
 pub fn dump_info() {
-    debug!(allocator_info = %GLOBAL_ALLOCATOR.detailed_info());
+    /// Память под детальную статистику аллокатора.
+    static DETAILED_INFO: Spinlock<DetailedInfo> = Spinlock::new(DetailedInfo::new());
+
+    let mut allocator_info = DETAILED_INFO.lock();
+    GLOBAL_ALLOCATOR.detailed_info(&mut allocator_info);
+    debug!(%allocator_info);
 }
 
 /// Обработчик ошибок выделения памяти.

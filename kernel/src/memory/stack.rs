@@ -144,4 +144,4 @@ lazy_static! {
 pub(super) const GUARD_ZONE_SIZE: usize = Page::SIZE;
 
 /// Размер стеков, включая не отображённую в память защитную область.
-const STACK_SIZE: usize = 128 * Page::SIZE;
+const STACK_SIZE: usize = 32 * Page::SIZE;

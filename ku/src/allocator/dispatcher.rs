@@ -66,21 +66,20 @@ impl<T: Allocator> Dispatcher<T> {
         self.info.load()
     }
 
-    /// Возвращает статистику аллокатора, как суммарную, так и с разбивкой по компонентам.
+    /// Записывает в `detailed_info` статистику аллокатора.
+    /// Как суммарную, так и с разбивкой по компонентам.
     ///
     /// В случае конкурентных запросов к аллокатору статистика может быть несогласованной.
-    pub fn detailed_info(&self) -> DetailedInfo {
-        let mut detailed_info = DetailedInfo {
-            total: self.info(),
-            fallback: self.fallback_info.load(),
-            fixed_size: [Info::new(); FIXED_SIZE_COUNT],
-        };
+    pub fn detailed_info(
+        &self,
+        detailed_info: &mut DetailedInfo,
+    ) {
+        detailed_info.total = self.info();
+        detailed_info.fallback = self.fallback_info.load();
 
         for (info, allocator) in detailed_info.fixed_size.iter_mut().zip(&self.fixed_size) {
             *info = *allocator.lock().info();
         }
-
-        detailed_info
     }
 
     /// Находит индекс [`FixedSizeAllocator`], который отвечает за заданный `layout`.
@@ -262,6 +261,15 @@ pub struct DetailedInfo {
 
 #[allow(rustdoc::private_intra_doc_links)]
 impl DetailedInfo {
+    /// Инициализирует детальную статистику аллокатора [`Dispatcher`] нулями.
+    pub const fn new() -> Self {
+        Self {
+            total: Info::new(),
+            fallback: Info::new(),
+            fixed_size: [Info::new(); FIXED_SIZE_COUNT],
+        }
+    }
+
     /// Общая статистика аллокатора [`Dispatcher`].
     pub fn total(&self) -> &Info {
         &self.total
@@ -287,12 +295,17 @@ impl DetailedInfo {
         }
 
         if let Ok(mut balance) = self.total - self.fallback {
-            for fixed_size in self.fixed_size {
+            // `.iter()` is required to avoid copying `self.fixed_size`
+            // which is too large to fit on the stack.
+            // See also:
+            //   - <https://github.com/rust-lang/rust/issues/45683>
+            //   - <https://crates.io/crates/cargo-call-stack>
+            for fixed_size in self.fixed_size.iter() {
                 if !fixed_size.is_valid() {
                     return false;
                 }
 
-                if let Ok(new_balance) = balance - fixed_size {
+                if let Ok(new_balance) = balance - *fixed_size {
                     balance = new_balance;
                 } else {
                     return false;
@@ -303,6 +316,12 @@ impl DetailedInfo {
         } else {
             false
         }
+    }
+}
+
+impl Default for DetailedInfo {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -363,7 +382,7 @@ fn get_size(index: usize) -> usize {
 
 /// Количество аллокаторов фиксированного размера [`FixedSizeAllocator`],
 /// которыми управляет [`Dispatcher`].
-const FIXED_SIZE_COUNT: usize = (Page::SIZE - 1) / MIN_SIZE;
+const FIXED_SIZE_COUNT: usize = (4 * Page::SIZE - 1) / MIN_SIZE;
 
 /// Вспомогательная константа для инициализации массива [`Dispatcher::fixed_size`]
 /// в константной функции [`Dispatcher::new()`].
