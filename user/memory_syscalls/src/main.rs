@@ -2,12 +2,20 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
+#![feature(allocator_api)]
+#![feature(slice_ptr_get)]
+#![feature(strict_provenance)]
 #![no_main]
 #![no_std]
 
 extern crate alloc;
 
 use alloc::{
+    alloc::{
+        Allocator,
+        Global,
+        Layout,
+    },
     boxed::Box,
     collections::BTreeMap,
     vec::Vec,
@@ -40,6 +48,9 @@ entry!(main);
 fn main() {
     info!(test_case = "basic");
     memory_allocator_basic();
+
+    info!(test_case = "alignment");
+    memory_allocator_alignment();
 
     info!(test_case = "grow_and_shrink");
     memory_allocator_grow_and_shrink();

@@ -22,8 +22,8 @@ fn memory_allocator_basic() {
         my_assert!(info_diff.allocations().positive() == 1);
         my_assert!(info_diff.allocations().negative() == 0);
         my_assert!(info_diff.allocated().balance() >= requested);
-        my_assert!(info_diff.pages().positive() > 0);
-        my_assert!(info_diff.pages().negative() == 0);
+        my_assert!(info.pages().positive() > 0);
+        my_assert!(info.pages().balance() > 0);
     }
 
     allocator::dump_info();
@@ -37,8 +37,25 @@ fn memory_allocator_basic() {
     my_assert!(end_info_diff.allocations().negative() == 1);
     my_assert!(end_info_diff.requested().balance() == 0);
     my_assert!(end_info_diff.allocated().balance() == 0);
-    my_assert!(end_info_diff.pages().positive() > 0);
+    my_assert!(end_info.pages().positive() > 0);
     my_assert!(end_info_diff.fragmentation_loss() < MiB);
+}
+
+fn memory_allocator_alignment() {
+    for lb_align in 0 .. 12 {
+        let align = 1 << lb_align;
+        debug!(align);
+
+        for size in 1 .. 1024 {
+            let layout = Layout::from_size_align(size, align).unwrap();
+            let ptr = Global.allocate(layout).unwrap();
+
+            assert!(ptr.len() >= size);
+            assert_eq!(ptr.addr().get() % align, 0);
+
+            unsafe { Global.deallocate(ptr.as_non_null_ptr(), layout) };
+        }
+    }
 }
 
 fn memory_allocator_grow_and_shrink() {

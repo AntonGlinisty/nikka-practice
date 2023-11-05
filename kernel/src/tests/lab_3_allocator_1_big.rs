@@ -1,7 +1,11 @@
 extern crate alloc;
 
 use alloc::{
-    alloc::Layout,
+    alloc::{
+        Allocator,
+        Global,
+        Layout,
+    },
     boxed::Box,
     collections::BTreeMap,
     vec::Vec,
@@ -45,6 +49,11 @@ init!(Subsystems::MEMORY);
 #[test_case]
 fn basic() {
     memory_allocator_basic();
+}
+
+#[test_case]
+fn alignment() {
+    memory_allocator_alignment();
 }
 
 #[test_case]
