@@ -74,8 +74,8 @@ unsafe fn Registers::switch_to(registers: *const Registers)
 [`kernel/src/process/registers.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/registers.rs).
 
 Для его реализации придётся использовать ассемблер, например прибегнуть к макросу
-[`asm!()`](https://doc.rust-lang.org/core/arch/macro.asm.html),
-документацию на который можно посмотреть в
+[`asm!()`](https://doc.rust-lang.org/core/arch/macro.asm.html).
+Документацию на который можно посмотреть в
 [Rust By Example](https://doc.rust-lang.org/nightly/rust-by-example/unsafe/asm.html) и
 [The Rust Reference](https://doc.rust-lang.org/nightly/reference/inline-assembly.html).
 
@@ -179,7 +179,7 @@ pub(super) unsafe extern "C" fn switch_from() -> ! {
 `info!()`, `debug!()` и т.д., пока работать не будет.
 В следующей задаче мы сделаем ему временную замену --- системный вызов `log_value()`.
 А чтобы заработало привычное структурированное журналирование, нужно сделать
-[первую часть пятой лабораторки](https://sergey-v-galtsev.github.io/labs-description/lab/book/6-um-1-pipe.html).
+[первую часть пятой лабораторки](../../lab/book/6-um-1-pipe.html).
 
 
 ### Проверьте себя

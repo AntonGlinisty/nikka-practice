@@ -213,12 +213,10 @@ fn AtomicCorrelationPoint::inc(&self, tsc: i64)
 теперь придётся придумать более хитрую схему синхронизации, чем в
 [предыдущей задачи](../../lab/book/5-sync-3-sequence-lock.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-3--%D1%80%D0%B5%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-sequencelock).
 
-К сожалению, как и в предыдущей задаче,
-на архитектуре
-[x86-64](https://en.wikipedia.org/wiki/X86-64)
-тест не может проверить корректность расстановки
-[`Ordering`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html).
-Поэтому ей стоит уделить повышенное внимание.
+В отличие от предыдущей задачи, тесты проверяют корректность расстановки
+[`Ordering`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html)
+с помощью эмулятора
+[Miri](https://github.com/rust-lang/miri).
 [Как и раньше](../../lab/book/5-sync-2-spinlock.html#%D0%9C%D0%BE%D0%B4%D0%B5%D0%BB%D1%8C-%D0%BF%D0%B0%D0%BC%D1%8F%D1%82%D0%B8-acquire-%D0%B8-release),
 [`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst)
 использовать не рекомендуется.
@@ -231,12 +229,179 @@ fn AtomicCorrelationPoint::inc(&self, tsc: i64)
 
 ### Запуск тестов
 
-Тесты можно запустить командой `cargo test --test 5-sync-4-correlation-point` в директориях `ku` и `kernel` репозитория.
-В проверочной системе запускаются тесты из обоих этих директорий.
-Тот что находится в файле
-[`ku/tests/5-sync-4-correlation-point.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/tests/5-sync-4-correlation-point.rs)
+Тесты можно запустить командой `cargo test --test 5-sync-4-correlation-point`
+в директориях `ku` и `kernel` репозитория.
+В проверочной системе запускаются тесты из обеих этих директорий.
+
+
+#### Обычный запуск теста [`ku/tests/5-sync-4-correlation-point.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/tests/5-sync-4-correlation-point.rs)
+
+Тест, который находится в файле
+[`ku/tests/5-sync-4-correlation-point.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/tests/5-sync-4-correlation-point.rs),
 похож на тест из предыдущей задачи.
-Он запускается в многопоточном окружении под linux.
+Это стресс--тест с писателем и читателем, который запускается в многопоточном окружении под linux:
+
+```console
+/.../nikka$ (cd ku; cargo test --test 5-sync-4-correlation-point)
+...
+running 3 tests
+test correlation_point ... ok
+test atomic_correlation_point ... ok
+2023-11-05T13:23:34.515701Z : ThreadId(07) consistent_count=124867666 inconsistent_count=0
+test single_writer ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.58s
+```
+
+
+#### Запуск теста [`ku/tests/5-sync-4-correlation-point.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/tests/5-sync-4-correlation-point.rs) под [Miri](https://github.com/rust-lang/miri)
+
+Также его можно запустить под эмулятором
+[Miri](https://github.com/rust-lang/miri)
+промежуточного представления
+[Mid-level Intermediate Representation (MIR)](https://rustc-dev-guide.rust-lang.org/mir/index.html)
+для Rust'овского кода.
+
+
+##### Установка [Miri](https://github.com/rust-lang/miri)
+
+Сначала нужно будет поставить
+[Miri](https://github.com/rust-lang/miri),
+выполнив команды
+
+```console
+/.../nikka$ rustup component add miri
+info: syncing channel updates for 'nightly-2023-09-16-x86_64-unknown-linux-gnu'
+info: latest update on 2023-09-16, rust version 1.74.0-nightly (20999de3a 2023-09-15)
+info: component 'clippy' for target 'x86_64-unknown-linux-gnu' is up to date
+info: component 'llvm-tools' for target 'x86_64-unknown-linux-gnu' is up to date
+info: component 'rust-src' is up to date
+info: component 'rustc-dev' for target 'x86_64-unknown-linux-gnu' is up to date
+info: component 'rustfmt' for target 'x86_64-unknown-linux-gnu' is up to date
+info: downloading component 'miri'
+info: installing component 'miri'
+info: component 'miri' for target 'x86_64-unknown-linux-gnu' is up to date
+```
+
+и
+
+```console
+/.../nikka$ cargo miri setup
+Preparing a sysroot for Miri (target: x86_64-unknown-linux-gnu)...
+A sysroot for Miri is now available in `/.../.cache/miri`.
+```
+
+из корня репозитория.
+Если вы запустите `cargo miri setup` не из корня репозитория, то можете получить ошибку вроде такой:
+
+```console
+error[E0464]: multiple candidates for `rmeta` dependency `core` found
+ --> /.../.rustup/toolchains/nightly-2023-09-16-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/rustc-std-workspace-core/lib.rs:4:9
+  |
+4 | pub use core::*;
+  |         ^^^^
+  |
+  = note: candidate #1: /tmp/.tmp7Ev1h4/target/x86_64-unknown-linux-gnu/release/deps/libcore-e0e4ecdb825dac0d.rmeta
+  = note: candidate #2: /tmp/.tmp7Ev1h4/target/x86_64-unknown-linux-gnu/release/deps/libcore-8c8751fb386a7e4e.rmeta
+
+For more information about this error, try `rustc --explain E0464`.
+error: could not compile `rustc-std-workspace-core` (lib) due to previous error
+fatal error: failed to build sysroot: sysroot build failed
+```
+
+
+##### Запуск теста под [Miri](https://github.com/rust-lang/miri)
+
+Теперь можно запустить тест под
+[Miri](https://github.com/rust-lang/miri),
+дополнительно передав ему параметр `-Zmiri-disable-isolation`:
+
+```console
+/.../nikka$ (cd ku; MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 5-sync-4-correlation-point)
+Preparing a sysroot for Miri (target: x86_64-unknown-linux-gnu)... done
+...
+running 3 tests
+test atomic_correlation_point ... ok
+test correlation_point ... ok
+test single_writer ... 2023-11-05T13:24:36.597550Z : ThreadId(07) consistent_count=19458 inconsistent_count=0
+ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+```
+
+
+##### [Miri](https://github.com/rust-lang/miri) находит ошибки в использовании модели памяти
+
+Эмулятор
+[Miri](https://github.com/rust-lang/miri)
+в том числе выполняет переупорядочивание инструкций в соответствии с моделью памяти языка:
+
+> Miri supports almost all Rust language features; in particular, unwinding and concurrency are properly supported (including some experimental emulation of weak memory effects, i.e., reads can return outdated values).
+
+За счёт этого можно найти ошибки в расстановке
+[`Ordering`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html).
+Поэтому, после внесения ошибки в
+[`Ordering`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html)
+под
+[Miri](https://github.com/rust-lang/miri)
+тест падает:
+
+```console
+/.../nikka$ (cd ku; MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 5-sync-4-correlation-point)
+Preparing a sysroot for Miri (target: x86_64-unknown-linux-gnu)... done
+...
+running 3 tests
+test atomic_correlation_point ... ok
+test correlation_point ... ok
+test single_writer ... 2023-11-05T13:35:31.653085Z X reader_thread #6 inconsistent data data=CorrelationPoint { count: 1, tsc: 4 } iteration=1
+2023-11-05T13:35:31.633290Z X reader_thread #7 inconsistent data data=CorrelationPoint { count: 7, tsc: 16 } iteration=0
+2023-11-05T13:35:31.638295Z X reader_thread #0 inconsistent data data=CorrelationPoint { count: 61, tsc: 124 } iteration=0
+2023-11-05T13:35:31.620411Z X reader_thread #9 inconsistent data data=CorrelationPoint { count: 7, tsc: 16 } iteration=0
+2023-11-05T13:35:31.616408Z X reader_thread #3 inconsistent data data=CorrelationPoint { count: 7, tsc: 16 } iteration=0
+2023-11-05T13:35:31.634590Z X reader_thread #8 inconsistent data data=CorrelationPoint { count: 1, tsc: 4 } iteration=0
+2023-11-05T13:35:31.706226Z X reader_thread #4 inconsistent data data=CorrelationPoint { count: 100, tsc: 202 } iteration=1
+2023-11-05T13:35:31.872129Z X reader_thread #2 inconsistent data data=CorrelationPoint { count: 175, tsc: 352 } iteration=2
+2023-11-05T13:35:31.871054Z X reader_thread #1 inconsistent data data=CorrelationPoint { count: 172, tsc: 346 } iteration=4
+2023-11-05T13:35:32.332227Z X reader_thread #5 inconsistent data data=CorrelationPoint { count: 349, tsc: 700 } iteration=9
+2023-11-05T13:35:59.537162Z : ThreadId(07) consistent_count=14210 inconsistent_count=3793
+FAILED
+
+failures:
+
+---- single_writer stdout ----
+thread '<unnamed>' panicked at ku/tests/5-sync-4-correlation-point.rs:94:5:
+assertion `left == right` failed: detected 3793 inconsistent data reads
+  left: 3793
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+thread 'single_writer' panicked at ku/tests/5-sync-4-correlation-point.rs:49:1:
+explicit panic
+
+
+failures:
+    single_writer
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out
+
+error: test failed, to rerun pass `--test 5-sync-4-correlation-point`
+```
+
+Хотя, с той же ошибкой, при обычном запуске тест проходит:
+
+```console
+/.../nikka$ (cd ku; cargo test --test 5-sync-4-correlation-point)
+...
+running 3 tests
+test correlation_point ... ok
+test atomic_correlation_point ... ok
+2023-11-05T13:39:01.075616Z : ThreadId(07) consistent_count=3832656 inconsistent_count=0
+test single_writer ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.42s
+```
+
+
+#### Запуск тестов из файла [`kernel/tests/5-sync-4-correlation-point.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/5-sync-4-correlation-point.rs)
 
 Тесты в файле
 [`kernel/tests/5-sync-4-correlation-point.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/5-sync-4-correlation-point.rs)
@@ -295,20 +460,8 @@ fn AtomicCorrelationPoint::inc(&self, tsc: i64)
 5_sync_4_correlation_point::correlation_point_writer [passed]
 ```
 
-> ### Как устроен тест
->
-> для того чтобы проверить корректность реализации
-> [`SequenceLock`](../../doc/ku/sync/sequence_lock/struct.SequenceLock.html)
-> стресс--тест с писателем и читателем запускается в многопоточном окружении под linux.
-> Его конечно хотелось бы запускать ещё и на процессорах со
-> [слабой моделью памяти](https://en.wikipedia.org/wiki/Memory_ordering#In_symmetric_multiprocessing_(SMP)_microprocessor_systems),
-> в которых возможно больше интересных эффектов, чем в архитектуре
-> [x86-64](https://en.wikipedia.org/wiki/X86-64).
-> А в случае архитектуры
-> [NUMA](https://en.wikipedia.org/wiki/Non-uniform_memory_access),
-> в которой процессоры организованы в сложную иерархию,
-> стоило бы запустить этот тест несколько раз на наборе неэквивалентных с точки зрения архитектуры пар процессоров ---
-> читатель и писатель в одном NUMA--домене, в разных NUMA--доменах и т.д.
+
+> ##### Как устроен тест в [`kernel/tests/5-sync-4-correlation-point.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/5-sync-4-correlation-point.rs)
 >
 > В этой задаче дополнительные тесты в файле
 > [`kernel/tests/5-sync-4-correlation-point.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/5-sync-4-correlation-point.rs)

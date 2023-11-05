@@ -7,7 +7,7 @@
 
 [`Mapping`](../../doc/kernel/memory/mapping/struct.Mapping.html) содержит уже немного знакомые нам поля:
 
-- [`Mapping::page_table_root`](../../doc/kernel/memory/mapping/struct.Mapping.html#structfield.page_table_root) типа [`PageTable`](../../doc/ku/memory/mmu/type.PageTable.html) --- таблица страниц самого верхнего уровня, корневая в дереве.
+- [`Mapping::page_table_root`](../../doc/kernel/memory/mapping/struct.Mapping.html#structfield.page_table_root) типа [`Frame`](../../doc/ku/memory/frage/type.Frame.html) --- физический фрейм с таблицей страниц самого верхнего уровня, корневой в дереве.
 - [`Mapping::phys2virt`](../../doc/kernel/memory/mapping/struct.Mapping.html#structfield.phys2virt) типа [`Page`](../../doc/ku/memory/frage/type.Page.html) --- начало "окна", в которое отображена вся физическая память.
 
 [`Mapping::phys2virt`](../../doc/kernel/memory/mapping/struct.Mapping.html#structfield.phys2virt)
@@ -403,6 +403,6 @@ fn Mapping::drop_subtree(
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/memory/mapping.rs |   88 +++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 84 insertions(+), 4 deletions(-)
+ kernel/src/memory/mapping.rs | 114 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 105 insertions(+), 9 deletions(-)
 ```

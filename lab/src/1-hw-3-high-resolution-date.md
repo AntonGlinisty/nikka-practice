@@ -244,6 +244,13 @@ Running: `qemu-system-x86_64 -drive format=raw,file=/.../nikka/target/kernel/deb
 ...
 ```
 
+Или через `cargo test`:
+
+```console
+/.../nikka$ cargo test --test 1-hw-3-high-resolution-date -- -gdb tcp::1234 -S
+...
+```
+
 В другой консоли создадим командный файл для gdb с указанием ELF--файла теста:
 ```console
 /.../nikka$ cat > gdbinit-test <<EOF

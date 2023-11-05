@@ -289,6 +289,6 @@ $ (cd kernel; cargo test --test 2-mm-8-main-frame-allocator)
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/memory/main_frame_allocator.rs |  116 ++++++++++++++++++++++++++++--
- 1 file changed, 111 insertions(+), 5 deletions(-)
+ kernel/src/memory/main_frame_allocator.rs | 144 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 133 insertions(+), 11 deletions(-)
 ```

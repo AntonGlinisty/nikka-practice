@@ -186,6 +186,6 @@ $ (cd kernel; cargo test --test 2-mm-1-block --test 2-mm-2-page-allocator)
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/memory/page_allocator.rs |   32 ++++++++++++++++++++++++++++++--
- 1 file changed, 30 insertions(+), 2 deletions(-)
+ kernel/src/memory/page_allocator.rs | 44 ++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 40 insertions(+), 4 deletions(-)
 ```

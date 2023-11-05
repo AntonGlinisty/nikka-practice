@@ -223,6 +223,6 @@ $ (cd kernel; cargo test --test 2-mm-5-map)
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/memory/address_space.rs |   20 +++++++++++++++++---
- 1 file changed, 17 insertions(+), 3 deletions(-)
+ kernel/src/memory/address_space.rs | 57 ++++++++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 48 insertions(+), 9 deletions(-)
 ```

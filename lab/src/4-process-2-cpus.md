@@ -151,6 +151,67 @@ unsafe fn Cpu::get() -> &'static mut Cpu
 Документацию на который можно посмотреть в
 [Rust By Example](https://doc.rust-lang.org/nightly/rust-by-example/unsafe/asm.html) и
 [The Rust Reference](https://doc.rust-lang.org/nightly/reference/inline-assembly.html).
+Можно посмотреть на ассемблерный код, который генерирует Rust для Nikka,
+например:
+
+```x86asm
+$ (cd ku && build --release)
+$ find target/ -name ku\*.s
+target/kernel/release/deps/ku-a5b708644b0b7bda.s
+$ rustfilt < target/kernel/release/deps/ku-a5b708644b0b7bda.s | grep -A20 'globl.*ku::memory::addr::Addr<ku::memory::addr::VirtTag>::is_higher_half'
+	.globl	ku::memory::addr::Addr<ku::memory::addr::VirtTag>::is_higher_half
+	.p2align	4, 0x90
+	.type	ku::memory::addr::Addr<ku::memory::addr::VirtTag>::is_higher_half,@function
+ku::memory::addr::Addr<ku::memory::addr::VirtTag>::is_higher_half:
+.Lfunc_begin191:
+	.loc	26 427 0
+	.cfi_startproc
+	push	rbp
+	.cfi_def_cfa_offset 16
+	.cfi_offset rbp, -16
+	mov	rbp, rsp
+	.cfi_def_cfa_register rbp
+.Ltmp3026:
+	.loc	26 428 9 prologue_end
+	cmp	word ptr [rdi + 6], 0
+	setne	al
+	.loc	26 429 6 epilogue_begin
+	pop	rbp
+	.cfi_def_cfa rsp, 8
+	ret
+.Ltmp3027:
+```
+
+Или поставив дополнительную команду `asm` для `cargo`:
+```x86asm
+$ cargo install cargo-show-asm
+$ cargo asm --package ku --lib --intel "ku::memory::mmu::page_table_root" | head -n20
+    Finished release [optimized] target(s) in 0.08s
+
+.section .text.ku::memory::mmu::page_table_root,"ax",@progbits
+	.globl	ku::memory::mmu::page_table_root
+	.p2align	4, 0x90
+	.type	ku::memory::mmu::page_table_root,@function
+ku::memory::mmu::page_table_root:
+
+	.cfi_startproc
+	push rbx
+	.cfi_def_cfa_offset 16
+	sub rsp, 304
+	.cfi_def_cfa_offset 320
+	.cfi_offset rbx, -16
+	#APP
+
+	mov rbx, cr3
+
+	#NO_APP
+
+	movabs rax, -9223372036854771713
+```
+
+На сайте
+[rust.godbolt.org](https://rust.godbolt.org/z/1PsT7jjnx)
+также можно посмотреть на ассемблерный код, который генерирует Rust.
 
 Также понадобится передать в ассемблерную инструкцию константу, определяющую смещение поля
 [`Cpu::this`](../../doc/kernel/smp/cpu/struct.Cpu.html#structfield.this)

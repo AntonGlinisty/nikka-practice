@@ -62,4 +62,5 @@ Rust имеет те же свойства, но в дополнение пре�
 - [The Rust Programming Language](https://doc.rust-lang.org/book/) --- основная книга по языку, [перевод](https://doc.rust-lang.ru/book/).
 - [The Rust Reference](https://doc.rust-lang.org/reference/) --- подробная документация по языку.
 - [The Rustonomicon](https://doc.rust-lang.org/nomicon/index.html) --- руководство по написанию `unsafe` кода, [перевод](https://github.com/rust-lang-ru/rustonomicon/blob/master/src/SUMMARY.md).
+- [Unsafe Code Guidelines Reference](https://rust-lang.github.io/unsafe-code-guidelines/) --- справочник по написанию `unsafe` кода.
 - [The Embedded Rust Book](https://doc.rust-lang.org/stable/embedded-book/) --- руководство по написанию `no_std` кода.

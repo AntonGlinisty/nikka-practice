@@ -34,11 +34,11 @@
 ### Ориентировочный объём работ этой лабораторки
 
 ```console
- kernel/src/memory/address_space.rs        |   20 ++++-
- kernel/src/memory/boot_frame_allocator.rs |   43 ++++++++++-
- kernel/src/memory/main_frame_allocator.rs |  116 ++++++++++++++++++++++++++++--
- kernel/src/memory/mapping.rs              |   88 +++++++++++++++++++++-
- kernel/src/memory/page_allocator.rs       |   32 +++++++-
- ku/src/memory/block.rs                    |    8 +-
- 6 files changed, 289 insertions(+), 18 deletions(-)
+ kernel/src/memory/address_space.rs        |  57 ++++++++++++++++++++++-----
+ kernel/src/memory/boot_frame_allocator.rs |  50 +++++++++++++++++++++---
+ kernel/src/memory/main_frame_allocator.rs | 144 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++------
+ kernel/src/memory/mapping.rs              | 114 +++++++++++++++++++++++++++++++++++++++++++++++++-----
+ kernel/src/memory/page_allocator.rs       |  44 +++++++++++++++++++--
+ ku/src/memory/block.rs                    |  12 +++++-
+ 6 files changed, 380 insertions(+), 41 deletions(-)
 ```

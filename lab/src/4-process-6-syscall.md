@@ -206,6 +206,10 @@ panicked at 'kernel mode trap #14 - Page Fault, context: { mode: kernel, cs:rip:
 - [`kernel::process::syscall::exit()`](../../doc/kernel/process/syscall/fn.exit.html) с номером [`ku::process::syscall::Syscall::Exit`](../../doc/ku/process/syscall/enum.Syscall.html#variant.Exit) и
 - [`kernel::process::syscall::log_value()`](../../doc/kernel/process/syscall/fn.log_value.html) с номером [`ku::process::syscall::Syscall::LogValue`](../../doc/ku/process/syscall/enum.Syscall.html#variant.LogValue).
 
+Вам может пригодиться структура
+[`kernel::smp::cpu::Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html)
+и её методы.
+
 После выполнения функции, реализующей нужный системный вызов,
 [`syscall()`](../../doc/kernel/process/syscall/fn.syscall.html)
 передаёт управление в функцию
@@ -380,11 +384,37 @@ fn lib::syscall::syscall(
 
 ### Проверьте себя
 
-Запустите тест `4-process-6-syscall` из файла
-[`kernel/tests/4-process-6-syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/4-process-6-syscall.rs):
+Запустите тесты `4-process-6-syscall` и `4-process-4-log-value` из файлов
+[`kernel/tests/4-process-6-syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/4-process-6-syscall.rs) и
+[`kernel/tests/4-process-4-log-value.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/4-process-4-log-value.rs):
 
 ```console
-$ (cd kernel; cargo test --test 4-process-6-syscall)
+$ (cd kernel; cargo test --test 4-process-6-syscall --test 4-process-4-log-value)
+...
+4_process_4_log_value::log_value_implementation-------------
+20:37:26 0 I page allocator init; free_page_count = 33822867456; block = [0v180_0000_0000, 0v7F80_0000_0000), size 126.000 TiB
+20:37:26 0 I duplicate; address_space = "process" @ 0p7E9_9000
+20:37:26 0 I switch to; address_space = "process" @ 0p7E9_9000
+20:37:26 0 D extend mapping; block = [0v1000_0000, 0v1000_8234), size 32.551 KiB; page_block = [0v1000_0000, 0v1000_9000), size 36.000 KiB
+20:37:26 0 D elf loadable program header; file_block = [0v20_3000, 0v20_B234), size 32.551 KiB; memory_block = [0v1000_0000, 0v1000_8234), size 32.551 KiB
+20:37:26 0 D extend mapping; block = [0v1000_9000, 0v1004_F303), size 280.753 KiB; page_block = [0v1000_9000, 0v1005_0000), size 284.000 KiB
+20:37:26 0 D elf loadable program header; file_block = [0v20_B240, 0v25_2303), size 284.190 KiB; memory_block = [0v1000_8240, 0v1004_F303), size 284.190 KiB
+20:37:26 0 D elf loadable program header; file_block = [0v25_2308, 0v25_23D0), size 200 B; memory_block = [0v1004_F308, 0v1004_F3D0), size 200 B
+20:37:26 0 D extend mapping; block = [0v1005_0000, 0v1005_5F90), size 23.891 KiB; page_block = [0v1005_0000, 0v1005_6000), size 24.000 KiB
+20:37:26 0 D elf loadable program header; file_block = [0v25_23D0, 0v25_8F68), size 26.898 KiB; memory_block = [0v1004_F3D0, 0v1005_5F90), size 26.938 KiB
+20:37:26 0 I switch to; address_space = "base" @ 0p1000
+20:37:26 0 I loaded ELF file; context = { rip: 0v1000_8F60, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.613 MiB; process = { pid: <current>, address_space: "process" @ 0p7E9_9000, { rip: 0v1000_8F60, rsp: 0v7F7F_FFFF_F000 } }
+20:37:26 0 I user process page table entry; entry_point = 0v1000_8F60; frame = Frame(32321 @ 0p7E4_1000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:37:26 0 D process_frames = 148
+20:37:26 0 I switch to; address_space = "0:0" @ 0p7E9_9000
+20:37:26 0 I https://en.wikipedia.org/wiki/Pi#/media/File:Pi_pie2.jpg; value = 3141592653589793238; hex_value = 0x2B992DDFA23249D6; pid = 0:0
+20:37:26 0 I ; value = 0; hex_value = 0x0; pid = 0:0
+20:37:26 0 D dropping; spinlock = kernel/tests/4-process-4-log-value.rs:36:19; stats = Stats { failures: 0, locks: 11, unlocks: 11, waits: 0 }
+20:37:26 0 D dropping; spinlock = kernel/src/process/process.rs:65:28; stats = Stats { failures: 0, locks: 1, unlocks: 1, waits: 0 }
+20:37:26 0 I switch to; address_space = "base" @ 0p1000
+20:37:26 0 I drop the current address space; address_space = "0:0" @ 0p7E9_9000; switch_to = "base" @ 0p1000
+4_process_4_log_value::log_value_implementation---- [passed]
+20:37:26 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ...
 4_process_6_syscall::syscall_exit---------------------------
 20:37:34 0 I page allocator init; free_page_count = 33822867456; block = [0v180_0000_0000, 0v7F80_0000_0000), size 126.000 TiB
@@ -450,6 +480,7 @@ Page Fault на чтении `0v1` в режиме пользователя (н�
 В журнале выше этого Page Fault должно быть написано, что ему не нравится,
 если конечно `log_value()` хоть немного работает.
 Например, --- `expected Err(InvalidArgument), got Ok`:
+
 ```console
 ...
 06:00:33 0 I expected Err(InvalidArgument), got Ok; value = 0; hex_value = 0x0; pid = 0:0
@@ -458,6 +489,7 @@ Page Fault на чтении `0v1` в режиме пользователя (н�
 panicked at 'the user mode code has detected an error in syscall::log_value() implementation', kernel/tests/4-process-6-syscall.rs:60:5
 --------------------------------------------------- [failed]
 ```
+
 Либо можно по коду теста в файле
 [`user/log_value/src/main.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/user/log_value/src/main.rs)
 посмотреть какая проверка не прошла.

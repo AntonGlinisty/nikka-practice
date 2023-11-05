@@ -113,6 +113,7 @@ main
 _start
 /.../nikka/user/lib/src/lib.rs:60:19
 ```
+Или же можно использовать утилиту `addr2line`.
 
 Если вы хотите добавить журналирование backtrace, это можно сделать с помощью
 [`ku::backtrace::Backtrace`](../../doc/ku/backtrace/struct.Backtrace.html):
