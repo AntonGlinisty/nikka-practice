@@ -20,6 +20,7 @@ use core::{
 use ku::{
     log::{
         debug,
+        error,
         info,
     },
     memory::{
@@ -58,6 +59,7 @@ fn generate_page_fault() -> ! {
 macro_rules! my_assert {
     ($condition:expr $(,)?) => {{
         if !$condition {
+            error!(condition = stringify!($condition), "assert failed");
             generate_page_fault();
         }
     }};
