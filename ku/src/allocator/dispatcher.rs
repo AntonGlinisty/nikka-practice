@@ -338,12 +338,10 @@ impl fmt::Display for DetailedInfo {
 
         write!(
             formatter,
-            "{{{}valid: {},{}total: {},{}fallback: {}",
+            "{{{0}valid: {1},{0}total: {2},{0}fallback: {3}",
             separator,
             self.is_valid(),
-            separator,
             self.total,
-            separator,
             self.fallback,
         )?;
 
@@ -352,6 +350,41 @@ impl fmt::Display for DetailedInfo {
                 let size = get_size(index);
                 write!(formatter, ",{separator}size_{size}: {fixed_size}")?;
             }
+        }
+
+        if formatter.alternate() && self.total.allocated().positive() > 0 {
+            assert!(self.total.allocations().positive() > 0);
+            assert!(self.total.pages().positive() > 0);
+
+            let total_allocations = self.total.allocations().positive() as f64;
+            let total_allocated = self.total.allocated().positive() as f64;
+            let total_pages = self.total.pages().positive() as f64;
+
+            let format_ratio = |formatter: &mut fmt::Formatter, info: &Info| {
+                write!(
+                    formatter,
+                    "{{ allocations: {:.3}%, allocated: {:.3}%, pages: {:.3}% }}",
+                    info.allocations().positive() as f64 / total_allocations * 100.0,
+                    info.allocated().positive() as f64 / total_allocated * 100.0,
+                    info.pages().positive() as f64 / total_pages * 100.0,
+                )
+            };
+
+            write!(
+                formatter,
+                ",{separator}allotment: {{{separator}    fallback: ",
+            )?;
+            format_ratio(formatter, &self.fallback)?;
+
+            for (index, fixed_size) in self.fixed_size.iter().enumerate() {
+                if fixed_size.allocations().positive() > 0 {
+                    let size = get_size(index);
+                    write!(formatter, ",{separator}    size_{size}: ")?;
+                    format_ratio(formatter, fixed_size)?;
+                }
+            }
+
+            write!(formatter, ",{separator}}}")?;
         }
 
         let separator = if formatter.alternate() {
