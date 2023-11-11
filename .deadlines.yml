@@ -320,6 +320,7 @@
 
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-3-elf.html
       allow_list: &allow_lab_4
+        - kernel/src/allocator/big.rs
         - kernel/src/memory/address_space.rs
         - kernel/src/memory/boot_frame_allocator.rs
         - kernel/src/memory/main_frame_allocator.rs
@@ -327,7 +328,13 @@
         - kernel/src/memory/page_allocator.rs
         - kernel/src/process/registers.rs
         - kernel/src/process/syscall.rs
+        - kernel/src/smp/ap_init.rs
+        - kernel/src/smp/cpu.rs
+        - kernel/src/smp/local_apic.rs
         - kernel/src/time/rtc.rs
+        - ku/src/allocator/big.rs
+        - ku/src/allocator/dispatcher.rs
+        - ku/src/allocator/fixed_size.rs
         - ku/src/memory/block.rs
         - ku/src/process/elf.rs
         - ku/src/sync/sequence_lock.rs
@@ -397,6 +404,7 @@
 
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/6-um-1-pipe.html
       allow_list: &allow_lab_5
+        - kernel/src/allocator/big.rs
         - kernel/src/memory/address_space.rs
         - kernel/src/memory/boot_frame_allocator.rs
         - kernel/src/memory/main_frame_allocator.rs
@@ -413,6 +421,8 @@
         - kernel/src/smp/local_apic.rs
         - kernel/src/time/rtc.rs
         - ku/src/allocator/big.rs
+        - ku/src/allocator/dispatcher.rs
+        - ku/src/allocator/fixed_size.rs
         - ku/src/memory/block.rs
         - ku/src/process/elf.rs
         - ku/src/ipc/pipe.rs
@@ -470,6 +480,7 @@
 
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-1-block-cache.html
       allow_list: &allow_lab_6
+        - kernel/src/allocator/big.rs
         - kernel/src/fs/block_bitmap.rs
         - kernel/src/fs/block_cache.rs
         - kernel/src/fs/file_system.rs
@@ -490,6 +501,8 @@
         - kernel/src/smp/local_apic.rs
         - kernel/src/time/rtc.rs
         - ku/src/allocator/big.rs
+        - ku/src/allocator/dispatcher.rs
+        - ku/src/allocator/fixed_size.rs
         - ku/src/memory/block.rs
         - ku/src/process/elf.rs
         - ku/src/ipc/pipe.rs
