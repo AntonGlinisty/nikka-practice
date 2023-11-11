@@ -37,7 +37,7 @@ fn full_capacity() {
     let mut pids = Vec::with_capacity(PROCESS_SLOT_COUNT);
     let mut slots = Vec::with_capacity(PROCESS_SLOT_COUNT);
 
-    let _guard = forbid_frame_leaks();
+    let frame_leak_guard = forbid_frame_leaks();
 
     while pids.len() < PROCESS_SLOT_COUNT {
         let pid = dummy_process().expect("failed to create the test process");
@@ -48,8 +48,7 @@ fn full_capacity() {
     dummy_process().expect_err("the process table is bigger than it should be");
 
     slice::heapsort(slots.as_mut_slice(), |a, b| a < b);
-    let slots_have_expected_range =
-        slots.into_iter().enumerate().all(|(index, slot)| index == slot);
+    let slots_have_expected_range = slots.iter().enumerate().all(|(index, slot)| index == *slot);
     assert!(slots_have_expected_range);
 
     let mut prev_pid = pids[0];
@@ -69,4 +68,10 @@ fn full_capacity() {
     while let Some(pid) = pids.pop() {
         process_helpers::free(pid);
     }
+
+    // Ensure that the vectors outlive the frame leak guard so it will not account
+    // for both their allocate and deallocate.
+    drop(frame_leak_guard);
+    drop(slots);
+    drop(pids);
 }
