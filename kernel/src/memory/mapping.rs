@@ -251,10 +251,16 @@ impl Drop for Mapping {
 
 #[doc(hidden)]
 pub(super) mod test_scaffolding {
-    use super::{
-        super::Page,
-        Mapping,
+    use super::super::{
+        Page,
+        mmu::PageTable,
     };
+
+    pub use super::Mapping;
+
+    pub fn page_table_root(mapping: &Mapping) -> &PageTable {
+        unsafe { mapping.page_table_ref(mapping.page_table_root()) }
+    }
 
     pub fn phys2virt(mapping: &Mapping) -> Page {
         mapping.phys2virt

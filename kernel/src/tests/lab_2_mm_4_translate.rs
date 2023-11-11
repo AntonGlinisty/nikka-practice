@@ -7,12 +7,19 @@ use kernel::{
         Frame,
         Virt,
         mmu::{
+            KERNEL_RW,
             PAGE_OFFSET_BITS,
+            PAGE_TABLE_INDEX_BITS,
+            PAGE_TABLE_INDEX_MASK,
+            PAGE_TABLE_ROOT_LEVEL,
             PageTableFlags,
+            USER_RW,
         },
         test_scaffolding::{
+            Mapping,
             forbid_frame_leaks,
             mapping,
+            page_table_root,
             phys2virt,
             phys2virt_map,
         },
@@ -88,6 +95,28 @@ fn map_intermediate() {
     debug!(?pte);
 
     let end_free_frames = frame_allocator.count();
-
     assert_ne!(start_free_frames, end_free_frames);
+
+    check_intermediate_flags(mapping, virt, PageTableFlags::PRESENT);
+
+    for flags in [KERNEL_RW, USER_RW] {
+        mapping.translate(virt, None, flags).unwrap();
+        check_intermediate_flags(mapping, virt, flags);
+    }
+
+    fn check_intermediate_flags(
+        mapping: &Mapping,
+        virt: Virt,
+        expected_flags: PageTableFlags,
+    ) {
+        let page_table_root_index_shift =
+            PAGE_TABLE_ROOT_LEVEL * PAGE_TABLE_INDEX_BITS + PAGE_OFFSET_BITS;
+        let page_table_root_index =
+            (virt.into_usize() >> page_table_root_index_shift) & PAGE_TABLE_INDEX_MASK;
+        let intermediate_flags = page_table_root(&mapping)[page_table_root_index].flags();
+        assert_eq!(
+            intermediate_flags, expected_flags,
+            "intermediate page table flags are incorrect",
+        );
+    }
 }
