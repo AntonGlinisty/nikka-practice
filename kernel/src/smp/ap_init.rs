@@ -74,6 +74,13 @@ pub(super) fn boot_ap(
     phys2virt: Page,
     cpu: &mut Cpu,
 ) -> Result<()> {
+    let code_size = switch_mode_code_size();
+    let code_size_is_unrealistic = code_size < 8;
+    if code_size_is_unrealistic {
+        debug!(cpu = cpu.id(), %code_size, "AP init does not seem to be implemented, skipping it");
+        return Ok(());
+    }
+
     let timer = time::timer();
     let initialized = AtomicBool::new(false);
 
