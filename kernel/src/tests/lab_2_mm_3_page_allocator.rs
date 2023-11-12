@@ -12,7 +12,6 @@ use kernel::{
         Virt,
         test_scaffolding::{
             forbid_frame_leaks,
-            page_allocator_allocate,
             page_allocator_block,
         },
     },
@@ -42,7 +41,7 @@ fn allocate_block() {
 
     for size in (1 ..= 3 * Page::SIZE).filter(|x| (x + 3) % Page::SIZE < 6) {
         let free_page_count = page_allocator_block(&address_space).count();
-        let allocated = page_allocator_allocate(&mut address_space, size).unwrap();
+        let allocated = address_space.allocate(size).unwrap();
         let allocated_page_count = free_page_count - page_allocator_block(&address_space).count();
 
         debug!(requested = %Size::new::<Virt>(size), %allocated, allocated_page_count);

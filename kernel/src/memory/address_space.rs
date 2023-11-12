@@ -614,13 +614,6 @@ pub(super) mod test_scaffolding {
         &mut address_space.mapping
     }
 
-    pub fn page_allocator_allocate(
-        address_space: &mut AddressSpace,
-        size: usize,
-    ) -> Result<Block<Page>> {
-        address_space.page_allocator.allocate(size)
-    }
-
     pub fn page_allocator_block(address_space: &AddressSpace) -> Block<Page> {
         block(&address_space.page_allocator)
     }
