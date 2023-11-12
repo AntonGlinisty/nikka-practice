@@ -258,8 +258,8 @@ pub(super) mod test_scaffolding {
 
     pub use super::Mapping;
 
-    pub fn page_table_root(mapping: &Mapping) -> &PageTable {
-        unsafe { mapping.page_table_ref(mapping.page_table_root()) }
+    pub fn page_table_root(mapping: &mut Mapping) -> &mut PageTable {
+        unsafe { mapping.page_table_mut(mapping.page_table_root()) }
     }
 
     pub fn phys2virt(mapping: &Mapping) -> Page {

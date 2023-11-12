@@ -65,6 +65,7 @@ use crate::{
 
 use boot_frame_allocator::BootFrameAllocator;
 use frame_allocator::FrameAllocator;
+use mapping::Mapping;
 
 pub use addr::{
     Phys,
@@ -111,7 +112,6 @@ pub(crate) use tss::{
 #[allow(unused)]
 use self::{
     main_frame_allocator::MainFrameAllocator,
-    mapping::Mapping,
     page_allocator::PageAllocator,
     stack::ExceptionStacks,
 };
@@ -136,7 +136,8 @@ pub(super) fn init(
     }
 
     if subsystems.contains(Subsystems::VIRT_MEMORY) {
-        *BASE_ADDRESS_SPACE.lock() = AddressSpace::new(phys2virt);
+        let page_table_root = Mapping::current_page_table_root();
+        *BASE_ADDRESS_SPACE.lock() = AddressSpace::new(page_table_root, phys2virt);
     }
 
     if subsystems.contains(Subsystems::MAIN_FRAME_ALLOCATOR) {

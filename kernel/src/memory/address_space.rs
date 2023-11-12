@@ -70,8 +70,11 @@ pub struct AddressSpace {
 
 impl AddressSpace {
     /// Инициализирует виртуальное адресное пространство текущим страничным отображением.
-    pub(super) fn new(phys2virt: Page) -> Self {
-        let mapping = Mapping::new(Mapping::current_page_table_root(), phys2virt);
+    pub(super) fn new(
+        page_table_root: Frame,
+        phys2virt: Page,
+    ) -> Self {
+        let mapping = Mapping::new(page_table_root, phys2virt);
         let page_allocator =
             PageAllocator::new(unsafe { mapping.page_table_ref(mapping.page_table_root()) });
 
@@ -555,6 +558,7 @@ pub(super) mod test_scaffolding {
     use super::{
         super::{
             Block,
+            Frame,
             Page,
             Virt,
             mmu::PageTableFlags,
@@ -563,6 +567,13 @@ pub(super) mod test_scaffolding {
         AddressSpace,
         Mapping,
     };
+
+    pub fn new_address_space(
+        page_table_root: Frame,
+        phys2virt: Page,
+    ) -> AddressSpace {
+        AddressSpace::new(page_table_root, phys2virt)
+    }
 
     pub unsafe fn map_page(
         address_space: &mut AddressSpace,

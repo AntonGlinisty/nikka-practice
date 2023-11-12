@@ -105,7 +105,7 @@ fn map_intermediate() {
     }
 
     fn check_intermediate_flags(
-        mapping: &Mapping,
+        mapping: &mut Mapping,
         virt: Virt,
         expected_flags: PageTableFlags,
     ) {
@@ -113,7 +113,7 @@ fn map_intermediate() {
             PAGE_TABLE_ROOT_LEVEL * PAGE_TABLE_INDEX_BITS + PAGE_OFFSET_BITS;
         let page_table_root_index =
             (virt.into_usize() >> page_table_root_index_shift) & PAGE_TABLE_INDEX_MASK;
-        let intermediate_flags = page_table_root(&mapping)[page_table_root_index].flags();
+        let intermediate_flags = page_table_root(mapping)[page_table_root_index].flags();
         assert_eq!(
             intermediate_flags, expected_flags,
             "intermediate page table flags are incorrect",

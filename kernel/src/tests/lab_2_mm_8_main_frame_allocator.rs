@@ -19,6 +19,7 @@ use kernel::{
         Virt,
         mmu::{
             self,
+            FULL_ACCESS,
             PAGE_TABLE_ENTRY_COUNT,
             PAGE_TABLE_ROOT_LEVEL,
             PageTableEntry,
@@ -29,6 +30,9 @@ use kernel::{
             forbid_frame_leaks,
             map_page,
             mapping,
+            new_address_space,
+            page_table_root,
+            phys2virt,
             switch_to,
             unmap_page,
         },
@@ -372,6 +376,32 @@ fn duplicate_and_drop_mapping() {
 
     unsafe {
         address_space.unmap_slice(variable).unwrap();
+    }
+}
+
+#[test_case]
+fn all_frames_are_freed_on_drop() {
+    const PAGES_PER_ROOT_LEVEL_ENTRY: usize = PAGE_TABLE_ENTRY_COUNT.pow(PAGE_TABLE_ROOT_LEVEL);
+
+    let _guard = forbid_frame_leaks();
+
+    let page_table_root_frame = FRAME_ALLOCATOR.lock().allocate().unwrap();
+    let phys2virt = phys2virt(mapping(&mut BASE_ADDRESS_SPACE.lock()));
+    let mut address_space = new_address_space(page_table_root_frame, phys2virt);
+
+    page_table_root(mapping(&mut address_space)).fill(PageTableEntry::default());
+
+    for (i, flags) in (0 ..= FULL_ACCESS.bits())
+        .map(PageTableFlags::from_bits_truncate)
+        .filter(|flags| flags.contains(PageTableFlags::PRESENT))
+        .enumerate()
+    {
+        let page = Page::from_index(i * PAGES_PER_ROOT_LEVEL_ENTRY).unwrap();
+        unsafe {
+            map_page(&mut address_space, page, flags).unwrap();
+        }
+        let frame = translate(&mut address_space, page.address()).frame().unwrap();
+        debug!(%page, %frame, ?flags);
     }
 }
 
