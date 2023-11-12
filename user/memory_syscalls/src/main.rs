@@ -55,7 +55,7 @@ fn main() {
     info!(test_case = "grow_and_shrink");
     memory_allocator_grow_and_shrink();
 
-    info!(test_case = "memory_allocator_stress");
+    info!(test_case = "stress");
     memory_allocator_stress(10_000);
 }
 

@@ -252,16 +252,13 @@ impl Process {
         let pid = process.pid;
 
         process.address_space.get_mut().switch_to();
-        debug!("switched to address_space");
 
         if let Ok(info) = unsafe { process.info() } {
             info.set_pid(pid);
         }
-        debug!("set pid");
 
         Cpu::set_current_process(Some(pid));
 
-        debug!("set current_process");
         let registers = &mut process.registers as *mut Registers;
 
         process.state = State::Running;

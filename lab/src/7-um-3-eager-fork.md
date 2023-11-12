@@ -303,415 +303,456 @@ fn eager_fork() -> Result<bool>
 ```console
 $ (cd kernel; cargo test --test 6-um-3-eager-fork)
 ...
-6_um_3_eager_fork::exofork_syscall--------------------------
-15:26:59 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-15:26:59 0 I duplicate; address_space = "process" @ 0p7E0A000
-15:26:59 0 I switch to; address_space = "process" @ 0p7E0A000
-15:26:59 0 D extend mapping; block = [0v10000000, 0v10007644), size 29.566 KiB; page_block = [0v10000000, 0v10008000), size 32.000 KiB; flags =   R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-15:26:59 0 D elf loadable program header; file_block = [0v2016D9, 0v208D1D), size 29.566 KiB; memory_block = [0v10000000, 0v10007644), size 29.566 KiB; flags =   R
-15:26:59 0 D extend mapping; block = [0v10008000, 0v100547CD), size 305.950 KiB; page_block = [0v10008000, 0v10055000), size 308.000 KiB; flags = X R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-15:26:59 0 D elf loadable program header; file_block = [0v208D29, 0v255EA6), size 308.372 KiB; memory_block = [0v10007650, 0v100547CD), size 308.372 KiB; flags = X R
-15:26:59 0 D elf loadable program header; file_block = [0v255EA9, 0v255F99), size 240 B; memory_block = [0v100547D0, 0v100548C0), size 240 B; flags =  WR
-15:26:59 0 D extend mapping; block = [0v10055000, 0v1005AAE0), size 22.719 KiB; page_block = [0v10055000, 0v1005B000), size 24.000 KiB; flags =  WR; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-15:26:59 0 D elf loadable program header; file_block = [0v255F99, 0v25C191), size 24.492 KiB; memory_block = [0v100548C0, 0v1005AAE0), size 24.531 KiB; flags =  WR
-15:26:59 0 I switch to; address_space = "base" @ 0p1000
-15:26:59 0 I loaded ELF file; context = { rip: 0v10007BC0, rsp: 0v7F7FFFFFF000 }; file_size = 5.474 MiB; process = { pid: <current>, address_space: "process" @ 0p7E0A000, { rip: 0v10007BC0, rsp: 0v7F7FFFFFF000 } }
-15:26:59 0 I allocate; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E0A000, { rip: 0v10007BC0, rsp: 0v7F7FFFFFF000 } }; process_count = 1
-15:26:59 0 I user process page table entry; entry_point = 0v10007BC0; frame = Frame(32234 @ 0p7DEA000); flags = PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY
-15:26:59 0 D process_frames = 152
-15:26:59 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-15:26:59 0 I duplicate; address_space = "process" @ 0p7D72000
-15:26:59 0 I switch to; address_space = "process" @ 0p7D72000
-15:26:59 0 D extend mapping; block = [0v10000000, 0v10007644), size 29.566 KiB; page_block = [0v10000000, 0v10008000), size 32.000 KiB; flags =   R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-15:26:59 0 D elf loadable program header; file_block = [0v2016D9, 0v208D1D), size 29.566 KiB; memory_block = [0v10000000, 0v10007644), size 29.566 KiB; flags =   R
-15:26:59 0 D extend mapping; block = [0v10008000, 0v100547CD), size 305.950 KiB; page_block = [0v10008000, 0v10055000), size 308.000 KiB; flags = X R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-15:26:59 0 D elf loadable program header; file_block = [0v208D29, 0v255EA6), size 308.372 KiB; memory_block = [0v10007650, 0v100547CD), size 308.372 KiB; flags = X R
-15:26:59 0 D elf loadable program header; file_block = [0v255EA9, 0v255F99), size 240 B; memory_block = [0v100547D0, 0v100548C0), size 240 B; flags =  WR
-15:26:59 0 D extend mapping; block = [0v10055000, 0v1005AAE0), size 22.719 KiB; page_block = [0v10055000, 0v1005B000), size 24.000 KiB; flags =  WR; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-15:26:59 0 D elf loadable program header; file_block = [0v255F99, 0v25C191), size 24.492 KiB; memory_block = [0v100548C0, 0v1005AAE0), size 24.531 KiB; flags =  WR
-15:27:00.013 0 I switch to; address_space = "base" @ 0p1000
-15:27:00.017 0 I loaded ELF file; context = { rip: 0v10007BC0, rsp: 0v7F7FFFFFF000 }; file_size = 5.474 MiB; process = { pid: <current>, address_space: "process" @ 0p7D72000, { rip: 0v10007BC0, rsp: 0v7F7FFFFFF000 } }
-15:27:00.031 0 I allocate; slot = Process { pid: 1:0, address_space: "1:0" @ 0p7D72000, { rip: 0v10007BC0, rsp: 0v7F7FFFFFF000 } }; process_count = 2
-15:27:00.041 0 I user process page table entry; entry_point = 0v10007BC0; frame = Frame(32082 @ 0p7D52000); flags = PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY
-15:27:00.055 0 D process_frames = 152
-15:27:00.059 0 I switch to; address_space = "0:0" @ 0p7E0A000
-15:27:00.153 0 I page allocator init; free_page_count = 33688649728; block = [0v18000000000, 0v7F0000000000), size 125.500 TiB
-15:27:00.161 0 I duplicate; address_space = "process" @ 0p7CDA000
-15:27:00.167 0 I switch to; address_space = "process" @ 0p7CDA000
-15:27:00.173 0 I switch to; address_space = "0:0" @ 0p7E0A000
-15:27:00.179 0 I allocate; slot = Process { pid: 2:0, address_space: "2:0" @ 0p7CDA000, { rip: 0v0, rsp: 0v0 } }; process_count = 3
-15:27:00.189 0 I syscall = "exofork"; process = 0:0; child = 2:0
-15:27:00.195 0 D child_pid = 2:0
-15:27:00.199 0 D child = { pid: 2:0, address_space: "2:0" @ 0p7CDA000, { rip: 0v0, rsp: 0v0 } }
-15:27:00.211 0 I free; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E0A000, { rip: 0v10007BC0, rsp: 0v7F7FFFFFF000 } }; process_count = 2
-15:27:00.219 0 I switch to; address_space = "base" @ 0p1000
-15:27:00.225 0 I drop the current address space; address_space = "0:0" @ 0p7E0A000; switch_to = "base" @ 0p1000
-15:27:00.293 0 I free; slot = Process { pid: 1:0, address_space: "1:0" @ 0p7D72000, { rip: 0v10007BC0, rsp: 0v7F7FFFFFF000 } }; process_count = 1
-15:27:00.303 0 I drop; address_space = "1:0" @ 0p7D72000
-15:27:00.367 0 I dequeue; pid = Some(2:0)
-15:27:00.373 0 I switch to; address_space = "2:0" @ 0p7CDA000
-15:27:00.379 0 D entering the user mode; pid = 2:0; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7EFFFFFFB000, { mode: user, cs:rip: 0x0023:0v0, ss:rsp: 0x001B:0v0, rflags: IF } }
-15:27:00.395 0 D trap = "Page Fault"; context = { mode: user, cs:rip: 0x0023:0v0, ss:rsp: 0x001B:0v0, rflags: IF }; info = { address: 0v0, code: 0b10100 = non-present page | execute | user }
-15:27:00.425 0 I user mode trap; trap = "Page Fault"; number = 14; info = { address: 0v0, code: 0b10100 = non-present page | execute | user }; context = { mode: user, cs:rip: 0x0023:0v0, ss:rsp: 0x001B:0v0, rflags: IF }; pid = 2:0
-15:27:00.441 0 I free; slot = Process { pid: 2:0, address_space: "2:0" @ 0p7CDA000, { rip: 0v0, rsp: 0v0 } }; process_count = 0
-15:27:00.451 0 I switch to; address_space = "base" @ 0p1000
-15:27:00.457 0 I drop the current address space; address_space = "2:0" @ 0p7CDA000; switch_to = "base" @ 0p1000
-15:27:00.529 0 D leaving the user mode; pid = 2:0
-15:27:00.535 0 I dequeue; pid = None
-6_um_3_eager_fork::exofork_syscall----------------- [passed]
+6_um_3_eager_fork::t1_exofork_syscall-----------------------
+20:54:40.213 0 I page allocator init; free_page_count = 33822867456; block = [0v180_0000_0000, 0v7F80_0000_0000), size 126.000 TiB
+20:54:40.223 0 I duplicate; address_space = "process" @ 0p7E2_6000
+20:54:40.227 0 I switch to; address_space = "process" @ 0p7E2_6000
+20:54:40.237 0 D extend mapping; block = [0v1000_0000, 0v1000_8C9C), size 35.152 KiB; page_block = [0v1000_0000, 0v1000_9000), size 36.000 KiB
+20:54:40.245 0 D elf loadable program header; file_block = [0v20_4000, 0v20_CC9C), size 35.152 KiB; memory_block = [0v1000_0000, 0v1000_8C9C), size 35.152 KiB
+20:54:40.275 0 D extend mapping; block = [0v1000_9000, 0v1005_557B), size 305.370 KiB; page_block = [0v1000_9000, 0v1005_6000), size 308.000 KiB
+20:54:40.283 0 D elf loadable program header; file_block = [0v20_CCA0, 0v25_957B), size 306.214 KiB; memory_block = [0v1000_8CA0, 0v1005_557B), size 306.214 KiB
+20:54:40.297 0 D elf loadable program header; file_block = [0v25_9580, 0v25_9650), size 208 B; memory_block = [0v1005_5580, 0v1005_5650), size 208 B
+20:54:40.305 0 D extend mapping; block = [0v1005_6000, 0v1005_C9A0), size 26.406 KiB; page_block = [0v1005_6000, 0v1005_D000), size 28.000 KiB
+20:54:40.311 0 D elf loadable program header; file_block = [0v25_9650, 0v26_0978), size 28.789 KiB; memory_block = [0v1005_5650, 0v1005_C9A0), size 28.828 KiB
+20:54:40.343 0 I switch to; address_space = "base" @ 0p1000
+20:54:40.347 0 I loaded ELF file; context = { rip: 0v1000_9E40, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.701 MiB; process = { pid: <current>, address_space: "process" @ 0p7E2_6000, { rip: 0v1000_9E40, rsp: 0v7F7F_FFFF_F000 } }
+20:54:40.361 0 I allocate; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E2_6000, { rip: 0v1000_9E40, rsp: 0v7F7F_FFFF_F000 } }; process_count = 1
+20:54:40.371 0 I user process page table entry; entry_point = 0v1000_9E40; frame = Frame(32259 @ 0p7E0_3000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:54:40.383 0 D process_frames = 158
+20:54:41.007 0 I page allocator init; free_page_count = 33822867456; block = [0v180_0000_0000, 0v7F80_0000_0000), size 126.000 TiB
+20:54:41.015 0 I duplicate; address_space = "process" @ 0p7D8_8000
+20:54:41.017 0 I switch to; address_space = "process" @ 0p7D8_8000
+20:54:41.023 0 D extend mapping; block = [0v1000_0000, 0v1000_8C9C), size 35.152 KiB; page_block = [0v1000_0000, 0v1000_9000), size 36.000 KiB
+20:54:41.031 0 D elf loadable program header; file_block = [0v20_4000, 0v20_CC9C), size 35.152 KiB; memory_block = [0v1000_0000, 0v1000_8C9C), size 35.152 KiB
+20:54:41.061 0 D extend mapping; block = [0v1000_9000, 0v1005_557B), size 305.370 KiB; page_block = [0v1000_9000, 0v1005_6000), size 308.000 KiB
+20:54:41.069 0 D elf loadable program header; file_block = [0v20_CCA0, 0v25_957B), size 306.214 KiB; memory_block = [0v1000_8CA0, 0v1005_557B), size 306.214 KiB
+20:54:41.083 0 D elf loadable program header; file_block = [0v25_9580, 0v25_9650), size 208 B; memory_block = [0v1005_5580, 0v1005_5650), size 208 B
+20:54:41.091 0 D extend mapping; block = [0v1005_6000, 0v1005_C9A0), size 26.406 KiB; page_block = [0v1005_6000, 0v1005_D000), size 28.000 KiB
+20:54:41.097 0 D elf loadable program header; file_block = [0v25_9650, 0v26_0978), size 28.789 KiB; memory_block = [0v1005_5650, 0v1005_C9A0), size 28.828 KiB
+20:54:41.123 0 I switch to; address_space = "base" @ 0p1000
+20:54:41.127 0 I loaded ELF file; context = { rip: 0v1000_9E40, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.701 MiB; process = { pid: <current>, address_space: "process" @ 0p7D8_8000, { rip: 0v1000_9E40, rsp: 0v7F7F_FFFF_F000 } }
+20:54:41.137 0 I allocate; slot = Process { pid: 1:0, address_space: "1:0" @ 0p7D8_8000, { rip: 0v1000_9E40, rsp: 0v7F7F_FFFF_F000 } }; process_count = 2
+20:54:41.143 0 I user process page table entry; entry_point = 0v1000_9E40; frame = Frame(32101 @ 0p7D6_5000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:54:41.153 0 D process_frames = 158
+20:54:41.155 0 I switch to; address_space = "0:0" @ 0p7E2_6000
+20:54:41.791 0 I page allocator init; free_page_count = 33688649728; block = [0v180_0000_0000, 0v7F00_0000_0000), size 125.500 TiB
+20:54:41.799 0 I duplicate; address_space = "process" @ 0p7CE_A000
+20:54:41.803 0 I switch to; address_space = "process" @ 0p7CE_A000
+20:54:41.809 0 I switch to; address_space = "0:0" @ 0p7E2_6000
+20:54:41.813 0 I allocate; slot = Process { pid: 2:0, address_space: "2:0" @ 0p7CE_A000, { rip: 0v0, rsp: 0v0 } }; process_count = 3
+20:54:41.819 0 I syscall = "exofork"; process = 0:0; child = 2:0
+20:54:41.823 0 D child_pid = 2:0
+20:54:41.827 0 D child = { pid: 2:0, address_space: "2:0" @ 0p7CE_A000, { rip: 0v0, rsp: 0v0 } }
+20:54:41.839 0 I free; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E2_6000, { rip: 0v1000_9E40, rsp: 0v7F7F_FFFF_F000 } }; process_count = 2
+20:54:41.845 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 9, unlocks: 9, waits: 0 }
+20:54:41.853 0 D dropping; spinlock = kernel/src/process/process.rs:65:28; stats = Stats { failures: 0, locks: 5, unlocks: 5, waits: 0 }
+20:54:41.859 0 I switch to; address_space = "base" @ 0p1000
+20:54:41.861 0 I drop the current address space; address_space = "0:0" @ 0p7E2_6000; switch_to = "base" @ 0p1000
+20:54:42.825 0 I free; slot = Process { pid: 1:0, address_space: "1:0" @ 0p7D8_8000, { rip: 0v1000_9E40, rsp: 0v7F7F_FFFF_F000 } }; process_count = 1
+20:54:42.831 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 5, unlocks: 5, waits: 0 }
+20:54:42.837 0 D dropping; spinlock = kernel/src/process/process.rs:65:28; stats = Stats { failures: 0, locks: 3, unlocks: 3, waits: 0 }
+20:54:42.843 0 I drop; address_space = "1:0" @ 0p7D8_8000
+20:54:43.801 0 I dequeue; pid = Some(2:0)
+20:54:43.803 0 I switch to; address_space = "2:0" @ 0p7CE_A000
+20:54:43.817 0 D entering the user mode; pid = 2:0; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7EFFFFFF5000, { mode: user, cs:rip: 0x0023:0v0, ss:rsp: 0x001B:0v0, rflags: IF } }
+20:54:43.841 0 I user mode trap; trap = "Page Fault"; number = 14; info = { address: 0v0, code: 0b10100 = non-present page | execute | user }; context = { mode: user, cs:rip: 0x0023:0v0, ss:rsp: 0x001B:0v0, rflags: IF }; pid = 2:0
+20:54:43.861 0 I free; slot = Process { pid: 2:0, address_space: "2:0" @ 0p7CE_A000, { rip: 0v0, rsp: 0v0 } }; process_count = 0
+20:54:43.871 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 7, unlocks: 7, waits: 0 }
+20:54:43.879 0 D dropping; spinlock = kernel/src/process/process.rs:94:28; stats = Stats { failures: 0, locks: 3, unlocks: 3, waits: 0 }
+20:54:43.887 0 I switch to; address_space = "base" @ 0p1000
+20:54:43.889 0 I drop the current address space; address_space = "2:0" @ 0p7CE_A000; switch_to = "base" @ 0p1000
+20:54:44.001 0 D leaving the user mode; pid = 2:0
+20:54:44.003 0 I dequeue; pid = None
+6_um_3_eager_fork::t1_exofork_syscall-------------- [passed]
 
-6_um_3_eager_fork::eager_fork-------------------------------
-15:27:00.635 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-15:27:00.645 0 I duplicate; address_space = "process" @ 0p7CC4000
-15:27:00.649 0 I switch to; address_space = "process" @ 0p7CC4000
-15:27:00.657 0 D extend mapping; block = [0v10000000, 0v10007A34), size 30.551 KiB; page_block = [0v10000000, 0v10008000), size 32.000 KiB; flags =   R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-15:27:00.671 0 D elf loadable program header; file_block = [0v77B368, 0v782D9C), size 30.551 KiB; memory_block = [0v10000000, 0v10007A34), size 30.551 KiB; flags =   R
-15:27:00.707 0 D extend mapping; block = [0v10008000, 0v1005D3F2), size 340.986 KiB; page_block = [0v10008000, 0v1005E000), size 344.000 KiB; flags = X R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-15:27:00.721 0 D elf loadable program header; file_block = [0v782DA8, 0v7D875A), size 342.424 KiB; memory_block = [0v10007A40, 0v1005D3F2), size 342.424 KiB; flags = X R
-15:27:00.747 0 D elf loadable program header; file_block = [0v7D8760, 0v7D8860), size 256 B; memory_block = [0v1005D3F8, 0v1005D4F8), size 256 B; flags =  WR
-15:27:00.759 0 D extend mapping; block = [0v1005E000, 0v100640A0), size 24.156 KiB; page_block = [0v1005E000, 0v10065000), size 28.000 KiB; flags =  WR; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-15:27:00.771 0 D elf loadable program header; file_block = [0v7D8860, 0v7DF3E0), size 26.875 KiB; memory_block = [0v1005D4F8, 0v100640A0), size 26.914 KiB; flags =  WR
-15:27:00.799 0 I switch to; address_space = "base" @ 0p1000
-15:27:00.803 0 I loaded ELF file; context = { rip: 0v1000F750, rsp: 0v7F7FFFFFF000 }; file_size = 5.763 MiB; process = { pid: <current>, address_space: "process" @ 0p7CC4000, { rip: 0v1000F750, rsp: 0v7F7FFFFFF000 } }
-15:27:00.817 0 I allocate; slot = Process { pid: 2:1, address_space: "2:1" @ 0p7CC4000, { rip: 0v1000F750, rsp: 0v7F7FFFFFF000 } }; process_count = 1
-15:27:00.827 0 I user process page table entry; entry_point = 0v1000F750; frame = Frame(32098 @ 0p7D62000); flags = PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY
-15:27:00.841 0 D process_frames = 162
-15:27:00.845 0 I dequeue; pid = Some(2:1)
-15:27:00.849 0 I switch to; address_space = "2:1" @ 0p7CC4000
-15:27:00.853 0 D entering the user mode; pid = 2:1; registers = { rax: 0x0, rdi: 0x7F7FFFFDB000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v1000F750, ss:rsp: 0x001B:0v7F7FFFFFF000, rflags: IF } }
-15:27:00.873 0 I name = "eager_fork *"; pedigree = [2:1]; len = 1; capacity = 3; pid = 2:1
-15:27:01.021 0 I page allocator init; free_page_count = 33688649728; block = [0v18000000000, 0v7F0000000000), size 125.500 TiB
-15:27:01.029 0 I duplicate; address_space = "process" @ 0p7D4C000
-15:27:01.035 0 I switch to; address_space = "process" @ 0p7D4C000
-15:27:01.041 0 I switch to; address_space = "2:1" @ 0p7CC4000
-15:27:01.047 0 I allocate; slot = Process { pid: 1:1, address_space: "1:1" @ 0p7D4C000, { rip: 0v1000B487, rsp: 0v7F7FFFFFDB08 } }; process_count = 2
-15:27:01.057 0 I syscall = "exofork"; process = 2:1; child = 1:1
-15:27:01.063 0 D leaving the user mode; pid = 2:1
-15:27:01.069 0 I the process was preempted; pid = 2:1; user_context = { mode: user, cs:rip: 0x0023:0v1002759D, ss:rsp: 0x001B:0v7F7FFFFFD968, rflags: IF ZF PF }
-15:27:01.079 0 I returned
-15:27:01.083 0 I dequeue; pid = Some(2:1)
-15:27:01.087 0 I switch to; address_space = "2:1" @ 0p7CC4000
-15:27:01.093 0 D entering the user mode; pid = 2:1; registers = { rax: 0xFE, rdi: 0x10060B38, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v1002759D, ss:rsp: 0x001B:0v7F7FFFFFD968, rflags: IF ZF PF } }
-15:27:01.107 0 I syscall::exofork() done; child = Ok(1:1); pid = 2:1
-15:27:01.289 0 I syscall::set_state(); child = 1:1; result = Ok(()); pid = 2:1
-15:27:01.387 0 I page allocator init; free_page_count = 33688649728; block = [0v18000000000, 0v7F0000000000), size 125.500 TiB
-15:27:01.397 0 I duplicate; address_space = "process" @ 0p7DF2000
-15:27:01.401 0 I switch to; address_space = "process" @ 0p7DF2000
-15:27:01.407 0 I switch to; address_space = "2:1" @ 0p7CC4000
-15:27:01.413 0 I allocate; slot = Process { pid: 0:1, address_space: "0:1" @ 0p7DF2000, { rip: 0v1000B487, rsp: 0v7F7FFFFFDB08 } }; process_count = 3
-15:27:01.423 0 I syscall = "exofork"; process = 2:1; child = 0:1
-15:27:01.427 0 I syscall::exofork() done; child = Ok(0:1); pid = 2:1
-15:27:01.599 0 I syscall::set_state(); child = 0:1; result = Ok(()); pid = 2:1
-15:27:01.711 0 I page allocator init; free_page_count = 33688649728; block = [0v18000000000, 0v7F0000000000), size 125.500 TiB
-15:27:01.721 0 I duplicate; address_space = "process" @ 0p7C1C000
-15:27:01.725 0 I switch to; address_space = "process" @ 0p7C1C000
-15:27:01.733 0 I switch to; address_space = "2:1" @ 0p7CC4000
-15:27:01.739 0 I allocate; slot = Process { pid: 3:0, address_space: "3:0" @ 0p7C1C000, { rip: 0v1000B487, rsp: 0v7F7FFFFFDB08 } }; process_count = 4
-15:27:01.749 0 I syscall = "exofork"; process = 2:1; child = 3:0
-15:27:01.753 0 I syscall::exofork() done; child = Ok(3:0); pid = 2:1
-15:27:01.925 0 I syscall::set_state(); child = 3:0; result = Ok(()); pid = 2:1
-15:27:01.931 0 I free; slot = Process { pid: 2:1, address_space: "2:1" @ 0p7CC4000, { rip: 0v1002759D, rsp: 0v7F7FFFFFD968 } }; process_count = 3
-15:27:01.941 0 I switch to; address_space = "base" @ 0p1000
-15:27:01.945 0 I drop the current address space; address_space = "2:1" @ 0p7CC4000; switch_to = "base" @ 0p1000
-15:27:02.017 0 I syscall = "exit"; pid = 2:1; code = 0; reason = Some(Ok)
-15:27:02.023 0 D leaving the user mode; pid = 2:1
-15:27:02.027 0 I dequeue; pid = Some(1:1)
-15:27:02.031 0 I switch to; address_space = "1:1" @ 0p7D4C000
-15:27:02.037 0 D entering the user mode; pid = 1:1; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7EFFFFFFB000, { mode: user, cs:rip: 0x0023:0v1000B487, ss:rsp: 0x001B:0v7F7FFFFFDB08, rflags: IF } }
-15:27:02.063 0 D leaving the user mode; pid = 1:1
-15:27:02.067 0 I the process was preempted; pid = 1:1; user_context = { mode: user, cs:rip: 0x0023:0v1001D938, ss:rsp: 0x001B:0v7F7FFFFFD1A8, rflags: IF SF PF CF }
-15:27:02.081 0 I returned
-15:27:02.085 0 I dequeue; pid = Some(0:1)
-15:27:02.089 0 I switch to; address_space = "0:1" @ 0p7DF2000
-15:27:02.093 0 D entering the user mode; pid = 0:1; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7EFFFFFFB000, { mode: user, cs:rip: 0x0023:0v1000B487, ss:rsp: 0x001B:0v7F7FFFFFDB08, rflags: IF ZF PF } }
-15:27:02.109 0 I syscall::exofork() done; child = Ok(<current>); pid = 0:1
-15:27:02.121 0 I just created; child = <current>; pid = 0:1; pid = 0:1
-15:27:02.123 0 I name = "eager_fork *1"; pedigree = [2:1, 0:1]; len = 2; capacity = 3; pid = 0:1
-15:27:02.241 0 I page allocator init; free_page_count = 33554432000; block = [0v18000000000, 0v7E8000000000), size 125.000 TiB
-15:27:02.251 0 I duplicate; address_space = "process" @ 0p7CC4000
-15:27:02.255 0 I switch to; address_space = "process" @ 0p7CC4000
-15:27:02.263 0 I switch to; address_space = "0:1" @ 0p7DF2000
-15:27:02.267 0 I allocate; slot = Process { pid: 2:2, address_space: "2:2" @ 0p7CC4000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 4
-15:27:02.277 0 I syscall = "exofork"; process = 0:1; child = 2:2
-15:27:02.283 0 I syscall::exofork() done; child = Ok(2:2); pid = 0:1
-15:27:02.363 0 D leaving the user mode; pid = 0:1
-15:27:02.367 0 I the process was preempted; pid = 0:1; user_context = { mode: user, cs:rip: 0x0023:0v1002C383, ss:rsp: 0x001B:0v7F7FFFFFB9E8, rflags: IF ZF PF }
-15:27:02.377 0 I returned
-15:27:02.381 0 I dequeue; pid = Some(3:0)
-15:27:02.387 0 I switch to; address_space = "3:0" @ 0p7C1C000
-15:27:02.391 0 D entering the user mode; pid = 3:0; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7EFFFFFFB000, { mode: user, cs:rip: 0x0023:0v1000B487, ss:rsp: 0x001B:0v7F7FFFFFDB08, rflags: IF ZF PF } }
-15:27:02.407 0 I syscall::exofork() done; child = Ok(<current>); pid = 3:0
-15:27:02.417 0 I just created; child = <current>; pid = 3:0; pid = 3:0
-15:27:02.421 0 I name = "eager_fork *2"; pedigree = [2:1, 3:0]; len = 2; capacity = 3; pid = 3:0
-15:27:02.549 0 I page allocator init; free_page_count = 33554432000; block = [0v18000000000, 0v7E8000000000), size 125.000 TiB
-15:27:02.559 0 I duplicate; address_space = "process" @ 0p7D0C000
-15:27:02.563 0 I switch to; address_space = "process" @ 0p7D0C000
-15:27:02.571 0 I switch to; address_space = "3:0" @ 0p7C1C000
-15:27:02.577 0 I allocate; slot = Process { pid: 4:0, address_space: "4:0" @ 0p7D0C000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 5
-15:27:02.585 0 I syscall = "exofork"; process = 3:0; child = 4:0
-15:27:02.591 0 I syscall::exofork() done; child = Ok(4:0); pid = 3:0
-15:27:02.663 0 D leaving the user mode; pid = 3:0
-15:27:02.669 0 I the process was preempted; pid = 3:0; user_context = { mode: user, cs:rip: 0x0023:0v1002C383, ss:rsp: 0x001B:0v7F7FFFFFB9E8, rflags: IF ZF PF }
-15:27:02.679 0 I returned
-15:27:02.683 0 I dequeue; pid = Some(1:1)
-15:27:02.687 0 I switch to; address_space = "1:1" @ 0p7D4C000
-15:27:02.693 0 D entering the user mode; pid = 1:1; registers = { rax: 0xD1, rdi: 0x7F7FFFFFD2A8, rsi: 0x7F7FFFFFD6E0, { mode: user, cs:rip: 0x0023:0v1001D938, ss:rsp: 0x001B:0v7F7FFFFFD1A8, rflags: IF SF PF CF } }
-15:27:02.051 0 I syscall::exofork() done; child = Ok(<current>); pid = 1:1
-15:27:02.063 0 I just created; child = <current>; pid = 1:1; pid = 1:1
-15:27:02.711 0 I name = "eager_fork *0"; pedigree = [2:1, 1:1]; len = 2; capacity = 3; pid = 1:1
-15:27:02.841 0 I page allocator init; free_page_count = 33554432000; block = [0v18000000000, 0v7E8000000000), size 125.000 TiB
-15:27:02.851 0 I duplicate; address_space = "process" @ 0p7CFD000
-15:27:02.855 0 I switch to; address_space = "process" @ 0p7CFD000
-15:27:02.861 0 I switch to; address_space = "1:1" @ 0p7D4C000
-15:27:02.867 0 I allocate; slot = Process { pid: 5:0, address_space: "5:0" @ 0p7CFD000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 6
-15:27:02.877 0 I syscall = "exofork"; process = 1:1; child = 5:0
-15:27:02.883 0 I syscall::exofork() done; child = Ok(5:0); pid = 1:1
-15:27:03.061 0 I syscall::set_state(); child = 5:0; result = Ok(()); pid = 1:1
-15:27:03.163 0 I page allocator init; free_page_count = 33554432000; block = [0v18000000000, 0v7E8000000000), size 125.000 TiB
-15:27:03.171 0 I duplicate; address_space = "process" @ 0p7AE8000
-15:27:03.177 0 I switch to; address_space = "process" @ 0p7AE8000
-15:27:03.183 0 I switch to; address_space = "1:1" @ 0p7D4C000
-15:27:03.189 0 I allocate; slot = Process { pid: 6:0, address_space: "6:0" @ 0p7AE8000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 7
-15:27:03.199 0 I syscall = "exofork"; process = 1:1; child = 6:0
-15:27:03.203 0 I syscall::exofork() done; child = Ok(6:0); pid = 1:1
-15:27:03.375 0 I syscall::set_state(); child = 6:0; result = Ok(()); pid = 1:1
-15:27:03.479 0 I page allocator init; free_page_count = 33554432000; block = [0v18000000000, 0v7E8000000000), size 125.000 TiB
-15:27:03.489 0 I duplicate; address_space = "process" @ 0p7A3F000
-15:27:03.493 0 I switch to; address_space = "process" @ 0p7A3F000
-15:27:03.499 0 I switch to; address_space = "1:1" @ 0p7D4C000
-15:27:03.505 0 I allocate; slot = Process { pid: 7:0, address_space: "7:0" @ 0p7A3F000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 8
-15:27:03.515 0 I syscall = "exofork"; process = 1:1; child = 7:0
-15:27:03.519 0 I syscall::exofork() done; child = Ok(7:0); pid = 1:1
-15:27:03.693 0 I syscall::set_state(); child = 7:0; result = Ok(()); pid = 1:1
-15:27:03.701 0 I free; slot = Process { pid: 1:1, address_space: "1:1" @ 0p7D4C000, { rip: 0v1001D938, rsp: 0v7F7FFFFFD1A8 } }; process_count = 7
-15:27:03.709 0 I switch to; address_space = "base" @ 0p1000
-15:27:03.715 0 I drop the current address space; address_space = "1:1" @ 0p7D4C000; switch_to = "base" @ 0p1000
-15:27:03.791 0 I syscall = "exit"; pid = 1:1; code = 0; reason = Some(Ok)
-15:27:03.797 0 D leaving the user mode; pid = 1:1
-15:27:03.801 0 I dequeue; pid = Some(0:1)
-15:27:03.805 0 I switch to; address_space = "0:1" @ 0p7DF2000
-15:27:03.809 0 D entering the user mode; pid = 0:1; registers = { rax: 0xC00, rdi: 0x7EFFFFFA2000, rsi: 0x1002C000, { mode: user, cs:rip: 0x0023:0v1002C383, ss:rsp: 0x001B:0v7F7FFFFFB9E8, rflags: IF ZF PF } }
-15:27:03.953 0 I syscall::set_state(); child = 2:2; result = Ok(()); pid = 0:1
-15:27:04.063 0 I page allocator init; free_page_count = 33554432000; block = [0v18000000000, 0v7E8000000000), size 125.000 TiB
-15:27:04.071 0 I duplicate; address_space = "process" @ 0p7DB3000
-15:27:04.077 0 I switch to; address_space = "process" @ 0p7DB3000
-15:27:04.083 0 I switch to; address_space = "0:1" @ 0p7DF2000
-15:27:04.089 0 I allocate; slot = Process { pid: 1:2, address_space: "1:2" @ 0p7DB3000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 8
-15:27:04.099 0 I syscall = "exofork"; process = 0:1; child = 1:2
-15:27:04.103 0 I syscall::exofork() done; child = Ok(1:2); pid = 0:1
-15:27:04.163 0 D leaving the user mode; pid = 0:1
-15:27:04.167 0 I the process was preempted; pid = 0:1; user_context = { mode: user, cs:rip: 0x0023:0v1002C383, ss:rsp: 0x001B:0v7F7FFFFFB9E8, rflags: IF ZF PF }
-15:27:04.177 0 I returned
-15:27:04.181 0 I dequeue; pid = Some(3:0)
-15:27:04.187 0 I switch to; address_space = "3:0" @ 0p7C1C000
-15:27:04.191 0 D entering the user mode; pid = 3:0; registers = { rax: 0x500, rdi: 0x7EFFFFFD6000, rsi: 0x10012000, { mode: user, cs:rip: 0x0023:0v1002C383, ss:rsp: 0x001B:0v7F7FFFFFB9E8, rflags: IF ZF PF } }
-15:27:04.389 0 I syscall::set_state(); child = 4:0; result = Ok(()); pid = 3:0
-15:27:04.493 0 I page allocator init; free_page_count = 33554432000; block = [0v18000000000, 0v7E8000000000), size 125.000 TiB
-15:27:04.503 0 I duplicate; address_space = "process" @ 0p7940000
-15:27:04.507 0 I switch to; address_space = "process" @ 0p7940000
-15:27:04.515 0 I switch to; address_space = "3:0" @ 0p7C1C000
-15:27:04.519 0 I allocate; slot = Process { pid: 8:0, address_space: "8:0" @ 0p7940000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 9
-15:27:04.529 0 I syscall = "exofork"; process = 3:0; child = 8:0
-15:27:04.535 0 I syscall::exofork() done; child = Ok(8:0); pid = 3:0
-15:27:04.709 0 I syscall::set_state(); child = 8:0; result = Ok(()); pid = 3:0
-15:27:04.815 0 I page allocator init; free_page_count = 33554432000; block = [0v18000000000, 0v7E8000000000), size 125.000 TiB
-15:27:04.823 0 I duplicate; address_space = "process" @ 0p7896000
-15:27:04.829 0 I switch to; address_space = "process" @ 0p7896000
-15:27:04.835 0 I switch to; address_space = "3:0" @ 0p7C1C000
-15:27:04.841 0 I allocate; slot = Process { pid: 9:0, address_space: "9:0" @ 0p7896000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 10
-15:27:04.851 0 I syscall = "exofork"; process = 3:0; child = 9:0
-15:27:04.855 0 I syscall::exofork() done; child = Ok(9:0); pid = 3:0
-15:27:04.863 0 D leaving the user mode; pid = 3:0
-15:27:04.869 0 I the process was preempted; pid = 3:0; user_context = { mode: user, cs:rip: 0x0023:0v1001CD90, ss:rsp: 0x001B:0v7F7FFFFFB7E0, rflags: IF SF AF PF CF }
-15:27:04.881 0 I returned
-15:27:04.885 0 I dequeue; pid = Some(5:0)
-15:27:04.889 0 I switch to; address_space = "5:0" @ 0p7CFD000
-15:27:04.895 0 D entering the user mode; pid = 5:0; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7E7FFFFFB000, { mode: user, cs:rip: 0x0023:0v1000B487, ss:rsp: 0x001B:0v7F7FFFFFD648, rflags: IF SF PF CF } }
-15:27:04.909 0 I syscall::exofork() done; child = Ok(<current>); pid = 5:0
-15:27:04.919 0 I just created; child = <current>; pid = 5:0; pid = 5:0
-15:27:04.923 0 I name = "eager_fork *00"; pedigree = [2:1, 1:1, 5:0]; len = 3; capacity = 3; pid = 5:0
-15:27:04.947 0 I free; slot = Process { pid: 5:0, address_space: "5:0" @ 0p7CFD000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 9
-15:27:04.955 0 I switch to; address_space = "base" @ 0p1000
-15:27:04.961 0 I drop the current address space; address_space = "5:0" @ 0p7CFD000; switch_to = "base" @ 0p1000
-15:27:05.039 0 I syscall = "exit"; pid = 5:0; code = 0; reason = Some(Ok)
-15:27:05.045 0 D leaving the user mode; pid = 5:0
-15:27:05.049 0 I dequeue; pid = Some(6:0)
-15:27:05.053 0 I switch to; address_space = "6:0" @ 0p7AE8000
-15:27:05.059 0 D entering the user mode; pid = 6:0; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7E7FFFFFB000, { mode: user, cs:rip: 0x0023:0v1000B487, ss:rsp: 0x001B:0v7F7FFFFFD648, rflags: IF SF PF CF } }
-15:27:05.073 0 D leaving the user mode; pid = 6:0
-15:27:05.077 0 I the process was preempted; pid = 6:0; user_context = { mode: user, cs:rip: 0x0023:0v1000B487, ss:rsp: 0x001B:0v7F7FFFFFD648, rflags: IF SF PF CF }
-15:27:05.091 0 I returned
-15:27:05.095 0 I dequeue; pid = Some(7:0)
-15:27:05.099 0 I switch to; address_space = "7:0" @ 0p7A3F000
-15:27:05.103 0 D entering the user mode; pid = 7:0; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7E7FFFFFB000, { mode: user, cs:rip: 0x0023:0v1000B487, ss:rsp: 0x001B:0v7F7FFFFFD648, rflags: IF SF PF CF } }
-15:27:05.119 0 I syscall::exofork() done; child = Ok(<current>); pid = 7:0
-15:27:05.129 0 I just created; child = <current>; pid = 7:0; pid = 7:0
-15:27:05.133 0 I name = "eager_fork *02"; pedigree = [2:1, 1:1, 7:0]; len = 3; capacity = 3; pid = 7:0
-15:27:05.155 0 I free; slot = Process { pid: 7:0, address_space: "7:0" @ 0p7A3F000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 8
-15:27:05.165 0 I switch to; address_space = "base" @ 0p1000
-15:27:05.171 0 I drop the current address space; address_space = "7:0" @ 0p7A3F000; switch_to = "base" @ 0p1000
-15:27:05.251 0 I syscall = "exit"; pid = 7:0; code = 0; reason = Some(Ok)
-15:27:05.255 0 D leaving the user mode; pid = 7:0
-15:27:05.261 0 I dequeue; pid = Some(2:2)
-15:27:05.265 0 I switch to; address_space = "2:2" @ 0p7CC4000
-15:27:05.269 0 D entering the user mode; pid = 2:2; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7E7FFFFFB000, { mode: user, cs:rip: 0x0023:0v1000B487, ss:rsp: 0x001B:0v7F7FFFFFD648, rflags: IF ZF PF } }
-15:27:05.285 0 I syscall::exofork() done; child = Ok(<current>); pid = 2:2
-15:27:05.297 0 I just created; child = <current>; pid = 2:2; pid = 2:2
-15:27:05.301 0 I name = "eager_fork *10"; pedigree = [2:1, 0:1, 2:2]; len = 3; capacity = 3; pid = 2:2
-15:27:05.323 0 I free; slot = Process { pid: 2:2, address_space: "2:2" @ 0p7CC4000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 7
-15:27:05.333 0 I switch to; address_space = "base" @ 0p1000
-15:27:05.337 0 I drop the current address space; address_space = "2:2" @ 0p7CC4000; switch_to = "base" @ 0p1000
-15:27:05.417 0 I syscall = "exit"; pid = 2:2; code = 0; reason = Some(Ok)
-15:27:05.423 0 D leaving the user mode; pid = 2:2
-15:27:05.427 0 I dequeue; pid = Some(0:1)
-15:27:05.431 0 I switch to; address_space = "0:1" @ 0p7DF2000
-15:27:05.435 0 D entering the user mode; pid = 0:1; registers = { rax: 0xF00, rdi: 0x7EFFFFED4000, rsi: 0x1000F000, { mode: user, cs:rip: 0x0023:0v1002C383, ss:rsp: 0x001B:0v7F7FFFFFB9E8, rflags: IF ZF PF } }
-15:27:05.625 0 I syscall::set_state(); child = 1:2; result = Ok(()); pid = 0:1
-15:27:05.745 0 I page allocator init; free_page_count = 33554432000; block = [0v18000000000, 0v7E8000000000), size 125.000 TiB
-15:27:05.755 0 I duplicate; address_space = "process" @ 0p7D0F000
-15:27:05.759 0 I switch to; address_space = "process" @ 0p7D0F000
-15:27:05.767 0 I switch to; address_space = "0:1" @ 0p7DF2000
-15:27:05.773 0 I allocate; slot = Process { pid: 2:3, address_space: "2:3" @ 0p7D0F000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 8
-15:27:05.781 0 I syscall = "exofork"; process = 0:1; child = 2:3
-15:27:05.787 0 I syscall::exofork() done; child = Ok(2:3); pid = 0:1
-15:27:05.987 0 I syscall::set_state(); child = 2:3; result = Ok(()); pid = 0:1
-15:27:05.993 0 I free; slot = Process { pid: 0:1, address_space: "0:1" @ 0p7DF2000, { rip: 0v1002C383, rsp: 0v7F7FFFFFB9E8 } }; process_count = 7
-15:27:06.003 0 I switch to; address_space = "base" @ 0p1000
-15:27:06.001 0 I drop the current address space; address_space = "0:1" @ 0p7DF2000; switch_to = "base" @ 0p1000
-15:27:06.077 0 I syscall = "exit"; pid = 0:1; code = 0; reason = Some(Ok)
-15:27:06.081 0 D leaving the user mode; pid = 0:1
-15:27:06.085 0 I dequeue; pid = Some(4:0)
-15:27:06.091 0 I switch to; address_space = "4:0" @ 0p7D0C000
-15:27:06.095 0 D entering the user mode; pid = 4:0; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7E7FFFFFB000, { mode: user, cs:rip: 0x0023:0v1000B487, ss:rsp: 0x001B:0v7F7FFFFFD648, rflags: IF ZF PF } }
-15:27:06.111 0 I syscall::exofork() done; child = Ok(<current>); pid = 4:0
-15:27:06.121 0 I just created; child = <current>; pid = 4:0; pid = 4:0
-15:27:06.125 0 I name = "eager_fork *20"; pedigree = [2:1, 3:0, 4:0]; len = 3; capacity = 3; pid = 4:0
-15:27:06.149 0 I free; slot = Process { pid: 4:0, address_space: "4:0" @ 0p7D0C000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 6
-15:27:06.157 0 I switch to; address_space = "base" @ 0p1000
-15:27:06.163 0 I drop the current address space; address_space = "4:0" @ 0p7D0C000; switch_to = "base" @ 0p1000
-15:27:06.243 0 I syscall = "exit"; pid = 4:0; code = 0; reason = Some(Ok)
-15:27:06.249 0 D leaving the user mode; pid = 4:0
-15:27:06.253 0 I dequeue; pid = Some(8:0)
-15:27:06.257 0 I switch to; address_space = "8:0" @ 0p7940000
-15:27:06.261 0 D entering the user mode; pid = 8:0; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7E7FFFFFB000, { mode: user, cs:rip: 0x0023:0v1000B487, ss:rsp: 0x001B:0v7F7FFFFFD648, rflags: IF ZF PF } }
-15:27:06.279 0 I syscall::exofork() done; child = Ok(<current>); pid = 8:0
-15:27:06.287 0 I just created; child = <current>; pid = 8:0; pid = 8:0
-15:27:06.291 0 I name = "eager_fork *21"; pedigree = [2:1, 3:0, 8:0]; len = 3; capacity = 3; pid = 8:0
-15:27:06.313 0 I free; slot = Process { pid: 8:0, address_space: "8:0" @ 0p7940000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 5
-15:27:06.323 0 I switch to; address_space = "base" @ 0p1000
-15:27:06.327 0 I drop the current address space; address_space = "8:0" @ 0p7940000; switch_to = "base" @ 0p1000
-15:27:06.407 0 I syscall = "exit"; pid = 8:0; code = 0; reason = Some(Ok)
-15:27:06.413 0 D leaving the user mode; pid = 8:0
-15:27:06.417 0 I dequeue; pid = Some(3:0)
-15:27:06.421 0 I switch to; address_space = "3:0" @ 0p7C1C000
-15:27:06.427 0 D entering the user mode; pid = 3:0; registers = { rax: 0x7EFFFFFFB, rdi: 0x7EFFFFFFB000, rsi: 0x7EFFFFFFB000, { mode: user, cs:rip: 0x0023:0v1001CD90, ss:rsp: 0x001B:0v7F7FFFFFB7E0, rflags: IF SF AF PF CF } }
-15:27:06.555 0 D leaving the user mode; pid = 3:0
-15:27:06.559 0 I the process was preempted; pid = 3:0; user_context = { mode: user, cs:rip: 0x0023:0v1002C383, ss:rsp: 0x001B:0v7F7FFFFFB9E8, rflags: IF ZF PF }
-15:27:06.569 0 I returned
-15:27:06.573 0 I dequeue; pid = Some(6:0)
-15:27:06.579 0 I switch to; address_space = "6:0" @ 0p7AE8000
-15:27:06.583 0 D entering the user mode; pid = 6:0; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7E7FFFFFB000, { mode: user, cs:rip: 0x0023:0v1000B487, ss:rsp: 0x001B:0v7F7FFFFFD648, rflags: IF SF PF CF } }
-15:27:06.599 0 I syscall::exofork() done; child = Ok(<current>); pid = 6:0
-15:27:06.609 0 I just created; child = <current>; pid = 6:0; pid = 6:0
-15:27:06.611 0 I name = "eager_fork *01"; pedigree = [2:1, 1:1, 6:0]; len = 3; capacity = 3; pid = 6:0
-15:27:06.635 0 I free; slot = Process { pid: 6:0, address_space: "6:0" @ 0p7AE8000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 4
-15:27:06.643 0 I switch to; address_space = "base" @ 0p1000
-15:27:06.649 0 I drop the current address space; address_space = "6:0" @ 0p7AE8000; switch_to = "base" @ 0p1000
-15:27:06.729 0 I syscall = "exit"; pid = 6:0; code = 0; reason = Some(Ok)
-15:27:06.733 0 D leaving the user mode; pid = 6:0
-15:27:06.737 0 I dequeue; pid = Some(1:2)
-15:27:06.743 0 I switch to; address_space = "1:2" @ 0p7DB3000
-15:27:06.747 0 D entering the user mode; pid = 1:2; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7E7FFFFFB000, { mode: user, cs:rip: 0x0023:0v1000B487, ss:rsp: 0x001B:0v7F7FFFFFD648, rflags: IF ZF PF } }
-15:27:06.763 0 D leaving the user mode; pid = 1:2
-15:27:06.771 0 I the process was preempted; pid = 1:2; user_context = { mode: user, cs:rip: 0x0023:0v1000B487, ss:rsp: 0x001B:0v7F7FFFFFD648, rflags: IF ZF PF }
-15:27:06.783 0 I returned
-15:27:06.787 0 I dequeue; pid = Some(2:3)
-15:27:06.791 0 I switch to; address_space = "2:3" @ 0p7D0F000
-15:27:06.797 0 D entering the user mode; pid = 2:3; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7E7FFFFFB000, { mode: user, cs:rip: 0x0023:0v1000B487, ss:rsp: 0x001B:0v7F7FFFFFD648, rflags: IF ZF PF } }
-15:27:06.813 0 I syscall::exofork() done; child = Ok(<current>); pid = 2:3
-15:27:06.823 0 I just created; child = <current>; pid = 2:3; pid = 2:3
-15:27:06.827 0 I name = "eager_fork *12"; pedigree = [2:1, 0:1, 2:3]; len = 3; capacity = 3; pid = 2:3
-15:27:06.849 0 I free; slot = Process { pid: 2:3, address_space: "2:3" @ 0p7D0F000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 3
-15:27:06.859 0 I switch to; address_space = "base" @ 0p1000
-15:27:06.865 0 I drop the current address space; address_space = "2:3" @ 0p7D0F000; switch_to = "base" @ 0p1000
-15:27:06.945 0 I syscall = "exit"; pid = 2:3; code = 0; reason = Some(Ok)
-15:27:06.949 0 D leaving the user mode; pid = 2:3
-15:27:06.955 0 I dequeue; pid = Some(3:0)
-15:27:06.959 0 I switch to; address_space = "3:0" @ 0p7C1C000
-15:27:06.963 0 D entering the user mode; pid = 3:0; registers = { rax: 0x100, rdi: 0x7EFFFFD40000, rsi: 0x10055000, { mode: user, cs:rip: 0x0023:0v1002C383, ss:rsp: 0x001B:0v7F7FFFFFB9E8, rflags: IF ZF PF } }
-15:27:07.049 0 I syscall::set_state(); child = 9:0; result = Ok(()); pid = 3:0
-15:27:07.057 0 I free; slot = Process { pid: 3:0, address_space: "3:0" @ 0p7C1C000, { rip: 0v1002C383, rsp: 0v7F7FFFFFB9E8 } }; process_count = 2
-15:27:07.067 0 I switch to; address_space = "base" @ 0p1000
-15:27:07.071 0 I drop the current address space; address_space = "3:0" @ 0p7C1C000; switch_to = "base" @ 0p1000
-15:27:07.149 0 I syscall = "exit"; pid = 3:0; code = 0; reason = Some(Ok)
-15:27:07.153 0 D leaving the user mode; pid = 3:0
-15:27:07.159 0 I dequeue; pid = Some(1:2)
-15:27:07.163 0 I switch to; address_space = "1:2" @ 0p7DB3000
-15:27:07.167 0 D entering the user mode; pid = 1:2; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7E7FFFFFB000, { mode: user, cs:rip: 0x0023:0v1000B487, ss:rsp: 0x001B:0v7F7FFFFFD648, rflags: IF ZF PF } }
-15:27:07.183 0 I syscall::exofork() done; child = Ok(<current>); pid = 1:2
-15:27:07.193 0 I just created; child = <current>; pid = 1:2; pid = 1:2
-15:27:07.195 0 I name = "eager_fork *11"; pedigree = [2:1, 0:1, 1:2]; len = 3; capacity = 3; pid = 1:2
-15:27:07.219 0 I free; slot = Process { pid: 1:2, address_space: "1:2" @ 0p7DB3000, { rip: 0v1000B487, rsp: 0v7F7FFFFFD648 } }; process_count = 1
-15:27:07.229 0 I switch to; address_space = "base" @ 0p1000
-15:27:07.235 0 I drop the current address space; address_space = "1:2" @ 0p7DB3000; switch_to = "base" @ 0p1000
-15:27:07.313 0 I syscall = "exit"; pid = 1:2; code = 0; reason = Some(Ok)
-15:27:07.319 0 D leaving the user mode; pid = 1:2
-15:27:07.323 0 I dequeue; pid = Some(9:0)
-15:27:07.327 0 I switch to; address_space = "9:0" @ 0p7896000
-15:27:07.333 0 D entering the user mode; pid = 9:0; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7E7FFFFFB000, { mode: user, cs:rip: 0x0023:0v1000B487, ss:rsp: 0x001B:0v7F7FFFFFD648, rflags: IF ZF PF } }
-15:27:07.363 0 D leaving the user mode; pid = 9:0
-15:27:07.367 0 I the process was preempted; pid = 9:0; user_context = { mode: user, cs:rip: 0x0023:0v1004AB7C, ss:rsp: 0x001B:0v7F7FFFFFD3D8, rflags: IF }
-15:27:07.377 0 I returned
-15:27:07.381 0 I dequeue; pid = Some(9:0)
-15:27:07.385 0 I switch to; address_space = "9:0" @ 0p7896000
-15:27:07.389 0 D entering the user mode; pid = 9:0; registers = { rax: 0x7F7FFFFFD618, rdi: 0x7F7FFFFFD760, rsi: 0x7F7FFFFFD500, { mode: user, cs:rip: 0x0023:0v1004AB7C, ss:rsp: 0x001B:0v7F7FFFFFD3D8, rflags: IF } }
-15:27:07.349 0 I syscall::exofork() done; child = Ok(<current>); pid = 9:0
-15:27:07.359 0 I just created; child = <current>; pid = 9:0; pid = 9:0
-15:27:07.361 0 I name = "eager_fork *22"; pedigree = [2:1, 3:0, 9:0]; len = 3; capacity = 3; pid = 9:0
-15:27:07.425 0 I free; slot = Process { pid: 9:0, address_space: "9:0" @ 0p7896000, { rip: 0v1004AB7C, rsp: 0v7F7FFFFFD3D8 } }; process_count = 0
-15:27:07.435 0 I switch to; address_space = "base" @ 0p1000
-15:27:07.439 0 I drop the current address space; address_space = "9:0" @ 0p7896000; switch_to = "base" @ 0p1000
-15:27:07.521 0 I syscall = "exit"; pid = 9:0; code = 0; reason = Some(Ok)
-15:27:07.527 0 D leaving the user mode; pid = 9:0
-15:27:07.531 0 I dequeue; pid = None
-15:27:07.541 0 D parent = 0:1; process = 1:2
-15:27:07.549 0 D parent = 0:1; process = 2:2
-15:27:07.553 0 D parent = 0:1; process = 2:3
-15:27:07.557 0 D parent = 1:1; process = 5:0
-15:27:07.563 0 D parent = 1:1; process = 6:0
-15:27:07.567 0 D parent = 1:1; process = 7:0
-15:27:07.573 0 D parent = 2:1; process = 0:1
-15:27:07.577 0 D parent = 2:1; process = 1:1
-15:27:07.581 0 D parent = 2:1; process = 3:0
-15:27:07.587 0 D parent = 3:0; process = 4:0
-15:27:07.591 0 D parent = 3:0; process = 8:0
-15:27:07.595 0 D parent = 3:0; process = 9:0
-15:27:07.601 0 D graphviz = digraph process_tree { node [ style = filled; fillcolor = "#CCCCCC"]; "0:1" -> "1:2"; "0:1" -> "2:2"; "0:1" -> "2:3"; "1:1" -> "5:0"; "1:1" -> "6:0"; "1:1" -> "7:0"; "2:1" -> "0:1"; "2:1" -> "1:1"; "2:1" -> "3:0"; "3:0" -> "4:0"; "3:0" -> "8:0"; "3:0" -> "9:0"; }
-6_um_3_eager_fork::eager_fork---------------------- [passed]
-15:27:07.623 0 I exit qemu; exit_code = SUCCESS
+6_um_3_eager_fork::t2_eager_fork----------------------------
+20:54:44.553 0 I page allocator init; free_page_count = 33822867456; block = [0v180_0000_0000, 0v7F80_0000_0000), size 126.000 TiB
+20:54:44.561 0 I duplicate; address_space = "process" @ 0p7CD_3000
+20:54:44.563 0 I switch to; address_space = "process" @ 0p7CD_3000
+20:54:44.569 0 D extend mapping; block = [0v1000_0000, 0v1000_982C), size 38.043 KiB; page_block = [0v1000_0000, 0v1000_A000), size 40.000 KiB
+20:54:44.577 0 D elf loadable program header; file_block = [0v8B_9000, 0v8C_282C), size 38.043 KiB; memory_block = [0v1000_0000, 0v1000_982C), size 38.043 KiB
+20:54:45.007 0 D extend mapping; block = [0v1000_A000, 0v1005_C8D3), size 330.206 KiB; page_block = [0v1000_A000, 0v1005_D000), size 332.000 KiB
+20:54:45.015 0 D elf loadable program header; file_block = [0v8C_2830, 0v91_58D3), size 332.159 KiB; memory_block = [0v1000_9830, 0v1005_C8D3), size 332.159 KiB
+20:54:45.029 0 D elf loadable program header; file_block = [0v91_58D8, 0v91_59C8), size 240 B; memory_block = [0v1005_C8D8, 0v1005_C9C8), size 240 B
+20:54:45.039 0 D extend mapping; block = [0v1005_D000, 0v1006_4810), size 30.016 KiB; page_block = [0v1005_D000, 0v1006_5000), size 32.000 KiB
+20:54:45.045 0 D elf loadable program header; file_block = [0v91_59C8, 0v91_D7E8), size 31.531 KiB; memory_block = [0v1005_C9C8, 0v1006_4810), size 31.570 KiB
+20:54:45.071 0 I switch to; address_space = "base" @ 0p1000
+20:54:45.075 0 I loaded ELF file; context = { rip: 0v1001_1DB0, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.974 MiB; process = { pid: <current>, address_space: "process" @ 0p7CD_3000, { rip: 0v1001_1DB0, rsp: 0v7F7F_FFFF_F000 } }
+20:54:45.085 0 I allocate; slot = Process { pid: 2:1, address_space: "2:1" @ 0p7CD_3000, { rip: 0v1001_1DB0, rsp: 0v7F7F_FFFF_F000 } }; process_count = 1
+20:54:45.091 0 I user process page table entry; entry_point = 0v1001_1DB0; frame = Frame(32120 @ 0p7D7_8000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:54:45.101 0 D process_frames = 166
+20:54:45.103 0 I dequeue; pid = Some(2:1)
+20:54:45.107 0 I switch to; address_space = "2:1" @ 0p7CD_3000
+20:54:45.119 0 D entering the user mode; pid = 2:1; registers = { rax: 0x0, rdi: 0x7F7FFFFD5000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v1001_1DB0, ss:rsp: 0x001B:0v7F7F_FFFF_F000, rflags: IF } }
+20:54:45.133 0 I name = "eager_fork *"; pedigree = [2:1]; len = 1; capacity = 3; pid = 2:1
+20:54:45.641 0 I page allocator init; free_page_count = 33688649728; block = [0v180_0000_0000, 0v7F00_0000_0000), size 125.500 TiB
+20:54:45.649 0 I duplicate; address_space = "process" @ 0p7D5_C000
+20:54:45.651 0 I switch to; address_space = "process" @ 0p7D5_C000
+20:54:45.659 0 I switch to; address_space = "2:1" @ 0p7CD_3000
+20:54:45.663 0 I allocate; slot = Process { pid: 1:1, address_space: "1:1" @ 0p7D5_C000, { rip: 0v1000_B0F5, rsp: 0v7F7F_FFFF_DC48 } }; process_count = 2
+20:54:45.669 0 I syscall = "exofork"; process = 2:1; child = 1:1
+20:54:45.675 0 I syscall::exofork() done; child = Ok(1:1); pid = 2:1
+20:54:46.263 0 I syscall::set_state(); child = 1:1; result = Ok(()); pid = 2:1
+20:54:46.743 0 I page allocator init; free_page_count = 33688649728; block = [0v180_0000_0000, 0v7F00_0000_0000), size 125.500 TiB
+20:54:46.749 0 I duplicate; address_space = "process" @ 0p7E0_5000
+20:54:46.753 0 I switch to; address_space = "process" @ 0p7E0_5000
+20:54:46.759 0 I switch to; address_space = "2:1" @ 0p7CD_3000
+20:54:46.763 0 I allocate; slot = Process { pid: 0:1, address_space: "0:1" @ 0p7E0_5000, { rip: 0v1000_B0F5, rsp: 0v7F7F_FFFF_DC48 } }; process_count = 3
+20:54:46.771 0 I syscall = "exofork"; process = 2:1; child = 0:1
+20:54:46.773 0 I syscall::exofork() done; child = Ok(0:1); pid = 2:1
+20:54:47.343 0 I syscall::set_state(); child = 0:1; result = Ok(()); pid = 2:1
+20:54:47.827 0 I page allocator init; free_page_count = 33688649728; block = [0v180_0000_0000, 0v7F00_0000_0000), size 125.500 TiB
+20:54:47.835 0 I duplicate; address_space = "process" @ 0p7C2_C000
+20:54:47.839 0 I switch to; address_space = "process" @ 0p7C2_C000
+20:54:47.845 0 I switch to; address_space = "2:1" @ 0p7CD_3000
+20:54:47.849 0 I allocate; slot = Process { pid: 3:0, address_space: "3:0" @ 0p7C2_C000, { rip: 0v1000_B0F5, rsp: 0v7F7F_FFFF_DC48 } }; process_count = 4
+20:54:47.855 0 I syscall = "exofork"; process = 2:1; child = 3:0
+20:54:47.859 0 I syscall::exofork() done; child = Ok(3:0); pid = 2:1
+20:54:48.429 0 I syscall::set_state(); child = 3:0; result = Ok(()); pid = 2:1
+20:54:48.435 0 I free; slot = Process { pid: 2:1, address_space: "2:1" @ 0p7CD_3000, { rip: 0v1001_1DB0, rsp: 0v7F7F_FFFF_F000 } }; process_count = 3
+20:54:48.443 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 1595, unlocks: 1595, waits: 0 }
+20:54:48.449 0 D dropping; spinlock = kernel/src/process/process.rs:65:28; stats = Stats { failures: 0, locks: 1197, unlocks: 1197, waits: 0 }
+20:54:48.455 0 I switch to; address_space = "base" @ 0p1000
+20:54:48.457 0 I drop the current address space; address_space = "2:1" @ 0p7CD_3000; switch_to = "base" @ 0p1000
+20:54:49.035 0 I syscall = "exit"; pid = 2:1; code = 0; reason = Ok(Ok)
+20:54:49.039 0 D leaving the user mode; pid = 2:1
+20:54:49.041 0 I dequeue; pid = Some(1:1)
+20:54:49.045 0 I switch to; address_space = "1:1" @ 0p7D5_C000
+20:54:49.055 0 D entering the user mode; pid = 1:1; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7EFFFFFF5000, { mode: user, cs:rip: 0x0023:0v1000_B0F5, ss:rsp: 0x001B:0v7F7F_FFFF_DC48, rflags: IF } }
+20:54:49.073 0 D leaving the user mode; pid = 1:1
+20:54:49.075 0 I the process was preempted; pid = 1:1; user_context = { mode: user, cs:rip: 0x0023:0v1001_73D5, ss:rsp: 0x001B:0v7F7F_FFFF_D4A8, rflags: IF }
+20:54:49.085 0 I dequeue; pid = Some(0:1)
+20:54:49.089 0 I switch to; address_space = "0:1" @ 0p7E0_5000
+20:54:49.101 0 D entering the user mode; pid = 0:1; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7EFFFFFF5000, { mode: user, cs:rip: 0x0023:0v1000_B0F5, ss:rsp: 0x001B:0v7F7F_FFFF_DC48, rflags: IF } }
+20:54:49.111 0 I syscall::exofork() done; child = Ok(<current>); pid = 0:1
+20:54:49.127 0 I just created; child = <current>; pid = 0:1; pid = 0:1
+20:54:49.129 0 I name = "eager_fork *1"; pedigree = [2:1, 0:1]; len = 2; capacity = 3; pid = 0:1
+20:54:49.631 0 I page allocator init; free_page_count = 33554432000; block = [0v180_0000_0000, 0v7E80_0000_0000), size 125.000 TiB
+20:54:49.637 0 I duplicate; address_space = "process" @ 0p7CD_3000
+20:54:49.641 0 I switch to; address_space = "process" @ 0p7CD_3000
+20:54:49.647 0 I switch to; address_space = "0:1" @ 0p7E0_5000
+20:54:49.651 0 I allocate; slot = Process { pid: 2:2, address_space: "2:2" @ 0p7CD_3000, { rip: 0v1000_B0F5, rsp: 0v7F7F_FFFF_D778 } }; process_count = 4
+20:54:49.659 0 I syscall = "exofork"; process = 0:1; child = 2:2
+20:54:49.663 0 I syscall::exofork() done; child = Ok(2:2); pid = 0:1
+20:54:50.071 0 D leaving the user mode; pid = 0:1
+20:54:50.075 0 I the process was preempted; pid = 0:1; user_context = { mode: user, cs:rip: 0x0023:0v1003_2585, ss:rsp: 0x001B:0v7F7F_FFFF_C258, rflags: IF ZF PF }
+20:54:50.087 0 I dequeue; pid = Some(3:0)
+20:54:50.089 0 I switch to; address_space = "3:0" @ 0p7C2_C000
+20:54:50.101 0 D entering the user mode; pid = 3:0; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7EFFFFFF5000, { mode: user, cs:rip: 0x0023:0v1000_B0F5, ss:rsp: 0x001B:0v7F7F_FFFF_DC48, rflags: IF } }
+20:54:50.113 0 I syscall::exofork() done; child = Ok(<current>); pid = 3:0
+20:54:50.127 0 I just created; child = <current>; pid = 3:0; pid = 3:0
+20:54:50.131 0 I name = "eager_fork *2"; pedigree = [2:1, 3:0]; len = 2; capacity = 3; pid = 3:0
+20:54:50.669 0 I page allocator init; free_page_count = 33554432000; block = [0v180_0000_0000, 0v7E80_0000_0000), size 125.000 TiB
+20:54:50.677 0 I duplicate; address_space = "process" @ 0p7CF_B000
+20:54:50.681 0 I switch to; address_space = "process" @ 0p7CF_B000
+20:54:50.687 0 I switch to; address_space = "3:0" @ 0p7C2_C000
+20:54:50.691 0 I allocate; slot = Process { pid: 4:0, address_space: "4:0" @ 0p7CF_B000, { rip: 0v1000_B0F5, rsp: 0v7F7F_FFFF_D778 } }; process_count = 5
+20:54:50.699 0 I syscall = "exofork"; process = 3:0; child = 4:0
+20:54:50.701 0 I syscall::exofork() done; child = Ok(4:0); pid = 3:0
+20:54:51.285 0 I syscall::set_state(); child = 4:0; result = Ok(()); pid = 3:0
+20:54:51.779 0 I page allocator init; free_page_count = 33554432000; block = [0v180_0000_0000, 0v7E80_0000_0000), size 125.000 TiB
+20:54:51.787 0 I duplicate; address_space = "process" @ 0p7B0_2000
+20:54:51.789 0 I switch to; address_space = "process" @ 0p7B0_2000
+20:54:51.797 0 I switch to; address_space = "3:0" @ 0p7C2_C000
+20:54:51.801 0 I allocate; slot = Process { pid: 5:0, address_space: "5:0" @ 0p7B0_2000, { rip: 0v1000_B0F5, rsp: 0v7F7F_FFFF_D778 } }; process_count = 6
+20:54:51.807 0 I syscall = "exofork"; process = 3:0; child = 5:0
+20:54:51.811 0 I syscall::exofork() done; child = Ok(5:0); pid = 3:0
+20:54:52.391 0 I syscall::set_state(); child = 5:0; result = Ok(()); pid = 3:0
+20:54:52.887 0 I page allocator init; free_page_count = 33554432000; block = [0v180_0000_0000, 0v7E80_0000_0000), size 125.000 TiB
+20:54:52.895 0 I duplicate; address_space = "process" @ 0p7A5_4000
+20:54:52.899 0 I switch to; address_space = "process" @ 0p7A5_4000
+20:54:52.905 0 I switch to; address_space = "3:0" @ 0p7C2_C000
+20:54:52.909 0 I allocate; slot = Process { pid: 6:0, address_space: "6:0" @ 0p7A5_4000, { rip: 0v1000_B0F5, rsp: 0v7F7F_FFFF_D778 } }; process_count = 7
+20:54:52.915 0 I syscall = "exofork"; process = 3:0; child = 6:0
+20:54:52.919 0 I syscall::exofork() done; child = Ok(6:0); pid = 3:0
+20:54:53.499 0 I syscall::set_state(); child = 6:0; result = Ok(()); pid = 3:0
+20:54:53.505 0 I free; slot = Process { pid: 3:0, address_space: "3:0" @ 0p7C2_C000, { rip: 0v1000_B0F5, rsp: 0v7F7F_FFFF_DC48 } }; process_count = 6
+20:54:53.511 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 1727, unlocks: 1727, waits: 0 }
+20:54:53.517 0 D dropping; spinlock = kernel/src/process/process.rs:94:28; stats = Stats { failures: 0, locks: 1328, unlocks: 1328, waits: 0 }
+20:54:53.525 0 I switch to; address_space = "base" @ 0p1000
+20:54:53.527 0 I drop the current address space; address_space = "3:0" @ 0p7C2_C000; switch_to = "base" @ 0p1000
+20:54:54.123 0 I syscall = "exit"; pid = 3:0; code = 0; reason = Ok(Ok)
+20:54:54.127 0 D leaving the user mode; pid = 3:0
+20:54:54.129 0 I dequeue; pid = Some(1:1)
+20:54:54.133 0 I switch to; address_space = "1:1" @ 0p7D5_C000
+20:54:54.143 0 D entering the user mode; pid = 1:1; registers = { rax: 0x7F7FFFFFD4C0, rdi: 0x7EFFFFFF7003, rsi: 0x7F7FFFFFD4E7, { mode: user, cs:rip: 0x0023:0v1001_73D5, ss:rsp: 0x001B:0v7F7F_FFFF_D4A8, rflags: IF } }
+20:54:49.065 0 I syscall::exofork() done; child = Ok(<current>); pid = 1:1
+20:54:54.163 0 I just created; child = <current>; pid = 1:1; pid = 1:1
+20:54:54.165 0 I name = "eager_fork *0"; pedigree = [2:1, 1:1]; len = 2; capacity = 3; pid = 1:1
+20:54:54.665 0 I page allocator init; free_page_count = 33554432000; block = [0v180_0000_0000, 0v7E80_0000_0000), size 125.000 TiB
+20:54:54.673 0 I duplicate; address_space = "process" @ 0p7C2_C000
+20:54:54.675 0 I switch to; address_space = "process" @ 0p7C2_C000
+20:54:54.683 0 I switch to; address_space = "1:1" @ 0p7D5_C000
+20:54:54.687 0 I allocate; slot = Process { pid: 3:1, address_space: "3:1" @ 0p7C2_C000, { rip: 0v1000_B0F5, rsp: 0v7F7F_FFFF_D778 } }; process_count = 7
+20:54:54.693 0 I syscall = "exofork"; process = 1:1; child = 3:1
+20:54:54.697 0 I syscall::exofork() done; child = Ok(3:1); pid = 1:1
+20:54:54.971 0 D leaving the user mode; pid = 1:1
+20:54:54.975 0 I the process was preempted; pid = 1:1; user_context = { mode: user, cs:rip: 0x0023:0v1003_2585, ss:rsp: 0x001B:0v7F7F_FFFF_C258, rflags: IF ZF PF }
+20:54:54.987 0 I dequeue; pid = Some(0:1)
+20:54:54.989 0 I switch to; address_space = "0:1" @ 0p7E0_5000
+20:54:55.001 0 D entering the user mode; pid = 0:1; registers = { rax: 0xC00, rdi: 0x7EFFFFF52000, rsi: 0x10051000, { mode: user, cs:rip: 0x0023:0v1003_2585, ss:rsp: 0x001B:0v7F7F_FFFF_C258, rflags: IF ZF PF } }
+20:54:55.271 0 D leaving the user mode; pid = 0:1
+20:54:55.273 0 I the process was preempted; pid = 0:1; user_context = { mode: user, cs:rip: 0x0023:0v1003_2585, ss:rsp: 0x001B:0v7F7F_FFFF_C258, rflags: IF ZF PF }
+20:54:55.285 0 I dequeue; pid = Some(4:0)
+20:54:55.289 0 I switch to; address_space = "4:0" @ 0p7CF_B000
+20:54:55.299 0 D entering the user mode; pid = 4:0; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7E7FFFFF5000, { mode: user, cs:rip: 0x0023:0v1000_B0F5, ss:rsp: 0x001B:0v7F7F_FFFF_D778, rflags: IF } }
+20:54:55.311 0 I syscall::exofork() done; child = Ok(<current>); pid = 4:0
+20:54:55.325 0 I just created; child = <current>; pid = 4:0; pid = 4:0
+20:54:55.327 0 I name = "eager_fork *20"; pedigree = [2:1, 3:0, 4:0]; len = 3; capacity = 3; pid = 4:0
+20:54:55.345 0 I free; slot = Process { pid: 4:0, address_space: "4:0" @ 0p7CF_B000, { rip: 0v1000_B0F5, rsp: 0v7F7F_FFFF_D778 } }; process_count = 6
+20:54:55.353 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 137, unlocks: 137, waits: 0 }
+20:54:55.359 0 D dropping; spinlock = kernel/src/process/process.rs:94:28; stats = Stats { failures: 0, locks: 134, unlocks: 134, waits: 0 }
+20:54:55.365 0 I switch to; address_space = "base" @ 0p1000
+20:54:55.369 0 I drop the current address space; address_space = "4:0" @ 0p7CF_B000; switch_to = "base" @ 0p1000
+20:54:55.969 0 I syscall = "exit"; pid = 4:0; code = 0; reason = Ok(Ok)
+20:54:55.973 0 D leaving the user mode; pid = 4:0
+20:54:55.975 0 I dequeue; pid = Some(5:0)
+20:54:55.979 0 I switch to; address_space = "5:0" @ 0p7B0_2000
+20:54:55.991 0 D entering the user mode; pid = 5:0; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7E7FFFFF5000, { mode: user, cs:rip: 0x0023:0v1000_B0F5, ss:rsp: 0x001B:0v7F7F_FFFF_D778, rflags: IF } }
+20:54:56.003 0 I syscall::exofork() done; child = Ok(<current>); pid = 5:0
+20:54:56.017 0 I just created; child = <current>; pid = 5:0; pid = 5:0
+20:54:56.019 0 I name = "eager_fork *21"; pedigree = [2:1, 3:0, 5:0]; len = 3; capacity = 3; pid = 5:0
+20:54:56.037 0 I free; slot = Process { pid: 5:0, address_space: "5:0" @ 0p7B0_2000, { rip: 0v1000_B0F5, rsp: 0v7F7F_FFFF_D778 } }; process_count = 5
+20:54:56.045 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 137, unlocks: 137, waits: 0 }
+20:54:56.051 0 D dropping; spinlock = kernel/src/process/process.rs:94:28; stats = Stats { failures: 0, locks: 134, unlocks: 134, waits: 0 }
+20:54:56.057 0 I switch to; address_space = "base" @ 0p1000
+20:54:56.059 0 I drop the current address space; address_space = "5:0" @ 0p7B0_2000; switch_to = "base" @ 0p1000
+20:54:56.657 0 I syscall = "exit"; pid = 5:0; code = 0; reason = Ok(Ok)
+20:54:56.661 0 D leaving the user mode; pid = 5:0
+20:54:56.665 0 I dequeue; pid = Some(6:0)
+20:54:56.667 0 I switch to; address_space = "6:0" @ 0p7A5_4000
+20:54:56.679 0 D entering the user mode; pid = 6:0; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7E7FFFFF5000, { mode: user, cs:rip: 0x0023:0v1000_B0F5, ss:rsp: 0x001B:0v7F7F_FFFF_D778, rflags: IF } }
+20:54:56.691 0 I syscall::exofork() done; child = Ok(<current>); pid = 6:0
+20:54:56.703 0 I just created; child = <current>; pid = 6:0; pid = 6:0
+20:54:56.707 0 I name = "eager_fork *22"; pedigree = [2:1, 3:0, 6:0]; len = 3; capacity = 3; pid = 6:0
+20:54:56.725 0 I free; slot = Process { pid: 6:0, address_space: "6:0" @ 0p7A5_4000, { rip: 0v1000_B0F5, rsp: 0v7F7F_FFFF_D778 } }; process_count = 4
+20:54:56.733 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 137, unlocks: 137, waits: 0 }
+20:54:56.739 0 D dropping; spinlock = kernel/src/process/process.rs:94:28; stats = Stats { failures: 0, locks: 134, unlocks: 134, waits: 0 }
+20:54:56.745 0 I switch to; address_space = "base" @ 0p1000
+20:54:56.747 0 I drop the current address space; address_space = "6:0" @ 0p7A5_4000; switch_to = "base" @ 0p1000
+20:54:57.353 0 I syscall = "exit"; pid = 6:0; code = 0; reason = Ok(Ok)
+20:54:57.357 0 D leaving the user mode; pid = 6:0
+20:54:57.359 0 I dequeue; pid = Some(1:1)
+20:54:57.363 0 I switch to; address_space = "1:1" @ 0p7D5_C000
+20:54:57.375 0 D entering the user mode; pid = 1:1; registers = { rax: 0x0, rdi: 0x7EFFFFF80000, rsi: 0x1003A000, { mode: user, cs:rip: 0x0023:0v1003_2585, ss:rsp: 0x001B:0v7F7F_FFFF_C258, rflags: IF ZF PF } }
+20:54:57.571 0 D leaving the user mode; pid = 1:1
+20:54:57.575 0 I the process was preempted; pid = 1:1; user_context = { mode: user, cs:rip: 0x0023:0v1002_0992, ss:rsp: 0x001B:0v7F7F_FFFF_C328, rflags: IF PF }
+20:54:57.585 0 I dequeue; pid = Some(0:1)
+20:54:57.587 0 I switch to; address_space = "0:1" @ 0p7E0_5000
+20:54:57.599 0 D entering the user mode; pid = 0:1; registers = { rax: 0xD00, rdi: 0x7EFFFFEFA000, rsi: 0x7F7FFFFF8000, { mode: user, cs:rip: 0x0023:0v1003_2585, ss:rsp: 0x001B:0v7F7F_FFFF_C258, rflags: IF ZF PF } }
+20:54:57.639 0 I syscall::set_state(); child = 2:2; result = Ok(()); pid = 0:1
+20:54:58.129 0 I page allocator init; free_page_count = 33554432000; block = [0v180_0000_0000, 0v7E80_0000_0000), size 125.000 TiB
+20:54:58.137 0 I duplicate; address_space = "process" @ 0p7A4_1000
+20:54:58.139 0 I switch to; address_space = "process" @ 0p7A4_1000
+20:54:58.149 0 I switch to; address_space = "0:1" @ 0p7E0_5000
+20:54:58.153 0 I allocate; slot = Process { pid: 6:1, address_space: "6:1" @ 0p7A4_1000, { rip: 0v1000_B0F5, rsp: 0v7F7F_FFFF_D778 } }; process_count = 5
+20:54:58.159 0 I syscall = "exofork"; process = 0:1; child = 6:1
+20:54:58.163 0 I syscall::exofork() done; child = Ok(6:1); pid = 0:1
+20:54:58.371 0 D leaving the user mode; pid = 0:1
+20:54:58.375 0 I the process was preempted; pid = 0:1; user_context = { mode: user, cs:rip: 0x0023:0v1003_2585, ss:rsp: 0x001B:0v7F7F_FFFF_C258, rflags: IF ZF PF }
+20:54:58.387 0 I dequeue; pid = Some(1:1)
+20:54:58.389 0 I switch to; address_space = "1:1" @ 0p7D5_C000
+20:54:58.401 0 D entering the user mode; pid = 1:1; registers = { rax: 0x8000000000000FFF, rdi: 0x7F7FFFFFC338, rsi: 0x11A, { mode: user, cs:rip: 0x0023:0v1002_0992, ss:rsp: 0x001B:0v7F7F_FFFF_C328, rflags: IF PF } }
+20:54:58.571 0 D leaving the user mode; pid = 1:1
+20:54:58.575 0 I the process was preempted; pid = 1:1; user_context = { mode: user, cs:rip: 0x0023:0v1003_2585, ss:rsp: 0x001B:0v7F7F_FFFF_C258, rflags: IF ZF PF }
+20:54:58.587 0 I dequeue; pid = Some(2:2)
+20:54:58.589 0 I switch to; address_space = "2:2" @ 0p7CD_3000
+20:54:58.601 0 D entering the user mode; pid = 2:2; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7E7FFFFF5000, { mode: user, cs:rip: 0x0023:0v1000_B0F5, ss:rsp: 0x001B:0v7F7F_FFFF_D778, rflags: IF } }
+20:54:58.613 0 I syscall::exofork() done; child = Ok(<current>); pid = 2:2
+20:54:58.627 0 I just created; child = <current>; pid = 2:2; pid = 2:2
+20:54:58.631 0 I name = "eager_fork *10"; pedigree = [2:1, 0:1, 2:2]; len = 3; capacity = 3; pid = 2:2
+20:54:58.649 0 I free; slot = Process { pid: 2:2, address_space: "2:2" @ 0p7CD_3000, { rip: 0v1000_B0F5, rsp: 0v7F7F_FFFF_D778 } }; process_count = 4
+20:54:58.655 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 137, unlocks: 137, waits: 0 }
+20:54:58.661 0 D dropping; spinlock = kernel/src/process/process.rs:94:28; stats = Stats { failures: 0, locks: 134, unlocks: 134, waits: 0 }
+20:54:58.667 0 I switch to; address_space = "base" @ 0p1000
+20:54:58.671 0 I drop the current address space; address_space = "2:2" @ 0p7CD_3000; switch_to = "base" @ 0p1000
+20:54:59.267 0 I syscall = "exit"; pid = 2:2; code = 0; reason = Ok(Ok)
+20:54:59.271 0 D leaving the user mode; pid = 2:2
+20:54:59.275 0 I dequeue; pid = Some(0:1)
+20:54:59.277 0 I switch to; address_space = "0:1" @ 0p7E0_5000
+20:54:59.289 0 D entering the user mode; pid = 0:1; registers = { rax: 0xD00, rdi: 0x7EFFFFE9C000, rsi: 0x10028000, { mode: user, cs:rip: 0x0023:0v1003_2585, ss:rsp: 0x001B:0v7F7F_FFFF_C258, rflags: IF ZF PF } }
+20:54:59.671 0 D leaving the user mode; pid = 0:1
+20:54:59.675 0 I the process was preempted; pid = 0:1; user_context = { mode: user, cs:rip: 0x0023:0v1003_2585, ss:rsp: 0x001B:0v7F7F_FFFF_C258, rflags: IF ZF PF }
+20:54:59.687 0 I dequeue; pid = Some(1:1)
+20:54:59.689 0 I switch to; address_space = "1:1" @ 0p7D5_C000
+20:54:59.701 0 D entering the user mode; pid = 1:1; registers = { rax: 0xA00, rdi: 0x7EFFFFEF6000, rsi: 0x7F7FFFFFA000, { mode: user, cs:rip: 0x0023:0v1003_2585, ss:rsp: 0x001B:0v7F7F_FFFF_C258, rflags: IF ZF PF } }
+20:54:59.737 0 I syscall::set_state(); child = 3:1; result = Ok(()); pid = 1:1
+20:55:00.237 0 I page allocator init; free_page_count = 33554432000; block = [0v180_0000_0000, 0v7E80_0000_0000), size 125.000 TiB
+20:55:00.243 0 I duplicate; address_space = "process" @ 0p7D0_4000
+20:55:00.247 0 I switch to; address_space = "process" @ 0p7D0_4000
+20:55:00.257 0 I switch to; address_space = "1:1" @ 0p7D5_C000
+20:55:00.261 0 I allocate; slot = Process { pid: 2:3, address_space: "2:3" @ 0p7D0_4000, { rip: 0v1000_B0F5, rsp: 0v7F7F_FFFF_D778 } }; process_count = 5
+20:55:00.267 0 I syscall = "exofork"; process = 1:1; child = 2:3
+20:55:00.271 0 D leaving the user mode; pid = 1:1
+20:55:00.275 0 I the process was preempted; pid = 1:1; user_context = { mode: user, cs:rip: 0x0023:0v1001_F330, ss:rsp: 0x001B:0v7F7F_FFFF_BBF0, rflags: IF }
+20:55:00.285 0 I dequeue; pid = Some(0:1)
+20:55:00.287 0 I switch to; address_space = "0:1" @ 0p7E0_5000
+20:55:00.299 0 D entering the user mode; pid = 0:1; registers = { rax: 0xB00, rdi: 0x7EFFFFDF4000, rsi: 0x7F7FFFFF7000, { mode: user, cs:rip: 0x0023:0v1003_2585, ss:rsp: 0x001B:0v7F7F_FFFF_C258, rflags: IF ZF PF } }
+20:55:00.355 0 I syscall::set_state(); child = 6:1; result = Ok(()); pid = 0:1
+20:55:00.863 0 I page allocator init; free_page_count = 33554432000; block = [0v180_0000_0000, 0v7E80_0000_0000), size 125.000 TiB
+20:55:00.871 0 I duplicate; address_space = "process" @ 0p7D2_B000
+20:55:00.873 0 I switch to; address_space = "process" @ 0p7D2_B000
+20:55:00.881 0 I switch to; address_space = "0:1" @ 0p7E0_5000
+20:55:00.885 0 I allocate; slot = Process { pid: 5:1, address_space: "5:1" @ 0p7D2_B000, { rip: 0v1000_B0F5, rsp: 0v7F7F_FFFF_D778 } }; process_count = 6
+20:55:00.891 0 I syscall = "exofork"; process = 0:1; child = 5:1
+20:55:00.895 0 I syscall::exofork() done; child = Ok(5:1); pid = 0:1
+20:55:01.471 0 D leaving the user mode; pid = 0:1
+20:55:01.475 0 I the process was preempted; pid = 0:1; user_context = { mode: user, cs:rip: 0x0023:0v1003_2585, ss:rsp: 0x001B:0v7F7F_FFFF_C258, rflags: IF ZF PF }
+20:55:01.487 0 I dequeue; pid = Some(3:1)
+20:55:01.489 0 I switch to; address_space = "3:1" @ 0p7C2_C000
+20:55:01.501 0 D entering the user mode; pid = 3:1; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7E7FFFFF5000, { mode: user, cs:rip: 0x0023:0v1000_B0F5, ss:rsp: 0x001B:0v7F7F_FFFF_D778, rflags: IF } }
+20:55:01.511 0 I syscall::exofork() done; child = Ok(<current>); pid = 3:1
+20:55:01.525 0 I just created; child = <current>; pid = 3:1; pid = 3:1
+20:55:01.527 0 I name = "eager_fork *00"; pedigree = [2:1, 1:1, 3:1]; len = 3; capacity = 3; pid = 3:1
+20:55:01.545 0 I free; slot = Process { pid: 3:1, address_space: "3:1" @ 0p7C2_C000, { rip: 0v1000_B0F5, rsp: 0v7F7F_FFFF_D778 } }; process_count = 5
+20:55:01.553 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 137, unlocks: 137, waits: 0 }
+20:55:01.559 0 D dropping; spinlock = kernel/src/process/process.rs:94:28; stats = Stats { failures: 0, locks: 134, unlocks: 134, waits: 0 }
+20:55:01.565 0 I switch to; address_space = "base" @ 0p1000
+20:55:01.567 0 I drop the current address space; address_space = "3:1" @ 0p7C2_C000; switch_to = "base" @ 0p1000
+20:55:02.159 0 I syscall = "exit"; pid = 3:1; code = 0; reason = Ok(Ok)
+20:55:02.163 0 D leaving the user mode; pid = 3:1
+20:55:02.167 0 I dequeue; pid = Some(1:1)
+20:55:02.171 0 I switch to; address_space = "1:1" @ 0p7D5_C000
+20:55:02.181 0 D entering the user mode; pid = 1:1; registers = { rax: 0x7EFFFFFF72C1, rdi: 0x7F7FFFFFBC28, rsi: 0x7EFFFFFF72C1, { mode: user, cs:rip: 0x0023:0v1001_F330, ss:rsp: 0x001B:0v7F7F_FFFF_BBF0, rflags: IF } }
+20:55:00.271 0 I syscall::exofork() done; child = Ok(2:3); pid = 1:1
+20:55:02.811 0 I syscall::set_state(); child = 2:3; result = Ok(()); pid = 1:1
+20:55:03.321 0 I page allocator init; free_page_count = 33554432000; block = [0v180_0000_0000, 0v7E80_0000_0000), size 125.000 TiB
+20:55:03.329 0 I duplicate; address_space = "process" @ 0p7BA_A000
+20:55:03.331 0 I switch to; address_space = "process" @ 0p7BA_A000
+20:55:03.339 0 I switch to; address_space = "1:1" @ 0p7D5_C000
+20:55:03.343 0 I allocate; slot = Process { pid: 3:2, address_space: "3:2" @ 0p7BA_A000, { rip: 0v1000_B0F5, rsp: 0v7F7F_FFFF_D778 } }; process_count = 6
+20:55:03.351 0 I syscall = "exofork"; process = 1:1; child = 3:2
+20:55:03.353 0 I syscall::exofork() done; child = Ok(3:2); pid = 1:1
+20:55:03.571 0 D leaving the user mode; pid = 1:1
+20:55:03.575 0 I the process was preempted; pid = 1:1; user_context = { mode: user, cs:rip: 0x0023:0v1003_2585, ss:rsp: 0x001B:0v7F7F_FFFF_C258, rflags: IF ZF PF }
+20:55:03.587 0 I dequeue; pid = Some(6:1)
+20:55:03.589 0 I switch to; address_space = "6:1" @ 0p7A4_1000
+20:55:03.601 0 D entering the user mode; pid = 6:1; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7E7FFFFF5000, { mode: user, cs:rip: 0x0023:0v1000_B0F5, ss:rsp: 0x001B:0v7F7F_FFFF_D778, rflags: IF ZF PF } }
+20:55:03.611 0 I syscall::exofork() done; child = Ok(<current>); pid = 6:1
+20:55:03.625 0 I just created; child = <current>; pid = 6:1; pid = 6:1
+20:55:03.629 0 I name = "eager_fork *11"; pedigree = [2:1, 0:1, 6:1]; len = 3; capacity = 3; pid = 6:1
+20:55:03.647 0 I free; slot = Process { pid: 6:1, address_space: "6:1" @ 0p7A4_1000, { rip: 0v1000_B0F5, rsp: 0v7F7F_FFFF_D778 } }; process_count = 5
+20:55:03.653 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 137, unlocks: 137, waits: 0 }
+20:55:03.659 0 D dropping; spinlock = kernel/src/process/process.rs:94:28; stats = Stats { failures: 0, locks: 134, unlocks: 134, waits: 0 }
+20:55:03.665 0 I switch to; address_space = "base" @ 0p1000
+20:55:03.669 0 I drop the current address space; address_space = "6:1" @ 0p7A4_1000; switch_to = "base" @ 0p1000
+20:55:04.261 0 I syscall = "exit"; pid = 6:1; code = 0; reason = Ok(Ok)
+20:55:04.265 0 D leaving the user mode; pid = 6:1
+20:55:04.267 0 I dequeue; pid = Some(0:1)
+20:55:04.271 0 I switch to; address_space = "0:1" @ 0p7E0_5000
+20:55:04.281 0 D entering the user mode; pid = 0:1; registers = { rax: 0xF00, rdi: 0x7EFFFFCE6000, rsi: 0x7F7FFFFFA000, { mode: user, cs:rip: 0x0023:0v1003_2585, ss:rsp: 0x001B:0v7F7F_FFFF_C258, rflags: IF ZF PF } }
+20:55:04.313 0 I syscall::set_state(); child = 5:1; result = Ok(()); pid = 0:1
+20:55:04.319 0 I free; slot = Process { pid: 0:1, address_space: "0:1" @ 0p7E0_5000, { rip: 0v1003_2585, rsp: 0v7F7F_FFFF_C258 } }; process_count = 4
+20:55:04.327 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 1737, unlocks: 1737, waits: 0 }
+20:55:04.333 0 D dropping; spinlock = kernel/src/process/process.rs:94:28; stats = Stats { failures: 0, locks: 1328, unlocks: 1328, waits: 0 }
+20:55:04.339 0 I switch to; address_space = "base" @ 0p1000
+20:55:04.341 0 I drop the current address space; address_space = "0:1" @ 0p7E0_5000; switch_to = "base" @ 0p1000
+20:55:04.927 0 I syscall = "exit"; pid = 0:1; code = 0; reason = Ok(Ok)
+20:55:04.931 0 D leaving the user mode; pid = 0:1
+20:55:04.933 0 I dequeue; pid = Some(2:3)
+20:55:04.937 0 I switch to; address_space = "2:3" @ 0p7D0_4000
+20:55:04.947 0 D entering the user mode; pid = 2:3; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7E7FFFFF5000, { mode: user, cs:rip: 0x0023:0v1000_B0F5, ss:rsp: 0x001B:0v7F7F_FFFF_D778, rflags: IF ZF PF } }
+20:55:04.971 0 D leaving the user mode; pid = 2:3
+20:55:04.975 0 I the process was preempted; pid = 2:3; user_context = { mode: user, cs:rip: 0x0023:0v1001_FCD0, ss:rsp: 0x001B:0v7F7F_FFFF_D4F0, rflags: IF PF }
+20:55:04.985 0 I dequeue; pid = Some(1:1)
+20:55:04.987 0 I switch to; address_space = "1:1" @ 0p7D5_C000
+20:55:04.999 0 D entering the user mode; pid = 1:1; registers = { rax: 0xD00, rdi: 0x7EFFFFD9A000, rsi: 0x10025000, { mode: user, cs:rip: 0x0023:0v1003_2585, ss:rsp: 0x001B:0v7F7F_FFFF_C258, rflags: IF ZF PF } }
+20:55:05.371 0 D leaving the user mode; pid = 1:1
+20:55:05.375 0 I the process was preempted; pid = 1:1; user_context = { mode: user, cs:rip: 0x0023:0v1003_254C, ss:rsp: 0x001B:0v7F7F_FFFF_C258, rflags: IF SF CF }
+20:55:05.387 0 I dequeue; pid = Some(5:1)
+20:55:05.389 0 I switch to; address_space = "5:1" @ 0p7D2_B000
+20:55:05.401 0 D entering the user mode; pid = 5:1; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7E7FFFFF5000, { mode: user, cs:rip: 0x0023:0v1000_B0F5, ss:rsp: 0x001B:0v7F7F_FFFF_D778, rflags: IF ZF PF } }
+20:55:05.413 0 I syscall::exofork() done; child = Ok(<current>); pid = 5:1
+20:55:05.425 0 I just created; child = <current>; pid = 5:1; pid = 5:1
+20:55:05.429 0 I name = "eager_fork *12"; pedigree = [2:1, 0:1, 5:1]; len = 3; capacity = 3; pid = 5:1
+20:55:05.447 0 I free; slot = Process { pid: 5:1, address_space: "5:1" @ 0p7D2_B000, { rip: 0v1000_B0F5, rsp: 0v7F7F_FFFF_D778 } }; process_count = 3
+20:55:05.455 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 137, unlocks: 137, waits: 0 }
+20:55:05.461 0 D dropping; spinlock = kernel/src/process/process.rs:94:28; stats = Stats { failures: 0, locks: 134, unlocks: 134, waits: 0 }
+20:55:05.467 0 I switch to; address_space = "base" @ 0p1000
+20:55:05.469 0 I drop the current address space; address_space = "5:1" @ 0p7D2_B000; switch_to = "base" @ 0p1000
+20:55:06.067 0 I syscall = "exit"; pid = 5:1; code = 0; reason = Ok(Ok)
+20:55:06.071 0 D leaving the user mode; pid = 5:1
+20:55:06.075 0 I dequeue; pid = Some(2:3)
+20:55:06.077 0 I switch to; address_space = "2:3" @ 0p7D0_4000
+20:55:06.089 0 D entering the user mode; pid = 2:3; registers = { rax: 0x0, rdi: 0x7F7FFFFFD5B8, rsi: 0x8, { mode: user, cs:rip: 0x0023:0v1001_FCD0, ss:rsp: 0x001B:0v7F7F_FFFF_D4F0, rflags: IF PF } }
+20:55:04.959 0 I syscall::exofork() done; child = Ok(<current>); pid = 2:3
+20:55:06.099 0 I just created; child = <current>; pid = 2:3; pid = 2:3
+20:55:06.103 0 I name = "eager_fork *01"; pedigree = [2:1, 1:1, 2:3]; len = 3; capacity = 3; pid = 2:3
+20:55:06.121 0 I free; slot = Process { pid: 2:3, address_space: "2:3" @ 0p7D0_4000, { rip: 0v1001_FCD0, rsp: 0v7F7F_FFFF_D4F0 } }; process_count = 2
+20:55:06.127 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 139, unlocks: 139, waits: 0 }
+20:55:06.133 0 D dropping; spinlock = kernel/src/process/process.rs:94:28; stats = Stats { failures: 0, locks: 134, unlocks: 134, waits: 0 }
+20:55:06.139 0 I switch to; address_space = "base" @ 0p1000
+20:55:06.143 0 I drop the current address space; address_space = "2:3" @ 0p7D0_4000; switch_to = "base" @ 0p1000
+20:55:06.735 0 I syscall = "exit"; pid = 2:3; code = 0; reason = Ok(Ok)
+20:55:06.737 0 D leaving the user mode; pid = 2:3
+20:55:06.741 0 I dequeue; pid = Some(1:1)
+20:55:06.743 0 I switch to; address_space = "1:1" @ 0p7D5_C000
+20:55:06.755 0 D entering the user mode; pid = 1:1; registers = { rax: 0x1000, rdi: 0x7EFFFFCF6000, rsi: 0x7F7FFFFF2000, { mode: user, cs:rip: 0x0023:0v1003_254C, ss:rsp: 0x001B:0v7F7F_FFFF_C258, rflags: IF SF CF } }
+20:55:06.821 0 I syscall::set_state(); child = 3:2; result = Ok(()); pid = 1:1
+20:55:06.827 0 I free; slot = Process { pid: 1:1, address_space: "1:1" @ 0p7D5_C000, { rip: 0v1003_254C, rsp: 0v7F7F_FFFF_C258 } }; process_count = 1
+20:55:06.833 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 1741, unlocks: 1741, waits: 0 }
+20:55:06.839 0 D dropping; spinlock = kernel/src/process/process.rs:94:28; stats = Stats { failures: 0, locks: 1328, unlocks: 1328, waits: 0 }
+20:55:06.845 0 I switch to; address_space = "base" @ 0p1000
+20:55:06.849 0 I drop the current address space; address_space = "1:1" @ 0p7D5_C000; switch_to = "base" @ 0p1000
+20:55:07.433 0 I syscall = "exit"; pid = 1:1; code = 0; reason = Ok(Ok)
+20:55:07.437 0 D leaving the user mode; pid = 1:1
+20:55:07.441 0 I dequeue; pid = Some(3:2)
+20:55:07.443 0 I switch to; address_space = "3:2" @ 0p7BA_A000
+20:55:07.455 0 D entering the user mode; pid = 3:2; registers = { rax: 0x0, rdi: 0xFFFFFFFFFFFFFFFE, rsi: 0x7E7FFFFF5000, { mode: user, cs:rip: 0x0023:0v1000_B0F5, ss:rsp: 0x001B:0v7F7F_FFFF_D778, rflags: IF } }
+20:55:07.471 0 D leaving the user mode; pid = 3:2
+20:55:07.475 0 I the process was preempted; pid = 3:2; user_context = { mode: user, cs:rip: 0x0023:0v1001_75DF, ss:rsp: 0x001B:0v7F7F_FFFF_CFC8, rflags: IF PF }
+20:55:07.485 0 I dequeue; pid = Some(3:2)
+20:55:07.487 0 I switch to; address_space = "3:2" @ 0p7BA_A000
+20:55:07.499 0 D entering the user mode; pid = 3:2; registers = { rax: 0x10, rdi: 0x10, rsi: 0x7F7FFFFFCF8E, { mode: user, cs:rip: 0x0023:0v1001_75DF, ss:rsp: 0x001B:0v7F7F_FFFF_CFC8, rflags: IF PF } }
+20:55:07.467 0 I syscall::exofork() done; child = Ok(<current>); pid = 3:2
+20:55:07.517 0 I just created; child = <current>; pid = 3:2; pid = 3:2
+20:55:07.519 0 I name = "eager_fork *02"; pedigree = [2:1, 1:1, 3:2]; len = 3; capacity = 3; pid = 3:2
+20:55:07.537 0 I free; slot = Process { pid: 3:2, address_space: "3:2" @ 0p7BA_A000, { rip: 0v1001_75DF, rsp: 0v7F7F_FFFF_CFC8 } }; process_count = 0
+20:55:07.543 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 139, unlocks: 139, waits: 0 }
+20:55:07.551 0 D dropping; spinlock = kernel/src/process/process.rs:94:28; stats = Stats { failures: 0, locks: 134, unlocks: 134, waits: 0 }
+20:55:07.557 0 I switch to; address_space = "base" @ 0p1000
+20:55:07.559 0 I drop the current address space; address_space = "3:2" @ 0p7BA_A000; switch_to = "base" @ 0p1000
+20:55:08.155 0 I syscall = "exit"; pid = 3:2; code = 0; reason = Ok(Ok)
+20:55:08.159 0 D leaving the user mode; pid = 3:2
+20:55:08.163 0 I dequeue; pid = None
+20:55:08.171 0 D parent = 0:1; process = 2:2
+20:55:08.177 0 D parent = 0:1; process = 5:1
+20:55:08.181 0 D parent = 0:1; process = 6:1
+20:55:08.185 0 D parent = 1:1; process = 2:3
+20:55:08.189 0 D parent = 1:1; process = 3:1
+20:55:08.193 0 D parent = 1:1; process = 3:2
+20:55:08.195 0 D parent = 2:1; process = 0:1
+20:55:08.199 0 D parent = 2:1; process = 1:1
+20:55:08.203 0 D parent = 2:1; process = 3:0
+20:55:08.205 0 D parent = 3:0; process = 4:0
+20:55:08.209 0 D parent = 3:0; process = 5:0
+20:55:08.213 0 D parent = 3:0; process = 6:0
+20:55:08.217 0 D graphviz = digraph process_tree { node [ style = filled; fillcolor = "#CCCCCC"]; "0:1" -> "2:2"; "0:1" -> "5:1"; "0:1" -> "6:1"; "1:1" -> "2:3"; "1:1" -> "3:1"; "1:1" -> "3:2"; "2:1" -> "0:1"; "2:1" -> "1:1"; "2:1" -> "3:0"; "3:0" -> "4:0"; "3:0" -> "5:0"; "3:0" -> "6:0"; }
+6_um_3_eager_fork::t2_eager_fork------------------- [passed]
+20:55:08.231 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ```
 
 В этом запуске видно, что корневым явился процесс с идентификатором `2:1`:
 
 ```console
 $ grep pedigree log
-15:27:00.873 0 I name = "eager_fork *"; pedigree = [2:1]; len = 1; capacity = 3; pid = 2:1
-15:27:02.123 0 I name = "eager_fork *1"; pedigree = [2:1, 0:1]; len = 2; capacity = 3; pid = 0:1
-15:27:02.421 0 I name = "eager_fork *2"; pedigree = [2:1, 3:0]; len = 2; capacity = 3; pid = 3:0
-15:27:02.711 0 I name = "eager_fork *0"; pedigree = [2:1, 1:1]; len = 2; capacity = 3; pid = 1:1
-15:27:04.923 0 I name = "eager_fork *00"; pedigree = [2:1, 1:1, 5:0]; len = 3; capacity = 3; pid = 5:0
-15:27:05.133 0 I name = "eager_fork *02"; pedigree = [2:1, 1:1, 7:0]; len = 3; capacity = 3; pid = 7:0
-15:27:05.301 0 I name = "eager_fork *10"; pedigree = [2:1, 0:1, 2:2]; len = 3; capacity = 3; pid = 2:2
-15:27:06.125 0 I name = "eager_fork *20"; pedigree = [2:1, 3:0, 4:0]; len = 3; capacity = 3; pid = 4:0
-15:27:06.291 0 I name = "eager_fork *21"; pedigree = [2:1, 3:0, 8:0]; len = 3; capacity = 3; pid = 8:0
-15:27:06.611 0 I name = "eager_fork *01"; pedigree = [2:1, 1:1, 6:0]; len = 3; capacity = 3; pid = 6:0
-15:27:06.827 0 I name = "eager_fork *12"; pedigree = [2:1, 0:1, 2:3]; len = 3; capacity = 3; pid = 2:3
-15:27:07.195 0 I name = "eager_fork *11"; pedigree = [2:1, 0:1, 1:2]; len = 3; capacity = 3; pid = 1:2
-15:27:07.361 0 I name = "eager_fork *22"; pedigree = [2:1, 3:0, 9:0]; len = 3; capacity = 3; pid = 9:0
+20:54:45.133 0 I name = "eager_fork *"; pedigree = [2:1]; len = 1; capacity = 3; pid = 2:1
+20:54:49.129 0 I name = "eager_fork *1"; pedigree = [2:1, 0:1]; len = 2; capacity = 3; pid = 0:1
+20:54:50.131 0 I name = "eager_fork *2"; pedigree = [2:1, 3:0]; len = 2; capacity = 3; pid = 3:0
+20:54:54.165 0 I name = "eager_fork *0"; pedigree = [2:1, 1:1]; len = 2; capacity = 3; pid = 1:1
+20:54:55.327 0 I name = "eager_fork *20"; pedigree = [2:1, 3:0, 4:0]; len = 3; capacity = 3; pid = 4:0
+20:54:56.019 0 I name = "eager_fork *21"; pedigree = [2:1, 3:0, 5:0]; len = 3; capacity = 3; pid = 5:0
+20:54:56.707 0 I name = "eager_fork *22"; pedigree = [2:1, 3:0, 6:0]; len = 3; capacity = 3; pid = 6:0
+20:54:58.631 0 I name = "eager_fork *10"; pedigree = [2:1, 0:1, 2:2]; len = 3; capacity = 3; pid = 2:2
+20:55:01.527 0 I name = "eager_fork *00"; pedigree = [2:1, 1:1, 3:1]; len = 3; capacity = 3; pid = 3:1
+20:55:03.629 0 I name = "eager_fork *11"; pedigree = [2:1, 0:1, 6:1]; len = 3; capacity = 3; pid = 6:1
+20:55:05.429 0 I name = "eager_fork *12"; pedigree = [2:1, 0:1, 5:1]; len = 3; capacity = 3; pid = 5:1
+20:55:06.103 0 I name = "eager_fork *01"; pedigree = [2:1, 1:1, 2:3]; len = 3; capacity = 3; pid = 2:3
+20:55:07.519 0 I name = "eager_fork *02"; pedigree = [2:1, 1:1, 3:2]; len = 3; capacity = 3; pid = 3:2
 ```
 
-Он запустил трёх потомков --- `1:1`, `0:1` и `3:0`.
-А, например, родословная процесса `6:0` --- `pedigree = [2:1, 1:1, 6:0]`.
+Он запустил трёх потомков --- `0:1`, `3:0` и `1:1`.
+А, например, родословная процесса `6:0` --- `pedigree = [2:1, 3:0, 6:0]`.
 
 Получилось такое дерево процессов:
 ![](6-um-3-eager-fork.svg)
@@ -720,9 +761,9 @@ $ grep pedigree log
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/memory/mapping.rs  |   16 ++++++++++++++--
- kernel/src/process/syscall.rs |   39 +++++++++++++++++++++++++++++++++++----
- user/eager_fork/src/main.rs   |   54 ++++++++++++++++++++++++++++++++++++++++++++++++++----
- user/lib/src/memory/mod.rs    |   34 ++++++++++++++++++++++++++++------
- 4 files changed, 127 insertions(+), 16 deletions(-)
+ kernel/src/memory/mapping.rs  | 19 +++++++++++++++++--
+ kernel/src/process/syscall.rs | 59 ++++++++++++++++++++++++++++++++++++++++++++++++++++-------
+ user/eager_fork/src/main.rs   | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ user/lib/src/memory/mod.rs    | 40 ++++++++++++++++++++++++++++++++++------
+ 4 files changed, 157 insertions(+), 19 deletions(-)
 ```

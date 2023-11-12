@@ -7,6 +7,7 @@
 
 #![deny(warnings)]
 #![feature(allocator_api)]
+#![feature(atomic_from_mut)]
 #![feature(cell_update)]
 #![feature(const_caller_location)]
 #![feature(const_size_of_val)]

@@ -37,10 +37,12 @@ use ku::{
     },
     pipe::{
         self,
+        Buffer,
         Error::Overflow,
         MAX_CAPACITY,
         ReadBuffer,
         RingBufferWriteTx,
+        Tag,
         WriteBuffer,
     },
 };
@@ -56,7 +58,7 @@ const WINDOW_DURATION: Duration = Duration::from_millis(
     if cfg!(debug_assertions) {
         500
     } else {
-        1
+        50
     },
 );
 
@@ -100,6 +102,72 @@ fn check_continuous_mapping() {
     }
 
     allocator.unmap();
+}
+
+#[test]
+#[timeout(1_000)]
+fn reader_close() {
+    log::init();
+
+    for corrupt in [false, true] {
+        for close_first in [false, true] {
+            let mut allocator = BigForPipe::new();
+
+            let (read_buffer, mut write_buffer) = pipe::make(&mut allocator).unwrap();
+            let chunk = [1, 2, 3];
+
+            let mut write_tx = write_buffer.write_tx().unwrap();
+            write_tx.write(&chunk).unwrap();
+
+            if close_first {
+                close(read_buffer, corrupt);
+                write_tx.commit();
+            } else {
+                write_tx.commit();
+                close(read_buffer, corrupt);
+            }
+
+            assert!(write_buffer.write_tx().is_none());
+
+            allocator.unmap();
+        }
+    }
+}
+
+#[test]
+#[timeout(1_000)]
+fn writer_close() {
+    log::init();
+
+    for corrupt in [false, true] {
+        let mut allocator = BigForPipe::new();
+
+        let (mut read_buffer, mut write_buffer) = pipe::make(&mut allocator).unwrap();
+        let chunk = [1, 2, 3];
+
+        let mut write_tx = write_buffer.write_tx().unwrap();
+        write_tx.write(&chunk).unwrap();
+        write_tx.commit();
+
+        close(write_buffer, corrupt);
+
+        if let Some(mut read_tx) = read_buffer.read_tx() {
+            assert!(!corrupt);
+
+            unsafe {
+                assert_eq!(read_tx.read().unwrap(), chunk);
+                assert!(read_tx.read().is_none());
+            }
+
+            read_tx.commit();
+        } else {
+            assert!(corrupt);
+        }
+
+        assert!(read_buffer.read_tx().is_none());
+
+        allocator.unmap();
+    }
 }
 
 #[test]
@@ -154,7 +222,7 @@ fn concurrent() {
     const ITERATIONS: u64 = if cfg!(debug_assertions) {
         20
     } else {
-        1_000
+        100
     };
 
     for iteration in 0 .. ITERATIONS {
@@ -176,6 +244,19 @@ fn concurrent() {
         assert!(write_thread.join().is_ok());
 
         allocator.unmap();
+    }
+}
+
+fn close<T: Tag>(
+    buffer: Buffer<T>,
+    corrupt: bool,
+) {
+    if corrupt {
+        unsafe {
+            buffer.block().try_into_mut_slice::<u8>().unwrap().fill(0xA5);
+        }
+    } else {
+        buffer.close();
     }
 }
 
@@ -240,7 +321,11 @@ fn write_thread(
 
     let mut window_begin = Instant::now();
 
-    const WRITE_TRANSACTIONS: u64 = 10_000;
+    const WRITE_TRANSACTIONS: u64 = if cfg!(debug_assertions) {
+        10_000
+    } else {
+        100_000
+    };
 
     for write_tx in 0 .. WRITE_TRANSACTIONS {
         let operation = write_ops.generate_operation();

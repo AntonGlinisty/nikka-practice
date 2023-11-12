@@ -39,15 +39,15 @@ extern "C" fn trap_handler_trampoline() -> !
 в файле
 [`user/lib/src/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/user/lib/src/syscall.rs).
 
-Она будет получать управление, если в коде пользователя возникло прерывание, например Page Fault.
-Прерывание может возникнуть в неожиданный момент, поэтому нужно сохранить содержимое всех регистров в стеке.
+Она будет получать управление, если в коде пользователя возникло прерывание или исключение, например Page Fault.
+Оно может возникнуть в неожиданный момент, поэтому нужно сохранить содержимое всех регистров в стеке.
 Стек, на котором эта функция будет запущена, --- специальный.
 Он может отличаться от стека в момент возникновения исключения.
 Причём на момент вызова
 [`lib::syscall::trap_handler_trampoline()`](../../doc/lib/syscall/fn.trap_handler_trampoline.html)
 в стеке лежит структура
 [`ku::process::trap_info::TrapInfo`](../../doc/ku/process/trap_info/struct.TrapInfo.html)
-с информацией о возникшем прерывании.
+с информацией о возникшем прерывании или исключении.
 Эту информацию записывает в стек процесса ядро.
 
 Это похоже на метод
@@ -106,13 +106,6 @@ pub struct TrapInfo {
     number: usize,
     info: Info,
     context: MiniContext,
-
-    /// `TrapInfo` can be pushed onto the same stack the `context` is pointing to.
-    /// Eg. if the trap is recursive - the trap has happened inside a trap handler.
-    /// In this case [`lib::syscall::trap_handler_trampoline`] and [`lib::syscall::trap_handler_invoker`]
-    /// will push a return address onto the `context` stack.
-    /// That will effectively overwrite the `TrapInfo`.
-    /// This field exists only to protect meaningfull fields of the `TrapInfo` from beeing overwritten.
     return_address_placeholder: [u8; Self::PLACEHOLDER_SIZE],
 }
 ```
@@ -194,15 +187,15 @@ fn Process::trap(
 
 в файле
 [`kernel/src/process/process.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/process.rs).
-Она вызывается из функции
+Он вызывается из функции
 [`kernel::trap::handler::generic_trap()`](../../doc/kernel/trap/handler/fn.generic_trap.html) в файле
 [`kernel/src/trap/mod.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/trap/mod.rs),
 если прерывание произошло в режиме пользователя.
 
-Её задача --- вернуть управление в код пользователя (запускается она в режиме ядра) в контекст
+Его задача --- вернуть управление в код пользователя (запускается он в режиме ядра) в контекст
 пользовательского обработчика прерывания
 [`Process::trap_handler_context`](../../doc/kernel/process/process/struct.Process.html#structfield.trap_handler_context).
-Делает это она аналогично
+Делает это он аналогично
 [реализованному вами ранее](../../lab/book/4-process-8-preemption.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-6--%D1%80%D0%B5%D0%B0%D0%BB%D0%B8%D0%B7%D1%83%D0%B9%D1%82%D0%B5-%D0%B2%D1%8B%D1%82%D0%B5%D1%81%D0%BD%D0%B5%D0%BD%D0%B8%D0%B5-%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D0%BA%D0%BE%D0%B3%D0%BE-%D0%BF%D1%80%D0%BE%D1%86%D0%B5%D1%81%D1%81%D0%B0-%D0%BF%D0%BE-%D0%BF%D1%80%D0%B5%D1%80%D1%8B%D0%B2%D0%B0%D0%BD%D0%B8%D1%8E)
 методу
 [`Process::preempt()`](../../doc/kernel/process/process/struct.Process.html#method.preempt),
@@ -223,12 +216,13 @@ fn Process::trap(
 Если это так, это означает что пользовательский код как раз исполняет обработчик прерывания, так как использует его стек.
 Тогда переключать стек не нужно, значение `RSP` должно остаться как было в `context`.
 Если же пользовательский `RSP` указывает не в стек обработчика прерываний, то его нужно туда переключить.
-Ведь, возможно, Page Fault был вызван попыткой обратиться в обычный стек и если запустить
-пользовательский обработчик прерываний, не переключив стек, Page Fault повторится и программа зациклится в рекурсивных вызовах обработчика прерываний.
+Ведь, возможно, Page Fault был вызван попыткой обратиться в обычный стек.
+И если запустить пользовательский обработчик прерываний, не переключив стек,
+Page Fault повторится и программа зациклится в рекурсивных вызовах обработчика прерываний.
 Соберите
 [`ku::process::mini_context::MiniContext`](../../doc/ku/process/mini_context/struct.MiniContext.html)
 из
-[`Process::trap_handler_context`](../../doc/kernel/process/process/struct.Process.html#structfield.trap_handler_context).
+[`Process::trap_handler_context`](../../doc/kernel/process/process/struct.Process.html#structfield.trap_handler_context)
 и `context` описанным образом.
 
 С помощью метода
@@ -262,86 +256,59 @@ fn Process::trap(
 $ (cd kernel; cargo test --test 6-um-4-trap-handler)
 ...
 6_um_4_trap_handler::trap_handler---------------------------
-20:23:47 0 I page allocator init; free_page_count = 33822867456; block = [0v18000000000, 0v7F8000000000), size 126.000 TiB
-20:23:47 0 I duplicate; address_space = "process" @ 0p7E0A000
-20:23:47 0 I switch to; address_space = "process" @ 0p7E0A000
-20:23:47 0 D extend mapping; block = [0v10000000, 0v10007AAC), size 30.668 KiB; page_block = [0v10000000, 0v10008000), size 32.000 KiB; flags =   R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-20:23:47 0 D elf loadable program header; file_block = [0v201D83, 0v20982F), size 30.668 KiB; memory_block = [0v10000000, 0v10007AAC), size 30.668 KiB; flags =   R
-20:23:47 0 D extend mapping; block = [0v10008000, 0v1005A3BD), size 328.935 KiB; page_block = [0v10008000, 0v1005B000), size 332.000 KiB; flags = X R; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-20:23:47 0 D elf loadable program header; file_block = [0v209833, 0v25C140), size 330.263 KiB; memory_block = [0v10007AB0, 0v1005A3BD), size 330.263 KiB; flags = X R
-20:23:47 0 D elf loadable program header; file_block = [0v25C143, 0v25C253), size 272 B; memory_block = [0v1005A3C0, 0v1005A4D0), size 272 B; flags =  WR
-20:23:47 0 D extend mapping; block = [0v1005B000, 0v10060E10), size 23.516 KiB; page_block = [0v1005B000, 0v10061000), size 24.000 KiB; flags =  WR; page_flags = PRESENT | WRITABLE | USER_ACCESSIBLE
-20:23:47 0 D elf loadable program header; file_block = [0v25C253, 0v262B6B), size 26.273 KiB; memory_block = [0v1005A4D0, 0v10060E10), size 26.312 KiB; flags =  WR
-20:23:47 0 I switch to; address_space = "base" @ 0p1000
-20:23:47 0 I loaded ELF file; context = { rip: 0v1000B250, rsp: 0v7F7FFFFFF000 }; file_size = 5.581 MiB; process = { pid: <current>, address_space: "process" @ 0p7E0A000, { rip: 0v1000B250, rsp: 0v7F7FFFFFF000 } }
-20:23:47 0 I allocate; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E0A000, { rip: 0v1000B250, rsp: 0v7F7FFFFFF000 } }; process_count = 1
-20:23:47 0 I user process page table entry; entry_point = 0v1000B250; frame = Frame(32233 @ 0p7DE9000); flags = PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY
-20:23:47 0 D process_frames = 155
-20:23:47 0 I dequeue; pid = Some(0:0)
-20:23:47 0 I switch to; address_space = "0:0" @ 0p7E0A000
-20:23:47 0 D entering the user mode; pid = 0:0; registers = { rax: 0x0, rdi: 0x7F7FFFFDB000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v1000B250, ss:rsp: 0x001B:0v7F7FFFFFF000, rflags: IF } }
-20:23:47 0 I trap_handler_stack = [0v7F7FFFFD7000, 0v7F7FFFFDB000), size 16.000 KiB; pid = 0:0
-20:23:47 0 I stored from main(); value = 333333333; pid = 0:0
-20:23:47 0 D trap = "Page Fault"; context = { mode: user, cs:rip: 0x0023:0v10023BD6, ss:rsp: 0x001B:0v7F7FFFFFDBE8, rflags: IF AF PF }; info = { address: 0v7F7FFFFD6000, code: 0b100 = non-present page | read | user }
-20:23:47 0 D leaving the user mode; pid = 0:0
-20:23:47 0 I the process was preempted; pid = 0:0; user_context = { mode: user, cs:rip: 0x0023:0v1000D320, ss:rsp: 0x001B:0v7F7FFFFDAFC8, rflags: IF AF PF }
-20:23:47 0 I returned
-20:23:47 0 I dequeue; pid = Some(0:0)
-20:23:47 0 I switch to; address_space = "0:0" @ 0p7E0A000
-20:23:47 0 D entering the user mode; pid = 0:0; registers = { rax: 0x1005B8E8, rdi: 0x7F7FFFFD6000, rsi: 0x7F7FFFFFE7C8, { mode: user, cs:rip: 0x0023:0v1000D320, ss:rsp: 0x001B:0v7F7FFFFDAFC8, rflags: AF PF } }
-20:23:47 0 I trap handler called for a page fault on an address; value = 140187732369408; hex_value = 0x7F7FFFFD6000; pid = 0:0
-20:23:47 0 I stored from simple_trap_handler(); value = 777777777; pid = 0:0
-20:23:47 0 I stored from main(); value = 555555555; pid = 0:0
-20:23:47 0 D trap = "Page Fault"; context = { mode: user, cs:rip: 0x0023:0v10023BD6, ss:rsp: 0x001B:0v7F7FFFFFDBE8, rflags: IF AF PF }; info = { address: 0v7F7FFFFD6000, code: 0b100 = non-present page | read | user }
-20:23:47 0 I recursive page fault at level; value = 0; hex_value = 0x0; pid = 0:0
-20:23:47 0 D trap = "Page Fault"; context = { mode: user, cs:rip: 0x0023:0v1000A393, ss:rsp: 0x001B:0v7F7FFFFDAD88, rflags: IF }; info = { address: 0v7F7FFFFD6008, code: 0b100 = non-present page | read | user }
-20:23:47 0 D leaving the user mode; pid = 0:0
-20:23:47 0 I the process was preempted; pid = 0:0; user_context = { mode: user, cs:rip: 0x0023:0v1000D320, ss:rsp: 0x001B:0v7F7FFFFDAD50, rflags: IF }
-20:23:47 0 I returned
-20:23:47 0 I dequeue; pid = Some(0:0)
-20:23:47 0 I switch to; address_space = "0:0" @ 0p7E0A000
-20:23:47 0 D entering the user mode; pid = 0:0; registers = { rax: 0x7F7FFFFD6000, rdi: 0x7F7FFFFDAEB8, rsi: 0x1005C978, { mode: user, cs:rip: 0x0023:0v1000D320, ss:rsp: 0x001B:0v7F7FFFFDAD50, rflags:  } }
-20:23:48.001 0 I recursive page fault at level; value = 1; hex_value = 0x1; pid = 0:0
-20:23:48.009 0 D trap = "Page Fault"; context = { mode: user, cs:rip: 0x0023:0v1000A393, ss:rsp: 0x001B:0v7F7FFFFDAB10, rflags: IF }; info = { address: 0v7F7FFFFD6010, code: 0b100 = non-present page | read | user }
-20:23:48.025 0 I recursive page fault at level; value = 2; hex_value = 0x2; pid = 0:0
-20:23:48.033 0 D trap = "Page Fault"; context = { mode: user, cs:rip: 0x0023:0v1000A393, ss:rsp: 0x001B:0v7F7FFFFDA898, rflags: IF }; info = { address: 0v7F7FFFFD6018, code: 0b100 = non-present page | read | user }
-20:23:48.047 0 I recursive page fault at level; value = 3; hex_value = 0x3; pid = 0:0
-20:23:48.055 0 D trap = "Page Fault"; context = { mode: user, cs:rip: 0x0023:0v1000A393, ss:rsp: 0x001B:0v7F7FFFFDA620, rflags: IF }; info = { address: 0v7F7FFFFD6020, code: 0b100 = non-present page | read | user }
-20:23:48.069 0 I recursive page fault at level; value = 4; hex_value = 0x4; pid = 0:0
-20:23:48.077 0 D trap = "Page Fault"; context = { mode: user, cs:rip: 0x0023:0v1000A393, ss:rsp: 0x001B:0v7F7FFFFDA3A8, rflags: IF }; info = { address: 0v7F7FFFFD6028, code: 0b100 = non-present page | read | user }
-20:23:48.091 0 I recursive page fault at level; value = 5; hex_value = 0x5; pid = 0:0
-20:23:48.099 0 D trap = "Page Fault"; context = { mode: user, cs:rip: 0x0023:0v1000A393, ss:rsp: 0x001B:0v7F7FFFFDA130, rflags: IF }; info = { address: 0v7F7FFFFD6030, code: 0b100 = non-present page | read | user }
-20:23:48.113 0 I recursive page fault at level; value = 6; hex_value = 0x6; pid = 0:0
-20:23:48.121 0 D trap = "Page Fault"; context = { mode: user, cs:rip: 0x0023:0v1000A393, ss:rsp: 0x001B:0v7F7FFFFD9EB8, rflags: IF }; info = { address: 0v7F7FFFFD6038, code: 0b100 = non-present page | read | user }
-20:23:48.135 0 I recursive page fault at level; value = 7; hex_value = 0x7; pid = 0:0
-20:23:48.143 0 D trap = "Page Fault"; context = { mode: user, cs:rip: 0x0023:0v1000A393, ss:rsp: 0x001B:0v7F7FFFFD9C40, rflags: IF }; info = { address: 0v7F7FFFFD6040, code: 0b100 = non-present page | read | user }
-20:23:48.157 0 D leaving the user mode; pid = 0:0
-20:23:48.161 0 I the process was preempted; pid = 0:0; user_context = { mode: user, cs:rip: 0x0023:0v1000D320, ss:rsp: 0x001B:0v7F7FFFFD9C08, rflags: IF }
-20:23:48.171 0 I returned
-20:23:48.175 0 I dequeue; pid = Some(0:0)
-20:23:48.179 0 I switch to; address_space = "0:0" @ 0p7E0A000
-20:23:48.183 0 D entering the user mode; pid = 0:0; registers = { rax: 0x7F7FFFFD6038, rdi: 0x7F7FFFFD9D70, rsi: 0x1005C978, { mode: user, cs:rip: 0x0023:0v1000D320, ss:rsp: 0x001B:0v7F7FFFFD9C08, rflags:  } }
-20:23:48.197 0 I recursive page fault at level; value = 8; hex_value = 0x8; pid = 0:0
-20:23:48.205 0 I setting the simple trap handler from the recursive trap handler, new trap_handler_stack rsp; value = 140187732369408; hex_value = 0x7F7FFFFD6000; pid = 0:0
-20:23:48.217 0 D trap = "Page Fault"; context = { mode: user, cs:rip: 0x0023:0v1000A393, ss:rsp: 0x001B:0v7F7FFFFD9C40, rflags: IF }; info = { address: 0v7F7FFFFD6040, code: 0b100 = non-present page | read | user }
-20:23:48.231 0 I trap handler called for a page fault on an address; value = 140187732369472; hex_value = 0x7F7FFFFD6040; pid = 0:0
-20:23:47.925 0 I stored from recursive_trap_handler(); value = 777777785; pid = 0:0
-20:23:48.251 0 I free; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E0A000, { rip: 0v1000D320, rsp: 0v7F7FFFFD9C08 } }; process_count = 0
-20:23:48.259 0 I switch to; address_space = "base" @ 0p1000
-20:23:48.265 0 I drop the current address space; address_space = "0:0" @ 0p7E0A000; switch_to = "base" @ 0p1000
-20:23:48.323 0 I syscall = "exit"; pid = 0:0; code = 0; reason = Some(OK)
-20:23:48.327 0 D leaving the user mode; pid = 0:0
-20:23:48.333 0 I dequeue; pid = None
+20:55:14 0 I page allocator init; free_page_count = 33822867456; block = [0v180_0000_0000, 0v7F80_0000_0000), size 126.000 TiB
+20:55:14 0 I duplicate; address_space = "process" @ 0p7E2_6000
+20:55:14 0 I switch to; address_space = "process" @ 0p7E2_6000
+20:55:14 0 D extend mapping; block = [0v1000_0000, 0v1000_92AC), size 36.668 KiB; page_block = [0v1000_0000, 0v1000_A000), size 40.000 KiB
+20:55:14 0 D elf loadable program header; file_block = [0v20_3000, 0v20_C2AC), size 36.668 KiB; memory_block = [0v1000_0000, 0v1000_92AC), size 36.668 KiB
+20:55:14 0 D extend mapping; block = [0v1000_A000, 0v1005_A0CF), size 320.202 KiB; page_block = [0v1000_A000, 0v1005_B000), size 324.000 KiB
+20:55:14 0 D elf loadable program header; file_block = [0v20_C2B0, 0v25_D0CF), size 323.530 KiB; memory_block = [0v1000_92B0, 0v1005_A0CF), size 323.530 KiB
+20:55:14 0 D elf loadable program header; file_block = [0v25_D0D0, 0v25_D1C0), size 240 B; memory_block = [0v1005_A0D0, 0v1005_A1C0), size 240 B
+20:55:14 0 D extend mapping; block = [0v1005_B000, 0v1006_1DB8), size 27.430 KiB; page_block = [0v1005_B000, 0v1006_2000), size 28.000 KiB
+20:55:14 0 D elf loadable program header; file_block = [0v25_D1C0, 0v26_4D88), size 30.945 KiB; memory_block = [0v1005_A1C0, 0v1006_1DB8), size 30.992 KiB
+20:55:14 0 I switch to; address_space = "base" @ 0p1000
+20:55:14 0 I loaded ELF file; context = { rip: 0v1000_DDC0, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.801 MiB; process = { pid: <current>, address_space: "process" @ 0p7E2_6000, { rip: 0v1000_DDC0, rsp: 0v7F7F_FFFF_F000 } }
+20:55:14 0 I allocate; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E2_6000, { rip: 0v1000_DDC0, rsp: 0v7F7F_FFFF_F000 } }; process_count = 1
+20:55:14 0 I user process page table entry; entry_point = 0v1000_DDC0; frame = Frame(32258 @ 0p7E0_2000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:55:14 0 D process_frames = 160
+20:55:14 0 I dequeue; pid = Some(0:0)
+20:55:14 0 I switch to; address_space = "0:0" @ 0p7E2_6000
+20:55:14 0 D entering the user mode; pid = 0:0; registers = { rax: 0x0, rdi: 0x7F7FFFFD5000, rsi: 0x0, { mode: user, cs:rip: 0x0023:0v1000_DDC0, ss:rsp: 0x001B:0v7F7F_FFFF_F000, rflags: IF } }
+20:55:14 0 I trap_handler_stack = [0v7F7F_FFFD_1000, 0v7F7F_FFFD_5000), size 16.000 KiB; pid = 0:0
+20:55:14 0 I stored from main(); value = 333333333; pid = 0:0
+20:55:14 0 I trap handler called for a page fault on an address; value = 140187732344832; hex_value = 0x7F7FFFFD0000; pid = 0:0
+20:55:14 0 I stored from simple_trap_handler(); value = 777777777; pid = 0:0
+20:55:14 0 I stored from main(); value = 555555555; pid = 0:0
+20:55:14 0 I recursive page fault at level; value = 0; hex_value = 0x0; pid = 0:0
+20:55:14 0 I recursive page fault at level; value = 1; hex_value = 0x1; pid = 0:0
+20:55:14 0 I recursive page fault at level; value = 2; hex_value = 0x2; pid = 0:0
+20:55:14 0 I recursive page fault at level; value = 3; hex_value = 0x3; pid = 0:0
+20:55:14 0 I recursive page fault at level; value = 4; hex_value = 0x4; pid = 0:0
+20:55:14 0 I recursive page fault at level; value = 5; hex_value = 0x5; pid = 0:0
+20:55:14 0 I recursive page fault at level; value = 6; hex_value = 0x6; pid = 0:0
+20:55:14 0 I recursive page fault at level; value = 7; hex_value = 0x7; pid = 0:0
+20:55:14 0 I recursive page fault at level; value = 8; hex_value = 0x8; pid = 0:0
+20:55:14 0 I setting the simple trap handler from the recursive trap handler, new trap_handler_stack rsp; value = 140187732344832; hex_value = 0x7F7FFFFD0000; pid = 0:0
+20:55:14 0 I trap handler called for a page fault on an address; value = 140187732344896; hex_value = 0x7F7FFFFD0040; pid = 0:0
+20:55:14 0 I stored from recursive_trap_handler(); value = 777777785; pid = 0:0
+20:55:14 0 I free; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E2_6000, { rip: 0v1000_DDC0, rsp: 0v7F7F_FFFF_F000 } }; process_count = 0
+20:55:14 0 D dropping; spinlock = kernel/src/process/table.rs:127:26; stats = Stats { failures: 0, locks: 38, unlocks: 38, waits: 0 }
+20:55:14 0 D dropping; spinlock = kernel/src/process/process.rs:65:28; stats = Stats { failures: 0, locks: 3, unlocks: 3, waits: 0 }
+20:55:14 0 I switch to; address_space = "base" @ 0p1000
+20:55:14 0 I drop the current address space; address_space = "0:0" @ 0p7E2_6000; switch_to = "base" @ 0p1000
+20:55:15.561 0 I syscall = "exit"; pid = 0:0; code = 0; reason = Ok(Ok)
+20:55:15.567 0 D leaving the user mode; pid = 0:0
+20:55:15.571 0 I dequeue; pid = None
 6_um_4_trap_handler::trap_handler------------------ [passed]
-20:23:48.341 0 I exit qemu; exit_code = SUCCESS
+20:55:15.577 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ```
 
 
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/process/process.rs |   50 ++++++++++++++++++++++++++++++++++++++++++++++++--
- kernel/src/process/syscall.rs |   12 ++++++++++--
- user/lib/src/syscall.rs       |   48 ++++++++++++++++++++++++++++++++++++++++++++++--
- 3 files changed, 104 insertions(+), 6 deletions(-)
+ kernel/src/process/process.rs | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++--
+ kernel/src/process/syscall.rs | 14 ++++++++++++--
+ user/lib/src/syscall.rs       | 52 ++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 113 insertions(+), 6 deletions(-)
 ```

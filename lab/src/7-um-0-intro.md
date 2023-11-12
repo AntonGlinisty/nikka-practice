@@ -7,14 +7,13 @@
 ### Ориентировочный объём работ этой лабораторки
 
 ```console
- kernel/src/memory/mapping.rs  |   16 +++++
- kernel/src/process/mod.rs     |   28 +++++++++-
- kernel/src/process/process.rs |   50 +++++++++++++++++-
- kernel/src/process/syscall.rs |  214 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++---------
- ku/src/ipc/pipe.rs            |   50 ++++++++++++++----
- user/cow_fork/src/main.rs     |   74 +++++++++++++++++++++++++--
- user/eager_fork/src/main.rs   |   54 ++++++++++++++++++--
- user/lib/src/memory/mod.rs    |   34 ++++++++++--
- user/lib/src/syscall.rs       |   48 +++++++++++++++++
- 9 files changed, 510 insertions(+), 58 deletions(-)
+ kernel/src/memory/mapping.rs  |  19 ++++++-
+ kernel/src/process/process.rs |  53 +++++++++++++++++-
+ kernel/src/process/syscall.rs | 244 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++---------
+ ku/src/ipc/pipe.rs            | 234 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-------
+ user/cow_fork/src/main.rs     | 111 ++++++++++++++++++++++++++++++++++---
+ user/eager_fork/src/main.rs   |  58 ++++++++++++++++++--
+ user/lib/src/memory/mod.rs    |  40 ++++++++++++--
+ user/lib/src/syscall.rs       |  52 +++++++++++++++++-
+ 8 files changed, 742 insertions(+), 69 deletions(-)
 ```

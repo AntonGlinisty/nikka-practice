@@ -18,7 +18,10 @@ use crate::{
         self,
         Error::InvalidAlignment,
     },
-    log::error,
+    log::{
+        debug,
+        error,
+    },
     memory::{
         Block,
         Page,
@@ -44,6 +47,9 @@ pub fn make<T: BigAllocator>(allocator: &mut T) -> error::Result<(ReadBuffer, Wr
 struct RingBuffer {
     /// Блок памяти с данными, которые хранятся в буфере.
     block: Block<Page>,
+
+    /// Закрыт ли буфер.
+    closed: bool,
 
     /// Количество байт, прочитанных из буфера за всё время.
     /// То есть, эта величина потенциально больше размера буфера.
@@ -79,15 +85,11 @@ impl RingBuffer {
 
         Self {
             block,
+            closed: false,
             head: 0,
             tail: 0,
             stats: RingBufferStats::default(),
         }
-    }
-
-    /// Возвращает блок виртуальной памяти, в которую отображён буфер.
-    fn block(&self) -> Block<Page> {
-        self.block
     }
 
     /// Создаёт читающую или пишущую транзакцию.
@@ -111,9 +113,17 @@ impl RingBuffer {
     /// Закрывает [`RingBuffer`].
     /// После вызова этой функции любым из участников
     /// никакие транзакции больше создаваться не могут.
-    /// А соотвествующий метод [`RingBuffer::tx()`] возвращает [`None`].
+    /// А соответствующий метод [`RingBuffer::tx()`] возвращает [`None`].
+    ///
+    /// Для упрощения, чтобы не реализовывать сложного протокола закрытия,
+    /// этот метод работает асимметрично.
+    /// Если буфер закрывает пишущая сторона, то читающая сначала прочитает все данные,
+    /// которые были записаны в буфер до закрытия.
+    /// Если же буфер закроет читающая сторона, то все данные, которые в него были записаны или
+    /// писались в этот момент конкурентно, будут потеряны.
     fn close(&mut self) {
-        self.write_header(self.tail, Header::Closed);
+        // TODO: your code here.
+        unimplemented!();
     }
 
     /// Читает заголовок записи, находящейся на позиции `position`.
@@ -144,7 +154,7 @@ impl RingBuffer {
         position: usize,
     ) -> usize {
         let mut size = 0;
-        for x in self.header(position) {
+        for x in self.size(position) {
             size = (size << u8::BITS) | size::from(*x);
         }
         size
@@ -157,7 +167,7 @@ impl RingBuffer {
         size: usize,
     ) {
         let mut size = size;
-        for x in self.header(position).iter_mut().rev() {
+        for x in self.size(position).iter_mut().rev() {
             *x = size as u8;
             size >>= u8::BITS;
         }
@@ -171,13 +181,14 @@ impl RingBuffer {
         &mut self,
         position: usize,
     ) -> &AtomicU8 {
-        self.get(position)
+        AtomicU8::from_mut(self.get(position))
     }
 
-    /// Возвращает ссылку на заголовок с метаданными записи, находящейся на позиции `position`.
+    /// Возвращает ссылку на поле заголовка с размером записи,
+    /// которая находится на позиции `position`.
     ///
     /// Принимает `&mut self`, чтобы гарантировать отсутствие алиасинга.
-    fn header(
+    fn size(
         &mut self,
         position: usize,
     ) -> &mut [u8; Self::HEADER_SIZE - mem::size_of::<AtomicU8>()] {
@@ -263,10 +274,26 @@ impl RingBuffer {
     const REAL_SIZE: usize = 4 * Page::SIZE;
 }
 
+/// Читающая или пишущая сторона [`RingBuffer`].
+#[derive(Debug, Default)]
+pub struct Buffer<T: Tag>(RingBuffer, PhantomData<T>);
+
+impl<T: Tag> Buffer<T> {
+    /// Закрывает [`RingBuffer`].
+    /// После вызова этой функции никакие транзакции больше создаваться не могут.
+    pub fn close(mut self) {
+        self.0.close();
+    }
+
+    /// Возвращает блок виртуальной памяти, в которую отображён буфер.
+    pub fn block(&self) -> Block<Page> {
+        self.0.block
+    }
+}
+
 /// Читающая сторона [`RingBuffer`].
 /// Позволяет создавать только читающие транзакции.
-#[derive(Debug, Default)]
-pub struct ReadBuffer(RingBuffer);
+pub type ReadBuffer = Buffer<ReadTag>;
 
 impl ReadBuffer {
     /// Создаёт читающую транзакцию.
@@ -274,17 +301,6 @@ impl ReadBuffer {
         let mut tx = self.0.tx()?;
         tx.header = tx.head;
         Some(tx)
-    }
-
-    /// Закрывает [`RingBuffer`].
-    /// После вызова этой функции никакие транзакции больше создаваться не могут.
-    pub fn close(&mut self) {
-        self.0.close();
-    }
-
-    /// Возвращает блок виртуальной памяти, в которую отображён буфер.
-    pub fn block(&self) -> Block<Page> {
-        self.0.block()
     }
 
     /// Возвращает статистики читающих транзакций.
@@ -295,8 +311,7 @@ impl ReadBuffer {
 
 /// Пишущая сторона [`RingBuffer`].
 /// Позволяет создавать только пишущие транзакции.
-#[derive(Debug, Default)]
-pub struct WriteBuffer(RingBuffer);
+pub type WriteBuffer = Buffer<WriteTag>;
 
 impl WriteBuffer {
     /// Создаёт пишущую транзакцию.
@@ -306,17 +321,6 @@ impl WriteBuffer {
         Some(tx)
     }
 
-    /// Закрывает [`RingBuffer`].
-    /// После вызова этой функции никакие транзакции больше создаваться не могут.
-    pub fn close(&mut self) {
-        self.0.close();
-    }
-
-    /// Возвращает блок виртуальной памяти, в которую отображён буфер.
-    pub fn block(&self) -> Block<Page> {
-        self.0.block()
-    }
-
     /// Возвращает статистики пишущих транзакций.
     pub fn write_stats(&self) -> &RingBufferStats {
         &self.0.stats
@@ -324,7 +328,7 @@ impl WriteBuffer {
 }
 
 /// Заголовок одной записи [`RingBuffer`].
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
 enum Header {
     /// Запись свободна, то есть в неё ещё ничего не записывалось.
@@ -334,7 +338,7 @@ enum Header {
     Closed = Self::CLOSED,
 
     /// Запись захвачена писателем.
-    /// То есть, он начал в неё писать данные, но пока ещё не закончил.
+    /// То есть, он начал в неё писать данные, но пока ещё не закончил или отменил транзакцию.
     Locked = Self::LOCKED,
 
     /// Запись зафиксирована писателем, но ещё не зафиксирована читателем.
@@ -376,6 +380,7 @@ impl Header {
 }
 
 /// Читающая или пишущая транзакция.
+#[derive(Debug)]
 pub struct RingBufferTx<'a, T: Tag> {
     /// Ссылка на исходный [`RingBuffer`].
     ring_buffer: &'a mut RingBuffer,
@@ -401,7 +406,8 @@ pub struct RingBufferTx<'a, T: Tag> {
 }
 
 impl RingBufferTx<'_, ReadTag> {
-    /// Возвращает в виде среза все доступные на момент запуска читающей транзакции байты из буфера.
+    /// Возвращает в виде среза полезную нагрузку очередной записи из буфера.
+    /// Или [`None`], если в этой читающей транзакции больше нет записей.
     /// Обновляет поля только самой транзакции [`RingBufferTx`].
     ///
     /// # Safety
@@ -422,7 +428,8 @@ impl RingBufferTx<'_, ReadTag> {
 
     /// Фиксирует читающую транзакцию, записывая обновлённое значение [`RingBuffer::head`] и
     /// статистику [`RingBuffer::stats`] в поля [`RingBuffer`].
-    pub fn commit(&mut self) {
+    #[allow(unused_mut)] // TODO: remove before flight.
+    pub fn commit(mut self) {
         // TODO: your code here.
         unimplemented!();
     }
@@ -443,7 +450,8 @@ impl RingBufferTx<'_, WriteTag> {
 
     /// Фиксирует пишущую транзакцию, обновляя значение [`RingBuffer::tail`] и
     /// статистику [`RingBuffer::stats`] в полях [`RingBuffer`].
-    pub fn commit(&mut self) {
+    #[allow(unused_mut)] // TODO: remove before flight.
+    pub fn commit(mut self) {
         // TODO: your code here.
         unimplemented!();
     }
@@ -465,7 +473,7 @@ impl RingBufferTx<'_, WriteTag> {
 
 impl<T: Tag> Drop for RingBufferTx<'_, T> {
     /// Обрывает читающую или пишущую транзакцию.
-    /// Обновляет соответствующие статистики [`RingBuffer::stats`],
+    /// Обновляет статистики [`RingBuffer::stats`],
     /// если в транзакции был прочитан или записан хотя бы один байт.
     fn drop(&mut self) {
         // TODO: your code here.
@@ -483,12 +491,14 @@ pub type RingBufferReadTx<'a> = RingBufferTx<'a, ReadTag>;
 pub type RingBufferWriteTx<'a> = RingBufferTx<'a, WriteTag>;
 
 /// Тег читающих транзакций.
+#[derive(Debug, Default)]
 pub struct ReadTag;
 
 impl Tag for ReadTag {
 }
 
 /// Тег пишущих транзакций.
+#[derive(Debug, Default)]
 pub struct WriteTag;
 
 impl Tag for WriteTag {

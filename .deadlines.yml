@@ -378,12 +378,12 @@
   enabled: true
   tasks:
     - task: pipe
-      score: 100
+      score: 200
 
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/6-um-1-pipe.html
       allow_list: *allow_list
       check:
-        - cd kernel && cargo test --test 2-mm-* --test 4-process-3-elf && cd - && cd ku && cargo test --test 6-um-1-pipe && cargo test --release --test 6-um-1-pipe
+        - cd kernel && cargo test --test 2-mm-* --test 3-smp-[134]-* --test 4-process-[123]-* && cd - && cd ku && cargo test --test 6-um-1-pipe && cargo test --release --test 6-um-1-pipe
 
     - task: memory-syscalls
       score: 100
@@ -391,7 +391,7 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/6-um-2-memory-syscalls.html
       allow_list: *allow_list
       check:
-        - cd kernel && cargo test --test 2-mm-* --test 4-process-3-elf --test 4-concurrency-* --test 6-um-2-memory-syscalls
+        - cd kernel && cargo test --test 2-mm-* --test 3-smp-[134]-* --test 4-process-[123]-* --test 6-um-2-memory-syscalls
 
     - task: eager-fork
       score: 100
@@ -399,7 +399,7 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/6-um-3-eager-fork.html
       allow_list: *allow_list
       check:
-        - cd kernel && cargo test --test 2-mm-* --test 4-process-3-elf --test 4-concurrency-* --test 6-um-3-eager-fork
+        - cd kernel && cargo test --test 2-mm-* --test 3-smp-[134]-* --test 4-process-[123]-* --test 6-um-3-eager-fork
 
     - task: user-traps
       score: 100
@@ -407,7 +407,7 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/6-um-4-trap-handler.html
       allow_list: *allow_list
       check:
-        - cd kernel && cargo test --test 2-mm-* --test 4-process-3-elf --test 4-concurrency-* --test 6-um-4-trap-handler
+        - cd kernel && cargo test --test 2-mm-* --test 3-smp-[134]-* --test 4-process-[123]-* --test 6-um-4-trap-handler
 
     - task: cow-fork
       score: 100
@@ -415,7 +415,7 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/6-um-5-cow-fork.html
       allow_list: *allow_list
       check:
-        - cd kernel && cargo test --test 2-mm-* --test 4-process-3-elf --test 4-concurrency-* --test 6-um-*
+        - cd kernel && cargo test --test 2-mm-* --test 3-smp-[134]-* --test 4-process-[123]-* --test 6-um-*
 
 - group: lab-7-file-system
   start: 30-11-2023 18:00
@@ -429,7 +429,7 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-1-block-cache.html
       allow_list: *allow_list
       check:
-        - rm --force fs.img && cd kernel && cargo test --test 2-mm-* --test 3-allocator-1-big --test 7-fs-1-block-cache-1-write --test 7-fs-1-block-cache-2-read
+        - rm --force fs.img && cd kernel && cargo test --test 2-mm-* --test 3-smp-[134]-* --test 4-process-[123]-* --test 7-fs-1-block-cache-1-write --test 7-fs-1-block-cache-2-read
 
     - task: bitmap
       score: 100
@@ -437,7 +437,7 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-2-bitmap.html
       allow_list: *allow_list
       check:
-        - rm --force fs.img && cd kernel && cargo test --test 2-mm-* --test 3-allocator-1-big --test 7-fs-2-bitmap
+        - rm --force fs.img && cd kernel && cargo test --test 2-mm-* --test 3-smp-[134]-* --test 4-process-[123]-* --test 7-fs-2-bitmap
 
     - task: inode
       score: 200
@@ -445,7 +445,7 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-3-inode.html
       allow_list: *allow_list
       check:
-        - rm --force fs.img && cd kernel && cargo test --test 2-mm-* --test 3-allocator-1-big --test 7-fs-3-inode
+        - rm --force fs.img && cd kernel && cargo test --test 2-mm-* --test 3-smp-[134]-* --test 4-process-[123]-* --test 7-fs-3-inode
 
     - task: directory
       score: 150
@@ -453,7 +453,7 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-4-directory.html
       allow_list: *allow_list
       check:
-        - rm --force fs.img && cd kernel && cargo test --test 2-mm-* --test 3-allocator-1-big --test 7-fs-4-directory
+        - rm --force fs.img && cd kernel && cargo test --test 2-mm-* --test 3-smp-[134]-* --test 4-process-[123]-* --test 7-fs-4-directory
 
     - task: open
       score: 50
@@ -461,5 +461,5 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-5-open.html
       allow_list: *allow_list
       check:
-        - rm --force fs.img && cd kernel && cargo test --test 2-mm-* --test 3-allocator-1-big --test 7-fs-5-*
+        - rm --force fs.img && cd kernel && cargo test --test 2-mm-* --test 3-smp-[134]-* --test 4-process-[123]-* --test 7-fs-5-*
 
