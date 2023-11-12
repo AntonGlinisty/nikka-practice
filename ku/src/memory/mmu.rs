@@ -99,26 +99,7 @@ impl fmt::Debug for PageTableEntry {
     ) -> fmt::Result {
         if let Ok(frame) = self.frame() {
             let flags = self.flags();
-            write!(
-                formatter,
-                "{} {}{}{}",
-                frame,
-                if flags.contains(PageTableFlags::USER_ACCESSIBLE) {
-                    'U'
-                } else {
-                    '-'
-                },
-                if flags.contains(PageTableFlags::WRITABLE) {
-                    'W'
-                } else {
-                    '-'
-                },
-                if flags.contains(PageTableFlags::PRESENT) {
-                    'P'
-                } else {
-                    '-'
-                },
-            )
+            write!(formatter, "{frame} {flags}")
         } else {
             write!(formatter, "<non-present>")
         }
@@ -212,6 +193,45 @@ bitflags! {
 
         /// Запрет интерпретировать данные в странице как код, требует включения флага [`x86_64::registers::model_specific::EferFlags::NO_EXECUTE_ENABLE`] в [`x86_64::registers::model_specific::Efer`].
         const NO_EXECUTE = 1 << 63;
+    }
+}
+
+impl fmt::Display for PageTableFlags {
+    fn fmt(
+        &self,
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
+        /// Сокращения для флагов отображения страниц.
+        static FLAGS: [char; 9] = ['P', 'W', 'U', 'T', 'C', 'A', 'D', 'H', 'G'];
+
+        write!(
+            formatter,
+            "{:X}",
+            (*self & PageTableFlags::AVAILABLE).bits() >> FLAGS.len(),
+        )?;
+
+        for (bit, flag) in FLAGS.iter().enumerate().rev() {
+            write!(
+                formatter,
+                "{}",
+                if self.bits() & (1 << bit) != 0 {
+                    *flag
+                } else {
+                    '-'
+                },
+            )?;
+        }
+
+        write!(
+            formatter,
+            "{}({:#03X})",
+            if self.contains(PageTableFlags::NO_EXECUTE) {
+                '-'
+            } else {
+                'X'
+            },
+            self.bits(),
+        )
     }
 }
 
