@@ -42,18 +42,25 @@ fn memory_allocator_basic() {
 }
 
 fn memory_allocator_alignment() {
-    for lb_align in 0 .. 12 {
+    let max_lb_align = 12;
+
+    for lb_align in 0 ..= max_lb_align {
         let align = 1 << lb_align;
         debug!(align);
 
-        for size in 1 .. 1024 {
-            let layout = Layout::from_size_align(size, align).unwrap();
-            let ptr = Global.allocate(layout).unwrap();
+        for lb_size in 6 ..= (max_lb_align + 2) {
+            let min_size = (1_usize << lb_size).saturating_sub(100) + 1;
+            let max_size = (1 << lb_size) + 100;
 
-            assert!(ptr.len() >= size);
-            assert_eq!(ptr.addr().get() % align, 0);
+            for size in min_size ..= max_size {
+                let layout = Layout::from_size_align(size, align).unwrap();
+                let ptr = Global.allocate(layout).unwrap();
 
-            unsafe { Global.deallocate(ptr.as_non_null_ptr(), layout) };
+                assert!(ptr.len() >= size);
+                assert_eq!(ptr.addr().get() % align, 0);
+
+                unsafe { Global.deallocate(ptr.as_non_null_ptr(), layout) };
+            }
         }
     }
 }
