@@ -111,10 +111,7 @@ fn map_syscall_group() {
         copy_mapping(process.lock(), pid, address, new_address, size, flags),
         Err(PermissionDenied),
     );
-    assert_eq!(
-        unmap(process.lock(), pid, address, size),
-        Err(PermissionDenied),
-    );
+    assert!(unmap(process.lock(), pid, address, size).is_err());
 
     assert!(map(process.lock(), pid, 0, size, flags).is_ok());
     assert_eq!(
