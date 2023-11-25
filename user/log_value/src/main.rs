@@ -5,7 +5,10 @@
 #![no_main]
 #![no_std]
 
-use core::ptr::NonNull;
+use core::{
+    panic::PanicInfo,
+    ptr::NonNull,
+};
 
 use ku::{
     error::{
@@ -53,6 +56,8 @@ macro_rules! my_assert {
 }
 
 fn main() {
+    lib::set_panic_handler(panic_handler);
+
     let now = time::now();
     let timestamp = now.timestamp().try_into().unwrap();
 
@@ -122,6 +127,10 @@ fn generate_page_fault() -> ! {
     }
 
     unreachable!();
+}
+
+fn panic_handler(_: &PanicInfo) {
+    generate_page_fault();
 }
 
 fn log_block(

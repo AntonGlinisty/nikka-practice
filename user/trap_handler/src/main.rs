@@ -8,6 +8,7 @@
 use core::{
     hint,
     mem,
+    panic::PanicInfo,
     ptr::NonNull,
 };
 
@@ -52,6 +53,8 @@ macro_rules! my_assert {
 }
 
 fn main() {
+    lib::set_panic_handler(panic_handler);
+
     let trap_stack = map_pages(0, TRAP_STACK_PAGES);
     my_assert!(syscall::set_trap_handler(Pid::Current, simple_trap_handler, trap_stack).is_ok());
     info!(%trap_stack);
@@ -192,6 +195,10 @@ fn generate_page_fault() -> ! {
     }
 
     unreachable!();
+}
+
+fn panic_handler(_: &PanicInfo) {
+    generate_page_fault();
 }
 
 const TRAP_STACK_PAGES: usize = 4;

@@ -24,8 +24,17 @@ pub mod memory;
 /// Системные вызовы.
 pub mod syscall;
 
-use core::panic::PanicInfo;
+use core::{
+    mem,
+    panic::PanicInfo,
+    ptr,
+    sync::atomic::{
+        AtomicPtr,
+        Ordering,
+    },
+};
 
+use static_assertions::const_assert;
 use tracing_core::{
     dispatch,
     dispatch::Dispatch,
@@ -63,6 +72,11 @@ pub extern "C" fn _start(process_info: &'static mut ProcessInfo) -> ! {
     syscall::exit(ExitCode::Ok.into());
 }
 
+/// Запоминает `panic_handler` для последующего вызова в случае паники.
+pub fn set_panic_handler(panic_handler: fn(&PanicInfo)) {
+    PANIC_HANDLER.store(panic_handler as *mut _, Ordering::Relaxed);
+}
+
 /// Обработчик паники.
 #[cold]
 #[inline(never)]
@@ -73,6 +87,16 @@ fn panic(panic_info: &PanicInfo) -> ! {
     } else {
         error!(message = %panic_info);
     }
+
+    let panic_handler = PANIC_HANDLER.load(Ordering::Relaxed);
+    if !panic_handler.is_null() {
+        unsafe {
+            const_assert!(mem::size_of::<*const ()>() == mem::size_of::<fn(&PanicInfo)>());
+            let panic_handler = mem::transmute::<*const (), fn(&PanicInfo)>(panic_handler);
+            (panic_handler)(panic_info);
+        }
+    }
+
     syscall::exit(ExitCode::Panic.into());
 }
 
@@ -88,3 +112,6 @@ macro_rules! entry {
         }
     };
 }
+
+/// Адрес обработчика `panic_handler()`, установленный с помощью [`set_panic_handler()`].
+static PANIC_HANDLER: AtomicPtr<()> = AtomicPtr::new(ptr::null_mut());

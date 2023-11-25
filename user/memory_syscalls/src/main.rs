@@ -22,6 +22,7 @@ use alloc::{
 };
 use core::{
     mem,
+    panic::PanicInfo,
     ptr::NonNull,
 };
 
@@ -46,6 +47,8 @@ use lib::{
 entry!(main);
 
 fn main() {
+    lib::set_panic_handler(panic_handler);
+
     info!(test_case = "basic");
     memory_allocator_basic();
 
@@ -65,6 +68,10 @@ fn generate_page_fault() -> ! {
     }
 
     unreachable!();
+}
+
+fn panic_handler(_: &PanicInfo) {
+    generate_page_fault();
 }
 
 macro_rules! my_assert {
