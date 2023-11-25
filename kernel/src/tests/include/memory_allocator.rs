@@ -11,8 +11,6 @@ fn memory_allocator_basic() {
         debug!(box_contents = *a);
         my_assert!(*a == 2);
 
-        allocator::dump_info();
-
         let info = allocator::info();
         let requested = mem::size_of_val(&*a);
         let info_diff = (info - start_info).unwrap();
@@ -25,8 +23,6 @@ fn memory_allocator_basic() {
         my_assert!(info.pages().positive() > 0);
         my_assert!(info.pages().balance() > 0);
     }
-
-    allocator::dump_info();
 
     let end_info = allocator::info();
     let end_info_diff = (end_info - start_info).unwrap();
@@ -82,8 +78,6 @@ fn memory_allocator_grow_and_shrink() {
     debug!(contents_sum, push_sum);
     my_assert!(contents_sum == push_sum);
 
-    allocator::dump_info();
-
     let info = allocator::info();
     let info_diff = (info - start_info).unwrap();
     debug!(%info);
@@ -101,8 +95,6 @@ fn memory_allocator_grow_and_shrink() {
 
     debug!(contents_sum, pop_sum);
     my_assert!(contents_sum == pop_sum);
-
-    allocator::dump_info();
 
     let end_info = allocator::info();
     let end_info_diff = (end_info - start_info).unwrap();
@@ -137,8 +129,6 @@ fn memory_allocator_stress(values: usize) -> usize {
     debug!(contents_sum, push_sum);
     my_assert!(contents_sum == push_sum);
 
-    allocator::dump_info();
-
     let info = allocator::info();
     let info_diff = (info - start_info).unwrap();
     debug!(%info);
@@ -161,8 +151,6 @@ fn memory_allocator_stress(values: usize) -> usize {
 
     let pages_for_values = pages.len();
     drop(pages);
-
-    allocator::dump_info();
 
     let end_info = allocator::info();
     let end_info_diff = (end_info - start_info).unwrap();
