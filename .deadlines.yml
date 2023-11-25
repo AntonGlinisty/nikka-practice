@@ -373,7 +373,7 @@
 
 - group: lab-6-user-memory-tricks
   start: 16-11-2023 18:00
-  deadline: 02-12-2023 23:59
+  deadline: 07-12-2023 23:59
   second_deadline: 01-02-2024 23:59
   enabled: true
   tasks:
@@ -418,7 +418,7 @@
         - cd kernel && cargo test --test 2-mm-* --test 3-smp-[134]-* --test 4-process-[123]-* --test 6-um-*
 
 - group: lab-7-file-system
-  start: 30-11-2023 18:00
+  start: 07-12-2023 18:00
   deadline: 20-12-2023 23:59
   second_deadline: 01-02-2024 23:59
   enabled: true
