@@ -11,13 +11,13 @@ use std::{
     },
 };
 
-use ntest_timeout::timeout;
 use rand::{
     Rng,
     SeedableRng,
     distributions::Alphanumeric,
     rngs::SmallRng,
 };
+use rstest::rstest;
 
 use ku::{
     error::{
@@ -62,8 +62,8 @@ const WINDOW_DURATION: Duration = Duration::from_millis(
     },
 );
 
-#[test]
-#[timeout(1_000)]
+#[rstest]
+#[timeout(Duration::from_secs(1))]
 fn check_continuous_mapping() {
     log::init();
 
@@ -104,74 +104,81 @@ fn check_continuous_mapping() {
     allocator.unmap();
 }
 
-#[test]
-#[timeout(1_000)]
-fn reader_close() {
+#[rstest]
+#[case(false, false)]
+#[case(false, true)]
+#[case(true, false)]
+#[case(true, true)]
+#[timeout(Duration::from_secs(1))]
+fn reader_close(
+    #[case] corrupt: bool,
+    #[case] close_first: bool,
+) {
     log::init();
 
-    for corrupt in [false, true] {
-        for close_first in [false, true] {
-            let mut allocator = BigForPipe::new();
+    debug!(corrupt, close_first);
 
-            let (read_buffer, mut write_buffer) = pipe::make(&mut allocator).unwrap();
-            let chunk = [1, 2, 3];
+    let mut allocator = BigForPipe::new();
 
-            let mut write_tx = write_buffer.write_tx().unwrap();
-            write_tx.write(&chunk).unwrap();
+    let (read_buffer, mut write_buffer) = pipe::make(&mut allocator).unwrap();
+    let chunk = [1, 2, 3];
 
-            if close_first {
-                close(read_buffer, corrupt);
-                write_tx.commit();
-            } else {
-                write_tx.commit();
-                close(read_buffer, corrupt);
-            }
+    let mut write_tx = write_buffer.write_tx().unwrap();
+    write_tx.write(&chunk).unwrap();
 
-            assert!(write_buffer.write_tx().is_none());
-
-            allocator.unmap();
-        }
-    }
-}
-
-#[test]
-#[timeout(1_000)]
-fn writer_close() {
-    log::init();
-
-    for corrupt in [false, true] {
-        let mut allocator = BigForPipe::new();
-
-        let (mut read_buffer, mut write_buffer) = pipe::make(&mut allocator).unwrap();
-        let chunk = [1, 2, 3];
-
-        let mut write_tx = write_buffer.write_tx().unwrap();
-        write_tx.write(&chunk).unwrap();
+    if close_first {
+        close(read_buffer, corrupt);
         write_tx.commit();
-
-        close(write_buffer, corrupt);
-
-        if let Some(mut read_tx) = read_buffer.read_tx() {
-            assert!(!corrupt);
-
-            unsafe {
-                assert_eq!(read_tx.read().unwrap(), chunk);
-                assert!(read_tx.read().is_none());
-            }
-
-            read_tx.commit();
-        } else {
-            assert!(corrupt);
-        }
-
-        assert!(read_buffer.read_tx().is_none());
-
-        allocator.unmap();
+    } else {
+        write_tx.commit();
+        close(read_buffer, corrupt);
     }
+
+    assert!(write_buffer.write_tx().is_none());
+
+    allocator.unmap();
 }
 
-#[test]
-#[timeout(60_000)]
+#[rstest]
+#[case(false)]
+#[case(true)]
+#[timeout(Duration::from_secs(1))]
+fn writer_close(#[case] corrupt: bool) {
+    log::init();
+
+    debug!(corrupt);
+
+    let mut allocator = BigForPipe::new();
+
+    let (mut read_buffer, mut write_buffer) = pipe::make(&mut allocator).unwrap();
+    let chunk = [1, 2, 3];
+
+    let mut write_tx = write_buffer.write_tx().unwrap();
+    write_tx.write(&chunk).unwrap();
+    write_tx.commit();
+
+    close(write_buffer, corrupt);
+
+    if let Some(mut read_tx) = read_buffer.read_tx() {
+        assert!(!corrupt);
+
+        unsafe {
+            assert_eq!(read_tx.read().unwrap(), chunk);
+            assert!(read_tx.read().is_none());
+        }
+
+        read_tx.commit();
+    } else {
+        assert!(corrupt);
+    }
+
+    assert!(read_buffer.read_tx().is_none());
+
+    allocator.unmap();
+}
+
+#[rstest]
+#[timeout(Duration::from_secs(60))]
 fn sequential() {
     log::init();
 
@@ -214,8 +221,8 @@ fn sequential() {
     );
 }
 
-#[test]
-#[timeout(300_000)]
+#[rstest]
+#[timeout(Duration::from_secs(300))]
 fn concurrent() {
     log::init();
 

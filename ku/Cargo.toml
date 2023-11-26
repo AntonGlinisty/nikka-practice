@@ -31,6 +31,6 @@ xmas-elf = "*"
 
 [dev-dependencies]
 nix = { version = "*", features = ["mman"] }
-ntest_timeout = { version = "*" }
 rand = { version = "*", default-features = false, features = ["small_rng"] }
+rstest = "*"
 tracing-subscriber = { git = "https://github.com/tokio-rs/tracing", features = ["env-filter"] }

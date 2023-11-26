@@ -10,7 +10,7 @@ use std::{
     time::Duration,
 };
 
-use ntest_timeout::timeout;
+use rstest::rstest;
 
 use ku::{
     log::{
@@ -22,8 +22,8 @@ use ku::{
 
 mod log;
 
-#[test]
-#[timeout(1_000)]
+#[rstest]
+#[timeout(Duration::from_secs(1))]
 fn write() {
     let sequence_lock = SequenceLock::new(0);
 
@@ -38,8 +38,8 @@ fn write() {
     assert_eq!(b, 3);
 }
 
-#[test]
-#[timeout(1_000)]
+#[rstest]
+#[timeout(Duration::from_secs(1))]
 fn write_lock() {
     let sequence_lock = SequenceLock::new(0);
 
@@ -52,8 +52,8 @@ fn write_lock() {
     assert_eq!(b, 3);
 }
 
-#[test]
-#[timeout(1_000)]
+#[rstest]
+#[timeout(Duration::from_secs(1))]
 fn exclusive_access() {
     let mut sequence_lock = SequenceLock::new(0);
 
@@ -66,8 +66,8 @@ fn exclusive_access() {
     assert_eq!(b, 3);
 }
 
-#[test]
-#[timeout(60_000)]
+#[rstest]
+#[timeout(Duration::from_secs(60))]
 fn single_writer() {
     log::init();
 
@@ -113,8 +113,8 @@ fn single_writer() {
     );
 }
 
-#[test]
-#[timeout(300_000)]
+#[rstest]
+#[timeout(Duration::from_secs(300))]
 fn multiple_writers() {
     log::init();
 
@@ -165,8 +165,8 @@ fn multiple_writers() {
     );
 }
 
-#[test]
-#[timeout(60_000)]
+#[rstest]
+#[timeout(Duration::from_secs(60))]
 fn multiple_exclusive_writers() {
     log::init();
 

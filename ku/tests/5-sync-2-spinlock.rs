@@ -6,9 +6,10 @@ use std::{
         Ordering,
     },
     thread,
+    time::Duration,
 };
 
-use ntest_timeout::timeout;
+use rstest::rstest;
 
 use ku::{
     log::{
@@ -20,8 +21,8 @@ use ku::{
 
 mod log;
 
-#[test]
-#[timeout(1_000)]
+#[rstest]
+#[timeout(Duration::from_secs(1))]
 fn lock_unlock() {
     log::init();
 
@@ -41,8 +42,8 @@ fn lock_unlock() {
     drop(lock);
 }
 
-#[test]
-#[timeout(1_000)]
+#[rstest]
+#[timeout(Duration::from_secs(1))]
 fn try_lock() {
     log::init();
 
@@ -59,8 +60,8 @@ fn try_lock() {
     assert!(spinlock.try_lock().is_some());
 }
 
-#[test]
-#[timeout(1_000)]
+#[rstest]
+#[timeout(Duration::from_secs(1))]
 fn exclusive_access() {
     log::init();
 
@@ -72,24 +73,8 @@ fn exclusive_access() {
     assert_eq!(*spinlock.lock(), 1);
 }
 
-#[should_panic(expected = "explicit panic")]
-#[test]
-#[timeout(10_000)]
-fn recursive_deadlock() {
-    log::init();
-
-    let spinlock = Spinlock::new(0);
-    let lock = spinlock.lock();
-
-    debug!(?spinlock, "attempting to lock a locked spinlock");
-    drop(spinlock.lock());
-    debug!(error = "no panic occurred");
-
-    drop(lock);
-}
-
-#[test]
-#[timeout(10_000)]
+#[rstest]
+#[timeout(Duration::from_secs(10))]
 fn deadlock() {
     log::init();
 
@@ -138,8 +123,8 @@ fn deadlock() {
     );
 }
 
-#[test]
-#[timeout(60_000)]
+#[rstest]
+#[timeout(Duration::from_secs(60))]
 fn concurrent() {
     log::init();
 

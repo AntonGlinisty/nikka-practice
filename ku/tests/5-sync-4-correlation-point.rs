@@ -7,9 +7,10 @@ use std::{
         Ordering,
     },
     thread,
+    time::Duration,
 };
 
-use ntest_timeout::timeout;
+use rstest::rstest;
 
 use ku::{
     log::{
@@ -25,8 +26,8 @@ use ku::{
 
 mod log;
 
-#[test]
-#[timeout(1_000)]
+#[rstest]
+#[timeout(Duration::from_secs(1))]
 fn correlation_point() {
     let x = CorrelationPoint::now(7);
 
@@ -35,8 +36,8 @@ fn correlation_point() {
     assert!(x.tsc() > 0);
 }
 
-#[test]
-#[timeout(1_000)]
+#[rstest]
+#[timeout(Duration::from_secs(1))]
 fn atomic_correlation_point() {
     let x = AtomicCorrelationPoint::new();
     assert!(!x.is_valid());
@@ -51,8 +52,8 @@ fn atomic_correlation_point() {
     assert_eq!(x.load(), point);
 }
 
-#[test]
-#[timeout(60_000)]
+#[rstest]
+#[timeout(Duration::from_secs(60))]
 fn single_writer() {
     log::init();
 

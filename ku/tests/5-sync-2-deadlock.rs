@@ -1,5 +1,9 @@
 #![deny(warnings)]
 
+use std::time::Duration;
+
+use rstest::rstest;
+
 use ku::{
     log::debug,
     sync::Spinlock,
@@ -7,26 +11,30 @@ use ku::{
 
 mod log;
 
+#[rstest]
 #[should_panic(expected = "deadlock")]
-#[test]
+#[timeout(Duration::from_secs(10))]
 fn deadlock_in_panic_message() {
     recursive_deadlock()
 }
 
-#[should_panic(expected = "ku/tests/5-sync-2-deadlock.rs:38")]
-#[test]
+#[rstest]
+#[should_panic(expected = "ku/tests/5-sync-2-deadlock.rs:46")]
+#[timeout(Duration::from_secs(10))]
 fn definition_line_number_in_panic_message() {
     recursive_deadlock()
 }
 
-#[should_panic(expected = "ku/tests/5-sync-2-deadlock.rs:39")]
-#[test]
+#[rstest]
+#[should_panic(expected = "ku/tests/5-sync-2-deadlock.rs:47")]
+#[timeout(Duration::from_secs(10))]
 fn owner_line_number_in_panic_message() {
     recursive_deadlock()
 }
 
-#[should_panic(expected = "ku/tests/5-sync-2-deadlock.rs:42")]
-#[test]
+#[rstest]
+#[should_panic(expected = "ku/tests/5-sync-2-deadlock.rs:50")]
+#[timeout(Duration::from_secs(10))]
 fn deadlock_line_number_in_panic_message() {
     recursive_deadlock()
 }
