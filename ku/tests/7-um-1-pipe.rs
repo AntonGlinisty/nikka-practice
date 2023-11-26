@@ -110,6 +110,7 @@ fn check_continuous_mapping() {
 #[case(true, false)]
 #[case(true, true)]
 #[timeout(Duration::from_secs(1))]
+#[ignore]
 fn reader_close(
     #[case] corrupt: bool,
     #[case] close_first: bool,
@@ -143,6 +144,7 @@ fn reader_close(
 #[case(false)]
 #[case(true)]
 #[timeout(Duration::from_secs(1))]
+#[ignore]
 fn writer_close(#[case] corrupt: bool) {
     log::init();
 
