@@ -1,4 +1,7 @@
-use core::mem;
+use core::{
+    mem,
+    ops::Range,
+};
 
 use static_assertions::const_assert;
 
@@ -83,14 +86,15 @@ impl Superblock {
         Ok(superblock)
     }
 
-    /// Количество блоков в файловой системе.
-    pub(super) fn block_count(&self) -> usize {
-        self.block_count
-    }
-
-    /// Количество зарезервированных блоков в файловой системе.
-    pub(super) fn reserved_block_count(&self) -> usize {
-        Self::FIRST_BITMAP_BLOCK + Bitmap::size_in_blocks(self.block_count)
+    /// Возвращает диапазон блоков для пользовательских данных и директорий.
+    ///
+    /// Полное количество блоков в [файловой системе](https://en.wikipedia.org/wiki/File_system)
+    /// равно `Superblock::blocks().end`.
+    /// Блоки с нулевого до начала возвращаемого диапазона (не включительно),
+    /// то есть диапазон `0..Superblock::blocks().start`,
+    /// зарезервированы под метаданные самой файловой системы.
+    pub(super) fn blocks(&self) -> Range<usize> {
+        Self::FIRST_BITMAP_BLOCK + Bitmap::size_in_blocks(self.block_count) .. self.block_count
     }
 
     /// [Корневая директория](https://en.wikipedia.org/wiki/Root_directory)
@@ -146,6 +150,8 @@ const MAGIC: &str = "Nikka's simple file system";
 
 #[doc(hidden)]
 pub mod test_scaffolding {
+    use core::ops::Range;
+
     use ku::error::Result;
 
     pub struct Superblock(&'static super::Superblock);
@@ -155,8 +161,8 @@ pub mod test_scaffolding {
             Ok(Superblock(super::Superblock::format(block_count)?))
         }
 
-        pub fn reserved_block_count(&self) -> usize {
-            self.0.reserved_block_count()
+        pub fn blocks(&self) -> Range<usize> {
+            self.0.blocks()
         }
     }
 }

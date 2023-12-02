@@ -50,10 +50,9 @@ impl FileSystem {
 
         let superblock = Superblock::new()?;
 
-        BlockCache::init(disk, superblock.block_count())?;
+        BlockCache::init(disk, superblock.blocks().end)?;
 
-        let block_bitmap =
-            Bitmap::new(superblock.block_count(), superblock.reserved_block_count())?;
+        let block_bitmap = Bitmap::new(superblock.blocks())?;
 
         Ok(Self {
             block_bitmap,
@@ -73,30 +72,30 @@ impl FileSystem {
         BlockCache::init(disk, block_count)?;
 
         let superblock = Superblock::format(block_count)?;
-        Bitmap::format(block_count, superblock.reserved_block_count())?;
+        Bitmap::format(superblock.blocks())?;
 
-        let reserved_block_count = superblock.reserved_block_count();
+        let blocks = superblock.blocks();
         let inode_size = Size::of::<Inode>();
         let directory_entry_size = Size::of::<DirectoryEntry>();
-        let free_space = Size::bytes((block_count - reserved_block_count) * BLOCK_SIZE);
+        let free_space = Size::bytes(blocks.clone().count() * BLOCK_SIZE);
         let max_file_size = Size::bytes(Inode::max_size());
         info!(
             %free_space,
             %disk,
             block_count,
-            reserved_block_count,
+            ?blocks,
             %inode_size,
             %directory_entry_size,
             %max_file_size,
             "formatted the file system",
         );
 
-        BlockCache::flush(block_count)
+        BlockCache::flush(superblock.blocks().start)
     }
 
     /// Записывает на диск все обновления файловой системы.
     pub fn flush(&self) -> Result<()> {
-        BlockCache::flush(self.superblock.block_count())
+        BlockCache::flush(self.superblock.blocks().end)
     }
 
     /// Проходит от корня файловой системы по заданному полному пути `path`.
@@ -114,14 +113,9 @@ impl FileSystem {
         self.block_bitmap.free_block_count() * BLOCK_SIZE
     }
 
-    /// Возвращает размер зарезервированного места файловой системы в байтах.
-    pub fn reserved_space(&self) -> usize {
-        self.superblock.reserved_block_count() * BLOCK_SIZE
-    }
-
     /// Возвращает размер занятого места файловой системы в байтах.
     pub fn used_space(&self) -> usize {
-        self.superblock.block_count() * BLOCK_SIZE - self.free_space() - self.reserved_space()
+        self.superblock.blocks().count() * BLOCK_SIZE - self.free_space()
     }
 }
 

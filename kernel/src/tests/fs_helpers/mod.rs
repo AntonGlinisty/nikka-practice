@@ -20,11 +20,10 @@ pub(super) fn single_inode_fs(kind: Kind) -> (Bitmap, Inode) {
     block_cache_init(FS_DISK, BLOCK_COUNT).unwrap();
 
     let superblock = Superblock::format(BLOCK_COUNT).unwrap();
-    let reserved_block_count = superblock.reserved_block_count();
 
-    Bitmap::format(BLOCK_COUNT, reserved_block_count).unwrap();
+    Bitmap::format(superblock.blocks()).unwrap();
 
-    let block_bitmap = Bitmap::new(BLOCK_COUNT, reserved_block_count).unwrap();
+    let block_bitmap = Bitmap::new(superblock.blocks()).unwrap();
     let inode = Inode::new(kind);
 
     (block_bitmap, inode)
