@@ -10,7 +10,10 @@ use chrono::{
 };
 
 use ku::{
-    error::Result,
+    error::{
+        Error,
+        Result,
+    },
     memory::{
         Size,
         Virt,
@@ -25,10 +28,6 @@ use super::{
         Kind,
     },
 };
-
-// Used in docs.
-#[allow(unused)]
-use ku::error::Error;
 
 /// Интерфейс к файлaм и директориям файловой системы.
 #[derive(Debug)]
@@ -89,7 +88,12 @@ impl File {
 
     /// Возвращает список файлов и поддиректорий в директории.
     pub fn list(&self) -> Result<Vec<Entry>> {
-        Ok(self.inode().list()?.map(Entry::from).collect())
+        let mut list = Vec::new();
+        for inode in self.inode().list()? {
+            list.push(Entry::try_from(inode)?);
+        }
+
+        Ok(list)
     }
 
     /// Вставляет в директорию запись с именем `name` и типом `kind`.
@@ -212,14 +216,16 @@ impl fmt::Display for Entry {
     }
 }
 
-impl From<&mut DirectoryEntry> for Entry {
-    fn from(entry: &mut DirectoryEntry) -> Self {
-        Self {
+impl TryFrom<&mut DirectoryEntry> for Entry {
+    type Error = Error;
+
+    fn try_from(entry: &mut DirectoryEntry) -> Result<Self> {
+        Ok(Self {
             kind: entry.inode().kind(),
             modify_time: entry.inode().modify_time(),
-            name: String::from(entry.name()),
+            name: String::from(entry.name()?),
             size: entry.inode().size(),
-        }
+        })
     }
 }
 

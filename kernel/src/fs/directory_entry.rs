@@ -7,7 +7,10 @@ use core::{
 use static_assertions::const_assert;
 
 use ku::error::{
-    Error::InvalidArgument,
+    Error::{
+        InvalidArgument,
+        Medium,
+    },
     Result,
 };
 
@@ -44,7 +47,10 @@ impl DirectoryEntry {
     }
 
     /// Возвращает имя файла или поддиректории.
-    pub(super) fn name(&self) -> &str {
+    ///
+    /// Возвращает ошибку [`Error::Medium`],
+    /// если имя на диске не корректно.
+    pub(super) fn name(&self) -> Result<&str> {
         let len = self
             .name
             .iter()
@@ -53,9 +59,11 @@ impl DirectoryEntry {
             .map(|x| x.0)
             .unwrap_or(MAX_NAME_LEN);
 
-        assert!(len > 0);
+        let name = str::from_utf8(&self.name[.. len]).map_err(|_| Medium)?;
 
-        str::from_utf8(&self.name[.. len]).unwrap()
+        Self::validate(name).map_err(|_| Medium)?;
+
+        Ok(name)
     }
 
     /// Устанавливает имя `name` для файла или поддиректории.
@@ -67,18 +75,31 @@ impl DirectoryEntry {
         &mut self,
         name: &str,
     ) -> Result<()> {
-        let bytes = name.as_bytes();
-        if bytes.is_empty() ||
-            bytes.len() > MAX_NAME_LEN ||
-            bytes.iter().any(|&x| x == 0 || x == b'/' || !x.is_ascii())
-        {
-            return Err(InvalidArgument);
-        }
+        Self::validate(name)?;
 
+        let bytes = name.as_bytes();
         self.name[.. bytes.len()].copy_from_slice(bytes);
         self.name[bytes.len() ..].fill(0);
 
         Ok(())
+    }
+
+    /// Проверяет допустимость имени файла или директории.
+    ///
+    /// Возвращает ошибку [`Error::InvalidArgument`],
+    /// если `name` содержит не-[ASCII](https://en.wikipedia.org/wiki/ASCII) символы
+    /// или разделитель пути `/`.
+    fn validate(name: &str) -> Result<()> {
+        let bytes = name.as_bytes();
+
+        if bytes.is_empty() ||
+            bytes.len() > MAX_NAME_LEN ||
+            bytes.iter().any(|&x| x == 0 || x == b'/' || !x.is_ascii())
+        {
+            Err(InvalidArgument)
+        } else {
+            Ok(())
+        }
     }
 }
 
