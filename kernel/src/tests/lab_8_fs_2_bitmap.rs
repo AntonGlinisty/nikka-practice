@@ -18,7 +18,7 @@ init!(Subsystems::MEMORY);
 
 #[test_case]
 fn allocation() {
-    let (mut block_bitmap, _) = fs_helpers::single_inode_fs(Kind::File);
+    let (mut block_bitmap, ..) = fs_helpers::simple_fs(Kind::File);
 
     let free_block_count = (0 .. fs_helpers::BLOCK_COUNT)
         .map(|i| {
@@ -29,7 +29,10 @@ fn allocation() {
             }
         })
         .sum();
-    assert!(free_block_count >= fs_helpers::BLOCK_COUNT - 16);
+    assert_eq!(
+        free_block_count,
+        fs_helpers::BLOCK_COUNT - fs_helpers::simple_fs_superblock().blocks().start,
+    );
 
     let mut allocated: Vec<_> =
         (0 .. free_block_count).map(|_| block_bitmap.allocate().unwrap()).collect();
@@ -39,7 +42,7 @@ fn allocation() {
     );
 
     assert_eq!(block_bitmap.allocate(), Err(NoDisk));
-    block_bitmap.set_free(33);
+    block_bitmap.set_free(fs_helpers::simple_fs_superblock().blocks().start + 5);
     block_bitmap.allocate().unwrap();
     for _ in (1 ..= fs_helpers::BLOCK_COUNT).rev() {
         block_bitmap.set_free(fs_helpers::BLOCK_COUNT - 33);

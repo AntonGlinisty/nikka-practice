@@ -14,36 +14,53 @@ use ku::error::{
     Result,
 };
 
-use super::{
-    BLOCK_SIZE,
-    inode::Inode,
-};
+use super::BLOCK_SIZE;
 
 // Used in docs.
 #[allow(unused)]
-use ku::error::Error;
+use {
+    super::inode::Inode,
+    ku::error::Error,
+};
 
 /// Запись [директории](https://en.wikipedia.org/wiki/Directory_(computing)) с [`Inode`],
 /// который содержится в этой директории, и его именем.
 #[derive(Debug)]
 #[repr(C)]
 pub(super) struct DirectoryEntry {
-    /// [`Inode`] записи [`DirectoryEntry`].
-    inode: Inode,
+    /// [Inode](https://en.wikipedia.org/wiki/Inode) записи [`DirectoryEntry`].
+    inode: usize,
 
     /// Имя соответствующего записи файла или поддиректории.
     name: [u8; MAX_NAME_LEN],
 }
 
 impl DirectoryEntry {
-    /// Возвращает неизменяемый [`Inode`] записи [`DirectoryEntry`].
-    pub(super) fn inode(&self) -> &Inode {
-        &self.inode
+    /// Возвращает `true`, если запись директории свободна.
+    pub(super) fn is_free(&self) -> bool {
+        self.inode() == Self::UNUSED
     }
 
-    /// Возвращает изменяемый [`Inode`] записи [`DirectoryEntry`].
-    pub(super) fn inode_mut(&mut self) -> &mut Inode {
-        &mut self.inode
+    /// Освобождает запись директории.
+    pub(super) fn set_free(&mut self) {
+        self.set_inode(Self::UNUSED)
+    }
+
+    /// Возвращает
+    /// [inode](https://en.wikipedia.org/wiki/Inode)
+    /// записи [`DirectoryEntry`].
+    pub(super) fn inode(&self) -> usize {
+        self.inode
+    }
+
+    /// Устанавливает
+    /// [inode](https://en.wikipedia.org/wiki/Inode)
+    /// записи [`DirectoryEntry`].
+    pub(super) fn set_inode(
+        &mut self,
+        inode: usize,
+    ) {
+        self.inode = inode
     }
 
     /// Возвращает имя файла или поддиректории.
@@ -101,6 +118,11 @@ impl DirectoryEntry {
             Ok(())
         }
     }
+
+    /// Зарезервированный номер
+    /// [inode](https://en.wikipedia.org/wiki/Inode),
+    /// означающий что запись директории [`DirectoryEntry`] свободна.
+    const UNUSED: usize = 0;
 }
 
 impl fmt::Display for DirectoryEntry {
@@ -115,4 +137,4 @@ impl fmt::Display for DirectoryEntry {
 const_assert!(BLOCK_SIZE % mem::size_of::<DirectoryEntry>() == 0);
 
 /// Максимальный размер имён файлов и директорий.
-pub const MAX_NAME_LEN: usize = (1 << 7) - mem::size_of::<Inode>();
+pub const MAX_NAME_LEN: usize = (1 << 7) - mem::size_of::<usize>();

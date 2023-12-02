@@ -2,6 +2,7 @@ use ku::{
     error::{
         Error::{
             FileNotFound,
+            Medium,
             NotDirectory,
         },
         Result,
@@ -34,6 +35,17 @@ pub struct FileSystem {
     /// для отслеживания какие именно блоки файловой системы заняты, а какие --- свободны.
     block_bitmap: Bitmap,
 
+    /// [Битовая карта](https://en.wikipedia.org/wiki/Free-space_bitmap)
+    /// для отслеживания какие именно
+    /// [inode](https://en.wikipedia.org/wiki/Inode)
+    /// файловой системы заняты, а какие --- свободны.
+    inode_bitmap: Bitmap,
+
+    /// Массив
+    /// [inode](https://en.wikipedia.org/wiki/Inode)
+    /// файловой системы.
+    inodes: &'static mut [Inode],
+
     /// Суперблок
     /// ([superblock](https://en.wikipedia.org/wiki/Unix_File_System#Design))
     /// файловой системы.
@@ -52,29 +64,60 @@ impl FileSystem {
 
         BlockCache::init(disk, superblock.blocks().end)?;
 
-        let block_bitmap = Bitmap::new(superblock.blocks())?;
+        let inodes = unsafe {
+            BlockCache::block(superblock.inode_table().start)?
+                .start_address()
+                .try_into_mut_slice::<Inode>(superblock.inodes().end)?
+        };
 
-        Ok(Self {
-            block_bitmap,
-            superblock,
-        })
+        if inodes[superblock.root()].kind() == Kind::Directory {
+            Ok(Self {
+                block_bitmap: Bitmap::new(superblock.block_bitmap().start, superblock.blocks())?,
+                inode_bitmap: Bitmap::new(superblock.inode_bitmap().start, superblock.inodes())?,
+                inodes,
+                superblock,
+            })
+        } else {
+            Err(Medium)
+        }
     }
 
     /// Форматирует файловую систему размером `size` байт на диске номер `disk`.
+    ///
+    /// Если количество
+    /// [inode](https://en.wikipedia.org/wiki/Inode)
+    /// не указано, то есть `inode_count.is_none()`,
+    /// оно подбирается под размер `size` автоматически.
     pub fn format(
         disk: usize,
         size: usize,
+        inode_count: Option<usize>,
     ) -> Result<()> {
         let disk = Disk::new(disk)?;
 
         let block_count = size / BLOCK_SIZE;
+        let default_blocks_per_inode = 4;
+        let inode_count = inode_count.unwrap_or(block_count / default_blocks_per_inode);
 
         BlockCache::init(disk, block_count)?;
 
-        let superblock = Superblock::format(block_count)?;
-        Bitmap::format(superblock.blocks())?;
+        let superblock = Superblock::format(block_count, inode_count)?;
+        Bitmap::format(superblock.block_bitmap().start, superblock.blocks())?;
+        Bitmap::format(superblock.inode_bitmap().start, superblock.inodes())?;
 
+        let inodes = unsafe {
+            BlockCache::block(superblock.inode_table().start)?
+                .start_address()
+                .try_into_mut_slice::<Inode>(superblock.inodes().end)?
+        };
+        for inode in inodes.iter_mut() {
+            *inode = Inode::default();
+        }
+        inodes[superblock.root()].init(Kind::Directory);
+
+        let block_size = Size::bytes(BLOCK_SIZE);
         let blocks = superblock.blocks();
+        let inodes = superblock.inodes();
         let inode_size = Size::of::<Inode>();
         let directory_entry_size = Size::of::<DirectoryEntry>();
         let free_space = Size::bytes(blocks.clone().count() * BLOCK_SIZE);
@@ -82,9 +125,11 @@ impl FileSystem {
         info!(
             %free_space,
             %disk,
+            %block_size,
             block_count,
             ?blocks,
             %inode_size,
+            ?inodes,
             %directory_entry_size,
             %max_file_size,
             "formatted the file system",
@@ -110,7 +155,7 @@ impl FileSystem {
 
     /// Возвращает размер свободного места файловой системы в байтах.
     pub fn free_space(&self) -> usize {
-        self.block_bitmap.free_block_count() * BLOCK_SIZE
+        self.block_bitmap.free_count() * BLOCK_SIZE
     }
 
     /// Возвращает размер занятого места файловой системы в байтах.

@@ -50,22 +50,19 @@ use ku::error::Error;
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[repr(usize)]
 pub enum Kind {
-    /// Свободный [inode](https://en.wikipedia.org/wiki/Inode).
-    #[default]
-    Unused = 0,
-
     /// Файл.
-    File = 1,
+    #[default]
+    File = 0,
 
     /// Директория.
-    Directory = 2,
+    Directory = 1,
 }
 
 /// Метаинформация об объекте с данными --- [inode](https://en.wikipedia.org/wiki/Inode).
-#[derive(Debug, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub(super) struct Inode {
-    /// Тип объекта с данными --- свободный, файл или директория.
+    /// Тип объекта с данными --- файл или директория.
     kind: Kind,
 
     /// Время последней модификации [`Inode`].
@@ -80,23 +77,20 @@ pub(super) struct Inode {
 }
 
 impl Inode {
-    /// Тип объекта с данными --- свободный, файл или директория.
-    pub(super) fn kind(&self) -> Kind {
-        self.kind
-    }
-
-    /// Устанавливает тип объекта с данными --- свободный, файл или директория.
-    ///
-    /// # Panics
-    ///
-    /// Паникует, если `kind` соответствует занятому [`Inode`],
-    /// но он уже занят.
-    pub(super) fn set_kind(
+    /// Инициализирует [`Inode`] заданным типом `kind`.
+    pub(super) fn init(
         &mut self,
         kind: Kind,
     ) {
-        assert!(self.kind == Kind::Unused || kind == Kind::Unused);
         self.kind = kind;
+        self.modify_time = time::now_ms();
+        self.size = 0;
+        self.root_blocks.fill(NO_BLOCK);
+    }
+
+    /// Тип объекта с данными --- файл или директория.
+    pub(super) fn kind(&self) -> Kind {
+        self.kind
     }
 
     /// Удаляет [`Inode`].
@@ -106,7 +100,6 @@ impl Inode {
     ) -> Result<()> {
         self.set_size(0, block_bitmap)?;
         assert!(self.root_blocks.iter().all(|&block| block == NO_BLOCK));
-        self.set_kind(Kind::Unused);
 
         Ok(())
     }
@@ -117,6 +110,7 @@ impl Inode {
     }
 
     /// Устанавливает размер данных в байтах.
+    ///
     /// Если файл расширяется, то новые блоки с данными содержат нули.
     /// При необходимости выделяет или освобождает блоки через `block_bitmap`.
     /// Обновляет время последней модификации [`Inode`].
@@ -145,41 +139,37 @@ impl Inode {
     }
 
     /// Находит занятую запись с именем `name` в директории.
+    ///
     /// Возвращает ошибку [`Error::FileNotFound`], если такой записи нет.
     pub(super) fn find(
         &mut self,
         name: &str,
-    ) -> Result<&mut Inode> {
+    ) -> Result<&mut DirectoryEntry> {
         self.find_entry(name, None).and_then(|entry| {
-            if entry.inode().kind == Kind::Unused {
+            if entry.is_free() {
                 Err(FileNotFound)
             } else {
-                Ok(entry.inode_mut())
+                Ok(entry)
             }
         })
     }
 
-    /// Вставляет в директорию запись с именем `name` и типом `kind`.
-    /// Обновляет как время модификации выделенной записи, так и время модификации самой директории.
+    /// Вставляет в директорию запись с именем `name` и возвращает ссылку на неё.
+    /// Обновляет время модификации директории.
     ///
-    /// Возвращает ошибки:
-    ///   - [`Error::FileExists`] если запись с таким именем уже есть.
-    ///   - [`Error::InvalidArgument`] если `kind` равен [`Kind::Unused`].
+    /// Возвращает ошибку [`Error::FileExists`] если запись с таким именем уже есть.
     pub(super) fn insert(
         &mut self,
         name: &str,
-        kind: Kind,
         block_bitmap: &mut Bitmap,
-    ) -> Result<&mut Inode> {
+    ) -> Result<&mut DirectoryEntry> {
         // TODO: your code here.
         unimplemented!();
     }
 
     /// Возвращает итератор по занятым записям директории.
     pub(super) fn list(&mut self) -> Result<List> {
-        Ok(List(
-            self.iter()?.filter(|entry| entry.inode().kind() != Kind::Unused),
-        ))
+        Ok(List(self.iter()?.filter(|entry| !entry.is_free())))
     }
 
     /// Читает из файла по смещению `offset` в буфер `buffer` столько байт,
@@ -203,6 +193,7 @@ impl Inode {
 
     /// Записывает в файл по смещению `offset` байты из буфера `buffer`.
     /// При необходимости расширяет размер файла.
+    /// Обновляет время модификации файла.
     ///
     /// Возвращает количество записанных байт.
     /// Если `offset` превышает размер файла, расширяет файл нулями до заданного `offset`.
@@ -219,9 +210,11 @@ impl Inode {
     }
 
     /// Находит занятую запись с именем `name` в директории.
-    /// Если такой записи нет, возвращает свободную запись --- `Kind::Unused`.
+    ///
+    /// Если такой записи нет, возвращает свободную запись --- [`DirectoryEntry::is_free()`].
     /// Если и таких нет, и при этом `block_bitmap` является [`Some`],
     /// пробует расширить директорию и вернуть новую свободную запись.
+    /// Иначе возвращает ошибку [`Error::FileNotFound`].
     fn find_entry(
         &mut self,
         name: &str,
@@ -249,6 +242,7 @@ impl Inode {
 
     /// По номеру блока `inode_block_number` внутри данных [`Inode`]
     /// возвращает ссылку на запись из метаданных этого [`Inode`].
+    ///
     /// Эта запись предназначена для номера блока на диске,
     /// хранящего указанный блок данных [`Inode`].
     /// С помощью этого метода происходит отображение смещения внутри данных файла
@@ -404,6 +398,7 @@ fn next_level<'a>(
 }
 
 /// Координаты листа в лесу.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct LeafCoordinates {
     /// Номер листа в его дереве.
     leaf: usize,
@@ -432,13 +427,15 @@ pub mod test_scaffolding {
 
     use super::Kind;
 
+    #[derive(Clone, Copy, Debug, Default)]
     pub struct Inode(pub(in super::super) super::Inode);
 
     impl Inode {
         pub fn new(kind: Kind) -> Self {
-            let mut inode = super::Inode::default();
-            inode.set_kind(kind);
-            Self(inode)
+            Self(super::Inode {
+                kind,
+                ..Default::default()
+            })
         }
 
         pub fn block_entry(

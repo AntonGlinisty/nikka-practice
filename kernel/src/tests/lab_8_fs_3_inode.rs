@@ -43,7 +43,8 @@ init!(Subsystems::MEMORY);
 
 #[test_case]
 fn block_entry() {
-    let (mut block_bitmap, mut inode) = fs_helpers::single_inode_fs(Kind::File);
+    let (mut block_bitmap, _, mut inodes) = fs_helpers::simple_fs(Kind::File);
+    let inode = &mut inodes[0];
 
     const ENTRY_SIZE: usize = mem::size_of::<usize>();
     const ENTRIES_PER_BLOCK: usize = BLOCK_SIZE / ENTRY_SIZE;
@@ -95,8 +96,8 @@ fn block_entry() {
 
 #[test_case]
 fn read_write_speed() {
-    let (block_bitmap, inode) = fs_helpers::single_inode_fs(Kind::File);
-    let mut file = make_file(&inode, &block_bitmap);
+    let (block_bitmap, inode_bitmap, inodes) = fs_helpers::simple_fs(Kind::File);
+    let mut file = make_file(&inodes, &block_bitmap, &inode_bitmap);
 
     let mut buffer = vec![0x77_u8; 10 * MiB];
     let size = Size::from_slice(&buffer);
@@ -166,8 +167,8 @@ fn read_write_speed() {
 
 #[test_case]
 fn write_read() {
-    let (block_bitmap, inode) = fs_helpers::single_inode_fs(Kind::File);
-    let mut file = make_file(&inode, &block_bitmap);
+    let (block_bitmap, inode_bitmap, inodes) = fs_helpers::simple_fs(Kind::File);
+    let mut file = make_file(&inodes, &block_bitmap, &inode_bitmap);
 
     let data: Vec<_> = (0 .. MiB).map(|x| (x + x * x) as u8).collect();
     let mut offset = 0;
@@ -205,9 +206,10 @@ fn write_read() {
 
 #[test_case]
 fn big_file() {
-    let (block_bitmap, inode) = fs_helpers::single_inode_fs(Kind::File);
-    let mut file = make_file(&inode, &block_bitmap);
-    let start_free_block_count = block_bitmap.free_block_count();
+    let (block_bitmap, inode_bitmap, inodes) = fs_helpers::simple_fs(Kind::Directory);
+    let mut root = make_file(&inodes, &block_bitmap, &inode_bitmap);
+    let mut file = root.insert("big-file", Kind::File).unwrap();
+    let start_free_block_count = block_bitmap.free_count();
 
     let file_block_count = start_free_block_count * 99 / 100;
     file.set_size(file_block_count * BLOCK_SIZE).unwrap();
@@ -233,22 +235,22 @@ fn big_file() {
         assert_eq!(buffer, data.as_bytes());
     }
 
-    let free_block_count = block_bitmap.free_block_count();
+    let free_block_count = block_bitmap.free_count();
     let used_block_count = start_free_block_count - free_block_count;
     debug!(free_block_count, used_block_count);
 
     file.remove().unwrap();
 
-    let end_free_block_count = block_bitmap.free_block_count();
+    let end_free_block_count = block_bitmap.free_count();
     let leaked_block_count = start_free_block_count - end_free_block_count;
     assert_eq!(leaked_block_count, 0);
 }
 
 #[test_case]
 fn set_size() {
-    let (block_bitmap, inode) = fs_helpers::single_inode_fs(Kind::File);
-    let mut file = make_file(&inode, &block_bitmap);
-    let start_free_block_count = block_bitmap.free_block_count();
+    let (block_bitmap, inode_bitmap, inodes) = fs_helpers::simple_fs(Kind::File);
+    let mut file = make_file(&inodes, &block_bitmap, &inode_bitmap);
+    let start_free_block_count = block_bitmap.free_count();
 
     let filter = |x: &usize| (x + 2) % (BLOCK_SIZE / 3) <= 4;
 
@@ -265,7 +267,7 @@ fn set_size() {
     }
 
     file.set_size(0).unwrap();
-    let end_free_block_count = block_bitmap.free_block_count();
+    let end_free_block_count = block_bitmap.free_count();
     assert_eq!(start_free_block_count, end_free_block_count);
 
     fn check_expansion_is_zero_filled(

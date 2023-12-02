@@ -10,10 +10,7 @@ use chrono::{
 };
 
 use ku::{
-    error::{
-        Error,
-        Result,
-    },
+    error::Result,
     memory::{
         Size,
         Virt,
@@ -22,32 +19,61 @@ use ku::{
 
 use super::{
     bitmap::Bitmap,
-    directory_entry::DirectoryEntry,
     inode::{
         Inode,
         Kind,
     },
 };
 
+// Used in docs.
+#[allow(unused)]
+use ku::error::Error;
+
 /// Интерфейс к файлaм и директориям файловой системы.
 #[derive(Debug)]
 pub struct File {
-    /// [Битовая карта](https://en.wikipedia.org/wiki/Free-space_bitmap) файловой системы.
+    /// [Битовая карта](https://en.wikipedia.org/wiki/Free-space_bitmap)
+    /// блоков файловой системы.
     block_bitmap: Bitmap,
 
-    /// [Inode](https://en.wikipedia.org/wiki/Inode) файла.
-    inode: Virt,
+    /// [Inode](https://en.wikipedia.org/wiki/Inode)
+    /// директории, содержащей файл.
+    directory: usize,
+
+    /// Номер [inode](https://en.wikipedia.org/wiki/Inode) файла.
+    inode: usize,
+
+    /// [Inode](https://en.wikipedia.org/wiki/Inode)
+    /// [битовая карта](https://en.wikipedia.org/wiki/Free-space_bitmap)
+    /// файловой системы.
+    inode_bitmap: Bitmap,
+
+    /// Массив
+    /// [inode](https://en.wikipedia.org/wiki/Inode)
+    /// файловой системы.
+    inodes: Virt,
+
+    /// Имя файла.
+    name: String,
 }
 
 impl File {
     /// Создаёт [`File`] для доступа к заданному `inode`.
     pub(super) fn new(
-        inode: &Inode,
+        name: &str,
+        directory: usize,
+        inode: usize,
+        inodes: &[Inode],
         block_bitmap: &Bitmap,
+        inode_bitmap: &Bitmap,
     ) -> Self {
         Self {
             block_bitmap: block_bitmap.clone(),
-            inode: Virt::from_ref(inode),
+            directory,
+            inode,
+            inode_bitmap: inode_bitmap.clone(),
+            inodes: Virt::from_ptr(inodes.as_ptr()),
+            name: String::from(name),
         }
     }
 
@@ -82,15 +108,32 @@ impl File {
     pub fn find(
         &mut self,
         name: &str,
-    ) -> Result<File> {
-        self.inode().find(name).map(|inode| File::new(inode, &self.block_bitmap))
+    ) -> Result<Self> {
+        self.inode().find(name).map(|directory_entry| {
+            Self::new(
+                name,
+                self.inode,
+                directory_entry.inode(),
+                self.inodes(directory_entry.inode()),
+                &self.block_bitmap,
+                &self.inode_bitmap,
+            )
+        })
     }
 
     /// Возвращает список файлов и поддиректорий в директории.
     pub fn list(&self) -> Result<Vec<Entry>> {
         let mut list = Vec::new();
-        for inode in self.inode().list()? {
-            list.push(Entry::try_from(inode)?);
+        for directory_entry in self.inode().list()? {
+            let inode = &self.inodes(directory_entry.inode())[directory_entry.inode()];
+            let entry = Entry {
+                inode: directory_entry.inode(),
+                kind: inode.kind(),
+                modify_time: inode.modify_time(),
+                name: String::from(directory_entry.name()?),
+                size: inode.size(),
+            };
+            list.push(entry);
         }
 
         Ok(list)
@@ -99,21 +142,31 @@ impl File {
     /// Вставляет в директорию запись с именем `name` и типом `kind`.
     /// Обновляет как время модификации выделенной записи, так и время модификации самой директории.
     ///
-    /// Возвращает ошибки:
-    ///   - [`Error::FileExists`] если запись с таким именем уже есть.
-    ///   - [`Error::InvalidArgument`] если `kind` равен [`Kind::Unused`].
+    /// Возвращает ошибку [`Error::FileExists`] если запись с таким именем уже есть.
     pub fn insert(
         &mut self,
         name: &str,
         kind: Kind,
-    ) -> Result<File> {
-        self.inode()
-            .insert(name, kind, self.block_bitmap())
-            .map(|inode| File::new(inode, &self.block_bitmap))
+    ) -> Result<Self> {
+        let entry = self.inode().insert(name, self.block_bitmap())?;
+        let inode = self.inode_bitmap.allocate()?;
+        entry.set_inode(inode);
+        self.inodes(inode)[inode].init(kind);
+
+        Ok(Self::new(
+            name,
+            self.inode,
+            inode,
+            self.inodes(inode),
+            &self.block_bitmap,
+            &self.inode_bitmap,
+        ))
     }
 
     /// Удаляет файл.
     pub fn remove(&mut self) -> Result<()> {
+        self.inodes(self.directory)[self.directory].find(&self.name)?.set_free();
+        self.inode_bitmap.set_free(self.inode);
         self.inode().remove(self.block_bitmap())
     }
 
@@ -157,13 +210,26 @@ impl File {
 
     /// Возвращает [inode](https://en.wikipedia.org/wiki/Inode) файла.
     fn inode(&self) -> &'static mut Inode {
-        unsafe { self.inode.try_into_mut().unwrap() }
+        &mut self.inodes(self.inode)[self.inode]
+    }
+
+    /// Возвращает срез
+    /// [inode](https://en.wikipedia.org/wiki/Inode)
+    /// файловой системы до `inode` включительно.
+    fn inodes(
+        &self,
+        inode: usize,
+    ) -> &'static mut [Inode] {
+        unsafe { self.inodes.try_into_mut_slice(inode + 1).unwrap() }
     }
 }
 
 /// Элемент списка файлов и поддиректорий в директории.
 #[derive(Clone, Debug)]
 pub struct Entry {
+    /// Номер [inode](https://en.wikipedia.org/wiki/Inode) файла.
+    inode: usize,
+
     /// Тип --- файл или поддиректория.
     kind: Kind,
 
@@ -206,7 +272,8 @@ impl fmt::Display for Entry {
     ) -> fmt::Result {
         write!(
             formatter,
-            "{}, {:?}, {} B = {}, {}",
+            "{}, {}, {:?}, {} B = {}, {}",
+            self.inode,
             self.name(),
             self.kind(),
             self.size(),
@@ -216,21 +283,10 @@ impl fmt::Display for Entry {
     }
 }
 
-impl TryFrom<&mut DirectoryEntry> for Entry {
-    type Error = Error;
-
-    fn try_from(entry: &mut DirectoryEntry) -> Result<Self> {
-        Ok(Self {
-            kind: entry.inode().kind(),
-            modify_time: entry.inode().modify_time(),
-            name: String::from(entry.name()?),
-            size: entry.inode().size(),
-        })
-    }
-}
-
 #[doc(hidden)]
 pub mod test_scaffolding {
+    use core::mem;
+
     use super::super::test_scaffolding::{
         Bitmap,
         Inode,
@@ -239,9 +295,19 @@ pub mod test_scaffolding {
     use super::File;
 
     pub fn make_file(
-        inode: &Inode,
+        inodes: &[Inode],
         block_bitmap: &Bitmap,
+        inode_bitmap: &Bitmap,
     ) -> File {
-        File::new(&inode.0, &block_bitmap.0)
+        unsafe {
+            File::new(
+                "",
+                0,
+                0,
+                mem::transmute(inodes),
+                mem::transmute(block_bitmap),
+                mem::transmute(inode_bitmap),
+            )
+        }
     }
 }

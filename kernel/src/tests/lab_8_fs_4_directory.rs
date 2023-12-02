@@ -34,8 +34,8 @@ init!(Subsystems::MEMORY);
 
 #[test_case]
 fn basic_operations() {
-    let (block_bitmap, inode) = fs_helpers::single_inode_fs(Kind::Directory);
-    let mut directory = make_file(&inode, &block_bitmap);
+    let (block_bitmap, inode_bitmap, inodes) = fs_helpers::simple_fs(Kind::Directory);
+    let mut directory = make_file(&inodes, &block_bitmap, &inode_bitmap);
 
     let mut buffer = [0; 1];
     assert_eq!(directory.read(0, &mut buffer).unwrap_err(), NotFile);
@@ -44,16 +44,12 @@ fn basic_operations() {
     assert!(directory.list().unwrap().is_empty());
 
     assert_eq!(directory.find("file-1").unwrap_err(), FileNotFound);
-    assert_eq!(
-        directory.insert("file-1", Kind::Unused).unwrap_err(),
-        InvalidArgument,
-    );
     let mut file_1 = directory.insert("file-1", Kind::File).unwrap();
     assert!(directory.find("file-1").is_ok());
 
     assert_eq!(file_1.list().unwrap_err(), NotDirectory);
     assert_eq!(
-        file_1.insert("file-1", Kind::File).unwrap_err(),
+        file_1.insert("file-2", Kind::File).unwrap_err(),
         NotDirectory,
     );
     assert_eq!(file_1.find("file-1").unwrap_err(), NotDirectory);
@@ -102,9 +98,11 @@ fn basic_operations() {
 
 #[test_case]
 fn big_directory() {
-    let (block_bitmap, inode) = fs_helpers::single_inode_fs(Kind::Directory);
-    let mut directory = make_file(&inode, &block_bitmap);
-    let start_free_block_count = block_bitmap.free_block_count();
+    let (block_bitmap, inode_bitmap, inodes) = fs_helpers::simple_fs(Kind::Directory);
+    let mut root = make_file(&inodes, &block_bitmap, &inode_bitmap);
+    let mut directory = root.insert("big-directory", Kind::Directory).unwrap();
+
+    let start_free_block_count = block_bitmap.free_count();
 
     for file_count in 1 ..= 1000 {
         directory.insert(&format!("file-{file_count}"), Kind::File).unwrap();
@@ -113,21 +111,21 @@ fn big_directory() {
         }
     }
 
-    let free_block_count = block_bitmap.free_block_count();
+    let free_block_count = block_bitmap.free_count();
     let used_block_count = start_free_block_count - free_block_count;
     debug!(free_block_count, used_block_count);
 
     directory.remove().unwrap();
 
-    let end_free_block_count = block_bitmap.free_block_count();
+    let end_free_block_count = block_bitmap.free_count();
     let leaked_block_count = start_free_block_count - end_free_block_count;
     assert_eq!(leaked_block_count, 0);
 }
 
 #[test_case]
 fn max_name_len() {
-    let (block_bitmap, inode) = fs_helpers::single_inode_fs(Kind::Directory);
-    let mut directory = make_file(&inode, &block_bitmap);
+    let (block_bitmap, inode_bitmap, inodes) = fs_helpers::simple_fs(Kind::Directory);
+    let mut directory = make_file(&inodes, &block_bitmap, &inode_bitmap);
 
     let name = str::from_utf8(&[b'x'; MAX_NAME_LEN]).unwrap();
     let mut file = directory.insert(name, Kind::File).unwrap();

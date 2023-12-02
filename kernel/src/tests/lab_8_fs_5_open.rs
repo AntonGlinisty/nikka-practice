@@ -27,7 +27,7 @@ init!(Subsystems::MEMORY);
 
 #[test_case]
 fn fs() {
-    FileSystem::format(FS_DISK, FS_SIZE).unwrap();
+    FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
     let mut fs = FileSystem::mount(FS_DISK).unwrap();
 
     test_list(&mut fs, &[]);

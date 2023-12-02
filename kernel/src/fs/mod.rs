@@ -1,5 +1,7 @@
 /// [Битовая карта](https://en.wikipedia.org/wiki/Free-space_bitmap)
-/// для отслеживания какие именно блоки файловой системы заняты, а какие --- свободны.
+/// для отслеживания какие именно элементы
+/// (блоки или [inode](https://en.wikipedia.org/wiki/Inode) для соответствующей битовой карты)
+/// [файловой системы](https://en.wikipedia.org/wiki/File_system) заняты, а какие --- свободны.
 mod bitmap;
 
 /// [Блочный кэш](https://en.wikipedia.org/wiki/Page_cache)
