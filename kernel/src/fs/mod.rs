@@ -47,16 +47,6 @@ use {
 /// Размер блока данных файловой системы.
 const BLOCK_SIZE: usize = Page::SIZE;
 
-/// Номер блока, в котором хранится суперблок
-/// ([superblock](https://en.wikipedia.org/wiki/Unix_File_System#Design))
-/// файловой системы --- [`Superblock`].
-const SUPERBLOCK_BLOCK: usize = 1;
-
-/// Номер первого блока, хранящего
-/// [битовая карта](https://en.wikipedia.org/wiki/Free-space_bitmap)
-/// занятых блоков --- [`Bitmap`].
-const FIRST_BITMAP_BLOCK: usize = SUPERBLOCK_BLOCK + 1;
-
 #[doc(hidden)]
 pub mod test_scaffolding {
     pub use super::{
@@ -64,6 +54,7 @@ pub mod test_scaffolding {
         block_cache::test_scaffolding::*,
         file::test_scaffolding::*,
         inode::test_scaffolding::*,
+        superblock::test_scaffolding::*,
     };
 
     pub const BLOCK_SIZE: usize = super::BLOCK_SIZE;

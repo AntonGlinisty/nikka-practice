@@ -7,6 +7,7 @@ use kernel::{
             BLOCK_SIZE,
             Bitmap,
             Inode,
+            Superblock,
             block_cache_init,
         },
     },
@@ -18,9 +19,12 @@ pub(super) fn single_inode_fs(kind: Kind) -> (Bitmap, Inode) {
 
     block_cache_init(FS_DISK, BLOCK_COUNT).unwrap();
 
-    Bitmap::format(BLOCK_COUNT).unwrap();
+    let superblock = Superblock::format(BLOCK_COUNT).unwrap();
+    let reserved_block_count = superblock.reserved_block_count();
 
-    let block_bitmap = Bitmap::new(BLOCK_COUNT).unwrap();
+    Bitmap::format(BLOCK_COUNT, reserved_block_count).unwrap();
+
+    let block_bitmap = Bitmap::new(BLOCK_COUNT, reserved_block_count).unwrap();
     let inode = Inode::new(kind);
 
     (block_bitmap, inode)

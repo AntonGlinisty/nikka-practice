@@ -15,7 +15,6 @@ use ku::{
 
 use super::{
     BLOCK_SIZE,
-    SUPERBLOCK_BLOCK,
     bitmap::Bitmap,
     block_cache::BlockCache,
     directory_entry::DirectoryEntry,
@@ -47,13 +46,14 @@ impl FileSystem {
     pub fn mount(disk: usize) -> Result<FileSystem> {
         let disk = Disk::new(disk)?;
 
-        BlockCache::init(disk, SUPERBLOCK_BLOCK + 1)?;
+        BlockCache::init(disk, Superblock::SUPERBLOCK_BLOCK + 1)?;
 
         let superblock = Superblock::new()?;
 
         BlockCache::init(disk, superblock.block_count())?;
 
-        let block_bitmap = Bitmap::new(superblock.block_count())?;
+        let block_bitmap =
+            Bitmap::new(superblock.block_count(), superblock.reserved_block_count())?;
 
         Ok(Self {
             block_bitmap,
@@ -72,10 +72,10 @@ impl FileSystem {
 
         BlockCache::init(disk, block_count)?;
 
-        Superblock::format(block_count)?;
-        Bitmap::format(block_count)?;
+        let superblock = Superblock::format(block_count)?;
+        Bitmap::format(block_count, superblock.reserved_block_count())?;
 
-        let reserved_block_count = Bitmap::new(block_count)?.reserved_block_count();
+        let reserved_block_count = superblock.reserved_block_count();
         let inode_size = Size::of::<Inode>();
         let directory_entry_size = Size::of::<DirectoryEntry>();
         let free_space = Size::bytes((block_count - reserved_block_count) * BLOCK_SIZE);
@@ -116,7 +116,7 @@ impl FileSystem {
 
     /// Возвращает размер зарезервированного места файловой системы в байтах.
     pub fn reserved_space(&self) -> usize {
-        self.block_bitmap.reserved_block_count() * BLOCK_SIZE
+        self.superblock.reserved_block_count() * BLOCK_SIZE
     }
 
     /// Возвращает размер занятого места файловой системы в байтах.

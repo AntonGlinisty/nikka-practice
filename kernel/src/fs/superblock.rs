@@ -9,7 +9,7 @@ use ku::error::{
 
 use super::{
     BLOCK_SIZE,
-    SUPERBLOCK_BLOCK,
+    bitmap::Bitmap,
     block_cache::BlockCache,
     inode::{
         Inode,
@@ -63,9 +63,9 @@ impl Superblock {
     /// Форматирует часть диска,
     /// отведённую под суперблок для файловой системы размером `block_count` блоков,
     /// его начальным состоянием.
-    pub(super) fn format(block_count: usize) -> Result<()> {
+    pub(super) fn format(block_count: usize) -> Result<&'static Self> {
         unsafe {
-            BlockCache::block(SUPERBLOCK_BLOCK)?
+            BlockCache::block(Self::SUPERBLOCK_BLOCK)?
                 .try_into_mut_slice::<usize>()
                 .unwrap()
                 .fill(0);
@@ -80,7 +80,17 @@ impl Superblock {
 
         superblock.validate()?;
 
-        Ok(())
+        Ok(superblock)
+    }
+
+    /// Количество блоков в файловой системе.
+    pub(super) fn block_count(&self) -> usize {
+        self.block_count
+    }
+
+    /// Количество зарезервированных блоков в файловой системе.
+    pub(super) fn reserved_block_count(&self) -> usize {
+        Self::FIRST_BITMAP_BLOCK + Bitmap::size_in_blocks(self.block_count)
     }
 
     /// [Корневая директория](https://en.wikipedia.org/wiki/Root_directory)
@@ -89,14 +99,14 @@ impl Superblock {
         &mut self.root
     }
 
-    /// Количество блоков в файловой системе.
-    pub(super) fn block_count(&self) -> usize {
-        self.block_count
-    }
-
     /// Создаёт [`Superblock`], не проверяя корректность его данных на диске.
     fn new_unchecked() -> &'static mut Self {
-        unsafe { BlockCache::block(SUPERBLOCK_BLOCK).unwrap().try_into_mut::<Self>().unwrap() }
+        unsafe {
+            BlockCache::block(Self::SUPERBLOCK_BLOCK)
+                .unwrap()
+                .try_into_mut::<Self>()
+                .unwrap()
+        }
     }
 
     /// Проверяет корректность данных [`Superblock`] на диске.
@@ -115,6 +125,16 @@ impl Superblock {
             Err(Medium)
         }
     }
+
+    /// Номер первого блока, хранящего
+    /// [битовая карта](https://en.wikipedia.org/wiki/Free-space_bitmap)
+    /// занятых блоков --- [`Bitmap`].
+    pub(super) const FIRST_BITMAP_BLOCK: usize = Self::SUPERBLOCK_BLOCK + 1;
+
+    /// Номер блока, в котором хранится суперблок
+    /// ([superblock](https://en.wikipedia.org/wiki/Unix_File_System#Design))
+    /// файловой системы --- [`Superblock`].
+    pub(super) const SUPERBLOCK_BLOCK: usize = 1;
 }
 
 /// Значение индикатора [направления байт](https://en.wikipedia.org/wiki/Endianness).
@@ -123,3 +143,20 @@ const ENDIAN: u64 = 0x0102_0304_0506_0708;
 /// [Сигнатура](https://en.wikipedia.org/wiki/Magic_number_(programming)#Format_indicators)
 /// файловой системы.
 const MAGIC: &str = "Nikka's simple file system";
+
+#[doc(hidden)]
+pub mod test_scaffolding {
+    use ku::error::Result;
+
+    pub struct Superblock(&'static super::Superblock);
+
+    impl Superblock {
+        pub fn format(block_count: usize) -> Result<Self> {
+            Ok(Superblock(super::Superblock::format(block_count)?))
+        }
+
+        pub fn reserved_block_count(&self) -> usize {
+            self.0.reserved_block_count()
+        }
+    }
+}

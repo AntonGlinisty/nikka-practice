@@ -3,18 +3,21 @@ use core::{
     ops::Add,
 };
 
-use ku::error::{
-    Error::{
-        Medium,
-        NoDisk,
+use ku::{
+    error::{
+        Error::{
+            Medium,
+            NoDisk,
+        },
+        Result,
     },
-    Result,
+    memory::size,
 };
 
 use super::{
     BLOCK_SIZE,
-    FIRST_BITMAP_BLOCK,
     block_cache::BlockCache,
+    superblock::Superblock,
 };
 
 // Used in docs.
@@ -38,14 +41,20 @@ pub(super) struct Bitmap {
     /// Место последней аллокации из битовой карты.
     /// Служит для ускорения аллокаций и равномерного распределения занятых блоков по диску.
     cursor: usize,
+
+    /// Количество зарезервированных блоков в файловой системе.
+    reserved_block_count: usize,
 }
 
 impl Bitmap {
     /// Возвращает битовую карту файловой системы или ошибку [`Error::Medium`],
     /// если отведённое под битовую карту место диска содержит данные,
     /// которые не похожи на корректную битовую карту.
-    pub(super) fn new(block_count: usize) -> Result<Self> {
-        let bitmap = Self::new_unchecked(block_count);
+    pub(super) fn new(
+        block_count: usize,
+        reserved_block_count: usize,
+    ) -> Result<Self> {
+        let bitmap = Self::new_unchecked(block_count, reserved_block_count);
 
         bitmap.validate()
     }
@@ -53,12 +62,15 @@ impl Bitmap {
     /// Форматирует часть диска,
     /// отведённую под битовую карту для `block_count` блоков,
     /// его начальным состоянием.
-    pub(super) fn format(block_count: usize) -> Result<()> {
-        let mut bitmap = Self::new_unchecked(block_count);
+    pub(super) fn format(
+        block_count: usize,
+        reserved_block_count: usize,
+    ) -> Result<()> {
+        let mut bitmap = Self::new_unchecked(block_count, reserved_block_count);
 
         bitmap.bitmap.fill(0);
 
-        for reserved_element in 0 .. bitmap.reserved_block_count() {
+        for reserved_element in 0 .. bitmap.reserved_block_count {
             assert_eq!(
                 bitmap.allocate().expect("the bitmap has been cleared just yet"),
                 reserved_element,
@@ -100,7 +112,7 @@ impl Bitmap {
         &mut self,
         number: usize,
     ) {
-        assert!(self.reserved_block_count() <= number && number < self.block_count);
+        assert!(self.reserved_block_count <= number && number < self.block_count);
         assert!(!self.is_free(number));
         self.bitmap[number / Self::BITS_PER_ENTRY] &= !(1 << (number % Self::BITS_PER_ENTRY));
     }
@@ -126,17 +138,21 @@ impl Bitmap {
             .unwrap_or(0)
     }
 
-    /// Возвращает количество зарезервированных блоков в файловой системе.
-    pub(super) fn reserved_block_count(&self) -> usize {
-        FIRST_BITMAP_BLOCK + self.size_in_blocks()
+    /// Возвращает количество блоков, которые занимает [`Bitmap`] на диске.
+    pub(super) fn size_in_blocks(block_count: usize) -> usize {
+        block_count.div_ceil(size::from(u8::BITS) * BLOCK_SIZE)
     }
 
     /// Создаёт [`Bitmap`], не проверяя корректность его данных на диске.
-    fn new_unchecked(block_count: usize) -> Self {
+    fn new_unchecked(
+        block_count: usize,
+        reserved_block_count: usize,
+    ) -> Self {
         Self {
             bitmap: Self::bitmap(block_count),
             block_count,
             cursor: 0,
+            reserved_block_count,
         }
     }
 
@@ -146,7 +162,7 @@ impl Bitmap {
     /// или сам [`Bitmap`] иначе.
     fn validate(self) -> Result<Self> {
         let bit_count = self.bitmap.len() * Self::BITS_PER_ENTRY;
-        if bit_count < self.block_count || self.block_count < self.reserved_block_count() {
+        if bit_count < self.block_count || self.block_count < self.reserved_block_count {
             return Err(Medium);
         }
 
@@ -160,8 +176,7 @@ impl Bitmap {
             }
         }
 
-        if (0 .. self.reserved_block_count())
-            .all(|reserved_element| !self.is_free(reserved_element))
+        if (0 .. self.reserved_block_count).all(|reserved_element| !self.is_free(reserved_element))
         {
             Ok(self)
         } else {
@@ -169,15 +184,10 @@ impl Bitmap {
         }
     }
 
-    /// Возвращает количество блоков, которые занимает [`Bitmap`] на диске.
-    fn size_in_blocks(&self) -> usize {
-        mem::size_of_val(self.bitmap).div_ceil(BLOCK_SIZE)
-    }
-
     /// Возвращает срез элементов битовой карты в памяти блочного кэша [`Bitmap`].
     fn bitmap(block_count: usize) -> &'static mut [u64] {
         unsafe {
-            BlockCache::block(FIRST_BITMAP_BLOCK)
+            BlockCache::block(Superblock::FIRST_BITMAP_BLOCK)
                 .unwrap()
                 .start_address()
                 .try_into_mut_slice::<u64>(block_count.div_ceil(Self::BITS_PER_ENTRY))
@@ -195,6 +205,7 @@ impl Clone for Bitmap {
             bitmap: Self::bitmap(self.block_count),
             block_count: self.block_count,
             cursor: self.cursor,
+            reserved_block_count: self.reserved_block_count,
         }
     }
 }
@@ -206,12 +217,18 @@ pub mod test_scaffolding {
     pub struct Bitmap(pub(in super::super) super::Bitmap);
 
     impl Bitmap {
-        pub fn new(block_count: usize) -> Result<Self> {
-            Ok(Self(super::Bitmap::new(block_count)?))
+        pub fn new(
+            block_count: usize,
+            reserved_block_count: usize,
+        ) -> Result<Self> {
+            Ok(Self(super::Bitmap::new(block_count, reserved_block_count)?))
         }
 
-        pub fn format(block_count: usize) -> Result<()> {
-            super::Bitmap::format(block_count)
+        pub fn format(
+            block_count: usize,
+            reserved_block_count: usize,
+        ) -> Result<()> {
+            super::Bitmap::format(block_count, reserved_block_count)
         }
 
         pub fn is_free(
