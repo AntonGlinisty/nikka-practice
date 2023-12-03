@@ -18,6 +18,7 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(missing_docs)]
 
+extern crate alloc;
 extern crate rlibc;
 
 /// Аллокаторы памяти общего назначения.
@@ -25,6 +26,9 @@ pub mod allocator;
 
 /// Поддержка печати трассировок стека.
 pub mod backtrace;
+
+/// Коллекции элементов.
+pub mod collections;
 
 /// Перечисление для возможных ошибок [`Error`] и соответствующий [`Result`].
 pub mod error;
