@@ -9,12 +9,15 @@
 
 ```rust
 struct DirectoryEntry {
-    inode: Inode,
+    inode: usize,
     name: [u8; MAX_NAME_LEN],
 }
 ```
 
-Отсутствующие или удалённые записи при этом помечаются как `inode.kind == Kind::Unused`.
+Отсутствующие или удалённые записи при этом имеют зарезервированный номер `inode` равный
+[`DirectoryEntry::UNUSED`](../../doc/kernel/fs/directory_entry/struct.DirectoryEntry.html#associatedconstant.UNUSED).
+Проверить свободна ли запись можно методом
+[`DirectoryEntry::is_free()`](../../doc/kernel/fs/directory_entry/struct.DirectoryEntry.html#method.is_free).
 
 
 ### Задача 4 --- операции с директориями
@@ -76,13 +79,13 @@ struct Iter<'a> {
 fn Inode::find_entry(
     &mut self,
     name: &str,
-    block_bitmap: Option<&mut Bitmap>,
+    bitmap: Option<&mut Bitmap>,
 ) -> Result<&mut DirectoryEntry>
 ```
 
 Он находит запись в директории с именем `name`.
-Если такой записи нет, то верните свободную запись --- `Kind::Unused`.
-Если и таких нет, и при этом `block_bitmap` является `Some`, попробуйте расширить директорию
+Если такой записи нет, то верните свободную запись.
+Если и таких нет, и при этом `bitmap` является `Some`, попробуйте расширить директорию
 и вернуть новую свободную запись.
 Директорию имеет смысл расширять несколькими записями сразу на один целый блок.
 Так как блок в любом случае будет выделен, его стоит сразу весь отдать под записи директории.
@@ -92,7 +95,7 @@ fn Inode::find_entry(
 и соответствующим
 [`Iter::next()`](../../doc/kernel/fs/inode/struct.Iter.html#method.next).
 Также вам может пригодиться метод
-[`Iter::extend()`](../../doc/kernel/fs/inode/struct.Iter.html#method.extend),
+[`Inode::extend()`](../../doc/kernel/fs/inode/struct.Inode.html#method.extend),
 который расширяет директорию на один блок.
 
 
@@ -105,16 +108,14 @@ fn Inode::insert(
     &mut self,
     name: &str,
     kind: Kind,
-    block_bitmap: &mut Bitmap,
+    bitmap: &mut Bitmap,
 ) -> Result<&mut Inode>
 ```
 
 Он вставляет в директорию запись с именем `name` и типом `kind`.
 Если запись с таким именем уже есть, верните ошибку
 [`Error::FileExists`](../../doc/kernel/error/enum.Error.html#variant.FileExists).
-Если `kind == Kind::Unused`, верните ошибку
-[`Error::InvalidArgument`](../../doc/kernel/error/enum.Error.html#variant.InvalidArgument).
-Используйте любую свободную запись --- `Kind::Unused`.
+Используйте любую свободную запись.
 Не забудьте обновить как время модификации выделенной записи, так и время модификации самой директории.
 Используйте вспомогательный метод
 [`Inode::find_entry()`](../../doc/kernel/fs/inode/struct.Inode.html#method.find_entry).
@@ -129,39 +130,41 @@ fn Inode::insert(
 $ (cd kernel; cargo test --test 7-fs-4-directory)
 ...
 7_fs_4_directory::basic_operations--------------------------
-19:01:57 0 D block_count = 8192
-19:01:57 0 D list = [Entry { kind: File, modify_time: 2022-12-17T19:01:57Z, name: "file-1", size: 0 }]
-19:01:57 0 D list = [Entry { kind: File, modify_time: 2022-12-17T19:01:57Z, name: "file-1", size: 1 }]
-19:01:57 0 D list = [Entry { kind: File, modify_time: 2022-12-17T19:01:57Z, name: "file-1", size: 1 }, Entry { kind: File, modify_time: 2022-12-17T19:01:57Z, name: "file-2", size: 1235 }]
+17:15:36 0 I formatted the file system; free_space = 31.859 MiB; disk = { id: 1, io_port: 0x1F0, io_disk: 1 }; block_size = 4.000 KiB; block_count = 8192; blocks = 36..8192; inode_size = 64 B; inodes = 3..2048; directory_entry_size = 128 B; max_file_size = 513.002 GiB
+17:15:37 0 D list = [Entry { inode: 3, kind: File, modify_time: 2023-12-03T17:15:37Z, name: "file-1", size: 0 }]
+17:15:37 0 D list = [Entry { inode: 3, kind: File, modify_time: 2023-12-03T17:15:37Z, name: "file-1", size: 1 }]
+17:15:37 0 D list = [Entry { inode: 3, kind: File, modify_time: 2023-12-03T17:15:37Z, name: "file-1", size: 1 }, Entry { inode: 4, kind: File, modify_time: 2023-12-03T17:15:37Z, name: "file-2", size: 1235 }]
+17:15:37 0 D block_cache_stats = Stats { discards: 0, evictions: 0, reads: 7, writes: 5 }
 7_fs_4_directory::basic_operations----------------- [passed]
 
 7_fs_4_directory::big_directory-----------------------------
-19:01:57 0 D block_count = 8192
-19:01:57 0 D file_count = 100; directory_size = 16.000 KiB
-19:01:57 0 D file_count = 200; directory_size = 28.000 KiB
-19:01:58.265 0 D file_count = 300; directory_size = 40.000 KiB
-19:01:58.927 0 D file_count = 400; directory_size = 52.000 KiB
-19:01:59.769 0 D file_count = 500; directory_size = 64.000 KiB
-19:02:00.791 0 D file_count = 600; directory_size = 76.000 KiB
-19:02:01.995 0 D file_count = 700; directory_size = 88.000 KiB
-19:02:03.379 0 D file_count = 800; directory_size = 100.000 KiB
-19:02:04.947 0 D file_count = 900; directory_size = 116.000 KiB
-19:02:06.691 0 D file_count = 1000; directory_size = 128.000 KiB
-19:02:06.695 0 D free_block_count = 8156; used_block_count = 33
-19:02:06.705 0 D start_free_block_count = 8189; end_free_block_count = 8189; leaked_block_count = 0
+17:15:39.695 0 I formatted the file system; free_space = 31.859 MiB; disk = { id: 1, io_port: 0x1F0, io_disk: 1 }; block_size = 4.000 KiB; block_count = 8192; blocks = 36..8192; inode_size = 64 B; inodes = 3..2048; directory_entry_size = 128 B; max_file_size = 513.002 GiB
+17:15:41.293 0 D file_count = 100; directory_size = 16.000 KiB
+17:15:41.789 0 D file_count = 200; directory_size = 28.000 KiB
+17:15:42.449 0 D file_count = 300; directory_size = 40.000 KiB
+17:15:43.291 0 D file_count = 400; directory_size = 52.000 KiB
+17:15:44.307 0 D file_count = 500; directory_size = 64.000 KiB
+17:15:45.487 0 D file_count = 600; directory_size = 76.000 KiB
+17:15:46.831 0 D file_count = 700; directory_size = 88.000 KiB
+17:15:48.329 0 D file_count = 800; directory_size = 100.000 KiB
+17:15:49.991 0 D file_count = 900; directory_size = 116.000 KiB
+17:15:51.833 0 D file_count = 1000; directory_size = 128.000 KiB
+17:15:51.837 0 D free_block_count = 8123; used_block_count = 33
+17:15:51.843 0 D block_cache_stats = Stats { discards: 0, evictions: 0, reads: 52, writes: 1033 }
 7_fs_4_directory::big_directory-------------------- [passed]
 
 7_fs_4_directory::max_name_len------------------------------
-19:02:06.725 0 D block_count = 8192
-19:02:06.737 0 D list = [Entry { kind: File, modify_time: 2022-12-17T19:02:06.735Z, name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", size: 0 }]
+17:15:53.781 0 I formatted the file system; free_space = 31.859 MiB; disk = { id: 1, io_port: 0x1F0, io_disk: 1 }; block_size = 4.000 KiB; block_count = 8192; blocks = 36..8192; inode_size = 64 B; inodes = 3..2048; directory_entry_size = 128 B; max_file_size = 513.002 GiB
+17:15:54.959 0 D list = [Entry { inode: 3, kind: File, modify_time: 2023-12-03T17:15:54.957Z, name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", size: 0 }]
+17:15:54.969 0 D block_cache_stats = Stats { discards: 0, evictions: 0, reads: 4, writes: 2 }
 7_fs_4_directory::max_name_len--------------------- [passed]
-19:02:06.755 0 I exit qemu; exit_code = SUCCESS
+17:15:55.865 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ```
 
 
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/fs/inode.rs |   70 ++++++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 64 insertions(+), 6 deletions(-)
+ kernel/src/fs/inode.rs | 65 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 58 insertions(+), 7 deletions(-)
 ```

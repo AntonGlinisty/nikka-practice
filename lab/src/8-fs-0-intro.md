@@ -24,7 +24,7 @@ struct Superblock {
     magic: [u8; MAGIC.len()],
     endian: u64,
     block_count: usize,
-    root: Inode,
+    inode_count: usize,
 }
 ```
 
@@ -111,9 +111,10 @@ $ make fs-dump
 ### Ориентировочный объём работ этой лабораторки
 
 ```console
- kernel/src/fs/block_bitmap.rs |   26 ++++
- kernel/src/fs/block_cache.rs  |   64 ++++++++++-
- kernel/src/fs/file_system.rs  |   21 +++
- kernel/src/fs/inode.rs        |  234 +++++++++++++++++++++++++++++++++++++++---
- 4 files changed, 318 insertions(+), 27 deletions(-)
+ kernel/src/fs/bitmap.rs      |  22 +++++++-
+ kernel/src/fs/block_cache.rs |  88 ++++++++++++++++++++++++++++---
+ kernel/src/fs/file_system.rs |  27 +++++++++-
+ kernel/src/fs/inode.rs       | 236 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--------
+ ku/src/lru/mod.rs            | 103 +++++++++++++++++++++++++++++++-----
+ 5 files changed, 427 insertions(+), 49 deletions(-)
 ```

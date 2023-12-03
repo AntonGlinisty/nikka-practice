@@ -3,29 +3,20 @@
 В [inode](https://en.wikipedia.org/wiki/Inode) хранится метаинформация об объекте с данными.
 Имя объекта не хранится, оно хранится в директории.
 Объектом может быть как файл, так и директория.
-В случае директорий, их содержимое --- массив из имен объектов и их [inode](https://en.wikipedia.org/wiki/Inode).
-[Inode](https://en.wikipedia.org/wiki/Inode) корневой директории файловой системы хранится в суперблоке.
-
-В файловых системах семейства System V, упрощённую реализацию которой пишем мы,
-в директории хранится не сам
-[inode](https://en.wikipedia.org/wiki/Inode),
-а его номер.
-Это позволяет иметь для одного
-[inode](https://en.wikipedia.org/wiki/Inode)
-несколько имён в одной и той же или в разных директориях ---
-[жёстких ссылок](https://en.wikipedia.org/wiki/Hard_link).
-В этом случае сами
-[inode](https://en.wikipedia.org/wiki/Inode)
-хранятся в отдельном массиве в файловой системе (на диске).
-И для ускорения их аллокации заводят отдельную битовую карту, как для блоков.
+В случае директорий, их содержимое --- массив из имен дочерних объектов и их номеров
+[inode](https://en.wikipedia.org/wiki/Inode).
+Номер [inode](https://en.wikipedia.org/wiki/Inode) корневой директории файловой системы ---
+константа
+[`kernel::fs::superblock::Superblock::ROOT_INODE`](../../doc/kernel/fs/superblock/struct.Superblock.html#associatedconstant.ROOT_INODE),
+доступная через метод
+[`kernel::fs::superblock::Superblock::root()`](../../doc/kernel/fs/superblock/struct.Superblock.html#method.root).
 
 Структура `Inode` выглядит так:
 
 ```rust
 enum Kind {
-    Unused = 0,
-    File = 1,
-    Directory = 2,
+    File = 0,
+    Directory = 1,
 }
 
 struct Inode {
@@ -72,7 +63,7 @@ const MAX_HEIGHT: usize = 4;
 fn Inode::block_entry(
     &mut self,
     inode_block_number: usize,
-    block_bitmap: Option<&mut Bitmap>,
+    bitmap: Option<&mut Bitmap>,
 ) -> Result<&mut usize>
 ```
 
@@ -91,7 +82,7 @@ fn Inode::block_entry(
 Либо в одном из листьевых косвенных блоков леса
 [`Inode::root_blocks`](../../doc/kernel/fs/inode/struct.Inode.html#structfield.root_blocks).
 
-- Если при обходе леса встречается не выделенный косвенный блок, то его нужно выделить из `block_bitmap`. Не выделенные блоки имеют зарезервированный номер [`kernel::fs::inode::NO_BLOCK`](../../doc/kernel/fs/inode/constant.NO_BLOCK.html). Если при этом `block_bitmap` равен `None`, верните ошибку [`Error::NoDisk`](../../doc/kernel/error/enum.Error.html#variant.NoDisk).
+- Если при обходе леса встречается не выделенный косвенный блок, то его нужно выделить из `bitmap`. Не выделенные блоки имеют зарезервированный номер [`kernel::fs::inode::NO_BLOCK`](../../doc/kernel/fs/inode/constant.NO_BLOCK.html). Если при этом `bitmap` равен `None`, верните ошибку [`Error::NoDisk`](../../doc/kernel/error/enum.Error.html#variant.NoDisk).
 - А вот выделять блок для данных, на который указывает результирующая запись, не нужно.
 
 Этот метод похож на
@@ -100,6 +91,33 @@ fn Inode::block_entry(
 Только в
 [`Inode`](../../doc/kernel/fs/inode/struct.Inode.html)
 для блоков не одно дерево фиксированной высоты, а последовательность деревьев возрастающей высоты.
+
+Вы можете использовать вспомогательные методы работы с лесом
+
+```rust
+fn find_leaf(
+    leaf_in_forest: usize,
+) -> Result<LeafCoordinates>;
+
+fn remove_tree(
+    node: &mut usize,
+    height: usize,
+    block_bitmap: &mut Bitmap,
+) -> Result<()>;
+
+fn traverse<'a>(
+    forest: &'a mut Forest,
+    leaf_coordinates: LeafCoordinates,
+    mut block_bitmap: Option<&mut Bitmap>,
+) -> Result<&'a mut usize>;
+
+fn next_level<'a>(
+    node: &'a mut usize,
+    block_bitmap: &mut Option<&mut Bitmap>,
+) -> Result<&'a mut [usize]>;
+```
+
+Или же структурировать код по-своему.
 
 Дополнительный [метод](../../doc/kernel/fs/inode/struct.Inode.html#method.block)
 
@@ -121,14 +139,14 @@ fn Inode::block(&mut self, inode_block_number: usize) -> Result<Block<Virt>>
 fn Inode::set_size(
     &mut self,
     size: usize,
-    block_bitmap: &mut Bitmap,
+    bitmap: &mut Bitmap,
 ) -> Result<()>
 ```
 
 изменяет размер данных
 [`Inode`](../../doc/kernel/fs/inode/struct.Inode.html)
 в большую или меньшую сторону.
-При этом он должен отдавать в `block_bitmap` не используемые больше блоки данных.
+При этом он должен отдавать в `bitmap` не используемые больше блоки данных.
 Если новый размер `size` равен `0`, то все косвенные блоки также нужно освободить.
 Так как с таким аргументом этот метод вызывается при удалении
 [`Inode`](../../doc/kernel/fs/inode/struct.Inode.html).
@@ -141,6 +159,8 @@ fn Inode::set_size(
 [`NO_BLOCK`](../../doc/kernel/fs/inode/constant.NO_BLOCK.html).
 И выделять реальные блоки только в момент записи.
 Косвенные блоки тоже можно выделять лениво в момент записи.
+Ленивый вариант породит
+[разрежённый файл](https://ru.wikipedia.org/wiki/%D0%A0%D0%B0%D0%B7%D1%80%D0%B5%D0%B6%D1%91%D0%BD%D0%BD%D1%8B%D0%B9_%D1%84%D0%B0%D0%B9%D0%BB).
 
 Вам могут пригодиться:
 
@@ -190,7 +210,7 @@ pub(super) fn write(
     &mut self,
     offset: usize,
     buffer: &[u8],
-    block_bitmap: &mut Bitmap,
+    bitmap: &mut Bitmap,
 ) -> Result<usize>
 ```
 
@@ -221,90 +241,94 @@ pub(super) fn write(
 ```console
 $ (cd kernel; cargo test --test 7-fs-3-inode)
 ...
+7_fs_3_inode::big_file--------------------------------------
+17:12:26 0 I formatted the file system; free_space = 31.859 MiB; disk = { id: 1, io_port: 0x1F0, io_disk: 1 }; block_size = 4.000 KiB; block_count = 8192; blocks = 36..8192; inode_size = 64 B; inodes = 3..2048; directory_entry_size = 128 B; max_file_size = 513.002 GiB
+17:12:52.473 0 D file_block_count = 8074; file_size = 31.539 MiB
+17:14:01.305 0 D free_block_count = 65; used_block_count = 8091
+17:14:01.513 0 D block_cache_stats = Stats { discards: 8, evictions: 23319, reads: 24343, writes: 31402 }
+7_fs_3_inode::big_file----------------------------- [passed]
+
 7_fs_3_inode::block_entry-----------------------------------
-19:00:13 0 D block_count = 8192
-19:00:13 0 D i = 0; prev_entry = 0v0; current_entry = 0v100002014B0
-19:00:16.717 0 D i = 100000; prev_entry = 0v7FFFFE0064F0; current_entry = 0v7FFFFE0064F8
-19:00:20.135 0 D i = 200000; prev_entry = 0v7FFFFE0C99F0; current_entry = 0v7FFFFE0C99F8
-19:00:24.005 0 D i = 300000; prev_entry = 0v7FFFFE18EEF0; current_entry = 0v7FFFFE18EEF8
-19:00:28.593 0 D i = 400000; prev_entry = 0v7FFFFE2523F0; current_entry = 0v7FFFFE2523F8
-19:00:33.199 0 D i = 500000; prev_entry = 0v7FFFFE3158F0; current_entry = 0v7FFFFE3158F8
-19:00:37.833 0 D i = 600000; prev_entry = 0v7FFFFE3D9DF0; current_entry = 0v7FFFFE3D9DF8
-19:00:42.467 0 D i = 700000; prev_entry = 0v7FFFFE49D2F0; current_entry = 0v7FFFFE49D2F8
-19:00:46.455 0 D block entry allocation is done, checking the entries
-19:00:46.461 0 D i = 0; actual = 0; expected = 0
-19:00:49.115 0 D i = 100000; actual = 100000; expected = 100000
-19:00:51.789 0 D i = 200000; actual = 200000; expected = 200000
-19:00:54.879 0 D i = 300000; actual = 300000; expected = 300000
-19:00:58.697 0 D i = 400000; actual = 400000; expected = 400000
-19:01:02.513 0 D i = 500000; actual = 500000; expected = 500000
-19:01:06.305 0 D i = 600000; actual = 600000; expected = 600000
-19:01:10.045 0 D i = 700000; actual = 700000; expected = 700000
+17:14:03.125 0 D block_count = 8192
+17:14:04.121 0 D i = 0; prev_entry = 0v0; current_entry = 0v100_001C_11F8
+17:14:07.047 0 D i = 100000; prev_entry = 0v7FFF_F32E_A4F0; current_entry = 0v7FFF_F32E_A4F8
+17:14:09.979 0 D i = 200000; prev_entry = 0v7FFF_F33A_D9F0; current_entry = 0v7FFF_F33A_D9F8
+17:14:13.247 0 D i = 300000; prev_entry = 0v7FFF_F347_2EF0; current_entry = 0v7FFF_F347_2EF8
+17:14:17.053 0 D i = 400000; prev_entry = 0v7FFF_F353_63F0; current_entry = 0v7FFF_F353_63F8
+17:14:20.893 0 D i = 500000; prev_entry = 0v7FFF_F35F_98F0; current_entry = 0v7FFF_F35F_98F8
+17:14:24.703 0 D i = 600000; prev_entry = 0v7FFF_F36B_DDF0; current_entry = 0v7FFF_F36B_DDF8
+17:14:28.525 0 D i = 700000; prev_entry = 0v7FFF_F378_12F0; current_entry = 0v7FFF_F378_12F8
+17:14:31.823 0 D block entry allocation is done, checking the entries
+17:14:31.827 0 D i = 0; actual = 0; expected = 0
+17:14:33.895 0 D i = 100000; actual = 100000; expected = 100000
+17:14:35.965 0 D i = 200000; actual = 200000; expected = 200000
+17:14:38.379 0 D i = 300000; actual = 300000; expected = 300000
+17:14:41.355 0 D i = 400000; actual = 400000; expected = 400000
+17:14:44.309 0 D i = 500000; actual = 500000; expected = 500000
+17:14:47.201 0 D i = 600000; actual = 600000; expected = 600000
+17:14:50.093 0 D i = 700000; actual = 700000; expected = 700000
+17:14:52.991 0 D block_cache_stats = Stats { discards: 0, evictions: 0, reads: 1543, writes: 1577 }
 7_fs_3_inode::block_entry-------------------------- [passed]
 
 7_fs_3_inode::read_write_speed------------------------------
-19:01:13.299 0 D block_count = 8192
-19:01:13.683 0 D disk read speed; size = 1.000 MiB; elapsed = 350.522 ms
-19:01:14.165 0 D file system read speed; size = 1.000 MiB; elapsed = 47.620 ms; timeout = 200.000 ms
-19:01:14.649 0 D file system write speed; size = 1.000 MiB; elapsed = 47.640 ms; timeout = 200.000 ms
-19:01:15.071 0 D disk write speed; size = 1.000 MiB; elapsed = 411.271 ms
+17:14:55.537 0 I formatted the file system; free_space = 31.859 MiB; disk = { id: 1, io_port: 0x1F0, io_disk: 1 }; block_size = 4.000 KiB; block_count = 8192; blocks = 36..8192; inode_size = 64 B; inodes = 3..2048; directory_entry_size = 128 B; max_file_size = 513.002 GiB
+17:15:02.907 0 D disk read speed; throughput_per_second = 1.859 MiB; size = 10.000 MiB; elapsed = 5.381 s
+17:15:04.679 0 D file system read speed; throughput_per_second = 30.076 MiB; size = 10.000 MiB; elapsed = 332.491 ms; timeout = 2.000 s
+17:15:06.443 0 D file system write speed; throughput_per_second = 29.859 MiB; size = 10.000 MiB; elapsed = 334.908 ms; timeout = 2.000 s
+17:15:08.651 0 D disk write speed; throughput_per_second = 4.547 MiB; size = 10.000 MiB; elapsed = 2.199 s
+17:15:08.657 0 D block_cache_stats = Stats { discards: 5624, evictions: 0, reads: 2569, writes: 5134 }
 7_fs_3_inode::read_write_speed--------------------- [passed]
 
-7_fs_3_inode::write_read------------------------------------
-19:01:15.091 0 D block_count = 8192
-19:01:16.095 0 D actual = [0, 2, 6, 12, 20, 30, 42, 56, 72, 90]; expected = [0, 2, 6, 12, 20, 30, 42, 56, 72, 90]
-7_fs_3_inode::write_read--------------------------- [passed]
-
-7_fs_3_inode::big_file--------------------------------------
-19:01:17.009 0 D block_count = 8192
-19:01:26.767 0 D file_block_count = 8107; file_size = 31.668 MiB
-19:01:33.575 0 D free_block_count = 65; used_block_count = 8124
-19:01:33.807 0 D start_free_block_count = 8189; end_free_block_count = 8189; leaked_block_count = 0
-7_fs_3_inode::big_file----------------------------- [passed]
-
 7_fs_3_inode::set_size--------------------------------------
-19:01:33.829 0 D block_count = 8192
-19:01:33.837 0 D offset = 0; size = 0
-19:01:34.555 0 D offset = 1; size = 1
-19:01:35.225 0 D offset = 2; size = 2
-19:01:35.895 0 D offset = 1363; size = 1363
-19:01:36.565 0 D offset = 1364; size = 1364
-19:01:37.231 0 D offset = 1365; size = 1365
-19:01:37.913 0 D offset = 1366; size = 1366
-19:01:38.589 0 D offset = 1367; size = 1367
-19:01:39.275 0 D offset = 2728; size = 2728
-19:01:39.951 0 D offset = 2729; size = 2729
-19:01:40.635 0 D offset = 2730; size = 2730
-19:01:41.321 0 D offset = 2731; size = 2731
-19:01:42.013 0 D offset = 2732; size = 2732
-19:01:42.703 0 D offset = 4093; size = 4093
-19:01:43.387 0 D offset = 4094; size = 4094
-19:01:44.063 0 D offset = 4095; size = 4095
-19:01:44.771 0 D offset = 4096; size = 4096
-19:01:45.491 0 D offset = 4097; size = 4097
-19:01:46.159 0 D offset = 5458; size = 5458
-19:01:46.811 0 D offset = 5459; size = 5459
-19:01:47.463 0 D offset = 5460; size = 5460
-19:01:48.121 0 D offset = 5461; size = 5461
-19:01:48.777 0 D offset = 5462; size = 5462
-19:01:49.427 0 D offset = 6823; size = 6823
-19:01:50.073 0 D offset = 6824; size = 6824
-19:01:50.723 0 D offset = 6825; size = 6825
-19:01:51.387 0 D offset = 6826; size = 6826
-19:01:52.041 0 D offset = 6827; size = 6827
-19:01:52.681 0 D offset = 8188; size = 8188
-19:01:53.321 0 D offset = 8189; size = 8189
-19:01:53.955 0 D offset = 8190; size = 8190
-19:01:54.591 0 D offset = 8191; size = 8191
-19:01:55.305 0 D offset = 8192; size = 8192
+17:15:11.011 0 I formatted the file system; free_space = 31.859 MiB; disk = { id: 1, io_port: 0x1F0, io_disk: 1 }; block_size = 4.000 KiB; block_count = 8192; blocks = 36..8192; inode_size = 64 B; inodes = 3..2048; directory_entry_size = 128 B; max_file_size = 513.002 GiB
+17:15:12.215 0 D offset = 0; size = 0
+17:15:12.611 0 D offset = 1; size = 1
+17:15:12.959 0 D offset = 2; size = 2
+17:15:13.319 0 D offset = 1363; size = 1363
+17:15:13.681 0 D offset = 1364; size = 1364
+17:15:14.023 0 D offset = 1365; size = 1365
+17:15:14.399 0 D offset = 1366; size = 1366
+17:15:14.775 0 D offset = 1367; size = 1367
+17:15:15.167 0 D offset = 2728; size = 2728
+17:15:15.735 0 D offset = 2729; size = 2729
+17:15:16.391 0 D offset = 2730; size = 2730
+17:15:17.033 0 D offset = 2731; size = 2731
+17:15:17.755 0 D offset = 2732; size = 2732
+17:15:18.469 0 D offset = 4093; size = 4093
+17:15:18.969 0 D offset = 4094; size = 4094
+17:15:19.811 0 D offset = 4095; size = 4095
+17:15:20.739 0 D offset = 4096; size = 4096
+17:15:21.315 0 D offset = 4097; size = 4097
+17:15:22.009 0 D offset = 5458; size = 5458
+17:15:22.403 0 D offset = 5459; size = 5459
+17:15:23.081 0 D offset = 5460; size = 5460
+17:15:23.513 0 D offset = 5461; size = 5461
+17:15:23.849 0 D offset = 5462; size = 5462
+17:15:24.197 0 D offset = 6823; size = 6823
+17:15:24.583 0 D offset = 6824; size = 6824
+17:15:24.921 0 D offset = 6825; size = 6825
+17:15:25.265 0 D offset = 6826; size = 6826
+17:15:25.609 0 D offset = 6827; size = 6827
+17:15:25.987 0 D offset = 8188; size = 8188
+17:15:26.333 0 D offset = 8189; size = 8189
+17:15:26.671 0 D offset = 8190; size = 8190
+17:15:27.013 0 D offset = 8191; size = 8191
+17:15:27.383 0 D offset = 8192; size = 8192
+17:15:27.407 0 D block_cache_stats = Stats { discards: 0, evictions: 0, reads: 9, writes: 3111 }
 7_fs_3_inode::set_size----------------------------- [passed]
-19:01:55.355 0 I exit qemu; exit_code = SUCCESS
+
+7_fs_3_inode::write_read------------------------------------
+17:15:29.397 0 I formatted the file system; free_space = 31.859 MiB; disk = { id: 1, io_port: 0x1F0, io_disk: 1 }; block_size = 4.000 KiB; block_count = 8192; blocks = 36..8192; inode_size = 64 B; inodes = 3..2048; directory_entry_size = 128 B; max_file_size = 513.002 GiB
+17:15:32.101 0 D actual = [0, 2, 6, 12, 20, 30, 42, 56, 72, 90]; expected = [0, 2, 6, 12, 20, 30, 42, 56, 72, 90]
+17:15:32.773 0 D block_cache_stats = Stats { discards: 0, evictions: 0, reads: 260, writes: 257 }
+7_fs_3_inode::write_read--------------------------- [passed]
+17:15:33.951 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ```
 
 
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/fs/inode.rs |  125 ++++++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 119 insertions(+), 6 deletions(-)
+ kernel/src/fs/inode.rs | 171 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 155 insertions(+), 16 deletions(-)
 ```

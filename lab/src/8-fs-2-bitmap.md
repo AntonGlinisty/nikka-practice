@@ -1,28 +1,29 @@
-## Битовая карта занятых блоков
+## Битовые карты занятых блоков и inode
 
 
-Для отслеживания какие именно блоки файловой системы заняты,
+Для отслеживания какие именно элементы --- блоки или inode --- файловой системы заняты,
 а какие свободны, служит структура
-[`kernel::fs::bitmap::Bitmap`](../../doc/kernel/fs/block_bitmap/struct.Bitmap.html):
+[`kernel::fs::bitmap::Bitmap`](../../doc/kernel/fs/bitmap/struct.Bitmap.html):
 
 ```rust
 struct Bitmap {
     bitmap: &'static mut [u64],
-    block_count: usize,
+    block: usize,
+    elements: Range<usize>,
     cursor: usize,
 }
 ```
 
-Каждый элемент среза
-[`Bitmap::bitmap`](../../doc/kernel/fs/block_bitmap/struct.Bitmap.html#structfield.bitmap)
-отвечает за 64 блока.
-Блоку с меньшим номером соответствует бит с меньшим весом в соответствующем элементе.
-Блок свободен тогда и только тогда, когда соответствующий ему бит равен `0`.
+Каждое значение в срезе
+[`Bitmap::bitmap`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#structfield.bitmap)
+отвечает за 64 элемента.
+Элементу с меньшим номером соответствует бит с меньшим весом в соответствующем элементе.
+Элемент свободен тогда и только тогда, когда соответствующий ему бит равен `0`.
 
 
-### Задача 2 --- битовая карта занятых блоков
+### Задача 2 --- битовая карта занятых блоков или inode
 
-Реализуйте [метод](../../doc/kernel/fs/block_bitmap/struct.Bitmap.html#method.allocate)
+Реализуйте [метод](../../doc/kernel/fs/bitmap/struct.Bitmap.html#method.allocate)
 
 ```rust
 fn Bitmap::allocate(
@@ -31,17 +32,17 @@ fn Bitmap::allocate(
 ```
 
 в файле
-[`kernel/src/fs/block_bitmap.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/fs/block_bitmap.rs).
+[`kernel/src/fs/bitmap.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/fs/bitmap.rs).
 
 Функция должна найти по
-[`Bitmap::bitmap`](../../doc/kernel/fs/block_bitmap/struct.Bitmap.html#structfield.bitmap)
-свободный блок и аллоцировать его.
+[`Bitmap::bitmap`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#structfield.bitmap)
+свободный элемент и аллоцировать его.
 
-- Верните номер выделенного блока.
-- После того как новый блок аллоцирован, сбросьте изменившийся блок самого [`Bitmap::bitmap`](../../doc/kernel/fs/block_bitmap/struct.Bitmap.html#structfield.bitmap) на диск с помощью реализованной вами функции [`BlockCache::flush_block()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.flush_block). Когда меняете метаданные, лучше сразу сбрасывать их на диск, так меньше вероятность поломки файловой системы, например, при сбое питания.
-- Искать каждый раз с самого начала [`Bitmap::bitmap`](../../doc/kernel/fs/block_bitmap/struct.Bitmap.html#structfield.bitmap) не эффективно. Лучше, например, обходить его по циклу с того места, на котором остановились в прошлый раз. Для хранения этой позиции между вызовами [`Bitmap::allocate()`](../../doc/kernel/fs/block_bitmap/struct.Bitmap.html#method.allocate) служит поле [`Bitmap::cursor`](../../doc/kernel/fs/block_bitmap/struct.Bitmap.html#structfield.cursor).
-- Проверять каждый бит тоже не эффективно. Лучше сначала найти элемент [`Bitmap::bitmap`](../../doc/kernel/fs/block_bitmap/struct.Bitmap.html#structfield.bitmap), в котором есть хотя бы один свободный бит. Поэтому биты сгруппированы именно по [`u64`](https://doc.rust-lang.org/nightly/core/primitive.u64.html), а не например по [`u8`](https://doc.rust-lang.org/nightly/core/primitive.u8.html).
-- Верните ошибку [`Error::NoDisk`](../../doc/kernel/error/enum.Error.html#variant.NoDisk), если свободных блоков не осталось.
+- Верните номер выделенного элемента.
+- После того как новый элемент выделен, сбросьте изменившийся блок самого [`Bitmap::bitmap`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#structfield.bitmap) на диск с помощью реализованной вами функции [`BlockCache::flush_block()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.flush_block). Когда меняете метаданные, лучше сразу сбрасывать их на диск, так меньше вероятность поломки файловой системы, например, при сбое питания.
+- Искать каждый раз с самого начала [`Bitmap::bitmap`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#structfield.bitmap) не эффективно. Лучше, например, обходить его по циклу с того места, на котором остановились в прошлый раз. Для хранения этой позиции между вызовами [`Bitmap::allocate()`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#method.allocate) служит поле [`Bitmap::cursor`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#structfield.cursor).
+- Проверять каждый бит тоже не эффективно. Лучше сначала найти значение в [`Bitmap::bitmap`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#structfield.bitmap), в котором есть хотя бы один свободный бит. Поэтому биты сгруппированы именно по [`u64`](https://doc.rust-lang.org/nightly/core/primitive.u64.html), а не например по [`u8`](https://doc.rust-lang.org/nightly/core/primitive.u8.html).
+- Верните ошибку [`Error::NoDisk`](../../doc/kernel/error/enum.Error.html#variant.NoDisk), если свободных элементов не осталось.
 
 
 ### Проверьте себя
@@ -52,17 +53,19 @@ fn Bitmap::allocate(
 ```console
 $ (cd kernel; cargo test --test 7-fs-2-bitmap)
 ...
-7_fs_2_bitmap::allocation-----------------------------
-19:00:01 0 D block_count = 8192
-19:00:04.863 0 D allocated_head = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; allocated_tail = [8182, 8183, 8184, 8185, 8186, 8187, 8188, 8189, 8190, 8191]
-19:00:10.693 0 D reallocated_head = [8129, 8131, 8133, 8135, 8137, 8139, 8141, 8143, 8145, 8147]; reallocated_tail = [8109, 8111, 8113, 8115, 8117, 8119, 8121, 8123, 8125, 8127]
-7_fs_2_bitmap::allocation-------------------- [passed]
+7_fs_2_bitmap::allocation-----------------------------------
+17:12:11 0 D block_count = 8192
+17:12:16.879 0 D allocated_head = [36, 37, 38, 39, 40, 41, 42, 43, 44, 45]; allocated_tail = [8182, 8183, 8184, 8185, 8186, 8187, 8188, 8189, 8190, 8191]
+17:12:23.939 0 D reallocated_head = [8128, 8130, 8132, 8134, 8136, 8138, 8140, 8142, 8144, 8146]; reallocated_tail = [8108, 8110, 8112, 8114, 8116, 8118, 8120, 8122, 8124, 8126]
+17:12:24.051 0 D block_cache_stats = Stats { discards: 0, evictions: 0, reads: 3, writes: 20464 }
+7_fs_2_bitmap::allocation-------------------------- [passed]
+17:12:24.065 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ```
 
 
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/fs/block_bitmap.rs |   26 ++++++++++++++++++++++++--
- 1 file changed, 24 insertions(+), 2 deletions(-)
+ kernel/src/fs/bitmap.rs | 22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)
 ```

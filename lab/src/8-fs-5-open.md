@@ -31,31 +31,32 @@ fn FileSystem::open(
 $ (cd kernel; cargo test --test 7-fs-5-open)
 ...
 7_fs_5_open::fs---------------------------------------------
-19:02:09 0 I formatted the file system; free_space = 31.988 MiB; disk = { id: 1, io_port: 0x1F0, io_disk: 1 }; block_count = 8192; reserved_block_count = 3; inode_size = 64 B; directory_entry_size = 128 B; max_file_size = 513.002 GiB
-19:02:09 0 I path = /file-1; entry = file-1, File, 5678 B = 5.545 KiB, 2022-12-17 19:02:09 UTC
-19:02:09 0 I path = /file-2; entry = file-2, File, 9876 B = 9.645 KiB, 2022-12-17 19:02:09 UTC
-19:02:09 0 I path = /dir-1; entry = dir-1, Directory, 4096 B = 4.000 KiB, 2022-12-17 19:02:09 UTC
-19:02:09 0 I path = /dir-1/file-4; entry = file-4, File, 0 B = 0 B, 2022-12-17 19:02:09 UTC
-19:02:09 0 I path = /dir-1/file-5; entry = file-5, File, 0 B = 0 B, 2022-12-17 19:02:09 UTC
-19:02:09 0 I path = /dir-1/dir-2; entry = dir-2, Directory, 4096 B = 4.000 KiB, 2022-12-17 19:02:09 UTC
-19:02:09 0 I path = /dir-1/dir-2/dir-3; entry = dir-3, Directory, 4096 B = 4.000 KiB, 2022-12-17 19:02:09 UTC
-19:02:09 0 I path = /dir-1/dir-2/dir-3/file-3; entry = file-3, File, 0 B = 0 B, 2022-12-17 19:02:09 UTC
-19:02:09 0 I removing; path = /file-1; entry = file-1, File, 5678 B = 5.545 KiB, 2022-12-17 19:02:09 UTC
-19:02:09 0 I removing; path = /file-2; entry = file-2, File, 9876 B = 9.645 KiB, 2022-12-17 19:02:09 UTC
-19:02:09 0 I removing; path = /dir-1; entry = dir-1, Directory, 4096 B = 4.000 KiB, 2022-12-17 19:02:09 UTC
-19:02:09 0 I removing; path = /dir-1/file-4; entry = file-4, File, 0 B = 0 B, 2022-12-17 19:02:09 UTC
-19:02:09 0 I removing; path = /dir-1/file-5; entry = file-5, File, 0 B = 0 B, 2022-12-17 19:02:09 UTC
-19:02:09 0 I removing; path = /dir-1/dir-2; entry = dir-2, Directory, 4096 B = 4.000 KiB, 2022-12-17 19:02:09 UTC
-19:02:09 0 I removing; path = /dir-1/dir-2/dir-3; entry = dir-3, Directory, 4096 B = 4.000 KiB, 2022-12-17 19:02:09 UTC
-19:02:09 0 I removing; path = /dir-1/dir-2/dir-3/file-3; entry = file-3, File, 0 B = 0 B, 2022-12-17 19:02:09 UTC
+17:15:58 0 I formatted the file system; free_space = 31.859 MiB; disk = { id: 1, io_port: 0x1F0, io_disk: 1 }; block_size = 4.000 KiB; block_count = 8192; blocks = 36..8192; inode_size = 64 B; inodes = 3..2048; directory_entry_size = 128 B; max_file_size = 513.002 GiB
+17:15:59 0 I path = /file-1; entry = 3, file-1, File, 5678 B = 5.545 KiB, 2023-12-03 17:15:59 UTC
+17:15:59 0 I path = /file-2; entry = 5, file-2, File, 9876 B = 9.645 KiB, 2023-12-03 17:15:59 UTC
+17:15:59 0 I path = /dir-1; entry = 6, dir-1, Directory, 4096 B = 4.000 KiB, 2023-12-03 17:15:59 UTC
+17:15:59 0 I path = /dir-1/file-4; entry = 7, file-4, File, 0 B = 0 B, 2023-12-03 17:15:59 UTC
+17:15:59 0 I path = /dir-1/file-5; entry = 8, file-5, File, 0 B = 0 B, 2023-12-03 17:15:59 UTC
+17:15:59 0 I path = /dir-1/dir-2; entry = 9, dir-2, Directory, 4096 B = 4.000 KiB, 2023-12-03 17:15:59 UTC
+17:15:59 0 I path = /dir-1/dir-2/dir-3; entry = 10, dir-3, Directory, 4096 B = 4.000 KiB, 2023-12-03 17:15:59 UTC
+17:15:59 0 I path = /dir-1/dir-2/dir-3/file-3; entry = 11, file-3, File, 0 B = 0 B, 2023-12-03 17:15:59 UTC
+17:15:59 0 I removing; path = /file-1; entry = 3, file-1, File, 5678 B = 5.545 KiB, 2023-12-03 17:15:59 UTC
+17:15:59 0 I removing; path = /file-2; entry = 5, file-2, File, 9876 B = 9.645 KiB, 2023-12-03 17:15:59 UTC
+17:15:59 0 I removing; path = /dir-1; entry = 6, dir-1, Directory, 4096 B = 4.000 KiB, 2023-12-03 17:15:59 UTC
+17:15:59 0 I removing; path = /dir-1/file-4; entry = 7, file-4, File, 0 B = 0 B, 2023-12-03 17:15:59 UTC
+17:15:59 0 I removing; path = /dir-1/file-5; entry = 8, file-5, File, 0 B = 0 B, 2023-12-03 17:15:59 UTC
+17:15:59 0 I removing; path = /dir-1/dir-2; entry = 9, dir-2, Directory, 4096 B = 4.000 KiB, 2023-12-03 17:15:59 UTC
+17:15:59 0 I removing; path = /dir-1/dir-2/dir-3; entry = 10, dir-3, Directory, 4096 B = 4.000 KiB, 2023-12-03 17:15:59 UTC
+17:15:59 0 I removing; path = /dir-1/dir-2/dir-3/file-3; entry = 11, file-3, File, 0 B = 0 B, 2023-12-03 17:15:59 UTC
+17:15:59 0 D block_cache_stats = Stats { discards: 0, evictions: 0, reads: 15, writes: 22 }
 7_fs_5_open::fs------------------------------------ [passed]
-19:02:10.121 0 I exit qemu; exit_code = SUCCESS
+17:16:00.641 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ```
 
 
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/fs/file_system.rs |   21 +++++++++++++++++++--
- 1 file changed, 19 insertions(+), 2 deletions(-)
+ kernel/src/fs/file_system.rs | 27 +++++++++++++++++++++++++--
+ 1 file changed, 25 insertions(+), 2 deletions(-)
 ```

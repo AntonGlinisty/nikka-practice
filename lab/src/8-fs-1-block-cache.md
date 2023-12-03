@@ -9,6 +9,8 @@
 struct BlockCache {
     cache: Block<Page>,
     disk: Disk,
+    eviction_policy: Lru<usize, ()>,
+    stats: Stats,
 }
 ```
 
@@ -40,7 +42,9 @@ struct BlockCache {
 
 В Nikka сделано значительное упрощение.
 Размер кэша в памяти равен размеру кэшируемого диска.
-Поэтому размер диска ограничен размером доступной в машине памяти.
+Поэтому размер диска ограничен размером адресного пространства.
+И, если не реализовать вытеснение блоков из кэша, то он также будет ограничен
+размером доступной в машине физической памяти.
 
 ![](7-fs-1-block-cache-nikka.svg)
 
@@ -57,7 +61,8 @@ struct BlockCache {
 ```rust
 fn BlockCache::init(
     disk: Disk,
-    block_count: usize,
+    disk_block_count: usize,
+    cache_block_count: usize,
 ) -> Result<()>
 ```
 
@@ -66,23 +71,24 @@ fn BlockCache::init(
 
 Он должен зарезервировать в
 [`kernel::memory::BASE_ADDRESS_SPACE`](../../doc/kernel/memory/static.BASE_ADDRESS_SPACE.html)
-блок виртуальных страниц, достаточный для хранения `block_count` блоков файловой системы.
+блок виртуальных страниц, достаточный для хранения `disk_block_count` блоков файловой системы.
 И записать соответствующее значение в
 [`BLOCK_CACHE`](../../doc/kernel/fs/block_cache/struct.BLOCK_CACHE.html).
+Параметр `cache_block_count` задаёт ёмкость кэша, если вы реализуете вытеснение.
 
 
 #### Обращение к блоку в блочном кэше
 
-Реализуйте [метод](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.block)
+Реализуйте [метод](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.block_impl)
 
 ```rust
-fn block(
+fn block_impl(
+    &self,
     block_number: usize,
 ) -> Result<Block<Virt>>
 ```
 
-Он возвращает блок памяти блочного кэша
-[`BLOCK_CACHE`](../../doc/kernel/fs/block_cache/struct.BLOCK_CACHE.html),
+Он возвращает блок памяти блочного кэша,
 который отвечает блоку `block_number` диска.
 
 
@@ -111,10 +117,11 @@ fn BlockCache::trap_handler(
 Запись блока выполняется при необходимости вызовом
 [`BlockCache::flush_block()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.flush_block).
 
-Реализуйте [метод](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.flush_block)
+Реализуйте [метод](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.flush_block_impl)
 
 ```rust
-fn BlockCache::flush_block(
+fn BlockCache::flush_block_impl(
+    &mut self,
     block_number: usize,
 ) -> Result<()>
 ```
@@ -126,7 +133,7 @@ fn BlockCache::flush_block(
 [`kernel::fs::disk::Disk::pio_write()`](../../doc/kernel/fs/disk/struct.Disk.html#method.pio_write).
 Запись нужно делать только если:
 
-- Блок отображён в память. Это означает что нему были обращения.
+- Блок отображён в память. Это означает что к нему были обращения.
 - И помечен как [`PageTableFlags::DIRTY`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.DIRTY). То есть, в память были записи, а значит блок на диске потенциально содержит устаревшие данные. Если обращения к блоку были только на чтение, то данные в памяти такие же как на диске, и можно их не записывать. А процессор в этом случае не установит бит [`PageTableFlags::DIRTY`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.DIRTY).
 - После записи блока, сбросьте бит [`PageTableFlags::DIRTY`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.DIRTY). Он фактически означает одинаковость данных на диске и в памяти блочного кэша. Которая только что восстановлена. При этом нужно сбросить и соответствующую запись в [TLB](https://en.wikipedia.org/wiki/Translation_lookaside_buffer) с помощью функции [`kernel::memory::mmu::flush()`](../../doc/kernel/memory/mmu/fn.flush.html). Иначе процессор не узнает, что вы сбросили [`PageTableFlags::DIRTY`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.DIRTY) и не проставит его в таблице страниц при следующей записи. И обновлённый блок на диск записан не будет.
 
@@ -141,58 +148,60 @@ fn BlockCache::flush_block(
 $ (cd kernel; cargo test --test 7-fs-1-block-cache-1-write --test 7-fs-1-block-cache-2-read)
 ...
 7_fs_1_block_cache_1_write::write---------------------------
-18:59:56 0 D block_count = 8192
-18:59:56 0 D flush; block = 0
-18:59:56 0 D flush; block = 2
-18:59:56 0 D flush; block = 4
-18:59:56 0 D flush; block = 6
-18:59:56 0 D flush; block = 8
-18:59:56 0 D flush; block = 10
-18:59:56 0 D flush; block = 12
-18:59:56 0 D flush; block = 14
-18:59:56 0 D flush; block = 16
-18:59:56 0 D flush; block = 18
-18:59:56 0 D flush; block = 20
-18:59:56 0 D flush; block = 22
-18:59:56 0 D flush; block = 24
-18:59:56 0 D flush; block = 26
-18:59:56 0 D flush; block = 28
-18:59:56 0 D flush; block = 30
+17:12:05 0 D block_count = 8192
+17:12:05 0 D flush; block = 0
+17:12:05 0 D flush; block = 2
+17:12:05 0 D flush; block = 4
+17:12:05 0 D flush; block = 6
+17:12:05 0 D flush; block = 8
+17:12:05 0 D flush; block = 10
+17:12:05 0 D flush; block = 12
+17:12:05 0 D flush; block = 14
+17:12:05 0 D flush; block = 16
+17:12:05 0 D flush; block = 18
+17:12:05 0 D flush; block = 20
+17:12:05 0 D flush; block = 22
+17:12:05 0 D flush; block = 24
+17:12:05 0 D flush; block = 26
+17:12:05 0 D flush; block = 28
+17:12:05 0 D flush; block = 30
+17:12:05 0 D block_cache_stats = Stats { discards: 0, evictions: 0, reads: 32, writes: 16 }
 7_fs_1_block_cache_1_write::write------------------ [passed]
-18:59:56 0 I exit qemu; exit_code = SUCCESS
+17:12:05 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ...
 7_fs_1_block_cache_2_read::read_what_was_written------------
-18:59:58 0 D block_count = 8192
-18:59:58 0 D i = 0; block = 0; actual = 0; expected = 0
-18:59:58 0 D i = 777; block = 1; actual = 0; expected = 0
-18:59:58 0 D i = 1554; block = 3; actual = 0; expected = 0
-18:59:58 0 D i = 2331; block = 4; actual = 2331; expected = 2331
-18:59:58 0 D i = 3108; block = 6; actual = 3108; expected = 3108
-18:59:58 0 D i = 3885; block = 7; actual = 0; expected = 0
-18:59:58 0 D i = 4662; block = 9; actual = 0; expected = 0
-18:59:58 0 D i = 5439; block = 10; actual = 5439; expected = 5439
-18:59:58 0 D i = 6216; block = 12; actual = 6216; expected = 6216
-18:59:58 0 D i = 6993; block = 13; actual = 0; expected = 0
-18:59:58 0 D i = 7770; block = 15; actual = 0; expected = 0
-18:59:58 0 D i = 8547; block = 16; actual = 8547; expected = 8547
-18:59:58 0 D i = 9324; block = 18; actual = 9324; expected = 9324
-18:59:58 0 D i = 10101; block = 19; actual = 0; expected = 0
-18:59:58 0 D i = 10878; block = 21; actual = 0; expected = 0
-18:59:58 0 D i = 11655; block = 22; actual = 11655; expected = 11655
-18:59:58 0 D i = 12432; block = 24; actual = 12432; expected = 12432
-18:59:58 0 D i = 13209; block = 25; actual = 0; expected = 0
-18:59:58 0 D i = 13986; block = 27; actual = 0; expected = 0
-18:59:58 0 D i = 14763; block = 28; actual = 14763; expected = 14763
-18:59:58 0 D i = 15540; block = 30; actual = 15540; expected = 15540
-18:59:58 0 D i = 16317; block = 31; actual = 0; expected = 0
+17:12:09 0 D block_count = 8192
+17:12:09 0 D i = 0; block = 0; actual = 0; expected = 0
+17:12:09 0 D i = 777; block = 1; actual = 0; expected = 0
+17:12:09 0 D i = 1554; block = 3; actual = 0; expected = 0
+17:12:09 0 D i = 2331; block = 4; actual = 2331; expected = 2331
+17:12:09 0 D i = 3108; block = 6; actual = 3108; expected = 3108
+17:12:09 0 D i = 3885; block = 7; actual = 0; expected = 0
+17:12:09 0 D i = 4662; block = 9; actual = 0; expected = 0
+17:12:09 0 D i = 5439; block = 10; actual = 5439; expected = 5439
+17:12:09 0 D i = 6216; block = 12; actual = 6216; expected = 6216
+17:12:09 0 D i = 6993; block = 13; actual = 0; expected = 0
+17:12:09 0 D i = 7770; block = 15; actual = 0; expected = 0
+17:12:09 0 D i = 8547; block = 16; actual = 8547; expected = 8547
+17:12:09 0 D i = 9324; block = 18; actual = 9324; expected = 9324
+17:12:09 0 D i = 10101; block = 19; actual = 0; expected = 0
+17:12:09 0 D i = 10878; block = 21; actual = 0; expected = 0
+17:12:09 0 D i = 11655; block = 22; actual = 11655; expected = 11655
+17:12:09 0 D i = 12432; block = 24; actual = 12432; expected = 12432
+17:12:09 0 D i = 13209; block = 25; actual = 0; expected = 0
+17:12:09 0 D i = 13986; block = 27; actual = 0; expected = 0
+17:12:09 0 D i = 14763; block = 28; actual = 14763; expected = 14763
+17:12:09 0 D i = 15540; block = 30; actual = 15540; expected = 15540
+17:12:09 0 D i = 16317; block = 31; actual = 0; expected = 0
+17:12:09 0 D block_cache_stats = Stats { discards: 0, evictions: 0, reads: 32, writes: 0 }
 7_fs_1_block_cache_2_read::read_what_was_written--- [passed]
-18:59:58 0 I exit qemu; exit_code = SUCCESS
+17:12:09 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ```
 
 
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/fs/block_cache.rs |   64 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 56 insertions(+), 8 deletions(-)
+ kernel/src/fs/block_cache.rs | 77 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 69 insertions(+), 8 deletions(-)
 ```
