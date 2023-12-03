@@ -7,7 +7,10 @@ use ku::error::Error::NoDisk;
 
 use kernel::{
     Subsystems,
-    fs::Kind,
+    fs::{
+        BlockCache,
+        Kind,
+    },
     log::debug,
 };
 
@@ -76,4 +79,6 @@ fn allocation() {
     for (i, j) in allocated.iter().step_by(2).zip(reallocated) {
         assert_eq!(*i, j);
     }
+
+    debug!(block_cache_stats = ?BlockCache::stats());
 }

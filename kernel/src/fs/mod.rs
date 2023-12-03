@@ -31,8 +31,7 @@ mod superblock;
 
 use ku::memory::Page;
 
-pub(crate) use block_cache::BlockCache;
-
+pub use block_cache::BlockCache;
 pub use directory_entry::MAX_NAME_LEN;
 pub use file::File;
 pub use file_system::FileSystem;

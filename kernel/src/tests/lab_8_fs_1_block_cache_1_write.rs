@@ -4,11 +4,14 @@ use ku::memory::size::MiB;
 
 use kernel::{
     Subsystems,
-    fs::test_scaffolding::{
-        BLOCK_SIZE,
-        block_cache_init,
-        cache,
-        flush_block,
+    fs::{
+        BlockCache,
+        test_scaffolding::{
+            BLOCK_SIZE,
+            block_cache_init,
+            cache,
+            flush_block,
+        },
     },
     log::debug,
 };
@@ -22,7 +25,7 @@ fn write() {
     let block_count = FS_SIZE / BLOCK_SIZE;
     debug!(block_count);
 
-    block_cache_init(FS_DISK, block_count).unwrap();
+    block_cache_init(FS_DISK, block_count, block_count / 4).unwrap();
 
     let cache = cache().unwrap();
 
@@ -39,6 +42,8 @@ fn write() {
             flush_block(block).unwrap();
         }
     }
+
+    debug!(block_cache_stats = ?BlockCache::stats());
 }
 
 const FS_DISK: usize = 1;

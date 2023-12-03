@@ -2,6 +2,7 @@ use lazy_static::lazy_static;
 use spin::Mutex;
 
 use ku::{
+    collections::Lru,
     error::{
         Error::NoDisk,
         Result,
@@ -35,13 +36,19 @@ use super::{
 
 /// [Блочный кэш](https://en.wikipedia.org/wiki/Page_cache)
 /// для ускорения работы с диском за счёт кэширования блоков файловой системы в памяти.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct BlockCache {
+#[derive(Clone, Debug)]
+pub struct BlockCache {
     /// Диапазон памяти для кэширования блоков.
     cache: Block<Page>,
 
     /// Диск, обращения к которому кэшируются.
     disk: Disk,
+
+    /// Политика вытеснения блоков из кэша.
+    eviction_policy: Lru<usize, ()>,
+
+    /// Статистика работы блочного кэша.
+    stats: Stats,
 }
 
 impl BlockCache {
@@ -51,9 +58,12 @@ impl BlockCache {
     ///
     /// Резервирует в [`BASE_ADDRESS_SPACE`] блок виртуальных страниц,
     /// достаточный для отображения один в один `block_count` блоков файловой системы.
+    /// Политика вытеснения блоков из кэша ограничивает
+    /// количество одновременно отображённых в память блоков параметром `capacity`.
     pub(super) fn init(
         disk: Disk,
         block_count: usize,
+        capacity: usize,
     ) -> Result<()> {
         // TODO: your code here.
         unimplemented!();
@@ -62,13 +72,69 @@ impl BlockCache {
     /// Возвращает блок памяти блочного кэша [`struct@BLOCK_CACHE`],
     /// который отвечает блоку `block_number` диска.
     pub(super) fn block(block_number: usize) -> Result<Block<Virt>> {
+        if let Some(block_cache) = BLOCK_CACHE.lock().as_mut() {
+            block_cache.block_impl(block_number)
+        } else {
+            Err(NoDisk)
+        }
+    }
+
+    /// Записывает блок `block_number` на диск.
+    ///
+    /// См. также [`BlockCache::flush_block_impl()`].
+    pub(super) fn flush_block(block_number: usize) -> Result<()> {
+        if let Some(block_cache) = BLOCK_CACHE.lock().as_mut() {
+            block_cache.flush_block_impl(block_number)
+        } else {
+            Err(NoDisk)
+        }
+    }
+
+    /// Сбрасывает первые `count` блоков на диск.
+    ///
+    /// См. также [`BlockCache::flush_block_impl()`].
+    pub(super) fn flush(count: usize) -> Result<()> {
+        if let Some(block_cache) = BLOCK_CACHE.lock().as_mut() {
+            for block_number in 0 .. count {
+                block_cache.flush_block_impl(block_number)?;
+            }
+
+            Ok(())
+        } else {
+            Err(NoDisk)
+        }
+    }
+
+    /// Обрабатывает Page Fault, если адрес, который его вызвал, относится к блочному кэшу.
+    /// Если это так и Page Fault успешно обработан, возвращает `true`.
+    /// Если адрес, вызвавший Page Fault, не относится к блочному кэшу, возвращает `false`.
+    pub(crate) fn trap_handler(info: &Info) -> Result<bool> {
+        // TODO: your code here.
+        Ok(false) // TODO: remove before flight.
+    }
+
+    /// Статистика работы блочного кэша.
+    pub fn stats() -> Stats {
+        if let Some(block_cache) = BLOCK_CACHE.lock().as_ref() {
+            block_cache.stats
+        } else {
+            Stats::default()
+        }
+    }
+
+    /// Возвращает блок памяти блочного кэша,
+    /// который отвечает блоку `block_number` диска.
+    pub(super) fn block_impl(
+        &self,
+        block_number: usize,
+    ) -> Result<Block<Virt>> {
         // TODO: your code here.
         unimplemented!();
     }
 
     /// Записывает блок `block_number` на диск, если:
     ///
-    /// - Блок отображён в память. Это означает что нему были обращения.
+    /// - Блок отображён в память. Это означает, что к нему были обращения.
     /// - И помечен как [`PageTableFlags::DIRTY`].
     ///   То есть, в память были записи, а значит блок на диске потенциально содержит
     ///   устаревшие данные.
@@ -84,35 +150,40 @@ impl BlockCache {
     /// с помощью функции [`mmu::flush()`].
     /// Иначе процессор не узнает, что сброшен [`PageTableFlags::DIRTY`]
     /// и не проставит его в таблице страниц при следующей записи.
-    /// И обновлённый блок на диск записан не будет.
-    pub(super) fn flush_block(block_number: usize) -> Result<()> {
+    /// В результате, обновлённый блок на диск записан не будет.
+    fn flush_block_impl(
+        &mut self,
+        block_number: usize,
+    ) -> Result<()> {
         // TODO: your code here.
         unimplemented!();
     }
+}
 
-    /// Сбрасывает первые `count` блоков на диск методом [`BlockCache::flush_block()`].
-    pub(super) fn flush(count: usize) -> Result<()> {
-        for block_number in 0 .. count {
-            Self::flush_block(block_number)?;
+impl Drop for BlockCache {
+    fn drop(&mut self) {
+        let block_count = self.cache.count() * Page::SIZE / BLOCK_SIZE;
+
+        for block_number in 0 .. block_count {
+            self.flush_block_impl(block_number).expect("failed to flush the block cache");
         }
-
-        Ok(())
     }
+}
 
-    /// Обрабатывает Page Fault, если адрес, который его вызвал, относится к блочному кэшу.
-    /// Если это так и Page Fault успешно обработан, возвращает `true`.
-    /// Если адрес, вызвавший Page Fault, не относится к блочному кэшу, возвращает `false`.
-    pub(crate) fn trap_handler(info: &Info) -> Result<bool> {
-        // TODO: your code here.
-        Ok(false) // TODO: remove before flight.
-    }
+/// Статистика работы блочного кэша.
+#[derive(Clone, Copy, Default, Debug)]
+pub struct Stats {
+    /// Количество блоков, которые не пришлось записывать на диск в [`BlockCache::flush_block_impl()`].
+    discards: usize,
 
-    /// Возвращает синглтон [`struct@BLOCK_CACHE`], если `address` относится к блочному кэшу.
-    fn get(address: Virt) -> Option<Self> {
-        BLOCK_CACHE
-            .lock()
-            .filter(|block_cache| block_cache.cache.contains_address(address))
-    }
+    /// Количество блоков, которые были вытеснены из кэша в [`BlockCache::trap_handler()`].
+    evictions: usize,
+
+    /// Количество блоков, которые были прочитаны с диска в [`BlockCache::trap_handler()`].
+    reads: usize,
+
+    /// Количество блоков, которые были записаны на диск в [`BlockCache::flush_block_impl()`].
+    writes: usize,
 }
 
 lazy_static! {
@@ -146,12 +217,13 @@ pub mod test_scaffolding {
     pub fn block_cache_init(
         disk: usize,
         block_count: usize,
+        capacity: usize,
     ) -> Result<()> {
-        BlockCache::init(Disk::new(disk)?, block_count)
+        BlockCache::init(Disk::new(disk)?, block_count, capacity)
     }
 
     pub fn cache() -> Result<Block<Page>> {
-        Ok(BLOCK_CACHE.lock().ok_or(NoDisk)?.cache)
+        Ok(BLOCK_CACHE.lock().as_ref().ok_or(NoDisk)?.cache)
     }
 
     pub fn flush_block(block_number: usize) -> Result<()> {

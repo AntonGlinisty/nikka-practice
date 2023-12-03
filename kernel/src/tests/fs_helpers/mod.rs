@@ -21,7 +21,7 @@ pub(super) fn simple_fs_superblock() -> Superblock {
 pub(super) fn simple_fs(kind: Kind) -> (Bitmap, Bitmap, [Inode; INODE_COUNT]) {
     debug!(block_count = BLOCK_COUNT);
 
-    block_cache_init(FS_DISK, BLOCK_COUNT).unwrap();
+    block_cache_init(FS_DISK, BLOCK_COUNT, CACHE_BLOCK_COUNT).unwrap();
 
     let superblock = simple_fs_superblock();
 
@@ -38,7 +38,8 @@ pub(super) fn simple_fs(kind: Kind) -> (Bitmap, Bitmap, [Inode; INODE_COUNT]) {
 }
 
 pub(super) const BLOCK_COUNT: usize = FS_SIZE / BLOCK_SIZE;
+pub(super) const FS_DISK: usize = 1;
 pub(super) const INODE_COUNT: usize = BLOCK_COUNT / 4;
 
-const FS_DISK: usize = 1;
+const CACHE_BLOCK_COUNT: usize = BLOCK_COUNT / 4;
 const FS_SIZE: usize = 32 * MiB;

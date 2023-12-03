@@ -13,12 +13,16 @@ use ku::memory::size::MiB;
 use kernel::{
     Subsystems,
     fs::{
+        BlockCache,
         File,
         FileSystem,
         Kind,
         test_scaffolding::BLOCK_SIZE,
     },
-    log::info,
+    log::{
+        debug,
+        info,
+    },
 };
 
 mod init;
@@ -28,7 +32,7 @@ init!(Subsystems::MEMORY);
 #[test_case]
 fn fs() {
     FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
-    let mut fs = FileSystem::mount(FS_DISK).unwrap();
+    let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT).unwrap();
 
     test_list(&mut fs, &[]);
 
@@ -51,6 +55,8 @@ fn fs() {
     remove_all(&mut fs);
 
     test_list(&mut fs, &[]);
+
+    debug!(block_cache_stats = ?BlockCache::stats());
 }
 
 fn test_basic_operations(fs: &mut FileSystem) {
@@ -198,6 +204,7 @@ fn remove_recursive(
     }
 }
 
+const CACHE_BLOCK_COUNT: usize = 1 << 10;
 const FILE_1_ZERO_COUNT: usize = 5678;
 const FILE_2_FINAL_ZERO_COUNT: usize = 9876;
 const FILE_2_INITIAL_ZERO_COUNT: usize = 1234;

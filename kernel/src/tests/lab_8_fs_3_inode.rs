@@ -20,10 +20,12 @@ use ku::memory::size::{
 use kernel::{
     Subsystems,
     fs::{
+        BlockCache,
         File,
         Kind,
         test_scaffolding::{
             BLOCK_SIZE,
+            block_cache_init,
             flush_block,
             make_file,
         },
@@ -92,12 +94,21 @@ fn block_entry() {
         }
         assert_eq!(*entry, i);
     }
+
+    debug!(block_cache_stats = ?BlockCache::stats());
 }
 
 #[test_case]
 fn read_write_speed() {
     let (block_bitmap, inode_bitmap, inodes) = fs_helpers::simple_fs(Kind::File);
     let mut file = make_file(&inodes, &block_bitmap, &inode_bitmap);
+
+    block_cache_init(
+        fs_helpers::FS_DISK,
+        fs_helpers::BLOCK_COUNT,
+        fs_helpers::BLOCK_COUNT,
+    )
+    .unwrap();
 
     let mut buffer = vec![0x77_u8; 10 * MiB];
     let size = Size::from_slice(&buffer);
@@ -163,6 +174,8 @@ fn read_write_speed() {
             u128::try_from(elapsed.num_microseconds().unwrap()).unwrap();
         Size::bytes(throughput_per_second.try_into().unwrap())
     }
+
+    debug!(block_cache_stats = ?BlockCache::stats());
 }
 
 #[test_case]
@@ -202,6 +215,8 @@ fn write_read() {
     for (actual, expected) in buffer.iter().zip(data) {
         assert_eq!(*actual, expected);
     }
+
+    debug!(block_cache_stats = ?BlockCache::stats());
 }
 
 #[test_case]
@@ -244,6 +259,8 @@ fn big_file() {
     let end_free_block_count = block_bitmap.free_count();
     let leaked_block_count = start_free_block_count - end_free_block_count;
     assert_eq!(leaked_block_count, 0);
+
+    debug!(block_cache_stats = ?BlockCache::stats());
 }
 
 #[test_case]
@@ -286,4 +303,6 @@ fn set_size() {
         file.read(offset, &mut buffer).unwrap();
         assert!(buffer.iter().all(|&x| x == b'*'));
     }
+
+    debug!(block_cache_stats = ?BlockCache::stats());
 }

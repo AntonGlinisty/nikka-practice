@@ -55,14 +55,18 @@ pub struct FileSystem {
 impl FileSystem {
     /// [Монтирует](https://en.wikipedia.org/wiki/Mount_(computing))
     /// файловую систему с диска номер `disk`.
-    pub fn mount(disk: usize) -> Result<FileSystem> {
+    /// Параметр `block_cache_capacity` задаёт ограничение на размер кэша блоков.
+    pub fn mount(
+        disk: usize,
+        block_cache_capacity: usize,
+    ) -> Result<FileSystem> {
         let disk = Disk::new(disk)?;
 
-        BlockCache::init(disk, Superblock::SUPERBLOCK_BLOCK + 1)?;
+        BlockCache::init(disk, Superblock::SUPERBLOCK_BLOCK + 1, 1)?;
 
         let superblock = Superblock::new()?;
 
-        BlockCache::init(disk, superblock.blocks().end)?;
+        BlockCache::init(disk, superblock.blocks().end, block_cache_capacity)?;
 
         let inodes = unsafe {
             BlockCache::block(superblock.inode_table().start)?
@@ -97,9 +101,10 @@ impl FileSystem {
 
         let block_count = size / BLOCK_SIZE;
         let default_blocks_per_inode = 4;
+        let block_cache_capacity = 1 << 10;
         let inode_count = inode_count.unwrap_or(block_count / default_blocks_per_inode);
 
-        BlockCache::init(disk, block_count)?;
+        BlockCache::init(disk, block_count, block_cache_capacity)?;
 
         let superblock = Superblock::format(block_count, inode_count)?;
         Bitmap::format(superblock.block_bitmap().start, superblock.blocks())?;

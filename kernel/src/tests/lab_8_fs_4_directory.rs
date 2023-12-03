@@ -20,6 +20,7 @@ use ku::{
 use kernel::{
     Subsystems,
     fs::{
+        BlockCache,
         Kind,
         MAX_NAME_LEN,
         test_scaffolding::make_file,
@@ -94,6 +95,8 @@ fn basic_operations() {
     assert_eq!(directory.find("file-1").unwrap_err(), FileNotFound);
     file_2.remove().unwrap();
     assert_eq!(directory.find("file-2").unwrap_err(), FileNotFound);
+
+    debug!(block_cache_stats = ?BlockCache::stats());
 }
 
 #[test_case]
@@ -120,6 +123,8 @@ fn big_directory() {
     let end_free_block_count = block_bitmap.free_count();
     let leaked_block_count = start_free_block_count - end_free_block_count;
     assert_eq!(leaked_block_count, 0);
+
+    debug!(block_cache_stats = ?BlockCache::stats());
 }
 
 #[test_case]
@@ -145,4 +150,6 @@ fn max_name_len() {
         directory.insert(name, Kind::File).unwrap_err(),
         InvalidArgument,
     );
+
+    debug!(block_cache_stats = ?BlockCache::stats());
 }
