@@ -60,67 +60,55 @@ fn fs() {
 }
 
 fn test_basic_operations(fs: &mut FileSystem) {
-    let mut root = fs.open("").unwrap();
+    let root = fs.open("").unwrap();
 
-    root.insert("file-1", Kind::File).unwrap().set_size(FILE_1_ZERO_COUNT).unwrap();
-    root.insert("file-to-be-erased", Kind::File).unwrap();
-    root.insert("file-2", Kind::File)
-        .unwrap()
-        .write(FILE_2_INITIAL_ZERO_COUNT, &[b'*'; 6789])
-        .unwrap();
-    let mut dir1 = root.insert("dir-1", Kind::Directory).unwrap();
-    dir1.insert("file-4", Kind::File).unwrap();
-    dir1.insert("file-5", Kind::File).unwrap();
-    let mut dir2 = dir1.insert("dir-2", Kind::Directory).unwrap();
-    dir2.insert("dir-3", Kind::Directory)
-        .unwrap()
-        .insert("file-3", Kind::File)
-        .unwrap();
+    let f1 = fs.insert(&root, "file-1", Kind::File).unwrap();
+    fs.set_size(&f1, FILE_1_ZERO_COUNT).unwrap();
+    fs.insert(&root, "file-to-be-erased", Kind::File).unwrap();
+    let f2 = fs.insert(&root, "file-2", Kind::File).unwrap();
+    fs.write(&f2, FILE_2_INITIAL_ZERO_COUNT, &[b'*'; 6789]).unwrap();
+    let dir1 = fs.insert(&root, "dir-1", Kind::Directory).unwrap();
+    fs.insert(&dir1, "file-4", Kind::File).unwrap();
+    fs.insert(&dir1, "file-5", Kind::File).unwrap();
+    let dir2 = fs.insert(&dir1, "dir-2", Kind::Directory).unwrap();
+    let dir3 = fs.insert(&dir2, "dir-3", Kind::Directory).unwrap();
+    fs.insert(&dir3, "file-3", Kind::File).unwrap();
 
-    assert!(root.insert("file-1", Kind::File).is_err());
+    assert!(fs.insert(&root, "file-1", Kind::File).is_err());
 
-    fs.open("file-to-be-erased").unwrap().remove().unwrap();
+    let fe = fs.open("file-to-be-erased").unwrap();
+    fs.remove(&fe).unwrap();
 
     let mut buffer = [b'-'; 1024];
 
     assert!(fs.open("file-1").is_ok());
     assert!(fs.open("file-1/").is_err());
     assert!(fs.open("/file-2").is_ok());
+
+    let f1 = fs.open("/file-1").unwrap();
     assert_eq!(
-        fs.open("/file-1").unwrap().read(FILE_1_ZERO_COUNT - 3, &mut buffer[.. 16]),
-        Ok(3),
+        fs.read(&f1, FILE_1_ZERO_COUNT - 3, &mut buffer[.. 16]),
+        Ok(3)
     );
     assert_eq!(buffer[.. 3], [0; 3]);
-    assert!(
-        fs.open("/file-1")
-            .unwrap()
-            .read(FILE_1_ZERO_COUNT + 1, &mut buffer[.. 16])
-            .is_err(),
-    );
+    assert!(fs.read(&f1, FILE_1_ZERO_COUNT + 1, &mut buffer[.. 16]).is_err());
+    assert_eq!(fs.read(&f1, FILE_1_ZERO_COUNT, &mut buffer[.. 16]), Ok(0));
+
+    let f2 = fs.open("/file-2").unwrap();
     assert_eq!(
-        fs.open("/file-1").unwrap().read(FILE_1_ZERO_COUNT, &mut buffer[.. 16]),
-        Ok(0),
-    );
-    assert_eq!(
-        fs.open("/file-2")
-            .unwrap()
-            .read(FILE_2_INITIAL_ZERO_COUNT - 1, &mut buffer[.. 1]),
+        fs.read(&f2, FILE_2_INITIAL_ZERO_COUNT - 1, &mut buffer[.. 1]),
         Ok(1),
     );
     assert_eq!(buffer[0], 0);
     assert_eq!(
-        fs.open("/file-2")
-            .unwrap()
-            .read(FILE_2_INITIAL_ZERO_COUNT - 2, &mut buffer[.. 4]),
+        fs.read(&f2, FILE_2_INITIAL_ZERO_COUNT - 2, &mut buffer[.. 4]),
         Ok(4),
     );
     assert_eq!(buffer[.. 4], [0, 0, b'*', b'*']);
-    assert!(fs.open("/file-2").unwrap().set_size(FILE_2_INITIAL_ZERO_COUNT).is_ok());
-    assert!(fs.open("/file-2").unwrap().set_size(FILE_2_FINAL_ZERO_COUNT).is_ok());
+    assert!(fs.set_size(&f2, FILE_2_INITIAL_ZERO_COUNT).is_ok());
+    assert!(fs.set_size(&f2, FILE_2_FINAL_ZERO_COUNT).is_ok());
     assert_eq!(
-        fs.open("/file-2")
-            .unwrap()
-            .read(FILE_2_INITIAL_ZERO_COUNT - 2, &mut buffer[.. 4]),
+        fs.read(&f2, FILE_2_INITIAL_ZERO_COUNT - 2, &mut buffer[.. 4]),
         Ok(4),
     );
     assert_eq!(buffer[.. 4], [0; 4]);
@@ -166,7 +154,7 @@ fn build_list(
 ) -> usize {
     let mut usage = 0;
 
-    for entry in inode.list().unwrap() {
+    for entry in fs.list(inode).unwrap() {
         let name = entry.name();
         let path = format!("{directory_path}/{name}");
         info!(path = %&path, %entry);
@@ -182,9 +170,9 @@ fn build_list(
 }
 
 fn remove_all(fs: &mut FileSystem) {
-    let mut root = fs.open("").unwrap();
+    let root = fs.open("").unwrap();
     remove_recursive(fs, &root, "");
-    root.set_size(0).unwrap();
+    fs.set_size(&root, 0).unwrap();
 }
 
 fn remove_recursive(
@@ -192,15 +180,15 @@ fn remove_recursive(
     inode: &File,
     directory_path: &str,
 ) {
-    for entry in inode.list().unwrap() {
+    for entry in fs.list(inode).unwrap() {
         let name = entry.name();
         let path = format!("{directory_path}/{name}");
         info!(path = %&path, %entry, "removing");
-        let mut file = fs.open(&path).unwrap();
+        let file = fs.open(&path).unwrap();
         if entry.kind() == Kind::Directory {
             remove_recursive(fs, &file, &path);
         }
-        file.remove().unwrap();
+        fs.remove(&file).unwrap();
     }
 }
 

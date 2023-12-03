@@ -14,57 +14,65 @@ use ku::{
         NotDirectory,
         NotFile,
     },
-    memory::size::Size,
+    memory::size::{
+        MiB,
+        Size,
+    },
 };
 
 use kernel::{
     Subsystems,
     fs::{
         BlockCache,
+        FileSystem,
         Kind,
         MAX_NAME_LEN,
-        test_scaffolding::make_file,
+        test_scaffolding::{
+            BLOCK_SIZE,
+            make_file,
+            remove_file,
+        },
     },
     log::debug,
 };
 
-mod fs_helpers;
 mod init;
 
 init!(Subsystems::MEMORY);
 
 #[test_case]
 fn basic_operations() {
-    let (block_bitmap, inode_bitmap, inodes) = fs_helpers::simple_fs(Kind::Directory);
-    let mut directory = make_file(&inodes, &block_bitmap, &inode_bitmap);
+    FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
+    let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT).unwrap();
+    let directory = make_file(&mut fs, Kind::Directory);
 
     let mut buffer = [0; 1];
-    assert_eq!(directory.read(0, &mut buffer).unwrap_err(), NotFile);
-    assert_eq!(directory.write(0, &buffer).unwrap_err(), NotFile);
+    assert_eq!(fs.read(&directory, 0, &mut buffer).unwrap_err(), NotFile);
+    assert_eq!(fs.write(&directory, 0, &buffer).unwrap_err(), NotFile);
 
-    assert!(directory.list().unwrap().is_empty());
+    assert!(fs.list(&directory).unwrap().is_empty());
 
-    assert_eq!(directory.find("file-1").unwrap_err(), FileNotFound);
-    let mut file_1 = directory.insert("file-1", Kind::File).unwrap();
-    assert!(directory.find("file-1").is_ok());
+    assert_eq!(fs.find(&directory, "file-1").unwrap_err(), FileNotFound);
+    let file_1 = fs.insert(&directory, "file-1", Kind::File).unwrap();
+    assert!(fs.find(&directory, "file-1").is_ok());
 
-    assert_eq!(file_1.list().unwrap_err(), NotDirectory);
+    assert_eq!(fs.list(&file_1).unwrap_err(), NotDirectory);
     assert_eq!(
-        file_1.insert("file-2", Kind::File).unwrap_err(),
+        fs.insert(&file_1, "file-2", Kind::File).unwrap_err(),
         NotDirectory,
     );
-    assert_eq!(file_1.find("file-1").unwrap_err(), NotDirectory);
+    assert_eq!(fs.find(&file_1, "file-1").unwrap_err(), NotDirectory);
 
-    let list = directory.list().unwrap();
+    let list = fs.list(&directory).unwrap();
     debug!(?list);
     assert_eq!(list.len(), 1);
     assert_eq!(list[0].kind(), Kind::File);
     assert_eq!(list[0].name(), "file-1");
     assert_eq!(list[0].size(), 0);
 
-    assert_eq!(file_1.write(0, &buffer), Ok(buffer.len()));
+    assert_eq!(fs.write(&file_1, 0, &buffer), Ok(buffer.len()));
 
-    let list = directory.list().unwrap();
+    let list = fs.list(&directory).unwrap();
     debug!(?list);
     assert_eq!(list.len(), 1);
     assert_eq!(list[0].kind(), Kind::File);
@@ -72,14 +80,17 @@ fn basic_operations() {
     assert_eq!(list[0].size(), buffer.len());
 
     for kind in [Kind::Directory, Kind::File] {
-        assert_eq!(directory.insert("file-1", kind).unwrap_err(), FileExists);
+        assert_eq!(
+            fs.insert(&directory, "file-1", kind).unwrap_err(),
+            FileExists,
+        );
     }
 
     let offset_2 = 1234;
-    let mut file_2 = directory.insert("file-2", Kind::File).unwrap();
-    assert_eq!(file_2.write(offset_2, &buffer), Ok(buffer.len()));
+    let file_2 = fs.insert(&directory, "file-2", Kind::File).unwrap();
+    assert_eq!(fs.write(&file_2, offset_2, &buffer), Ok(buffer.len()));
 
-    let mut list = directory.list().unwrap();
+    let mut list = fs.list(&directory).unwrap();
     slice::heapsort(&mut list, |a, b| a.name() < b.name());
     debug!(?list);
 
@@ -91,36 +102,36 @@ fn basic_operations() {
     assert_eq!(list[1].name(), "file-2");
     assert_eq!(list[1].size(), offset_2 + buffer.len());
 
-    file_1.remove().unwrap();
-    assert_eq!(directory.find("file-1").unwrap_err(), FileNotFound);
-    file_2.remove().unwrap();
-    assert_eq!(directory.find("file-2").unwrap_err(), FileNotFound);
+    fs.remove(&file_1).unwrap();
+    assert_eq!(fs.find(&directory, "file-1").unwrap_err(), FileNotFound);
+    fs.remove(&file_2).unwrap();
+    assert_eq!(fs.find(&directory, "file-2").unwrap_err(), FileNotFound);
 
     debug!(block_cache_stats = ?BlockCache::stats());
 }
 
 #[test_case]
 fn big_directory() {
-    let (block_bitmap, inode_bitmap, inodes) = fs_helpers::simple_fs(Kind::Directory);
-    let mut root = make_file(&inodes, &block_bitmap, &inode_bitmap);
-    let mut directory = root.insert("big-directory", Kind::Directory).unwrap();
+    FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
+    let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT).unwrap();
+    let directory = make_file(&mut fs, Kind::Directory);
 
-    let start_free_block_count = block_bitmap.free_count();
+    let start_free_block_count = fs.free_space() / BLOCK_SIZE;
 
     for file_count in 1 ..= 1000 {
-        directory.insert(&format!("file-{file_count}"), Kind::File).unwrap();
+        fs.insert(&directory, &format!("file-{file_count}"), Kind::File).unwrap();
         if file_count % 100 == 0 {
-            debug!(file_count, directory_size = %Size::bytes(directory.size()));
+            debug!(file_count, directory_size = %Size::bytes(fs.size(&directory)));
         }
     }
 
-    let free_block_count = block_bitmap.free_count();
+    let free_block_count = fs.free_space() / BLOCK_SIZE;
     let used_block_count = start_free_block_count - free_block_count;
     debug!(free_block_count, used_block_count);
 
-    directory.remove().unwrap();
+    remove_file(&mut fs, &directory).unwrap();
 
-    let end_free_block_count = block_bitmap.free_count();
+    let end_free_block_count = fs.free_space() / BLOCK_SIZE;
     let leaked_block_count = start_free_block_count - end_free_block_count;
     assert_eq!(leaked_block_count, 0);
 
@@ -129,27 +140,32 @@ fn big_directory() {
 
 #[test_case]
 fn max_name_len() {
-    let (block_bitmap, inode_bitmap, inodes) = fs_helpers::simple_fs(Kind::Directory);
-    let mut directory = make_file(&inodes, &block_bitmap, &inode_bitmap);
+    FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
+    let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT).unwrap();
+    let directory = make_file(&mut fs, Kind::Directory);
 
     let name = str::from_utf8(&[b'x'; MAX_NAME_LEN]).unwrap();
-    let mut file = directory.insert(name, Kind::File).unwrap();
+    let file = fs.insert(&directory, name, Kind::File).unwrap();
 
-    assert!(directory.insert(name, Kind::File).is_err());
+    assert!(fs.insert(&directory, name, Kind::File).is_err());
 
-    let list = directory.list().unwrap();
+    let list = fs.list(&directory).unwrap();
     debug!(?list);
     assert_eq!(list.len(), 1);
     assert_eq!(list[0].name().len(), MAX_NAME_LEN);
     assert_eq!(list[0].name(), name);
 
-    file.remove().unwrap();
+    fs.remove(&file).unwrap();
 
     let name = str::from_utf8(&[b'x'; MAX_NAME_LEN + 1]).unwrap();
     assert_eq!(
-        directory.insert(name, Kind::File).unwrap_err(),
+        fs.insert(&directory, name, Kind::File).unwrap_err(),
         InvalidArgument,
     );
 
     debug!(block_cache_stats = ?BlockCache::stats());
 }
+
+const CACHE_BLOCK_COUNT: usize = 1 << 10;
+const FS_DISK: usize = 1;
+const FS_SIZE: usize = 32 * MiB;

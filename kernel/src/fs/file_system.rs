@@ -1,3 +1,14 @@
+use alloc::{
+    string::String,
+    vec::Vec,
+};
+use core::fmt;
+
+use chrono::{
+    DateTime,
+    Utc,
+};
+
 use ku::{
     error::{
         Error::{
@@ -27,6 +38,10 @@ use super::{
     },
     superblock::Superblock,
 };
+
+// Used in docs.
+#[allow(unused)]
+use ku::error::Error;
 
 /// Интерфейс к файловой системе.
 #[derive(Debug)]
@@ -158,6 +173,145 @@ impl FileSystem {
         unimplemented!();
     }
 
+    /// Тип --- файл или директория.
+    pub fn kind(
+        &self,
+        file: &File,
+    ) -> Kind {
+        self.inodes[file.inode()].kind()
+    }
+
+    /// Время последней модификации файла или директории.
+    pub fn modify_time(
+        &self,
+        file: &File,
+    ) -> DateTime<Utc> {
+        self.inodes[file.inode()].modify_time()
+    }
+
+    /// Размер данных в байтах.
+    pub fn size(
+        &self,
+        file: &File,
+    ) -> usize {
+        self.inodes[file.inode()].size()
+    }
+
+    /// Устанавливает размер данных в байтах.
+    /// Если файл расширяется, то новые блоки с данными содержат нули.
+    /// При необходимости выделяет или освобождает блоки.
+    /// Обновляет время последней модификации файла.
+    pub fn set_size(
+        &mut self,
+        file: &File,
+        size: usize,
+    ) -> Result<()> {
+        self.inodes[file.inode()].set_size(size, &mut self.block_bitmap)
+    }
+
+    /// Находит файл или поддиректорию с именем `name` в директории `directory`.
+    /// Возвращает ошибку [`Error::FileNotFound`], если такого файла нет.
+    pub fn find(
+        &mut self,
+        directory: &File,
+        name: &str,
+    ) -> Result<File> {
+        self.inodes[directory.inode()]
+            .find(name)
+            .map(|directory_entry| File::new(directory_entry.inode(), name, directory.inode()))
+    }
+
+    /// Возвращает список файлов и поддиректорий в директории.
+    pub fn list(
+        &mut self,
+        directory: &File,
+    ) -> Result<Vec<Entry>> {
+        let mut list = Vec::new();
+
+        for directory_entry in self.inodes[directory.inode()].list()? {
+            let entry = Entry {
+                inode: directory_entry.inode(),
+                kind: Kind::default(),
+                modify_time: DateTime::default(),
+                name: String::from(directory_entry.name()?),
+                size: 0,
+            };
+            list.push(entry);
+        }
+
+        for entry in list.iter_mut() {
+            let inode = &self.inodes[entry.inode];
+            entry.kind = inode.kind();
+            entry.modify_time = inode.modify_time();
+            entry.size = inode.size();
+        }
+
+        Ok(list)
+    }
+
+    /// Вставляет в директорию запись с именем `name` и типом `kind`.
+    /// Обновляет как время модификации выделенной записи, так и время модификации самой директории.
+    ///
+    /// Возвращает ошибку [`Error::FileExists`] если запись с таким именем уже есть.
+    pub fn insert(
+        &mut self,
+        directory: &File,
+        name: &str,
+        kind: Kind,
+    ) -> Result<File> {
+        let entry = self.inodes[directory.inode()].insert(name, &mut self.block_bitmap)?;
+        let inode = self.inode_bitmap.allocate()?;
+        entry.set_inode(inode);
+        self.inodes[inode].init(kind);
+
+        Ok(File::new(inode, name, directory.inode()))
+    }
+
+    /// Удаляет файл.
+    pub fn remove(
+        &mut self,
+        file: &File,
+    ) -> Result<()> {
+        self.inodes[file.parent()].find(file.name())?.set_free();
+        self.inode_bitmap.set_free(file.inode());
+        self.inodes[file.inode()].remove(&mut self.block_bitmap)
+    }
+
+    /// Читает из файла по смещению `offset` в буфер `buffer` столько байт,
+    /// сколько остаётся до конца файла или до конца буфера.
+    ///
+    /// Возвращает количество прочитанных байт.
+    /// Если `offset` равен размеру файла, возвращает `0` прочитанных байт.
+    ///
+    /// Возвращает ошибки:
+    ///   - [`Error::NotFile`] если [Inode](https://en.wikipedia.org/wiki/Inode) не является файлом.
+    ///   - [`Error::InvalidArgument`] если `offset` превышает размер файла.
+    pub fn read(
+        &mut self,
+        file: &File,
+        offset: usize,
+        buffer: &mut [u8],
+    ) -> Result<usize> {
+        self.inodes[file.inode()].read(offset, buffer)
+    }
+
+    /// Записывает в файл по смещению `offset` байты из буфера `buffer`.
+    /// При необходимости расширяет размер файла.
+    ///
+    /// Возвращает количество записанных байт.
+    /// Если `offset` превышает размер файла, расширяет файл нулями до заданного `offset`.
+    ///
+    /// Возвращает ошибку [`Error::NotFile`]
+    /// если [Inode](https://en.wikipedia.org/wiki/Inode) не является файлом.
+    pub fn write(
+        &mut self,
+        file: &File,
+        offset: usize,
+        buffer: &[u8],
+    ) -> Result<usize> {
+        self.inodes[file.inode()].write(offset, buffer, &mut self.block_bitmap)
+    }
+
     /// Возвращает размер свободного места файловой системы в байтах.
     pub fn free_space(&self) -> usize {
         self.block_bitmap.free_count() * BLOCK_SIZE
@@ -174,5 +328,91 @@ impl Drop for FileSystem {
         if let Err(error) = self.flush() {
             error!(?error, "error on the file system unmount");
         }
+    }
+}
+
+/// Элемент списка файлов и поддиректорий в директории.
+#[derive(Clone, Debug)]
+pub struct Entry {
+    /// Номер [inode](https://en.wikipedia.org/wiki/Inode) файла.
+    inode: usize,
+
+    /// Тип --- файл или поддиректория.
+    kind: Kind,
+
+    /// Время последней модификации файла или поддиректории.
+    modify_time: DateTime<Utc>,
+
+    /// Имя файла или поддиректории.
+    name: String,
+
+    /// Размер файла или поддиректории в байтах.
+    size: usize,
+}
+
+impl Entry {
+    /// Тип --- файл или поддиректория.
+    pub fn kind(&self) -> Kind {
+        self.kind
+    }
+
+    /// Время последней модификации файла или поддиректории.
+    pub fn modify_time(&self) -> DateTime<Utc> {
+        self.modify_time
+    }
+
+    /// Имя файла или поддиректории.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Размер файла или поддиректории в байтах.
+    pub fn size(&self) -> usize {
+        self.size
+    }
+}
+
+impl fmt::Display for Entry {
+    fn fmt(
+        &self,
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
+        write!(
+            formatter,
+            "{}, {}, {:?}, {} B = {}, {}",
+            self.inode,
+            self.name(),
+            self.kind(),
+            self.size(),
+            Size::bytes(self.size()),
+            self.modify_time(),
+        )
+    }
+}
+
+#[doc(hidden)]
+pub mod test_scaffolding {
+    use ku::error::Result;
+
+    use super::{
+        File,
+        FileSystem,
+        Kind,
+    };
+
+    pub fn make_file(
+        file_system: &mut FileSystem,
+        kind: Kind,
+    ) -> File {
+        file_system.inodes[file_system.superblock.root()].init(kind);
+        File::new(file_system.superblock.root(), "", 0)
+    }
+
+    pub fn remove_file(
+        file_system: &mut FileSystem,
+        file: &File,
+    ) -> Result<()> {
+        let mut block_bitmap = file_system.block_bitmap.clone();
+        file_system.inodes[file.inode()].remove(&mut block_bitmap)
     }
 }

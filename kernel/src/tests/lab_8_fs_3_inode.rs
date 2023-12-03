@@ -22,12 +22,13 @@ use kernel::{
     fs::{
         BlockCache,
         File,
+        FileSystem,
         Kind,
         test_scaffolding::{
             BLOCK_SIZE,
-            block_cache_init,
             flush_block,
             make_file,
+            remove_file,
         },
     },
     log::debug,
@@ -100,20 +101,14 @@ fn block_entry() {
 
 #[test_case]
 fn read_write_speed() {
-    let (block_bitmap, inode_bitmap, inodes) = fs_helpers::simple_fs(Kind::File);
-    let mut file = make_file(&inodes, &block_bitmap, &inode_bitmap);
-
-    block_cache_init(
-        fs_helpers::FS_DISK,
-        fs_helpers::BLOCK_COUNT,
-        fs_helpers::BLOCK_COUNT,
-    )
-    .unwrap();
+    FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
+    let mut fs = FileSystem::mount(FS_DISK, DISK_BLOCK_COUNT).unwrap();
+    let file = make_file(&mut fs, Kind::File);
 
     let mut buffer = vec![0x77_u8; 10 * MiB];
     let size = Size::from_slice(&buffer);
     let timer = time::timer();
-    file.write(0, &buffer).unwrap();
+    fs.write(&file, 0, &buffer).unwrap();
     let elapsed = timer.elapsed();
     debug!(
         throughput_per_second = %throughput_per_second(size, elapsed),
@@ -127,7 +122,7 @@ fn read_write_speed() {
     let timeout = TscDuration::try_from(Duration::seconds(2)).unwrap();
 
     let timer = time::timer();
-    file.read(0, &mut buffer).unwrap();
+    fs.read(&file, 0, &mut buffer).unwrap();
     let elapsed = timer.elapsed();
     debug!(
         throughput_per_second = %throughput_per_second(size, elapsed),
@@ -142,7 +137,7 @@ fn read_write_speed() {
     buffer.fill(0x33);
 
     let timer = time::timer();
-    file.write(0, &buffer).unwrap();
+    fs.write(&file, 0, &buffer).unwrap();
     let elapsed = timer.elapsed();
     debug!(
         throughput_per_second = %throughput_per_second(size, elapsed),
@@ -180,8 +175,9 @@ fn read_write_speed() {
 
 #[test_case]
 fn write_read() {
-    let (block_bitmap, inode_bitmap, inodes) = fs_helpers::simple_fs(Kind::File);
-    let mut file = make_file(&inodes, &block_bitmap, &inode_bitmap);
+    FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
+    let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT).unwrap();
+    let file = make_file(&mut fs, Kind::File);
 
     let data: Vec<_> = (0 .. MiB).map(|x| (x + x * x) as u8).collect();
     let mut offset = 0;
@@ -190,7 +186,7 @@ fn write_read() {
         for size in (0 ..= 3 * BLOCK_SIZE).filter(|x| (x + 3) % BLOCK_SIZE < 6) {
             let real_size = cmp::min(offset + size, data.len()) - offset;
             assert_eq!(
-                file.write(offset, &data[offset .. offset + real_size]),
+                fs.write(&file, offset, &data[offset .. offset + real_size]),
                 Ok(real_size),
             );
             offset += real_size;
@@ -204,7 +200,7 @@ fn write_read() {
         for size in (0 ..= 4 * BLOCK_SIZE).filter(|x| (x + 4) % BLOCK_SIZE < 7) {
             let real_size = cmp::min(offset + size, data.len()) - offset;
             assert_eq!(
-                file.read(offset, &mut buffer[offset .. offset + real_size]),
+                fs.read(&file, offset, &mut buffer[offset .. offset + real_size]),
                 Ok(real_size),
             );
             offset += real_size;
@@ -221,20 +217,21 @@ fn write_read() {
 
 #[test_case]
 fn big_file() {
-    let (block_bitmap, inode_bitmap, inodes) = fs_helpers::simple_fs(Kind::Directory);
-    let mut root = make_file(&inodes, &block_bitmap, &inode_bitmap);
-    let mut file = root.insert("big-file", Kind::File).unwrap();
-    let start_free_block_count = block_bitmap.free_count();
+    FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
+    let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT).unwrap();
+    let file = make_file(&mut fs, Kind::File);
+
+    let start_free_block_count = fs.free_space() / BLOCK_SIZE;
 
     let file_block_count = start_free_block_count * 99 / 100;
-    file.set_size(file_block_count * BLOCK_SIZE).unwrap();
-    debug!(file_block_count, file_size = %Size::bytes(file.size()));
+    fs.set_size(&file, file_block_count * BLOCK_SIZE).unwrap();
+    debug!(file_block_count, file_size = %Size::bytes(fs.size(&file)));
 
     for file_block in 0 .. file_block_count {
         let data = format!("file block {file_block}");
         let data_len = data.len();
         assert_eq!(
-            file.write(file_block * BLOCK_SIZE, data.as_bytes()),
+            fs.write(&file, file_block * BLOCK_SIZE, data.as_bytes()),
             Ok(data_len),
         );
     }
@@ -244,19 +241,19 @@ fn big_file() {
         let data_len = data.len();
         let mut buffer = vec![0; data_len];
         assert_eq!(
-            file.read(file_block * BLOCK_SIZE, &mut buffer),
+            fs.read(&file, file_block * BLOCK_SIZE, &mut buffer),
             Ok(data_len),
         );
         assert_eq!(buffer, data.as_bytes());
     }
 
-    let free_block_count = block_bitmap.free_count();
+    let free_block_count = fs.free_space() / BLOCK_SIZE;
     let used_block_count = start_free_block_count - free_block_count;
     debug!(free_block_count, used_block_count);
 
-    file.remove().unwrap();
+    remove_file(&mut fs, &file).unwrap();
 
-    let end_free_block_count = block_bitmap.free_count();
+    let end_free_block_count = fs.free_space() / BLOCK_SIZE;
     let leaked_block_count = start_free_block_count - end_free_block_count;
     assert_eq!(leaked_block_count, 0);
 
@@ -265,9 +262,11 @@ fn big_file() {
 
 #[test_case]
 fn set_size() {
-    let (block_bitmap, inode_bitmap, inodes) = fs_helpers::simple_fs(Kind::File);
-    let mut file = make_file(&inodes, &block_bitmap, &inode_bitmap);
-    let start_free_block_count = block_bitmap.free_count();
+    FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
+    let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT).unwrap();
+    let file = make_file(&mut fs, Kind::File);
+
+    let start_free_block_count = fs.free_space() / BLOCK_SIZE;
 
     let filter = |x: &usize| (x + 2) % (BLOCK_SIZE / 3) <= 4;
 
@@ -276,33 +275,39 @@ fn set_size() {
             if offset == size {
                 debug!(offset, size);
             }
-            check_expansion_is_zero_filled(&mut file, offset, size);
-            file.set_size(offset).unwrap();
-            check_expansion_is_zero_filled(&mut file, offset, size);
-            file.set_size(offset).unwrap();
+            check_expansion_is_zero_filled(&mut fs, &file, offset, size);
+            fs.set_size(&file, offset).unwrap();
+            check_expansion_is_zero_filled(&mut fs, &file, offset, size);
+            fs.set_size(&file, offset).unwrap();
         }
     }
 
-    file.set_size(0).unwrap();
-    let end_free_block_count = block_bitmap.free_count();
+    fs.set_size(&file, 0).unwrap();
+    let end_free_block_count = fs.free_space() / BLOCK_SIZE;
     assert_eq!(start_free_block_count, end_free_block_count);
 
     fn check_expansion_is_zero_filled(
-        file: &mut File,
+        fs: &mut FileSystem,
+        file: &File,
         offset: usize,
         size: usize,
     ) {
         let mut buffer = vec![1; size];
 
-        file.set_size(offset + size).unwrap();
-        file.read(offset, &mut buffer).unwrap();
+        fs.set_size(file, offset + size).unwrap();
+        fs.read(file, offset, &mut buffer).unwrap();
         assert!(buffer.iter().all(|&x| x == 0));
 
         buffer.fill(b'*');
-        assert_eq!(file.write(offset, &buffer), Ok(size));
-        file.read(offset, &mut buffer).unwrap();
+        assert_eq!(fs.write(file, offset, &buffer), Ok(size));
+        fs.read(file, offset, &mut buffer).unwrap();
         assert!(buffer.iter().all(|&x| x == b'*'));
     }
 
     debug!(block_cache_stats = ?BlockCache::stats());
 }
+
+const CACHE_BLOCK_COUNT: usize = 1 << 10;
+const DISK_BLOCK_COUNT: usize = FS_SIZE / BLOCK_SIZE;
+const FS_DISK: usize = 1;
+const FS_SIZE: usize = 32 * MiB;
