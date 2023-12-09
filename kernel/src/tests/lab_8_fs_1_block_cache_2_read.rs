@@ -24,7 +24,7 @@ fn read_what_was_written() {
     let block_count = FS_SIZE / BLOCK_SIZE;
     debug!(block_count);
 
-    block_cache_init(FS_DISK, block_count, block_count / 4).unwrap();
+    block_cache_init(FS_DISK, block_count, block_count).unwrap();
 
     let cache = cache().unwrap();
 
