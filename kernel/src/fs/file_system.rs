@@ -10,6 +10,7 @@ use chrono::{
 };
 
 use ku::{
+    collections::Lru,
     error::{
         Error::{
             FileNotFound,
@@ -19,6 +20,7 @@ use ku::{
         Result,
     },
     log::{
+        debug,
         error,
         info,
     },
@@ -61,6 +63,13 @@ pub struct FileSystem {
     /// файловой системы.
     inodes: &'static mut [Inode],
 
+    /// Кэш для определения
+    /// [inode](https://en.wikipedia.org/wiki/Inode)
+    /// файла по
+    /// [inode](https://en.wikipedia.org/wiki/Inode)
+    /// директории и имени файла в ней.
+    resolve_cache: Lru<(usize, String), usize>,
+
     /// Суперблок
     /// ([superblock](https://en.wikipedia.org/wiki/Unix_File_System#Design))
     /// файловой системы.
@@ -71,9 +80,12 @@ impl FileSystem {
     /// [Монтирует](https://en.wikipedia.org/wiki/Mount_(computing))
     /// файловую систему с диска номер `disk`.
     /// Параметр `block_cache_capacity` задаёт ограничение на размер кэша блоков.
+    /// Параметр `resolve_cache_capacity` задаёт ограничение на размер кэша
+    /// для преобразования имён файлов в их номера inode.
     pub fn mount(
         disk: usize,
         block_cache_capacity: usize,
+        resolve_cache_capacity: usize,
     ) -> Result<FileSystem> {
         let disk = Disk::new(disk)?;
 
@@ -94,6 +106,7 @@ impl FileSystem {
                 block_bitmap: Bitmap::new(superblock.block_bitmap().start, superblock.blocks())?,
                 inode_bitmap: Bitmap::new(superblock.inode_bitmap().start, superblock.inodes())?,
                 inodes,
+                resolve_cache: Lru::new(resolve_cache_capacity),
                 superblock,
             })
         } else {
@@ -272,6 +285,7 @@ impl FileSystem {
         &mut self,
         file: &File,
     ) -> Result<()> {
+        self.resolve_cache.remove(&(file.parent(), file.name().into()));
         self.inodes[file.parent()].find(file.name())?.set_free();
         self.inode_bitmap.set_free(file.inode());
         self.inodes[file.inode()].remove(&mut self.block_bitmap)
@@ -328,6 +342,12 @@ impl Drop for FileSystem {
         if let Err(error) = self.flush() {
             error!(?error, "error on the file system unmount");
         }
+
+        debug!(
+            block_cache_stats = ?BlockCache::stats(),
+            resolve_cache_stats = ?self.resolve_cache.stats(),
+            "unmount",
+        );
     }
 }
 

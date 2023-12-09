@@ -102,7 +102,7 @@ fn block_entry() {
 #[test_case]
 fn read_write_speed() {
     FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
-    let mut fs = FileSystem::mount(FS_DISK, DISK_BLOCK_COUNT).unwrap();
+    let mut fs = FileSystem::mount(FS_DISK, DISK_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
     let file = make_file(&mut fs, Kind::File);
 
     let mut buffer = vec![0x77_u8; 10 * MiB];
@@ -176,7 +176,7 @@ fn read_write_speed() {
 #[test_case]
 fn write_read() {
     FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
-    let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT).unwrap();
+    let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
     let file = make_file(&mut fs, Kind::File);
 
     let data: Vec<_> = (0 .. MiB).map(|x| (x + x * x) as u8).collect();
@@ -218,7 +218,7 @@ fn write_read() {
 #[test_case]
 fn big_file() {
     FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
-    let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT).unwrap();
+    let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
     let file = make_file(&mut fs, Kind::File);
 
     let start_free_block_count = fs.free_space() / BLOCK_SIZE;
@@ -263,7 +263,7 @@ fn big_file() {
 #[test_case]
 fn set_size() {
     FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
-    let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT).unwrap();
+    let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
     let file = make_file(&mut fs, Kind::File);
 
     let start_free_block_count = fs.free_space() / BLOCK_SIZE;
@@ -311,3 +311,4 @@ const CACHE_BLOCK_COUNT: usize = 1 << 10;
 const DISK_BLOCK_COUNT: usize = FS_SIZE / BLOCK_SIZE;
 const FS_DISK: usize = 1;
 const FS_SIZE: usize = 32 * MiB;
+const RESOLVE_CACHE_SIZE: usize = 5;

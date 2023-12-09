@@ -43,7 +43,7 @@ init!(Subsystems::MEMORY);
 #[test_case]
 fn basic_operations() {
     FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
-    let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT).unwrap();
+    let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
     let directory = make_file(&mut fs, Kind::Directory);
 
     let mut buffer = [0; 1];
@@ -113,7 +113,7 @@ fn basic_operations() {
 #[test_case]
 fn big_directory() {
     FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
-    let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT).unwrap();
+    let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
     let directory = make_file(&mut fs, Kind::Directory);
 
     let start_free_block_count = fs.free_space() / BLOCK_SIZE;
@@ -141,7 +141,7 @@ fn big_directory() {
 #[test_case]
 fn max_name_len() {
     FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
-    let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT).unwrap();
+    let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
     let directory = make_file(&mut fs, Kind::Directory);
 
     let name = str::from_utf8(&[b'x'; MAX_NAME_LEN]).unwrap();
@@ -169,3 +169,4 @@ fn max_name_len() {
 const CACHE_BLOCK_COUNT: usize = 1 << 10;
 const FS_DISK: usize = 1;
 const FS_SIZE: usize = 32 * MiB;
+const RESOLVE_CACHE_SIZE: usize = 5;
