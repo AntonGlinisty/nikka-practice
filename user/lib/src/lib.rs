@@ -49,6 +49,7 @@ use ku::{
         error,
     },
     process::ExitCode,
+    sync,
 };
 
 /// Точка входа в процесс пользователя.
@@ -82,6 +83,8 @@ pub fn set_panic_handler(panic_handler: fn(&PanicInfo)) {
 #[inline(never)]
 #[panic_handler]
 fn panic(panic_info: &PanicInfo) -> ! {
+    sync::start_panicking();
+
     if let Ok(backtrace) = Backtrace::with_stack(ku::process_info().stack()) {
         error!(message = %panic_info, %backtrace);
     } else {

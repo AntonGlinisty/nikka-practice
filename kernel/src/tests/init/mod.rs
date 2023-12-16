@@ -21,6 +21,7 @@ macro_rules! init {
 
         #[panic_handler]
         fn panic(info: &core::panic::PanicInfo) -> ! {
+            ku::sync::start_panicking();
             kernel::fail_test(info)
         }
     };

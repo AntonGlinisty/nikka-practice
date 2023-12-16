@@ -18,11 +18,15 @@ use core::fmt::{
 
 use bitflags::bitflags;
 use lazy_static::lazy_static;
-use spin::Mutex;
 
 use serial::{
     Com,
     Serial,
+};
+
+use ku::sync::{
+    PanicStrategy,
+    Spinlock,
 };
 
 use cursor::{
@@ -156,10 +160,11 @@ fn text_buffer() -> &'static mut Buffer {
 type VgaText = Text<'static, VgaCursor, Com>;
 
 lazy_static! {
-    pub static ref TEXT: Mutex<VgaText> = Mutex::new(Text::<VgaCursor, Com>::new(
-        text_buffer(),
-        Attribute::NORMAL
-    ));
+    pub static ref TEXT: Spinlock<VgaText, { PanicStrategy::KnockDown }> =
+        Spinlock::new(Text::<VgaCursor, Com>::new(
+            text_buffer(),
+            Attribute::NORMAL,
+        ));
 }
 
 #[macro_export]

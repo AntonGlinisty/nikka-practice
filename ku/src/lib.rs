@@ -5,7 +5,9 @@
 //! Общая для пространств ядра и пользователя библиотека.
 //! ku --- **k**ernel && **u**ser.
 
+#![allow(incomplete_features)]
 #![deny(warnings)]
+#![feature(adt_const_params)]
 #![feature(allocator_api)]
 #![feature(atomic_from_mut)]
 #![feature(cell_update)]
@@ -66,6 +68,11 @@ pub mod sync;
 /// которые нужны и в ядре, и в пространстве пользователя.
 pub mod time;
 
+use x86_64::instructions::{
+    self,
+    interrupts,
+};
+
 pub use error::{
     Error,
     Result,
@@ -99,3 +106,18 @@ pub use time::{
     timer,
     tsc,
 };
+
+/// Останавливает процессор инструкцией
+/// [`hlt`](https://www.felixcloutier.com/x86/hlt)
+/// при запрещённых внешних прерываниях.
+///
+/// # Safety
+///
+/// Требует привилегированного режима работы.
+#[cold]
+#[inline(never)]
+pub unsafe fn halt() -> ! {
+    loop {
+        interrupts::without_interrupts(instructions::hlt)
+    }
+}

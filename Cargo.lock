@@ -934,9 +934,9 @@ name = "text"
 version = "0.3.0"
 dependencies = [
  "bitflags 2.4.0",
+ "ku",
  "lazy_static",
  "serial",
- "spin 0.9.8",
  "static_assertions",
  "volatile",
  "x86",

@@ -235,5 +235,5 @@ fn panic(panic_info: &PanicInfo) -> ! {
         println!("{backtrace:?}");
     }
 
-    kernel::halt()
+    unsafe { ku::halt() }
 }

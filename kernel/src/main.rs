@@ -25,7 +25,9 @@ use bootloader::{
 };
 
 use ku::{
+    self,
     backtrace::Backtrace,
+    sync,
     time::{
         pit8254::Pit,
         rtc::Rtc,
@@ -88,6 +90,8 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 #[inline(never)]
 #[panic_handler]
 fn panic(panic_info: &PanicInfo) -> ! {
+    sync::start_panicking();
+
     if cfg!(test) {
         kernel::fail_test(panic_info)
     } else {
@@ -99,6 +103,6 @@ fn panic(panic_info: &PanicInfo) -> ! {
             println!("{backtrace:?}");
         }
 
-        kernel::halt()
+        unsafe { ku::halt() }
     }
 }

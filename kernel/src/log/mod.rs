@@ -33,7 +33,10 @@ use ku::{
         LogMetadata,
         level_into_symbol,
     },
-    sync::Spinlock,
+    sync::{
+        PanicStrategy,
+        Spinlock,
+    },
     time::{
         Tsc,
         datetime_ms,
@@ -338,7 +341,7 @@ struct LogCollector {
     level: Level,
 
     /// Сборщик записей журнала для печати сообщений в заданном формате.
-    log: Spinlock<Log>,
+    log: Spinlock<Log, { PanicStrategy::KnockDown }>,
 }
 
 impl LogCollector {

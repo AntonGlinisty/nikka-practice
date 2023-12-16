@@ -71,8 +71,8 @@ use bootloader::BootInfo;
 use x86::io;
 
 use ku::{
+    self,
     SystemInfo,
-    set_system_info,
 };
 use text::println;
 
@@ -161,7 +161,7 @@ pub fn init_subsystems(
     boot_info: &'static BootInfo,
     subsystems: Subsystems,
 ) {
-    set_system_info(&SYSTEM_INFO);
+    ku::set_system_info(&SYSTEM_INFO);
 
     text::TEXT.lock().init();
     log::init();
@@ -199,17 +199,6 @@ pub fn init(boot_info: &'static BootInfo) {
     init_subsystems(boot_info, Subsystems::all());
 }
 
-/// Останавливает процессор инструкцией
-/// [`hlt`](https://www.felixcloutier.com/x86/hlt)
-/// при запрещённых внешних прерываниях.
-#[cold]
-#[inline(never)]
-pub fn halt() -> ! {
-    loop {
-        x86_64::instructions::interrupts::without_interrupts(x86_64::instructions::hlt)
-    }
-}
-
 /// Выхода из qemu при запуске тестов с кодом `exit_code`.
 /// Требует указания аргумента `-device isa-debug-exit,iobase=0xF4,iosize=0x04` при запуске qemu.
 pub fn exit_qemu(exit_code: ExitCode) -> ! {
@@ -221,9 +210,9 @@ pub fn exit_qemu(exit_code: ExitCode) -> ! {
 
     unsafe {
         io::outb(EXIT_PORT, exit_code.bits());
-    }
 
-    halt()
+        ku::halt()
+    }
 }
 
 /// Определяет интерфейс запуска теста.
@@ -273,6 +262,7 @@ pub fn pass_test() -> ! {
 #[inline(never)]
 #[panic_handler]
 fn panic(panic_info: &PanicInfo) -> ! {
+    ku::sync::start_panicking();
     fail_test(panic_info)
 }
 
