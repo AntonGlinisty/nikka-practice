@@ -126,8 +126,9 @@ fn set_state(
 И ставит его в очередь планировщика в случае
 [`State::Runnable`](../../doc/ku/process/enum.State.html#variant.Runnable).
 Не забудьте
-[проверить права доступа](../../lab/book/6-um-2-memory-syscalls.html#check_process_permissions)
-процесса `process` к процессу `dst_pid`.
+проверить права доступа
+процесса `process` к процессу `dst_pid` с помощью реализованного вами ранее
+[`kernel::process::syscall::lock_set::LockSet`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html).
 
 
 ### Рекурсивное отображение памяти

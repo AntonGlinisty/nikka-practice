@@ -32,7 +32,6 @@ use crate::{
             InvalidAlignment,
             InvalidArgument,
             NoPage,
-            NoProcess,
             Overflow,
             PermissionDenied,
         },
@@ -68,6 +67,11 @@ use super::{
     Scheduler,
     Table,
     TrapHandlerContext,
+};
+
+use lock_set::{
+    lock_dst,
+    lock_src_dst,
 };
 
 /// Инициализация системных вызовов.
@@ -381,20 +385,181 @@ fn check_page_flags(flags: usize) -> Result<PageTableFlags> {
     unimplemented!();
 }
 
-/// Проверяет, что процесс `process` имеет право модифицировать целевой процесс,
-/// заданный своим идентификатором `dst_pid`.
-/// Поглощает блокировку `process`, выдавая взамен блокировку на целевой процесс.
-/// Целевой процесс может совпадать с `process`.
-///
-/// Модифицировать можно:
-///   - Либо самого себя, задавая [`Pid::Current`] или явно собственный идентификатор [`Pid::Id`].
-///   - Либо свой непосредственно дочерний процесс, задавая его идентификатор.
-fn check_process_permissions(
-    process: SpinlockGuard<Process>,
-    dst_pid: usize,
-) -> Result<SpinlockGuard<Process>> {
-    // TODO: your code here.
-    unimplemented!();
+/// Работа с блокировкой одного процесса или парой блокировок двух разных процессов.
+mod lock_set {
+    use duplicate::duplicate_item;
+
+    use ku::{
+        error::{
+            Error::{
+                NoProcess,
+                PermissionDenied,
+            },
+            Result,
+        },
+        process::Pid,
+        sync::spinlock::SpinlockGuard,
+    };
+
+    use super::super::{
+        Process,
+        Table,
+    };
+
+    /// Проверяет, что процесс `src` имеет право модифицировать целевой процесс,
+    /// заданный своим идентификатором `dst_pid`.
+    /// Целевой процесс может совпадать с `src`.
+    ///
+    /// Модифицировать можно:
+    ///   - Либо самого себя, задавая [`Pid::Current`] или явно собственный идентификатор [`Pid::Id`].
+    ///   - Либо свой непосредственно дочерний процесс, задавая его идентификатор.
+    ///
+    /// Возвращает блокировку на процесс `dst`.
+    pub(super) fn lock_dst(
+        src: SpinlockGuard<Process>,
+        dst_pid: usize,
+    ) -> Result<LockSet> {
+        LockSet::new(src, dst_pid, ProcessSet::Dst)
+    }
+
+    /// Проверяет, что процесс `src` имеет право модифицировать целевой процесс,
+    /// заданный своим идентификатором `dst_pid`.
+    /// Целевой процесс может совпадать с `src`.
+    ///
+    /// Модифицировать можно:
+    ///   - Либо самого себя, задавая [`Pid::Current`] или явно собственный идентификатор [`Pid::Id`].
+    ///   - Либо свой непосредственно дочерний процесс, задавая его идентификатор.
+    ///
+    /// Возвращает:
+    ///   - Исходную блокировку на `src`, если `dst_pid` задаёт тот же процесс.
+    ///   - Блокировки на процессы `src` и `dst`, если это разные процессы.
+    ///
+    /// Захватывает блокировки в правильном порядке для избежания
+    /// [взаимоблокировки](https://en.wikipedia.org/wiki/Deadlock).
+    pub(super) fn lock_src_dst(
+        src: SpinlockGuard<Process>,
+        dst_pid: usize,
+    ) -> Result<LockSet> {
+        LockSet::new(src, dst_pid, ProcessSet::SrcDst)
+    }
+
+    #[derive(Debug)]
+    /// Блокировка одного процесса или пара блокировок двух разных процессов.
+    pub(super) enum LockSet<'a> {
+        /// Пара блокировок двух разных процессов.
+        Different {
+            /// Процесс, над которым совершается действие системного вызова.
+            dst: SpinlockGuard<'a, Process>,
+
+            /// Процесс, запустивший системный вызов.
+            src: SpinlockGuard<'a, Process>,
+        },
+
+        /// Блокировка только процесса, над которым совершается действие системного вызова.
+        /// Используется когда не нужна блокировка на процесс, запустивший системный вызов.
+        Dst {
+            /// Процесс, над которым совершается действие системного вызова.
+            dst: SpinlockGuard<'a, Process>,
+        },
+
+        /// Блокировка одного процесса, который и запустил системный вызов
+        /// и одновременно является целевым процессом для этого системного вызова.
+        Same {
+            /// Процесс, запустивший системный вызов на себя же.
+            src_dst: SpinlockGuard<'a, Process>,
+        },
+    }
+
+    impl<'a> LockSet<'a> {
+        /// Проверяет, что процесс `src` имеет право модифицировать целевой процесс,
+        /// заданный своим идентификатором `dst_pid`.
+        /// Целевой процесс может совпадать с `src`.
+        ///
+        /// Модифицировать можно:
+        ///   - Либо самого себя, задавая [`Pid::Current`] или явно собственный идентификатор [`Pid::Id`].
+        ///   - Либо свой непосредственно дочерний процесс, задавая его идентификатор.
+        ///
+        /// Возвращает:
+        ///   - Исходную блокировку на `src`, если `dst_pid` задаёт тот же процесс.
+        ///   - Блокировку на процесс `dst`, если `process_set == ProcessSet::Dst`.
+        ///   - Блокировки на процессы `src` и `dst`, если это разные процессы.
+        ///
+        /// Захватывает блокировки в правильном порядке для избежания
+        /// [взаимоблокировки](https://en.wikipedia.org/wiki/Deadlock).
+        fn new(
+            src: SpinlockGuard<Process>,
+            dst_pid: usize,
+            process_set: ProcessSet,
+        ) -> Result<LockSet<'_>> {
+            // TODO: your code here.
+            unimplemented!();
+        }
+
+        /// Возвращает процесс, над которым совершается действие системного вызова.
+        #[allow(clippy::needless_arbitrary_self_type)]
+        #[duplicate_item(
+            dst_accessor reference(type);
+            [dst] [&'b type];
+            [dst_mut] [&'b mut type];
+        )]
+        pub(super) fn dst_accessor<'b>(
+            self: reference([Self])
+        ) -> reference([SpinlockGuard<'a, Process>]) {
+            match self {
+                LockSet::Same { src_dst } => src_dst,
+                LockSet::Different { dst, .. } => dst,
+                LockSet::Dst { dst } => dst,
+            }
+        }
+
+        /// Возвращает процесс, запустивший системный вызов.
+        ///
+        /// # Panics
+        ///
+        /// Паникует, если изначально блокировка захватывалась только на целевой процесс.
+        #[allow(clippy::needless_arbitrary_self_type)]
+        #[allow(dead_code)]
+        #[duplicate_item(
+            src_accessor reference(type);
+            [src] [&'b type];
+            [src_mut] [&'b mut type];
+        )]
+        pub(super) fn src_accessor<'b>(
+            self: reference([Self])
+        ) -> reference([SpinlockGuard<'a, Process>]) {
+            match self {
+                LockSet::Same { src_dst } => src_dst,
+                LockSet::Different { src, .. } => src,
+                LockSet::Dst { .. } => panic!("only destination process is locked"),
+            }
+        }
+
+        /// Возвращает `true`, если `src` и `dst` --- это один и тот же процесс.
+        ///
+        /// # Panics
+        ///
+        /// Паникует, если изначально блокировка захватывалась только на целевой процесс.
+        #[allow(dead_code)]
+        pub(super) fn is_same(&self) -> bool {
+            match self {
+                LockSet::Same { .. } => true,
+                LockSet::Different { .. } => false,
+                LockSet::Dst { .. } => panic!("only destination process is locked"),
+            }
+        }
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    /// Указывает какой набор процессов блокировать.
+    enum ProcessSet {
+        /// Блокировать только процесс, над которым совершается действие системного вызова.
+        Dst,
+
+        /// Блокировать оба процесса ---
+        /// и процесс, запустивший системный вызов,
+        /// и процесс, над которым совершается действие системного вызова.
+        SrcDst,
+    }
 }
 
 #[doc(hidden)]

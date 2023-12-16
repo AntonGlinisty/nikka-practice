@@ -68,27 +68,51 @@ fn check_frame(
 возвращает физический фрейм, в который она отображена.
 
 
-#### [`kernel::process::syscall::check_process_permissions()`](../../doc/kernel/process/syscall/fn.check_process_permissions.html)
+#### [`kernel::process::syscall::lock_set::LockSet::new()`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#method.new)
 
 ```rust
-fn check_process_permissions(
-    process: SpinlockGuard<Process>,
+fn new(
+    src: SpinlockGuard<Process>,
     dst_pid: usize,
-) -> Result<SpinlockGuard<Process>>
+    process_set: ProcessSet,
+) -> Result<LockSet<'_>>
 ```
 
-Проверяет, что процесс `process` имеет право модифицировать целевой процесс, заданный своим идентификатором `dst_pid`.
+Проверяет, что процесс `src` имеет право модифицировать целевой процесс, заданный своим идентификатором `dst_pid`.
 Модифицировать можно либо самого себя, задавая
 [`Pid::Current`](../../doc/ku/process/pid/enum.Pid.html#variant.Current)
 или явно собственный идентификатор
 [`Pid::Id`](../../doc/ku/process/pid/enum.Pid.html#variant.Id).
 Либо свой непосредственно дочерний процесс, задавая его идентификатор.
-Поглотите блокировку `process`, выдав взамен блокировку на целевой процесс.
-Если он совпадает с `process`, необходимо избежать
-[взаимоблокировку](https://en.wikipedia.org/wiki/Deadlock)
-с собой же.
+Аргумент `process_set` типа
+[`kernel::process::syscall::lock_set::ProcessSet`](../../doc/kernel/process/syscall/lock_set/enum.ProcessSet.html)
+указывает, будет ли вызывающий код в дальнейшем пользоваться
+
+- только целевым процессом --- [`ProcessSet::Dst`](../../doc/kernel/process/syscall/lock_set/enum.ProcessSet.html#variant.Dst),
+- или же обоими процессами --- [`ProcessSet::SrcDst`](../../doc/kernel/process/syscall/lock_set/enum.ProcessSet.html#variant.SrcDst).
+
+Функция возвращает один из вариантов
+[`kernel::process::syscall::lock_set::LockSet`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html):
+
+- [`LockSet::Different`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#variant.Different) с двумя блокировками на исходный [`LockSet::Different::src`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#variant.Different.field.src) и целевой [`LockSet::Different::dst`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#variant.Different.field.dst) процессы, когда они разные.
+- [`LockSet::Same`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#variant.Same) с блокировкой [`LockSet::Same::src_dst`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#variant.Same.field.src_dst), когда вызывающий код запросил обе блокировки, но целевой процесс совпадает с исходным.
+- [`LockSet::Dst`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#variant.Dst) с блокировкой [`LockSet::Dst::dst`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#variant.Dst.field.dst) на целевой процесс, когда вызывающему коду нужна только она.
+
+В реализации этой функции легко посадить ошибку, которая может привести к
+[взаимоблокировке](https://en.wikipedia.org/wiki/Deadlock).
+Вспомните о правилах захвата нескольких блокировок, чтобы избежать этой неприятности.
+
 Вам пригодится метод
 [`Pid::from_usize()`](../../doc/ku/process/pid/enum.Pid.html#method.from_usize).
+
+Пользоваться
+[`LockSet`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html)
+в системных вызовах можно так:
+
+- [`lock_src_dst(src, dst_pid)`](../../doc/kernel/process/syscall/lock_set/fn.lock_src_dst.html) вернёт [`LockSet`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html) с блокировками и на `src` и на `dst`.
+- [`lock_dst(src, dst_pid)`](../../doc/kernel/process/syscall/lock_set/fn.lock_dst.html) вернёт [`LockSet`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html) с блокировкой только на `dst`.
+- [`LockSet::src()`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#method.src) и [`LockSet::src_mut()`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#method.src_mut) дают возможность использовать захваченный исходный процесс неизменяемо и изменяемо соответственно, если [`LockSet`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html) создавался с захватом обоих блокировок. Если же захватывалась блокировка только на целевой процесс, эта функция запаникует.
+- [`LockSet::dst()`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#method.dst) и [`LockSet::dst_mut()`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#method.dst_mut) дают возможность использовать захваченный целевой процесс неизменяемо и изменяемо соответственно.
 
 
 ### Системные вызовы для работы с памятью
