@@ -88,12 +88,11 @@ impl FileSystem {
         resolve_cache_capacity: usize,
     ) -> Result<FileSystem> {
         let disk = Disk::new(disk)?;
+        let block_count = disk.block_count()?;
 
-        BlockCache::init(disk, Superblock::SUPERBLOCK_BLOCK + 1, 1)?;
+        BlockCache::init(disk, block_count, block_cache_capacity)?;
 
         let superblock = Superblock::new()?;
-
-        BlockCache::init(disk, superblock.blocks().end, block_cache_capacity)?;
 
         let inodes = unsafe {
             BlockCache::block(superblock.inode_table().start)?
@@ -101,7 +100,9 @@ impl FileSystem {
                 .try_into_mut_slice::<Inode>(superblock.inodes().end)?
         };
 
-        if inodes[superblock.root()].kind() == Kind::Directory {
+        if superblock.blocks().end <= block_count &&
+            inodes[superblock.root()].kind() == Kind::Directory
+        {
             Ok(Self {
                 block_bitmap: Bitmap::new(superblock.block_bitmap().start, superblock.blocks())?,
                 inode_bitmap: Bitmap::new(superblock.inode_bitmap().start, superblock.inodes())?,
@@ -114,23 +115,14 @@ impl FileSystem {
         }
     }
 
-    /// Форматирует файловую систему размером `size` байт на диске номер `disk`.
-    ///
-    /// Если количество
-    /// [inode](https://en.wikipedia.org/wiki/Inode)
-    /// не указано, то есть `inode_count.is_none()`,
-    /// оно подбирается под размер `size` автоматически.
-    pub fn format(
-        disk: usize,
-        size: usize,
-        inode_count: Option<usize>,
-    ) -> Result<()> {
+    /// Форматирует файловую систему на диске номер `disk`.
+    pub fn format(disk: usize) -> Result<()> {
         let disk = Disk::new(disk)?;
+        let block_count = disk.block_count()?;
 
-        let block_count = size / BLOCK_SIZE;
         let default_blocks_per_inode = 4;
         let block_cache_capacity = 1 << 10;
-        let inode_count = inode_count.unwrap_or(block_count / default_blocks_per_inode);
+        let inode_count = block_count / default_blocks_per_inode;
 
         BlockCache::init(disk, block_count, block_cache_capacity)?;
 

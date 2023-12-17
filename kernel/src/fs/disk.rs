@@ -28,6 +28,8 @@ use ku::{
     time,
 };
 
+use super::block_cache::SECTORS_PER_BLOCK;
+
 /// [PATA](https://en.wikipedia.org/wiki/Parallel_ATA)--диск.
 #[derive(Clone, Copy, Debug, Display)]
 #[display(
@@ -96,6 +98,15 @@ impl Disk {
         Ok(())
     }
 
+    /// Количество блоков файловой системы, которые вмещает диск.
+    pub(super) fn block_count(&self) -> Result<usize> {
+        unsafe { self.send_command(Command::READ_NATIVE_MAX_ADDRESS, LBA)? };
+
+        let max_sector_number = self.read_sector_number();
+
+        Ok((max_sector_number + 1) / SECTORS_PER_BLOCK)
+    }
+
     /// Записывает на диск диапазон секторов `sectors` размера [`SECTOR_SIZE`]
     /// из буфера `buffer` методом
     /// [программного ввода--вывода](https://en.wikipedia.org/wiki/Programmed_input%E2%80%93output).
@@ -162,12 +173,11 @@ impl Disk {
 
     /// Читает из регистров контроллера номер сектора.
     fn read_sector_number(&self) -> usize {
-        unsafe {
-            size::from(io::inb(self.io_port + 3)) |
-                (size::from(io::inb(self.io_port + 4)) << 8) |
-                (size::from(io::inb(self.io_port + 5)) << 16) |
-                (size::from(io::inb(self.io_port + 6) & 0xF) << 24)
-        }
+        self.sector_number_ports()
+            .rev()
+            .map(|port| unsafe { io::inb(port) })
+            .fold(0, |sector_number, x| (sector_number << 8) | size::from(x)) &
+            SECTOR_NUMBER_MASK
     }
 
     /// Записывает в регистры контроллера номер сектора.
@@ -175,15 +185,14 @@ impl Disk {
         &self,
         sector: usize,
     ) {
-        assert!(sector < (1 << 24));
+        assert_eq!((sector & !SECTOR_NUMBER_MASK), 0);
 
-        io::outb(self.io_port + 3, sector as u8);
-        io::outb(self.io_port + 4, (sector >> 8) as u8);
-        io::outb(self.io_port + 5, (sector >> 16) as u8);
-        io::outb(
-            self.io_port + 6,
-            RESERVED_SHOULD_BE_ONES | LBA | (self.io_disk << 4) | ((sector >> 24) & 0xF) as u8,
-        );
+        let value = u32::try_from(sector).expect("sector number is too big") |
+            (u32::from(RESERVED_SHOULD_BE_ONES | LBA | (self.io_disk << 4)) << 24);
+
+        for (port, x) in self.sector_number_ports().zip(value.to_le_bytes()) {
+            io::outb(port, x);
+        }
     }
 
     /// Ожидает готовности диска к приёму команды.
@@ -251,6 +260,11 @@ impl Disk {
     fn io_disk(id: u8) -> u8 {
         id % 2
     }
+
+    /// Возвращает диапазон портов, которые предназначены для чтения или записи номера сектора.
+    fn sector_number_ports(&self) -> Range<u16> {
+        (self.io_port + 3) .. (self.io_port + 7)
+    }
 }
 
 /// Записывает в порт ввода--вывода номер `port` данные из буфера `buffer`.
@@ -304,6 +318,9 @@ bitflags! {
         /// Чтение диапазона секторов с диска.
         const READ = 0x20;
 
+        /// Получение максимального номера сектора диска.
+        const READ_NATIVE_MAX_ADDRESS = 0xF8;
+
         /// Запись диапазона секторов на диск.
         const WRITE = 0x30;
     }
@@ -315,3 +332,17 @@ const LBA: u8 = 1 << 6;
 
 /// Зарезервированные биты, которые должны быть выставлены в `1`.
 const RESERVED_SHOULD_BE_ONES: u8 = (1 << 5) | (1 << 7);
+
+/// Маска значащих бит в номере сектора.
+const SECTOR_NUMBER_MASK: usize = (1 << 28) - 1;
+
+#[doc(hidden)]
+pub mod test_scaffolding {
+    use ku::error::Result;
+
+    use super::Disk;
+
+    pub fn block_count(disk: usize) -> Result<usize> {
+        Disk::new(disk)?.block_count()
+    }
+}

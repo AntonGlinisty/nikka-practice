@@ -8,8 +8,6 @@ use alloc::{
 };
 use core::str;
 
-use ku::memory::size::MiB;
-
 use kernel::{
     Subsystems,
     fs::{
@@ -27,7 +25,7 @@ init!(Subsystems::MEMORY);
 
 #[test_case]
 fn fs() {
-    FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
+    FileSystem::format(FS_DISK).unwrap();
     let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
 
     test_list(&mut fs, &[]);
@@ -191,7 +189,6 @@ const FILE_1_ZERO_COUNT: usize = 5678;
 const FILE_2_FINAL_ZERO_COUNT: usize = 9876;
 const FILE_2_INITIAL_ZERO_COUNT: usize = 1234;
 const FS_DISK: usize = 1;
-const FS_SIZE: usize = 32 * MiB;
 const POSSIBLE_HOLE_SIZE: usize = FILE_1_ZERO_COUNT.next_multiple_of(BLOCK_SIZE) +
     FILE_2_FINAL_ZERO_COUNT.next_multiple_of(BLOCK_SIZE);
 const RESOLVE_CACHE_SIZE: usize = 5;

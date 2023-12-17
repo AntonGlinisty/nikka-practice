@@ -53,6 +53,7 @@ pub mod test_scaffolding {
     pub use super::{
         bitmap::test_scaffolding::*,
         block_cache::test_scaffolding::*,
+        disk::test_scaffolding::*,
         file_system::test_scaffolding::*,
         inode::test_scaffolding::*,
         superblock::test_scaffolding::*,

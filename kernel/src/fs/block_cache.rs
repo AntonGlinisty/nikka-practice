@@ -194,7 +194,7 @@ lazy_static! {
 }
 
 /// Количество секторов диска в одном блоке файловой системы.
-const SECTORS_PER_BLOCK: usize = BLOCK_SIZE / SECTOR_SIZE;
+pub(super) const SECTORS_PER_BLOCK: usize = BLOCK_SIZE / SECTOR_SIZE;
 
 #[doc(hidden)]
 pub mod test_scaffolding {

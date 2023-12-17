@@ -14,10 +14,7 @@ use ku::{
         NotDirectory,
         NotFile,
     },
-    memory::size::{
-        MiB,
-        Size,
-    },
+    memory::size::Size,
 };
 
 use kernel::{
@@ -42,7 +39,7 @@ init!(Subsystems::MEMORY);
 
 #[test_case]
 fn basic_operations() {
-    FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
+    FileSystem::format(FS_DISK).unwrap();
     let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
     let directory = make_file(&mut fs, Kind::Directory);
 
@@ -112,7 +109,7 @@ fn basic_operations() {
 
 #[test_case]
 fn big_directory() {
-    FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
+    FileSystem::format(FS_DISK).unwrap();
     let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
     let directory = make_file(&mut fs, Kind::Directory);
 
@@ -140,7 +137,7 @@ fn big_directory() {
 
 #[test_case]
 fn max_name_len() {
-    FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
+    FileSystem::format(FS_DISK).unwrap();
     let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
     let directory = make_file(&mut fs, Kind::Directory);
 
@@ -168,5 +165,4 @@ fn max_name_len() {
 
 const CACHE_BLOCK_COUNT: usize = 1 << 10;
 const FS_DISK: usize = 1;
-const FS_SIZE: usize = 32 * MiB;
 const RESOLVE_CACHE_SIZE: usize = 5;

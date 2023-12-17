@@ -26,6 +26,7 @@ use kernel::{
         Kind,
         test_scaffolding::{
             BLOCK_SIZE,
+            block_count,
             flush_block,
             make_file,
             remove_file,
@@ -101,8 +102,9 @@ fn block_entry() {
 
 #[test_case]
 fn read_write_speed() {
-    FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
-    let mut fs = FileSystem::mount(FS_DISK, DISK_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
+    FileSystem::format(FS_DISK).unwrap();
+    let block_count = block_count(FS_DISK).unwrap();
+    let mut fs = FileSystem::mount(FS_DISK, block_count, RESOLVE_CACHE_SIZE).unwrap();
     let file = make_file(&mut fs, Kind::File);
 
     let mut buffer = vec![0x77_u8; 10 * MiB];
@@ -175,7 +177,7 @@ fn read_write_speed() {
 
 #[test_case]
 fn write_read() {
-    FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
+    FileSystem::format(FS_DISK).unwrap();
     let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
     let file = make_file(&mut fs, Kind::File);
 
@@ -217,7 +219,7 @@ fn write_read() {
 
 #[test_case]
 fn big_file() {
-    FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
+    FileSystem::format(FS_DISK).unwrap();
     let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
     let file = make_file(&mut fs, Kind::File);
 
@@ -262,7 +264,7 @@ fn big_file() {
 
 #[test_case]
 fn set_size() {
-    FileSystem::format(FS_DISK, FS_SIZE, None).unwrap();
+    FileSystem::format(FS_DISK).unwrap();
     let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
     let file = make_file(&mut fs, Kind::File);
 
@@ -308,7 +310,5 @@ fn set_size() {
 }
 
 const CACHE_BLOCK_COUNT: usize = 1 << 10;
-const DISK_BLOCK_COUNT: usize = FS_SIZE / BLOCK_SIZE;
 const FS_DISK: usize = 1;
-const FS_SIZE: usize = 32 * MiB;
 const RESOLVE_CACHE_SIZE: usize = 5;
