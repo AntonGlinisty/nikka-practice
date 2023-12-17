@@ -20,9 +20,14 @@ use ku::{
         },
         Result,
     },
+    log::{
+        self,
+        Level,
+    },
     memory::{
         Block,
         Virt,
+        size,
     },
     process::{
         ResultCode,
@@ -49,7 +54,7 @@ macro_rules! my_assert {
     }};
     ($condition:expr, $message:expr, $value:expr $(,)?) => {{
         if !$condition {
-            syscall::log_value($message, $value).unwrap();
+            syscall::log_value(Level::ERROR, $message, $value).unwrap();
             generate_page_fault();
         }
     }};
@@ -61,7 +66,14 @@ fn main() {
     let now = time::now();
     let timestamp = now.timestamp().try_into().unwrap();
 
-    my_assert!(syscall::log_value("user space can read the system time", timestamp).is_ok());
+    my_assert!(
+        syscall::log_value(
+            Level::INFO,
+            "user space can read the system time",
+            timestamp,
+        )
+        .is_ok()
+    );
 
     let block = Block::from_index(1, 1);
     my_assert!(block.is_ok(), "the Block::from_index(1, 1) should be ok");
@@ -145,5 +157,7 @@ fn log_something(
     size: usize,
     value: usize,
 ) -> Result<()> {
-    syscall::syscall(Syscall::LogValue, start, size, value, 0, 0).map(|_| ())
+    let level = size::from(u32::from(log::level_into_symbol(&Level::INFO)));
+
+    syscall::syscall(Syscall::LogValue, level, start, size, value, 0).map(|_| ())
 }

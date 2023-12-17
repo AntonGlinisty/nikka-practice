@@ -9,6 +9,7 @@ use core::{
 };
 
 use static_assertions::const_assert;
+use tracing_core::Level;
 
 use ku::{
     error::{
@@ -17,11 +18,13 @@ use ku::{
     },
     info,
     info::ProcessInfo,
+    log,
     memory::{
         Block,
         Page,
         Virt,
         mmu::PageTableFlags,
+        size,
     },
     process::{
         Pid,
@@ -51,6 +54,7 @@ pub fn exit(code: usize) -> ! {
 ///
 /// Записывает в журнал строку `message` и число `value`.
 pub fn log_value(
+    level: Level,
     message: &str,
     value: usize,
 ) -> Result<()> {
@@ -58,10 +62,10 @@ pub fn log_value(
 
     syscall(
         Syscall::LogValue,
+        size::from(u32::from(log::level_into_symbol(&level))),
         block.start_address().into_usize(),
         block.size(),
         value,
-        0,
         0,
     )
     .map(|_| ())

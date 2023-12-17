@@ -12,7 +12,10 @@ use heapless::{
 
 use ku::{
     error::Result,
-    log::info,
+    log::{
+        Level,
+        info,
+    },
     memory::{
         Block,
         Page,
@@ -33,6 +36,7 @@ use ku::{
         ExitCode,
         Info,
         Pid,
+        ResultCode,
         State,
         TrapInfo,
     },

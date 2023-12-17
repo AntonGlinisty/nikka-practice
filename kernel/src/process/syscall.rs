@@ -13,6 +13,11 @@ use x86_64::registers::model_specific::{
 };
 
 use ku::{
+    log::{
+        self,
+        Level,
+        event,
+    },
     process::{
         ExitCode,
         MiniContext,
@@ -183,6 +188,7 @@ fn exit(
 #[allow(unused_mut)] // TODO: remove before flight.
 fn log_value(
     mut process: SpinlockGuard<Process>,
+    level: usize,
     start: usize,
     len: usize,
     value: usize,
@@ -578,11 +584,12 @@ pub mod test_scaffolding {
 
     pub fn log_value(
         process: SpinlockGuard<Process>,
+        level: usize,
         start: usize,
         len: usize,
         value: usize,
     ) -> Result<SyscallResult> {
-        super::log_value(process, start, len, value)
+        super::log_value(process, level, start, len, value)
     }
 
     pub fn exofork(process: SpinlockGuard<Process>) -> Result<SyscallResult> {

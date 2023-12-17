@@ -21,7 +21,6 @@ use tracing::{
     Collect,
     Event,
     Id,
-    Level,
     Metadata,
     field::{
         Field,
@@ -49,8 +48,10 @@ use super::{
 };
 
 pub use tracing::{
+    Level,
     debug,
     error,
+    event,
     info,
     trace,
     warn,
@@ -705,7 +706,7 @@ pub const fn level_into_symbol(level: &Level) -> char {
 
 /// Переводит символ уровня журналирования `level` в соответствующий уровень.
 /// Возвращает ошибку [`Error::InvalidArgument`], если символу не соответствует никакой уровень.
-const fn level_try_from_symbol(level: char) -> Result<Level> {
+pub const fn level_try_from_symbol(level: char) -> Result<Level> {
     match level {
         'E' => Ok(Level::ERROR),
         'W' => Ok(Level::WARN),

@@ -5,9 +5,14 @@ use ku::{
         Overflow,
         PermissionDenied,
     },
+    log::{
+        self,
+        Level,
+    },
     memory::{
         Block,
         mmu::USER_RW,
+        size,
     },
     process::Pid,
     sync::spinlock::Spinlock,
@@ -35,10 +40,13 @@ fn log_value_implementation() {
     set_pid(&mut process.lock(), Pid::new(0));
     switch_to(process.lock().address_space());
 
+    let info = size::from(u32::from(log::level_into_symbol(&Level::INFO)));
+
     let block = Block::from_slice("some kernel memory".as_bytes());
     assert_eq!(
         log_value(
             process.lock(),
+            info,
             block.start_address().into_usize(),
             block.size(),
             0,
@@ -58,17 +66,21 @@ fn log_value_implementation() {
     let block = Block::from_slice(user_memory);
     let result = log_value(
         process.lock(),
+        info,
         block.start_address().into_usize(),
         pi.len(),
         3141592653589793238,
     );
     assert!(result.is_ok(), "expected Ok(_), got {result:?}");
 
-    assert!(log_value(process.lock(), 1, 0, 0).is_ok());
+    assert!(log_value(process.lock(), info, 1, 0, 0).is_ok());
 
-    assert_eq!(log_value(process.lock(), 1, 1, 0), Err(PermissionDenied));
+    assert_eq!(
+        log_value(process.lock(), info, 1, 1, 0),
+        Err(PermissionDenied),
+    );
 
-    let result = log_value(process.lock(), 0, 0, 0);
+    let result = log_value(process.lock(), info, 0, 0, 0);
     assert!(
         result.is_err(),
         "expected Err(InvalidArgument) or Err(Null), got Ok",
@@ -84,6 +96,7 @@ fn log_value_implementation() {
     assert_eq!(
         log_value(
             process.lock(),
+            info,
             block.start_address().into_usize(),
             invalid_utf8.len(),
             0,
@@ -95,7 +108,7 @@ fn log_value_implementation() {
         (0x1_0000, 0xFFFF_FFFF_0000_0000),
         (0xFFFF_FFFF_FFFF_0000, 0x10_0000),
     ] {
-        let result = log_value(process.lock(), address, size, 0);
+        let result = log_value(process.lock(), info, address, size, 0);
         assert!(
             result == Err(InvalidArgument) || result == Err(Overflow),
             "expected Err(InvalidArgument) or Err(Overflow), got {result:?}",

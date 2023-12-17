@@ -13,7 +13,10 @@ use core::{
 };
 
 use ku::{
-    log::info,
+    log::{
+        Level,
+        info,
+    },
     memory::{
         Block,
         Page,
@@ -46,7 +49,7 @@ macro_rules! my_assert {
     }};
     ($condition:expr, $message:expr, $value:expr $(,)?) => {{
         if !$condition {
-            syscall::log_value($message, $value).unwrap();
+            syscall::log_value(Level::ERROR, $message, $value).unwrap();
             generate_page_fault();
         }
     }};
@@ -88,6 +91,7 @@ fn recursive_trap_handler(info: &TrapInfo) {
     if let Info::PageFault { address, .. } = info.info() {
         if address == Virt::from_ptr(NonNull::<u8>::dangling().as_ptr()) {
             log(
+                Level::ERROR,
                 "an assertion has failed, hang up the test ##################################",
                 address.into_usize(),
             );
@@ -97,10 +101,15 @@ fn recursive_trap_handler(info: &TrapInfo) {
         }
 
         let recursion_level = (address.into_usize() % Page::SIZE) / mem::size_of::<usize>();
-        log("recursive page fault at level", recursion_level);
+        log(
+            Level::INFO,
+            "recursive page fault at level",
+            recursion_level,
+        );
 
         if recursion_level > MAX_RECURSION_LEVEL {
             log(
+                Level::ERROR,
                 "trap handler stack overflow, hang up the test ##################################",
                 recursion_level,
             );
@@ -112,6 +121,7 @@ fn recursive_trap_handler(info: &TrapInfo) {
         if recursion_level == MAX_RECURSION_LEVEL {
             let trap_stack = map_pages(0, TRAP_STACK_PAGES);
             log(
+                Level::INFO,
                 "setting the simple trap handler from the recursive trap handler, new trap_stack \
                  rsp",
                 trap_stack.end_address().unwrap().into_usize(),
@@ -126,7 +136,7 @@ fn recursive_trap_handler(info: &TrapInfo) {
             slice[0] = slice[1] + 1;
         }
     } else {
-        log("unexpected trap number", info.number());
+        log(Level::ERROR, "unexpected trap number", info.number());
         my_assert!(false);
     }
 }
@@ -135,6 +145,7 @@ fn simple_trap_handler(info: &TrapInfo) {
     if let Info::PageFault { address, code } = info.info() {
         if address == Virt::from_ptr(NonNull::<u8>::dangling().as_ptr()) {
             log(
+                Level::ERROR,
                 "an assertion has failed, hang up the test ##################################",
                 address.into_usize(),
             );
@@ -144,6 +155,7 @@ fn simple_trap_handler(info: &TrapInfo) {
         }
 
         log(
+            Level::INFO,
             "trap handler called for a page fault on an address",
             address.into_usize(),
         );
@@ -154,7 +166,7 @@ fn simple_trap_handler(info: &TrapInfo) {
         let block = map_pages(page_index, 1);
         fill_block(block, TRAP_HANDLER_VALUE);
     } else {
-        log("unexpected trap number", info.number());
+        log(Level::ERROR, "unexpected trap number", info.number());
         my_assert!(false);
     }
 }
@@ -183,10 +195,11 @@ fn fill_block(
 }
 
 fn log(
+    level: Level,
     message: &str,
     value: usize,
 ) {
-    my_assert!(syscall::log_value(message, value).is_ok());
+    my_assert!(syscall::log_value(level, message, value).is_ok());
 }
 
 fn generate_page_fault() -> ! {
