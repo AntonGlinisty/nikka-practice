@@ -1,16 +1,23 @@
-use lazy_static::lazy_static;
-use spin::Mutex;
+use core::{
+    arch::asm,
+    mem,
+};
+
 use x86_64::registers::control::Cr2;
 
 use ku::{
+    backtrace::Backtrace,
     memory::{
         PageFaultInfo,
         Virt,
-        size,
     },
     process::{
         Info,
         Pid,
+    },
+    sync::{
+        self,
+        Spinlock,
     },
 };
 
@@ -24,7 +31,6 @@ use crate::{
     log::{
         error,
         info,
-        trace,
     },
     process::{
         ModeContext,
@@ -34,29 +40,115 @@ use crate::{
     smp::Cpu,
 };
 
-#[derive(PartialEq)]
-enum Fatal {
-    Yes,
-    No,
+/// A helper to generate the code for exception handlers.
+macro_rules! exception_with_error_code {
+    ($name:ident, $number:expr $(,)?) => {
+        #[naked]
+        extern "C" fn $name() {
+            unsafe {
+                core::arch::asm!(
+                    "
+                push {number}
+                jmp {trap_trampoline}
+                    ",
+
+                    number = const $number,
+                    trap_trampoline = sym crate::trap::handler::trap_trampoline,
+
+                    options(noreturn),
+                )
+            }
+        }
+    };
+
+    ($idt: ident, $name:ident, $number:expr $(,)?) => {
+        exception_with_error_code!($name, $number);
+        $idt[$number].set_trap_handler($name);
+    };
+
+    ($idt: ident, $name:ident, $number:expr, $stack:expr $(,)?) => {
+        exception_with_error_code!($name, $number);
+        $idt[$number]
+            .set_trap_handler($name)
+            .set_stack_index($stack);
+    };
 }
+
+pub(super) use exception_with_error_code;
+
+/// A helper to generate the code for exception handlers.
+macro_rules! exception_without_error_code {
+    ($name:ident, $number:expr $(,)?) => {
+        #[naked]
+        extern "C" fn $name() {
+            unsafe {
+                core::arch::asm!(
+                    "
+                push {error_code}
+                push {number}
+                jmp {trap_trampoline}
+                    ",
+
+                    error_code = const 0,
+                    number = const $number,
+                    trap_trampoline = sym crate::trap::handler::trap_trampoline,
+
+                    options(noreturn),
+                )
+            }
+        }
+    };
+
+    ($idt: ident, $name:ident, $number:expr $(,)?) => {
+        exception_without_error_code!($name, $number);
+        $idt[$number].set_trap_handler($name);
+    };
+}
+
+pub(super) use exception_without_error_code;
 
 /// Общий обработчик исключений и прерываний.
 ///
+/// - `number` --- номер прерывания, также определяет фатальность исключения.
+/// - `error_code` --- дополнительная информация для некоторых исключений процессора.
 /// - `context` --- контекст в котором возникло прерывание.
-/// - `number` --- номер прерывания.
-/// - `info` --- дополнительная информация для некоторых исключений процессора.
-/// - `fatal` --- фатально ли исключение.
+/// - `rpb` --- значение регистра `rbp` в контексте прерывания для построения [`Backtrace`].
+///
 /// Если фатальное исключение вызвал процесс, то он будет остановлен и удалён.
 /// Если фатальное исключение вызвало ядро, оно запаникует.
-fn generic_trap(
-    context: &mut TrapContext,
-    number: usize,
-    info: Info,
-    fatal: Fatal,
+extern "C" fn generic_trap(
+    number: usize,             // rdi
+    error_code: usize,         // rsi
+    context: &mut TrapContext, // rdx
+    rbp: usize,                // rcx
 ) {
-    trace!(trap = TRAP_STATS[number].name(), %context, %info);
+    if number == super::DOUBLE_FAULT {
+        static STOP_ALL_CPUS: Spinlock<()> = Spinlock::new(());
+
+        mem::forget(STOP_ALL_CPUS.lock());
+        sync::start_panicking();
+    }
 
     TRAP_STATS[number].inc();
+
+    let fatal = number != super::BREAKPOINT && number != super::OVERFLOW;
+
+    let info = match number {
+        super::ALIGNMENT_CHECK |
+        super::DOUBLE_FAULT |
+        super::GENERAL_PROTECTION_FAULT |
+        super::INVALID_TSS |
+        super::SECURITY_EXCEPTION |
+        super::SEGMENT_NOT_PRESENT |
+        super::STACK_SEGMENT_FAULT => Info::Code(error_code),
+
+        super::PAGE_FAULT => Info::PageFault {
+            address: Cr2::read().into(),
+            code: PageFaultInfo::from_bits_truncate(error_code),
+        },
+
+        _ => Info::None,
+    };
 
     if context.is_user_mode() {
         let pid = Cpu::current_process().expect("user mode without a process");
@@ -80,7 +172,7 @@ fn generic_trap(
             "user mode trap",
         );
 
-        if fatal == Fatal::Yes {
+        if fatal {
             Table::free(process);
             Process::sched_yield();
         }
@@ -91,226 +183,82 @@ fn generic_trap(
             Err(error) => error!(?error, "failed to handle a page fault in the block cache"),
         }
 
-        if fatal == Fatal::Yes {
+        let rsp = context.get().mini_context().rsp().into_usize();
+        let backtrace = Backtrace::new(rbp, rsp).unwrap_or_default();
+
+        if fatal {
             panic!(
-                "kernel mode trap #{} - {}, context: {}, info: {}",
+                "kernel mode trap #{} - {}, context: {}, info: {}, backtrace: {}",
                 number,
                 TRAP_STATS[number].name(),
                 context,
                 info,
+                backtrace,
             );
         } else {
             error!(
                 trap = TRAP_STATS[number].name(),
                 number,
-                %info,
                 %context,
+                %info,
+                %backtrace,
                 "kernel mode trap",
             );
         }
     }
 }
 
-/// [Exceptions: Division Error](https://wiki.osdev.org/Exception#Division_Error)
-pub(super) extern "x86-interrupt" fn divide_error(mut context: TrapContext) {
-    generic_trap(&mut context, super::DIVIDE_ERROR, Info::None, Fatal::Yes);
-}
+/// Общий трамплин для всех исключений процессора.
+#[naked]
+pub(super) extern "C" fn trap_trampoline() {
+    unsafe {
+        asm!(
+            "
+        // System V ABI for x86-64 caller-saved registers.
+        push rax
+        push rcx
+        push rdx
+        push rsi
+        push rdi
+        push r8
+        push r9
+        push r10
+        push r11
 
-/// [Exceptions: Debug](https://wiki.osdev.org/Exception#Debug)
-pub(super) extern "x86-interrupt" fn debug(mut context: TrapContext) {
-    generic_trap(&mut context, super::DEBUG, Info::None, Fatal::Yes);
-}
+        // The trap number is right above the caller-saved registers.
+        mov rdi, [rsp + {caller_saved_registers_size}]
 
-/// [Non-maskable interrupt](https://en.wikipedia.org/wiki/Non-maskable_interrupt),
-/// [Exceptions: Non-maskable interrupt](https://wiki.osdev.org/Non_Maskable_Interrupt)
-pub(super) extern "x86-interrupt" fn non_maskable_interrupt(mut context: TrapContext) {
-    generic_trap(
-        &mut context,
-        super::NON_MASKABLE_INTERRUPT,
-        Info::None,
-        Fatal::Yes,
-    );
-}
+        // Next is the error code.
+        mov rsi, [rsp + {caller_saved_registers_size} + {trap_number_size}]
 
-/// [Exceptions: Breakpoint](https://wiki.osdev.org/Exception#Breakpoint)
-pub(super) extern "x86-interrupt" fn breakpoint(mut context: TrapContext) {
-    generic_trap(&mut context, super::BREAKPOINT, Info::None, Fatal::No);
-}
+        // Next is the interrupt context.
+        lea rdx, [rsp + {caller_saved_registers_size} + {trap_number_size} + {error_code_size}]
 
-/// [Exceptions: Overflow](https://wiki.osdev.org/Exception#Overflow)
-pub(super) extern "x86-interrupt" fn overflow(mut context: TrapContext) {
-    generic_trap(&mut context, super::OVERFLOW, Info::None, Fatal::No);
-}
+        mov rcx, rbp
 
-/// [Exceptions: Bound Range Exceeded](https://wiki.osdev.org/Exception#Bound_Range_Exceeded)
-pub(super) extern "x86-interrupt" fn bound_range_exceeded(mut context: TrapContext) {
-    generic_trap(
-        &mut context,
-        super::BOUND_RANGE_EXCEEDED,
-        Info::None,
-        Fatal::Yes,
-    );
-}
+        call {generic_trap}
 
-/// [Exceptions: Invalid Opcode](https://wiki.osdev.org/Exception#Invalid_Opcode)
-pub(super) extern "x86-interrupt" fn invalid_opcode(mut context: TrapContext) {
-    generic_trap(&mut context, super::INVALID_OPCODE, Info::None, Fatal::Yes);
-}
+        pop r11
+        pop r10
+        pop r9
+        pop r8
+        pop rdi
+        pop rsi
+        pop rdx
+        pop rcx
+        pop rax
 
-/// [Exceptions: Device Not Available](https://wiki.osdev.org/Exception#Device_Not_Available)
-pub(super) extern "x86-interrupt" fn device_not_available(mut context: TrapContext) {
-    generic_trap(
-        &mut context,
-        super::DEVICE_NOT_AVAILABLE,
-        Info::None,
-        Fatal::Yes,
-    );
-}
+        add rsp, {trap_number_size} + {error_code_size}
 
-/// [Double Fault](https://en.wikipedia.org/wiki/Double_fault),
-/// [Exceptions: Double Fault](https://wiki.osdev.org/Exception#Double_Fault)
-pub(super) extern "x86-interrupt" fn double_fault(
-    mut context: TrapContext,
-    error_code: u64,
-) {
-    lazy_static! {
-        static ref STOP_ALL_CPUS: Mutex<()> = Mutex::new(());
+        iretq
+            ",
+
+            caller_saved_registers_size = const 9 * mem::size_of::<usize>(),
+            error_code_size = const mem::size_of::<usize>(),
+            generic_trap = sym generic_trap,
+            trap_number_size = const mem::size_of::<usize>(),
+
+            options(noreturn),
+        )
     }
-
-    let _ = STOP_ALL_CPUS.lock();
-
-    generic_trap(
-        &mut context,
-        super::DOUBLE_FAULT,
-        Info::Code(error_code),
-        Fatal::Yes,
-    );
-    unreachable!();
-}
-
-/// [Exceptions: Invalid TSS](https://wiki.osdev.org/Exception#Invalid_TSS)
-pub(super) extern "x86-interrupt" fn invalid_tss(
-    mut context: TrapContext,
-    error_code: u64,
-) {
-    generic_trap(
-        &mut context,
-        super::INVALID_TSS,
-        Info::Code(error_code),
-        Fatal::Yes,
-    );
-}
-
-/// [Exceptions: Segment Not Present](https://wiki.osdev.org/Exception#Segment_Not_Present)
-pub(super) extern "x86-interrupt" fn segment_not_present(
-    mut context: TrapContext,
-    error_code: u64,
-) {
-    generic_trap(
-        &mut context,
-        super::SEGMENT_NOT_PRESENT,
-        Info::Code(error_code),
-        Fatal::Yes,
-    );
-}
-
-/// [Exceptions: Stack-Segment Fault](https://wiki.osdev.org/Exception#Stack-Segment_Fault)
-pub(super) extern "x86-interrupt" fn stack_segment_fault(
-    mut context: TrapContext,
-    error_code: u64,
-) {
-    generic_trap(
-        &mut context,
-        super::STACK_SEGMENT_FAULT,
-        Info::Code(error_code),
-        Fatal::Yes,
-    );
-}
-
-/// [General Protection Fault](https://en.wikipedia.org/wiki/General_protection_fault)
-/// [Exceptions: General Protection Fault](https://wiki.osdev.org/Exception#General_Protection_Fault)
-pub(super) extern "x86-interrupt" fn general_protection_fault(
-    mut context: TrapContext,
-    error_code: u64,
-) {
-    generic_trap(
-        &mut context,
-        super::GENERAL_PROTECTION_FAULT,
-        Info::Code(error_code),
-        Fatal::Yes,
-    );
-}
-
-/// [Page Fault](https://en.wikipedia.org/wiki/Page_fault),
-/// [Exceptions: Page Fault](https://wiki.osdev.org/Exception#Page_Fault)
-pub(super) extern "x86-interrupt" fn page_fault(
-    mut context: TrapContext,
-    error_code: u64,
-) {
-    generic_trap(
-        &mut context,
-        super::PAGE_FAULT,
-        Info::PageFault {
-            address: Cr2::read().into(),
-            code: PageFaultInfo::from_bits_truncate(size::from(error_code)),
-        },
-        Fatal::Yes,
-    );
-}
-
-/// [Exceptions: x87 Floating-Point Exception](https://wiki.osdev.org/Exception#x87_Floating-Point_Exception)
-pub(super) extern "x86-interrupt" fn x87_floating_point(mut context: TrapContext) {
-    generic_trap(
-        &mut context,
-        super::X87_FLOATING_POINT,
-        Info::None,
-        Fatal::Yes,
-    );
-}
-
-/// [Exceptions: Alignment Check](https://wiki.osdev.org/Exception#Alignment_Check)
-pub(super) extern "x86-interrupt" fn alignment_check(
-    mut context: TrapContext,
-    error_code: u64,
-) {
-    generic_trap(
-        &mut context,
-        super::ALIGNMENT_CHECK,
-        Info::Code(error_code),
-        Fatal::Yes,
-    );
-}
-
-/// [Machine-check exception](https://en.wikipedia.org/wiki/Machine-check_exception),
-/// [Exceptions: Machine Check](https://wiki.osdev.org/Exception#Machine_Check)
-pub(super) extern "x86-interrupt" fn machine_check(mut context: TrapContext) {
-    generic_trap(&mut context, super::MACHINE_CHECK, Info::None, Fatal::Yes);
-}
-
-/// [Exceptions: SIMD Floating-Point Exception](https://wiki.osdev.org/Exception#SIMD_Floating-Point_Exception)
-pub(super) extern "x86-interrupt" fn simd_floating_point(mut context: TrapContext) {
-    generic_trap(
-        &mut context,
-        super::SIMD_FLOATING_POINT,
-        Info::None,
-        Fatal::Yes,
-    );
-}
-
-/// [Exceptions: Security Exception](https://wiki.osdev.org/Exception#Security_Exception)
-pub(super) extern "x86-interrupt" fn virtualization(mut context: TrapContext) {
-    generic_trap(&mut context, super::VIRTUALIZATION, Info::None, Fatal::Yes);
-}
-
-/// [Exceptions: Security Exception](https://wiki.osdev.org/Exception#Security_Exception)
-pub(super) extern "x86-interrupt" fn security_exception(
-    mut context: TrapContext,
-    error_code: u64,
-) {
-    generic_trap(
-        &mut context,
-        super::SECURITY_EXCEPTION,
-        Info::Code(error_code),
-        Fatal::Yes,
-    );
 }

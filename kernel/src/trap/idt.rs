@@ -26,7 +26,10 @@ use super::{
     COUNT,
     TrapContext,
     apic,
-    handler,
+    handler::{
+        exception_with_error_code,
+        exception_without_error_code,
+    },
     pic,
 };
 
@@ -39,34 +42,38 @@ impl Idt {
         let mut idt = [IdtEntry::missing(); COUNT];
 
         unsafe {
-            idt[super::DOUBLE_FAULT]
-                .set_handler_with_error(handler::double_fault)
-                .set_stack_index(DOUBLE_FAULT_IST_INDEX);
+            exception_with_error_code!(
+                idt,
+                double_fault,
+                super::DOUBLE_FAULT,
+                DOUBLE_FAULT_IST_INDEX,
+            );
 
-            idt[super::PAGE_FAULT]
-                .set_handler_with_error(handler::page_fault)
-                .set_stack_index(PAGE_FAULT_IST_INDEX);
+            exception_with_error_code!(idt, page_fault, super::PAGE_FAULT, PAGE_FAULT_IST_INDEX);
         }
 
-        idt[super::DIVIDE_ERROR].set_handler(handler::divide_error);
-        idt[super::DEBUG].set_handler(handler::debug);
-        idt[super::NON_MASKABLE_INTERRUPT].set_handler(handler::non_maskable_interrupt);
-        idt[super::BREAKPOINT].set_handler(handler::breakpoint);
-        idt[super::OVERFLOW].set_handler(handler::overflow);
-        idt[super::BOUND_RANGE_EXCEEDED].set_handler(handler::bound_range_exceeded);
-        idt[super::INVALID_OPCODE].set_handler(handler::invalid_opcode);
-        idt[super::DEVICE_NOT_AVAILABLE].set_handler(handler::device_not_available);
-        idt[super::INVALID_TSS].set_handler_with_error(handler::invalid_tss);
-        idt[super::SEGMENT_NOT_PRESENT].set_handler_with_error(handler::segment_not_present);
-        idt[super::STACK_SEGMENT_FAULT].set_handler_with_error(handler::stack_segment_fault);
-        idt[super::GENERAL_PROTECTION_FAULT]
-            .set_handler_with_error(handler::general_protection_fault);
-        idt[super::X87_FLOATING_POINT].set_handler(handler::x87_floating_point);
-        idt[super::ALIGNMENT_CHECK].set_handler_with_error(handler::alignment_check);
-        idt[super::MACHINE_CHECK].set_handler(handler::machine_check);
-        idt[super::SIMD_FLOATING_POINT].set_handler(handler::simd_floating_point);
-        idt[super::VIRTUALIZATION].set_handler(handler::virtualization);
-        idt[super::SECURITY_EXCEPTION].set_handler_with_error(handler::security_exception);
+        exception_without_error_code!(idt, divide_error, super::DIVIDE_ERROR);
+        exception_without_error_code!(idt, debug, super::DEBUG);
+        exception_without_error_code!(idt, non_maskable_interrupt, super::NON_MASKABLE_INTERRUPT);
+        exception_without_error_code!(idt, breakpoint, super::BREAKPOINT);
+        exception_without_error_code!(idt, overflow, super::OVERFLOW);
+        exception_without_error_code!(idt, bound_range_exceeded, super::BOUND_RANGE_EXCEEDED);
+        exception_without_error_code!(idt, invalid_opcode, super::INVALID_OPCODE);
+        exception_without_error_code!(idt, device_not_available, super::DEVICE_NOT_AVAILABLE);
+        exception_with_error_code!(idt, invalid_tss, super::INVALID_TSS);
+        exception_with_error_code!(idt, segment_not_present, super::SEGMENT_NOT_PRESENT);
+        exception_with_error_code!(idt, stack_segment_fault, super::STACK_SEGMENT_FAULT);
+        exception_with_error_code!(
+            idt,
+            general_protection_fault,
+            super::GENERAL_PROTECTION_FAULT,
+        );
+        exception_without_error_code!(idt, x87_floating_point, super::X87_FLOATING_POINT);
+        exception_with_error_code!(idt, alignment_check, super::ALIGNMENT_CHECK);
+        exception_without_error_code!(idt, machine_check, super::MACHINE_CHECK);
+        exception_without_error_code!(idt, simd_floating_point, super::SIMD_FLOATING_POINT);
+        exception_without_error_code!(idt, virtualization, super::VIRTUALIZATION);
+        exception_with_error_code!(idt, security_exception, super::SECURITY_EXCEPTION);
 
         idt[super::PIT].set_handler(pic::pit);
         idt[super::KEYBOARD].set_handler(pic::keyboard);
@@ -124,19 +131,18 @@ impl IdtEntry {
         Self(Entry::missing())
     }
 
-    /// Устанавливает обработчик `handler` исключения или прерывания.
-    fn set_handler(
+    /// Устанавливает обработчик `handler` исключения процессора.
+    fn set_trap_handler(
         &mut self,
-        handler: extern "x86-interrupt" fn(TrapContext),
+        handler: extern "C" fn(),
     ) -> &mut EntryOptions {
         unsafe { self.0.set_handler_addr(VirtAddr::from_ptr(handler as *const ())) }
     }
 
-    /// Устанавливает обработчик `handler` исключения,
-    /// для которого процессор сохраняет дополнительный код ошибки.
-    fn set_handler_with_error(
+    /// Устанавливает обработчик `handler` прерывания.
+    fn set_handler(
         &mut self,
-        handler: extern "x86-interrupt" fn(TrapContext, u64),
+        handler: extern "x86-interrupt" fn(TrapContext),
     ) -> &mut EntryOptions {
         unsafe { self.0.set_handler_addr(VirtAddr::from_ptr(handler as *const ())) }
     }

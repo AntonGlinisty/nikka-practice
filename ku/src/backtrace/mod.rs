@@ -56,7 +56,7 @@ pub use callsite::Callsite;
 ///         "--codegen", "relocation-model=dynamic-no-pic",
 ///     ]
 /// ```
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct Backtrace {
     /// Адрес, ниже которого не может быть расположен внешний фрейм, --- стек растёт вниз.
     /// Снижает вероятность некорректного обращения к памяти
@@ -75,6 +75,26 @@ pub struct Backtrace {
 }
 
 impl Backtrace {
+    /// Возвращает трассировку стека по значениям регистров `rbp` и `rsp`.
+    ///
+    /// Мы указываем компилятору выполнить встраивание этой функции,
+    /// чтобы не порождать дополнительный стековый фрейм под её вызов и не захламлять трассировку стека.
+    /// В результате, функция вызвавшая [`Backtrace::current()`], в него не попадёт.
+    #[inline(always)]
+    pub fn new(
+        rbp: usize,
+        rsp: usize,
+    ) -> Result<Self> {
+        let lower_limit = Virt::new(rsp)?;
+        let stack = Block::from_index(rbp, rbp + 1)?.enclosing().into();
+
+        Ok(Self {
+            lower_limit,
+            stack,
+            stack_frame: StackFrame::new(rbp)?,
+        })
+    }
+
     /// Возвращает трассировку текущего стека.
     ///
     /// Мы указываем компилятору выполнить встраивание этой функции,
@@ -82,23 +102,16 @@ impl Backtrace {
     /// В результате, функция вызвавшая [`Backtrace::current()`], в него не попадёт.
     #[inline(always)]
     pub fn current() -> Result<Self> {
-        let lower_limit: usize;
+        let rsp: usize;
         unsafe {
             asm!(
                 "mov {0}, rsp",
-                out(reg) lower_limit,
+                out(reg) rsp,
                 options(nostack, nomem),
             );
         }
 
-        let stack_frame = rbp();
-        let stack = Block::from_index(stack_frame, stack_frame + 1)?.enclosing().into();
-
-        Ok(Self {
-            lower_limit: Virt::new(lower_limit)?,
-            stack,
-            stack_frame: StackFrame::current()?,
-        })
+        Self::new(rbp(), rsp)
     }
 
     /// Возвращает трассировку текущего стека.
@@ -171,14 +184,22 @@ pub struct StackFrame {
 }
 
 impl StackFrame {
+    /// Возвращает стековый фрейм по значению регистра `rbp`.
+    ///
+    /// Мы указываем компилятору выполнить встраивание этой функции,
+    /// чтобы не порождать дополнительный стековый фрейм под её вызов и не захламлять трассировку стека.
+    #[inline(always)]
+    pub fn new(rbp: usize) -> Result<Self> {
+        Self::validate(rbp)
+    }
+
     /// Возвращает текущий стековый фрейм.
     ///
     /// Мы указываем компилятору выполнить встраивание этой функции,
     /// чтобы не порождать дополнительный стековый фрейм под её вызов и не захламлять трассировку стека.
     #[inline(always)]
     pub fn current() -> Result<Self> {
-        let stack_frame = rbp();
-        Self::validate(stack_frame)
+        Self::new(rbp())
     }
 
     /// Адрес возврата в вызвавшую функцию.
