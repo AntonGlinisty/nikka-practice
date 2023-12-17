@@ -100,7 +100,7 @@ export PATH="$HOME/.cargo/bin:$PATH"
 ```
 Его можно расшифровать с помощью `llvm-symbolizer`:
 ```console
-~/nikka/kernel$ echo '0x10008593 0x10008479 0x100085B8 0x10008CD9' | tr ' ' '\n' | llvm-symbolizer --exe ../target/kernel/user/eager_fork
+~/nikka/kernel$ echo '0x10008593 0x10008479 0x100085B8 0x10008CD9' | tr -d ',_' | tr 'v ' 'x\n' | llvm-symbolizer --exe ../target/kernel/user/eager_fork
 eager_fork::fork_tree::h6af1cf920637510d
 /.../nikka/user/eager_fork/src/main.rs:47:5
 

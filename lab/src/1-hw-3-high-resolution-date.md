@@ -175,7 +175,7 @@ deadlock detected on spinlock defined at kernel/src/log/mod.rs:308:18, locked at
 ```
 С помощью `llvm-symbolizer` можно расшифровать полученный backtrace:
 ```console
-/.../nikka$ echo '0x22D7C8 0x29843E 0x2984A3 0x298353 0x298470 0x290FCA 0x290697 0x28FA61 0x293279 0x292928 0x22CF42' | tr ' ' '\n' | llvm-symbolizer --exe /.../nikka/target/kernel/debug/deps/1_hw_3_high_resolution_date-683176186a322834
+/.../nikka$ echo '0x22D7C8 0x29843E 0x2984A3 0x298353 0x298470 0x290FCA 0x290697 0x28FA61 0x293279 0x292928 0x22CF42' | tr -d ',_' | tr 'v ' 'x\n' | llvm-symbolizer --exe /.../nikka/target/kernel/debug/deps/1_hw_3_high_resolution_date-683176186a322834
 _$LT$kernel..log..LogCollector$u20$as$u20$tracing_core..collect..Collect$GT$::event::h462d99e420ca2493
 /.../nikka/kernel/src/log/mod.rs:322:9
 

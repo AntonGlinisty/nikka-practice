@@ -298,7 +298,7 @@ thread '<unnamed>' panicked at 'deadlock detected on spinlock defined at ku/test
 ```
 С помощью `llvm-symbolizer` можно расшифровать backtrace:
 ```console
-$ echo '0x4332DF 0x423B65 0x42FA55 0x411205 0x421A85 0x408F87 0x40943D 0x408B22 0x41BD55 0x40F845 0x41DA71 0x50F3D3' | tr ' ' '\n' | llvm-symbolizer --exe .../nikka/target/debug/deps/5_sync_2_spinlock-ab8d2daeff2439d2
+$ echo '0x4332DF 0x423B65 0x42FA55 0x411205 0x421A85 0x408F87 0x40943D 0x408B22 0x41BD55 0x40F845 0x41DA71 0x50F3D3' | tr -d ',_' | tr 'v ' 'x\n' | llvm-symbolizer --exe .../nikka/target/debug/deps/5_sync_2_spinlock-ab8d2daeff2439d2
 _5_sync_2_spinlock::recursive_deadlock::ntest_callback::h5b95218d6b1ff806
 .../nikka/ku/tests/5-sync-2-spinlock.rs:86:16
 
