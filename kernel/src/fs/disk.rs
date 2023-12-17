@@ -24,6 +24,7 @@ use ku::{
         error,
         trace,
     },
+    memory::size,
     time,
 };
 
@@ -59,6 +60,17 @@ impl Disk {
         })
     }
 
+    /// Записывает содержимое кэша диска на физический носитель.
+    pub(super) fn flush(&self) -> Result<()> {
+        let result = unsafe { self.send_command(Command::FLUSH_CACHE, 0) };
+
+        if result.is_err() {
+            error!(sector = self.read_sector_number(), "flush failed");
+        }
+
+        result
+    }
+
     /// Читает с диска диапазон секторов `sectors` размера [`SECTOR_SIZE`]
     /// в буфер `buffer` методом
     /// [программного ввода--вывода](https://en.wikipedia.org/wiki/Programmed_input%E2%80%93output).
@@ -70,7 +82,7 @@ impl Disk {
         assert_eq!(mem::size_of_val(buffer), sectors.len() * SECTOR_SIZE);
 
         unsafe {
-            self.send_command(Command::READ, sectors.start, sectors.len())?;
+            self.send_rw_command(Command::READ, sectors.start, sectors.len())?;
         }
 
         for sector in buffer.chunks_mut(SECTOR_SIZE / mem::size_of::<u32>()) {
@@ -95,7 +107,7 @@ impl Disk {
         assert_eq!(mem::size_of_val(buffer), sectors.len() * SECTOR_SIZE);
 
         unsafe {
-            self.send_command(Command::WRITE, sectors.start, sectors.len())?;
+            self.send_rw_command(Command::WRITE, sectors.start, sectors.len())?;
         }
 
         for sector in buffer.chunks(SECTOR_SIZE / mem::size_of::<u32>()) {
@@ -115,35 +127,63 @@ impl Disk {
     unsafe fn send_command(
         &self,
         command: Command,
+        argument: u8,
+    ) -> Result<()> {
+        self.wait_ready()?;
+
+        io::outb(
+            self.io_port + 6,
+            RESERVED_SHOULD_BE_ONES | argument | (self.io_disk << 4),
+        );
+        io::outb(self.io_port + 7, command.bits());
+
+        self.wait_ready()
+    }
+
+    /// Посылает в диск команду `command` для
+    /// [программного ввода--вывода](https://en.wikipedia.org/wiki/Programmed_input%E2%80%93output)
+    /// `sector_count` секторов начиная с сектора номер `start_sector`.
+    unsafe fn send_rw_command(
+        &self,
+        command: Command,
         start_sector: usize,
         sector_count: usize,
     ) -> Result<()> {
-        /// Выбирает режим логической адресации блоков диска
-        /// ([Logical block addressing](https://en.wikipedia.org/wiki/Logical_block_addressing), LBA).
-        const LBA: u8 = 1 << 6;
-
-        /// Зарезервированные биты, которые должны быть выставлены в `1`.
-        const RESERVED_SHOULD_BE_ONES: u8 = (1 << 5) | (1 << 7);
-
-        assert!(start_sector < (1 << 24));
         assert!(sector_count < (1 << 8));
 
         self.wait_ready()?;
 
         io::outb(self.io_port + 2, sector_count as u8);
-        io::outb(self.io_port + 3, start_sector as u8);
-        io::outb(self.io_port + 4, (start_sector >> 8) as u8);
-        io::outb(self.io_port + 5, (start_sector >> 16) as u8);
-        io::outb(
-            self.io_port + 6,
-            RESERVED_SHOULD_BE_ONES |
-                LBA |
-                (self.io_disk << 4) |
-                ((start_sector >> 24) & 0xF) as u8,
-        );
+        self.write_sector_number(start_sector);
         io::outb(self.io_port + 7, command.bits());
 
         Ok(())
+    }
+
+    /// Читает из регистров контроллера номер сектора.
+    fn read_sector_number(&self) -> usize {
+        unsafe {
+            size::from(io::inb(self.io_port + 3)) |
+                (size::from(io::inb(self.io_port + 4)) << 8) |
+                (size::from(io::inb(self.io_port + 5)) << 16) |
+                (size::from(io::inb(self.io_port + 6) & 0xF) << 24)
+        }
+    }
+
+    /// Записывает в регистры контроллера номер сектора.
+    unsafe fn write_sector_number(
+        &self,
+        sector: usize,
+    ) {
+        assert!(sector < (1 << 24));
+
+        io::outb(self.io_port + 3, sector as u8);
+        io::outb(self.io_port + 4, (sector >> 8) as u8);
+        io::outb(self.io_port + 5, (sector >> 16) as u8);
+        io::outb(
+            self.io_port + 6,
+            RESERVED_SHOULD_BE_ONES | LBA | (self.io_disk << 4) | ((sector >> 24) & 0xF) as u8,
+        );
     }
 
     /// Ожидает готовности диска к приёму команды.
@@ -258,6 +298,9 @@ const_assert!(SECTOR_SIZE % mem::size_of::<u32>() == 0);
 bitflags! {
     /// [PATA](https://en.wikipedia.org/wiki/Parallel_ATA)--команда работы с диском.
     struct Command: u8 {
+        /// Запись содержимого кэша диска на физический носитель.
+        const FLUSH_CACHE = 0xE7;
+
         /// Чтение диапазона секторов с диска.
         const READ = 0x20;
 
@@ -265,3 +308,10 @@ bitflags! {
         const WRITE = 0x30;
     }
 }
+
+/// Выбирает режим логической адресации блоков диска
+/// ([Logical block addressing](https://en.wikipedia.org/wiki/Logical_block_addressing), LBA).
+const LBA: u8 = 1 << 6;
+
+/// Зарезервированные биты, которые должны быть выставлены в `1`.
+const RESERVED_SHOULD_BE_ONES: u8 = (1 << 5) | (1 << 7);

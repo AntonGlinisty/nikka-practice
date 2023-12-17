@@ -84,7 +84,8 @@ impl BlockCache {
     /// См. также [`BlockCache::flush_block_impl()`].
     pub(super) fn flush_block(block_number: usize) -> Result<()> {
         if let Some(block_cache) = BLOCK_CACHE.lock().as_mut() {
-            block_cache.flush_block_impl(block_number)
+            block_cache.flush_block_impl(block_number)?;
+            block_cache.disk.flush()
         } else {
             Err(NoDisk)
         }
@@ -99,7 +100,7 @@ impl BlockCache {
                 block_cache.flush_block_impl(block_number)?;
             }
 
-            Ok(())
+            block_cache.disk.flush()
         } else {
             Err(NoDisk)
         }
