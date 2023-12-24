@@ -1,5 +1,10 @@
 use kernel::{
     Subsystems,
+    error::Error::{
+        NoFrame,
+        NoPage,
+        Unimplemented,
+    },
     log::debug,
     memory::{
         BASE_ADDRESS_SPACE,
@@ -7,19 +12,15 @@ use kernel::{
         Frame,
         Virt,
         mmu::{
+            FULL_ACCESS,
             KERNEL_RW,
             PAGE_OFFSET_BITS,
-            PAGE_TABLE_INDEX_BITS,
-            PAGE_TABLE_INDEX_MASK,
-            PAGE_TABLE_ROOT_LEVEL,
             PageTableFlags,
             USER_RW,
         },
         test_scaffolding::{
-            Mapping,
             forbid_frame_leaks,
             mapping,
-            page_table_root,
             phys2virt,
             phys2virt_map,
         },
@@ -27,11 +28,12 @@ use kernel::{
 };
 
 mod init;
+mod mm_helpers;
 
 init!(Subsystems::PHYS_MEMORY | Subsystems::VIRT_MEMORY);
 
 #[test_case]
-fn translate() {
+fn t01_translate() {
     let _guard = forbid_frame_leaks();
 
     let mut variable = 314159265;
@@ -80,7 +82,7 @@ fn translate() {
 }
 
 #[test_case]
-fn map_intermediate() {
+fn t02_map_intermediate() {
     let mut frame_allocator = FRAME_ALLOCATOR.lock();
     let start_free_frames = frame_allocator.count();
 
@@ -95,28 +97,80 @@ fn map_intermediate() {
     debug!(?pte);
 
     let end_free_frames = frame_allocator.count();
-    assert_ne!(start_free_frames, end_free_frames);
+    assert!(start_free_frames > end_free_frames);
 
-    check_intermediate_flags(mapping, virt, PageTableFlags::PRESENT);
+    mm_helpers::check_intermediate_flags(mapping, virt, PageTableFlags::PRESENT);
 
     for flags in [KERNEL_RW, USER_RW] {
         mapping.translate(virt, None, flags).unwrap();
-        check_intermediate_flags(mapping, virt, flags);
+        mm_helpers::check_intermediate_flags(mapping, virt, flags);
+    }
+}
+
+#[test_case]
+fn t03_no_excessive_intermediate_flags() {
+    let mut frame_allocator = FRAME_ALLOCATOR.lock();
+    let start_free_frames = frame_allocator.count();
+
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+    let mapping = mapping(&mut address_space);
+
+    let virt = Virt::new(0xFFFF_8FFF_FFFF_FFFF).unwrap();
+    let flags = PageTableFlags::all().difference(FULL_ACCESS);
+    let pte = mapping.translate(virt, Some(&mut frame_allocator), flags).unwrap();
+
+    debug!(?pte);
+
+    let end_free_frames = frame_allocator.count();
+    assert!(start_free_frames > end_free_frames);
+
+    mm_helpers::check_intermediate_flags(mapping, virt, PageTableFlags::PRESENT);
+}
+
+#[test_case]
+fn t04_huge_page() {
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+    let mapping = mapping(&mut address_space);
+
+    let phys2virt = phys2virt(mapping);
+    let pte = mapping.translate(phys2virt.address(), None, PageTableFlags::empty());
+
+    assert_eq!(pte, Err(Unimplemented));
+}
+
+#[test_case]
+fn t05_no_page() {
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+    let mapping = mapping(&mut address_space);
+
+    let virt = Virt::new(0xFFFF_FFFF_FFDF_FFFF).unwrap();
+    let pte = mapping.translate(virt, None, PageTableFlags::empty());
+
+    assert_eq!(pte, Err(NoPage));
+}
+
+#[test_case]
+fn t99_no_frame() {
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+    let mapping = mapping(&mut address_space);
+
+    let mut frame_allocator = FRAME_ALLOCATOR.lock();
+    let frame_count = frame_allocator.count();
+    let mut real_frame_count = 0;
+
+    while frame_allocator.allocate().is_ok() {
+        real_frame_count += 1;
     }
 
-    fn check_intermediate_flags(
-        mapping: &mut Mapping,
-        virt: Virt,
-        expected_flags: PageTableFlags,
-    ) {
-        let page_table_root_index_shift =
-            PAGE_TABLE_ROOT_LEVEL * PAGE_TABLE_INDEX_BITS + PAGE_OFFSET_BITS;
-        let page_table_root_index =
-            (virt.into_usize() >> page_table_root_index_shift) & PAGE_TABLE_INDEX_MASK;
-        let intermediate_flags = page_table_root(mapping)[page_table_root_index].flags();
-        assert_eq!(
-            intermediate_flags, expected_flags,
-            "intermediate page table flags are incorrect",
-        );
-    }
+    debug!(
+        frame_count,
+        real_frame_count,
+        "real free frame count can be less than free frame count reported by boot frame allocator \
+         since it records reference and deallocation counts but does not do that actually",
+    );
+    assert!(real_frame_count <= frame_count);
+
+    let virt = Virt::new(0xFFFF_FFFF_FFAF_FFFF).unwrap();
+    let pte = mapping.translate(virt, Some(&mut frame_allocator), PageTableFlags::empty());
+    assert_eq!(pte, Err(NoFrame));
 }

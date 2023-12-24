@@ -33,11 +33,17 @@ pub struct BootFrameAllocator {
     /// Блок свободных физических фреймов.
     block: Block<Frame>,
 
+    /// Количество операций освобождения фреймов.
+    deallocations: usize,
+
     /// Используется в методах [`BootFrameAllocator::is_managed()`] и
     /// [`BootFrameAllocator::is_used()`] для определения,
     /// что заданный физический фрейм принадлежит этому аллокатору.
     /// Вне зависимости от того был ли он уже выделен или нет.
     initial_block: Block<Frame>,
+
+    /// Количество увеличений ссылок на уже выделенные фреймы.
+    references: usize,
 }
 
 impl BootFrameAllocator {
@@ -49,9 +55,11 @@ impl BootFrameAllocator {
         unimplemented!();
     }
 
-    /// Возвращает количество свободных физических фреймов у аллокатора [`BootFrameAllocator`].
+    /// Возвращает количество "свободных" физических фреймов, считая, в том числе:
+    ///   - утёкшие при освобождении методом [`BootFrameAllocator::deallocate()`],
+    ///   - фреймы для которых было "увеличено количество ссылок" в [`BootFrameAllocator::reference()`].
     pub(super) fn count(&self) -> usize {
-        self.block.count()
+        self.block.count() + self.deallocations - self.references
     }
 
     /// Выделяет блок подряд идущих фреймов, достаточный для хранения объекта
@@ -74,6 +82,35 @@ impl BootFrameAllocator {
     pub(super) fn allocate(&mut self) -> Result<Frame> {
         // TODO: your code here.
         unimplemented!();
+    }
+
+    /// Увеличивает на единицу общий счётчик освобождённых фреймов.
+    /// Счетчик учитывается в [`BootFrameAllocator::count()`].
+    /// Физический фрейм `_frame` утекает.
+    /// Поэтому этот метод должен использоваться только в тестах.
+    pub(super) fn deallocate(
+        &mut self,
+        _frame: Frame,
+    ) {
+        self.deallocations += 1;
+    }
+
+    /// Увеличивает на единицу общий счётчик ссылок на фреймы.
+    /// Счетчик учитывается в [`BootFrameAllocator::count()`].
+    /// Не увеличивает счётчик использования самого фрейма `_frame`.
+    /// Поэтому этот метод должен использоваться только в тестах.
+    pub(super) fn reference(
+        &mut self,
+        _frame: Frame,
+    ) {
+        self.references += 1;
+    }
+
+    /// Возвращает `true`, если не было вызовов
+    /// [`BootFrameAllocator::deallocate()`] или [`BootFrameAllocator::reference()`],
+    /// после которых информация об использовании физических фреймов может быть несогласованна.
+    pub(super) fn is_consistent(&self) -> bool {
+        self.deallocations == 0 && self.references == 0
     }
 
     /// Проверяет, что заданный физический фрейм управляется этим аллокатором.

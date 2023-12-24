@@ -7,6 +7,7 @@ use ku::{
 
 use kernel::{
     Subsystems,
+    error::Error::NoFrame,
     log::debug,
     memory::{
         AddressSpace,
@@ -230,7 +231,7 @@ fn allocated_frames_are_unique() {
 
     debug!(free_frames = frame_allocator.count());
     assert_eq!(frame_allocator.count(), 0);
-    assert!(frame_allocator.allocate().is_err());
+    assert_eq!(frame_allocator.allocate(), Err(NoFrame));
 
     slice::heapsort(&mut frames[.. free_frames], |a, b| a < b);
     for (a, b) in frames.iter().zip(&frames[1 .. free_frames]) {

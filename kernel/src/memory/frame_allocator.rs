@@ -65,8 +65,9 @@ impl FrameAllocator {
         frame: Frame,
     ) {
         match self {
+            FrameAllocator::Boot(boot_allocator) => boot_allocator.deallocate(frame),
             FrameAllocator::Main(main_allocator) => main_allocator.deallocate(frame),
-            _ => panic!("can not deallocate a frame without the main frame allocator"),
+            _ => panic!("can not deallocate a frame without a frame allocator"),
         }
     }
 
@@ -81,8 +82,9 @@ impl FrameAllocator {
         frame: Frame,
     ) {
         match self {
+            FrameAllocator::Boot(boot_allocator) => boot_allocator.reference(frame),
             FrameAllocator::Main(main_allocator) => main_allocator.reference(frame),
-            _ => panic!("can not reference a frame without the main frame allocator"),
+            _ => panic!("can not reference a frame without a frame allocator"),
         }
     }
 

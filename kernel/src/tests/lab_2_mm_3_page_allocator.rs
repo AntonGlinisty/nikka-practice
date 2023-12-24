@@ -47,6 +47,10 @@ fn allocate_block() {
         debug!(requested = %Size::new::<Virt>(size), %allocated, allocated_page_count);
 
         assert!(
+            allocated.size() >= size,
+            "allocated less than the requested size",
+        );
+        assert!(
             allocated.size() - size < Page::SIZE,
             "allocated excessive memory",
         );

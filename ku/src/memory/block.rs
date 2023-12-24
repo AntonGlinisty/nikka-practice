@@ -119,6 +119,11 @@ impl<T: Memory> Block<T> {
         Self::from_index(size::from(start), size::from(end))
     }
 
+    /// Создаёт блок из одного элемента `element`.
+    pub fn from_element(element: T) -> Result<Self> {
+        Self::from_index(T::index(element), T::index(element) + 1)
+    }
+
     /// Возвращает количество элементов в блоке, оно равно `Block::end - Block::start`.
     pub const fn count(&self) -> usize {
         self.end - self.start

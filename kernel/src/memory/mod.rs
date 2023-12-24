@@ -141,6 +141,10 @@ pub(super) fn init(
     }
 
     if subsystems.contains(Subsystems::MAIN_FRAME_ALLOCATOR) {
+        if let FrameAllocator::Boot(boot_frame_allocator) = &*FRAME_ALLOCATOR.lock() {
+            assert!(boot_frame_allocator.is_consistent());
+        }
+
         *FRAME_ALLOCATOR.lock() =
             FrameAllocator::Main(main_frame_allocator::init(&boot_info.memory_map));
     }

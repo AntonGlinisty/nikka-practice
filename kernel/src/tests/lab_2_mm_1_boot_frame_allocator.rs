@@ -5,6 +5,7 @@ use ku::memory::size::{
 
 use kernel::{
     Subsystems,
+    error::Error::NoFrame,
     log::debug,
     memory::{
         Block,
@@ -70,6 +71,10 @@ fn t2_allocate_block() {
 
         debug!(requested = %Size::new::<Phys>(size), %allocated, allocated_frame_count);
 
+        assert!(
+            allocated.size() >= size,
+            "allocated less than the requested size",
+        );
         assert!(
             allocated.size() - size < Frame::SIZE,
             "allocated excessive memory",
@@ -142,5 +147,5 @@ fn t4_allocated_frames_are_unique() {
     }
 
     assert_eq!(frame_allocator.count(), 0);
-    assert!(frame_allocator.allocate().is_err());
+    assert_eq!(frame_allocator.allocate(), Err(NoFrame));
 }
