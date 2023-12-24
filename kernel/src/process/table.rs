@@ -1,8 +1,5 @@
 use alloc::vec::Vec;
-use core::{
-    fmt,
-    mem,
-};
+use core::fmt;
 
 use lazy_static::lazy_static;
 
@@ -14,6 +11,7 @@ use ku::sync::spinlock::{
 use crate::{
     error::{
         Error::{
+            InvalidArgument,
             NoProcess,
             NoProcessSlot,
         },
@@ -93,12 +91,15 @@ impl Table {
         unimplemented!();
     }
 
-    /// Удаляет процесс `process`.
+    /// Удаляет процесс с заданным `pid`.
     /// При этом:
     ///   - Инкрементирует эпоху в освободившемся слоте.
     ///   - Вставляет слот в голову списка свободных слотов [`Table::free`].
-    pub fn free(process: SpinlockGuard<Process>) {
+    #[allow(unused_mut)] // TODO: remove before flight.
+    pub fn free(mut pid: Pid) -> Result<()> {
         // TODO: your code here.
+
+        Ok(())
     }
 
     /// Возвращает захваченную спин-блокировку [`SpinlockGuard`] со структурой [`Process`]

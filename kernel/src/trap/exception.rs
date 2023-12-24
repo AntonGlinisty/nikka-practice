@@ -31,6 +31,7 @@ use crate::{
     log::{
         error,
         info,
+        warn,
     },
     process::{
         ModeContext,
@@ -173,7 +174,14 @@ extern "C" fn generic_trap(
         );
 
         if fatal {
-            Table::free(process);
+            drop(process);
+            if let Err(error) = Table::free(pid) {
+                warn!(
+                    %pid,
+                    ?error,
+                    "failed to free the process, maybe it was destroyed concurrently",
+                );
+            }
             Process::sched_yield();
         }
     } else {

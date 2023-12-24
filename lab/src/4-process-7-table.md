@@ -218,18 +218,14 @@ unsafe fn forge_static_lifetime<T>(x: &T) -> &'static T
 Реализуйте [метод](../../doc/kernel/process/struct.Table.html#method.free)
 
 ``` rust
-fn Table::free(process: SpinlockGuard<Process>)
+fn Table::free(mut pid: Pid) -> Result<()>
 ```
 
 Он:
 
-- Удаляет процесс `process`.
+- Удаляет процесс с заданным `pid`.
 - Инкрементирует эпоху в освободившемся слоте.
 - Вставляет слот в голову списка свободных слотов [`Table::free`](../../doc/kernel/process/struct.Table.html#structfield.free).
-
-Вам могут пригодиться функции
-[`drop()`](https://doc.rust-lang.org/nightly/core/mem/fn.drop.html) и
-[`core::mem::replace()`](https://doc.rust-lang.org/nightly/core/mem/fn.replace.html).
 
 
 ### Проверьте себя

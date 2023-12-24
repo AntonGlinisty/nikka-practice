@@ -67,8 +67,7 @@ pub(super) fn allocate(file: &[u8]) -> SpinlockGuard<'static, Process> {
 }
 
 pub(super) fn free(pid: Pid) {
-    let process = Table::get(pid).expect("failed to find the new process in the process table");
-    Table::free(process);
+    Table::free(pid).expect("failed to find the new process in the process table");
 }
 
 fn check(

@@ -112,7 +112,7 @@ fn t1_exofork_syscall() {
     );
 
     for pid in [parent_pid, unrelated_process_pid] {
-        Table::free(Table::get(pid).unwrap());
+        process_helpers::free(pid);
     }
 
     let start_page_faults = TRAP_STATS[PAGE_FAULT].count();
