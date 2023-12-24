@@ -6,7 +6,10 @@ use alloc::{
     vec,
     vec::Vec,
 };
-use core::str;
+use core::{
+    slice,
+    str,
+};
 
 use kernel::{
     Subsystems,
@@ -35,14 +38,14 @@ fn fs() {
     test_list(
         &mut fs,
         &[
-            "/file-1",
-            "/file-2",
             "/dir-1",
-            "/dir-1/file-4",
-            "/dir-1/file-5",
             "/dir-1/dir-2",
             "/dir-1/dir-2/dir-3",
             "/dir-1/dir-2/dir-3/file-3",
+            "/dir-1/file-4",
+            "/dir-1/file-5",
+            "/file-1",
+            "/file-2",
         ],
     );
 
@@ -127,6 +130,7 @@ fn test_list(
     let root = fs.open("").unwrap();
     let usage = build_list(fs, &root, "", &mut actual);
 
+    slice::heapsort(&mut actual, |a, b| a < b);
     assert_eq!(actual, expected);
 
     if actual.is_empty() {
