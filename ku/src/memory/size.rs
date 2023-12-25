@@ -72,7 +72,7 @@ pub trait SizeOf {
 
     /// Возвращает количество областей, покрывающих `size` байт, округлённое вверх.
     fn count_up(size: usize) -> usize {
-        (size + Self::SIZE_OF - 1) / Self::SIZE_OF
+        size.div_ceil(Self::SIZE_OF)
     }
 }
 

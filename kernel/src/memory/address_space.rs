@@ -226,7 +226,6 @@ impl AddressSpace {
     /// Вызывающий код должен гарантировать, что инварианты управления памятью в Rust'е
     /// не будут нарушены.
     /// В частности, не осталось ссылок, которые ведут в удаляемую страницу.
-    #[allow(unused)] // TODO: remove before flight.
     pub unsafe fn unmap_page(
         &mut self,
         page: Page,

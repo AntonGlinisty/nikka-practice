@@ -80,11 +80,11 @@ pub struct MainFrameAllocator {
     /// Информация про все доступные физические фреймы.
     frame_info: &'static mut [FrameInfo],
 
-    /// Голова интрузивного списка номеров свободных физических фреймов.
-    free_frame: Option<usize>,
-
     /// Количество свободных физических фреймов.
     free_count: usize,
+
+    /// Голова интрузивного списка номеров свободных физических фреймов.
+    free_frame: Option<usize>,
 }
 
 impl MainFrameAllocator {
@@ -104,8 +104,8 @@ impl MainFrameAllocator {
 
         let mut main_frame_allocator = Self {
             frame_info,
-            free_frame: None,
             free_count: 0,
+            free_frame: None,
         };
 
         let boot_frame_allocator = mem::replace(&mut *FRAME_ALLOCATOR.lock(), FrameAllocator::Void);

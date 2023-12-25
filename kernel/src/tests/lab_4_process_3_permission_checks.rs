@@ -117,12 +117,13 @@ fn stress() {
                 .filter(address_filter)
             {
                 let block = Block::new(start, end).unwrap();
-                let slice = check_permission_mut::<u8>(&mut address_space, block, USER_RW);
-                if slice.is_err() {
-                    debug!(%block);
-                    panic!("test block should be writable");
+                match check_permission_mut::<u8>(&mut address_space, block, USER_RW) {
+                    Ok(slice) => slice.fill(TEST_VALUE),
+                    Err(error) => {
+                        debug!(%block, ?error);
+                        panic!("test block should be writable");
+                    },
                 }
-                slice.unwrap().fill(TEST_VALUE);
             }
         }
 
