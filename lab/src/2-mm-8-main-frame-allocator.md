@@ -91,6 +91,7 @@ fn MainFrameAllocator::allocate(&mut self) -> Result<Frame>
 если свободных физических фреймов не осталось.
 Чтобы долго не искать, используйте фрейм из головы списка свободных ---
 [`MainFrameAllocator::free_frame`](../../doc/kernel/memory/main_frame_allocator/struct.MainFrameAllocator.html#structfield.free_frame).
+Не забудьте присвоить ему следующий свободный фрейм.
 Также обновите количество оставшихся свободных фреймов [`MainFrameAllocator::free_count`](../../doc/kernel/memory/main_frame_allocator/struct.MainFrameAllocator.html#structfield.free_count).
 
 На всякий случай можно перепроверить, что

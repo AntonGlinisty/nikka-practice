@@ -214,11 +214,6 @@ $ (cd kernel; cargo test --test 2-mm-5-map)
 19:10:09.133 0 I exit qemu; exit_code = SUCCESS
 ```
 
-Как и в случае копирования и удаления виртуальных отображений для проверки метода
-[`AddressSpace::unmap_slice()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.unmap_slice)
-нам понадобится основной аллокатор физических фреймов.
-Поэтому тест для него придётся отложить.
-
 
 ### Ориентировочный объём работ этой части лабораторки
 
