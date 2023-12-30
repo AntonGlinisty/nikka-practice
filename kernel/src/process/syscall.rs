@@ -84,6 +84,9 @@ use lock_set::{
 /// [syscall](https://www.felixcloutier.com/x86/syscall) и
 /// [sysret](https://www.felixcloutier.com/x86/sysret).
 pub(crate) fn init() {
+    let syscall_virt = Virt::from_ptr(syscall_trampoline as *const ());
+    debug!(%syscall_virt);
+
     // TODO: your code here.
     unimplemented!();
 }
