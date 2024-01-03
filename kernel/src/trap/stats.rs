@@ -1,7 +1,12 @@
-use core::sync::atomic::{
-    AtomicUsize,
-    Ordering,
+use core::{
+    ops::Index,
+    sync::atomic::{
+        AtomicUsize,
+        Ordering,
+    },
 };
+
+use ku::process::Trap;
 
 use super::COUNT;
 
@@ -53,10 +58,28 @@ impl Stats {
 }
 
 /// Информация обо всех исключениях и прерываниях.
-type InterruptStats = [Stats; COUNT];
+pub struct TrapStats([Stats; COUNT]);
+
+impl TrapStats {
+    /// Возвращает итератор по статистикам исключений и прерываний.
+    pub fn iter(&self) -> core::slice::Iter<Stats> {
+        self.0.iter()
+    }
+}
+
+impl Index<Trap> for TrapStats {
+    type Output = Stats;
+
+    fn index(
+        &self,
+        index: Trap,
+    ) -> &Self::Output {
+        &self.0[usize::from(index)]
+    }
+}
 
 /// Информация обо всех исключениях и прерываниях.
-pub static TRAP_STATS: InterruptStats = [
+pub static TRAP_STATS: TrapStats = TrapStats([
     Stats::new("Divide Error", "#DE"),
     Stats::new("Debug", "#DB"),
     Stats::new("Non-maskable Interrupt", "#NM"),
@@ -107,4 +130,4 @@ pub static TRAP_STATS: InterruptStats = [
     Stats::new("Secondary ATA Hard Disk", "#SD"),
     Stats::new("Timer", "#TI"),
     Stats::new("Spurious", "#SP"),
-];
+]);

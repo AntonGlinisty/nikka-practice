@@ -38,6 +38,7 @@ use crate::{
     smp::Cpu,
     trap::{
         TRAP_STATS,
+        Trap,
         TrapContext,
     },
 };
@@ -305,7 +306,7 @@ impl Process {
     }
 
     /// Подготавливает контекст `context` к вызову
-    /// пользовательского обработчика исключения или прерывания номер `number`, если он установлен.
+    /// пользовательского обработчика исключения или прерывания номер `trap`, если он установлен.
     ///
     /// Возвращает `true`, если пользовательский обработчик установлен и
     /// информация об исключении или прерывании успешно записана в его стек.
@@ -313,10 +314,12 @@ impl Process {
     pub(crate) fn trap(
         &mut self,
         context: &mut TrapContext,
-        number: usize,
+        trap: Trap,
         info: Info,
     ) -> bool {
         self.flush_log();
+
+        let number = usize::from(trap);
 
         // TODO: your code here.
         false // TODO: remove before flight.

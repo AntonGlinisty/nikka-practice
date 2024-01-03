@@ -486,7 +486,7 @@ test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 > [режим трассировки](https://en.wikipedia.org/wiki/Stepping_(debugging)).
 > Он предназначен для пошаговой отладки программ.
 > В этом режиме процессор генерирует прерывание с номером
-> [`kernel::trap::DEBUG`](../../doc/kernel/trap/constant.DEBUG.html)
+> [`ku::process::Trap::Debug`](../../doc/ku/process/trap_info/enum.Trap.html#variant.Debug)
 > на каждой исполняемой им инструкции программы.
 > Задаётся такой режим работы включением
 > [флага трассировки](https://en.wikipedia.org/wiki/Trap_flag) в
@@ -518,7 +518,7 @@ test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 > ```
 > Функция `trap::test_scaffolding::set_debug_handler()` устанавливает заданный обработчик
 > прерывания
-> [`kernel::trap::DEBUG`](../../doc/kernel/trap/constant.DEBUG.html),
+> [`ku::process::Trap::Debug`](../../doc/ku/process/trap_info/enum.Trap.html#variant.Debug)
 > который содержит процедуру писателя `writer()`.
 > Дальше запускается читатель `reader()`.
 > Конкурировать они будут за переменную `POINT`. Она сделана статической для удобства доступа из

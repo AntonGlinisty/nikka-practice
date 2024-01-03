@@ -34,6 +34,7 @@ pub use syscall::{
 pub use trap_info::{
     Info,
     RSP_OFFSET_IN_TRAP_INFO,
+    Trap,
     TrapInfo,
 };
 

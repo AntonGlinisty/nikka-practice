@@ -39,8 +39,8 @@ use kernel::{
         },
     },
     trap::{
-        PAGE_FAULT,
         TRAP_STATS,
+        Trap,
     },
 };
 
@@ -182,7 +182,7 @@ fn user_space_memory_allocator() {
     while Scheduler::run_one() {}
 
     assert_eq!(
-        TRAP_STATS[PAGE_FAULT].count(),
+        TRAP_STATS[Trap::PageFault].count(),
         0,
         "the user mode code has detected an error in the memory allocator implementation",
     );

@@ -12,8 +12,8 @@ use kernel::{
         test_scaffolding,
     },
     trap::{
-        PAGE_FAULT,
         TRAP_STATS,
+        Trap,
     },
 };
 
@@ -32,12 +32,12 @@ fn user_mode_page_fault() {
 
     test_scaffolding::disable_interrupts(&mut process.lock());
 
-    let start_page_faults = TRAP_STATS[PAGE_FAULT].count();
+    let start_page_faults = TRAP_STATS[Trap::PageFault].count();
 
     Process::enter_user_mode(process.lock());
 
     assert_eq!(
-        TRAP_STATS[PAGE_FAULT].count(),
+        TRAP_STATS[Trap::PageFault].count(),
         start_page_faults + 1,
         "probably the user mode page faults are not handled or counted",
     );

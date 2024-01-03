@@ -14,8 +14,8 @@ use kernel::{
         parse_hour,
     },
     trap::{
-        RTC,
         TRAP_STATS,
+        Trap,
     },
 };
 
@@ -67,12 +67,12 @@ fn different_rtc_formats() {
 #[test_case]
 fn rtc_read_inconsistent() {
     debug!("waiting for the RTC to tick at least once");
-    while TRAP_STATS[RTC].count() == 0 {
+    while TRAP_STATS[Trap::Rtc].count() == 0 {
         instructions::hlt();
     }
 
     let start = time::now();
-    let rtc_ticks = TRAP_STATS[RTC].count();
+    let rtc_ticks = TRAP_STATS[Trap::Rtc].count();
     const TICKS: i64 = 10;
 
     debug!(%start);
@@ -82,12 +82,12 @@ fn rtc_read_inconsistent() {
     );
 
     for ticks in 1 .. TICKS {
-        let mut rtc_count = TRAP_STATS[RTC].count();
+        let mut rtc_count = TRAP_STATS[Trap::Rtc].count();
 
         while rtc_count < rtc_ticks + (ticks as usize) {
             instructions::hlt();
 
-            let new_rtc_count = TRAP_STATS[RTC].count();
+            let new_rtc_count = TRAP_STATS[Trap::Rtc].count();
             if new_rtc_count != rtc_count {
                 debug!(rtc_count, new_rtc_count);
                 assert_eq!(new_rtc_count, rtc_count + 1, "unexpected RTC tick");

@@ -13,8 +13,8 @@ use ku::sync;
 use kernel::{
     log::info,
     trap::{
-        PAGE_FAULT,
         TRAP_STATS,
+        Trap,
     },
 };
 
@@ -30,7 +30,7 @@ fn test_entry(boot_info: &'static BootInfo) -> ! {
 fn panic(panic_info: &PanicInfo) -> ! {
     sync::start_panicking();
 
-    let page_fault_count = TRAP_STATS[PAGE_FAULT].count();
+    let page_fault_count = TRAP_STATS[Trap::PageFault].count();
     info!(%panic_info, page_fault_count);
     if page_fault_count == 1 {
         kernel::pass_test()

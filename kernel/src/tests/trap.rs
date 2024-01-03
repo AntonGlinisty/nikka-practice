@@ -2,8 +2,8 @@ use kernel::{
     Subsystems,
     log::info,
     trap::{
-        BREAKPOINT,
         TRAP_STATS,
+        Trap,
     },
 };
 
@@ -23,7 +23,7 @@ fn traps_are_working() {
 
 #[test_case]
 fn trap_counter() {
-    let breakpoint_counter = &TRAP_STATS[BREAKPOINT];
+    let breakpoint_counter = &TRAP_STATS[Trap::Breakpoint];
     let begin_count = breakpoint_counter.count();
     let count = 3;
     for _ in 0 .. count {

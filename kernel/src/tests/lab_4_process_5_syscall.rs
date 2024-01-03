@@ -5,9 +5,8 @@ use kernel::{
         test_scaffolding,
     },
     trap::{
-        INVALID_OPCODE,
-        PAGE_FAULT,
         TRAP_STATS,
+        Trap,
     },
 };
 
@@ -28,13 +27,13 @@ fn syscall_exit() {
     Process::enter_user_mode(process);
 
     assert_eq!(
-        TRAP_STATS[INVALID_OPCODE].count(),
+        TRAP_STATS[Trap::InvalidOpcode].count(),
         0,
         "probably the `syscall` instruction is not initialized",
     );
 
     assert_eq!(
-        TRAP_STATS[PAGE_FAULT].count(),
+        TRAP_STATS[Trap::PageFault].count(),
         0,
         concat!(
             "if the Page Fault was in the kernel mode, ",
@@ -55,7 +54,7 @@ fn syscall_log_value() {
     Process::enter_user_mode(process);
 
     assert_eq!(
-        TRAP_STATS[PAGE_FAULT].count(),
+        TRAP_STATS[Trap::PageFault].count(),
         0,
         "the user mode code has detected an error in syscall::log_value() implementation",
     );

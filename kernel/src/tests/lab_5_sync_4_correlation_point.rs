@@ -26,8 +26,8 @@ use kernel::{
     log::debug,
     trap::{
         self,
-        RTC,
         TRAP_STATS,
+        Trap,
         TrapContext,
     },
 };
@@ -209,7 +209,7 @@ fn down_the_rabbit_hole() {
 
 fn sample(ticks: &AtomicUsize) -> bool {
     let prev_rtc_ticks = ticks.load(Ordering::Relaxed);
-    let rtc_ticks = TRAP_STATS[RTC].count();
+    let rtc_ticks = TRAP_STATS[Trap::Rtc].count();
     if prev_rtc_ticks != rtc_ticks {
         ticks.store(rtc_ticks, Ordering::Relaxed);
         true
@@ -228,8 +228,8 @@ fn switch_trap_flag() {
 fn wait_for_two_correlation_points() {
     debug!("waiting for the RTC to tick twice");
 
-    let rtc_ticks = TRAP_STATS[RTC].count();
-    while TRAP_STATS[RTC].count() < rtc_ticks + 2 {
+    let rtc_ticks = TRAP_STATS[Trap::Rtc].count();
+    while TRAP_STATS[Trap::Rtc].count() < rtc_ticks + 2 {
         instructions::hlt();
     }
 }

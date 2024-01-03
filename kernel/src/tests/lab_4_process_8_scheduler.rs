@@ -9,8 +9,8 @@ use kernel::{
         test_scaffolding,
     },
     trap::{
-        PAGE_FAULT,
         TRAP_STATS,
+        Trap,
     },
 };
 
@@ -32,12 +32,12 @@ fn syscall_sched_yield() {
 
     test_scaffolding::disable_interrupts(&mut process);
 
-    let start_page_faults = TRAP_STATS[PAGE_FAULT].count();
+    let start_page_faults = TRAP_STATS[Trap::PageFault].count();
 
     Process::enter_user_mode(process);
 
     assert_eq!(
-        TRAP_STATS[PAGE_FAULT].count(),
+        TRAP_STATS[Trap::PageFault].count(),
         start_page_faults,
         "maybe the read-dont-modify-write construction was used for reading the RTC time from the \
          user space",

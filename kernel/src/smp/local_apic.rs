@@ -30,10 +30,7 @@ use crate::{
         },
         size,
     },
-    trap::{
-        SPURIOUS,
-        TIMER,
-    },
+    trap::Trap,
 };
 
 use register::Register;
@@ -286,7 +283,8 @@ impl LocalApic {
     fn enable(&mut self) {
         /// Включает использование local APIC.
         const ENABLE_LOCAL_APIC: u32 = 1 << 8;
-        self.spurious.set(ENABLE_LOCAL_APIC | size::try_into::<u32>(SPURIOUS).unwrap());
+        self.spurious
+            .set(ENABLE_LOCAL_APIC | size::try_into::<u32>(Trap::Spurious.into()).unwrap());
     }
 
     /// Запрещает ненужные нам локальные прерывания.
@@ -307,7 +305,7 @@ impl LocalApic {
     }
 
     /// Инициализирует таймер local APIC в периодическом режиме с делителем 1
-    /// и прерыванием номер [`TIMER`].
+    /// и прерыванием номер [`Trap::Timer`].
     ///
     /// <https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.pdf>,
     /// Chapter 10.5.4
@@ -323,7 +321,8 @@ impl LocalApic {
         /// Задаёт периодический режим таймера.
         const PERIODIC_MODE: u32 = 0b01 << 17;
 
-        self.lvt_timer.set(PERIODIC_MODE | size::try_into::<u32>(TIMER).unwrap());
+        self.lvt_timer
+            .set(PERIODIC_MODE | size::try_into::<u32>(Trap::Timer.into()).unwrap());
 
         // [AMD64 Architecture Programmer’s Manual](https://docs.amd.com/v/u/en-US/40332-PUB_4.08):
         // "To avoid race conditions, software should initialize

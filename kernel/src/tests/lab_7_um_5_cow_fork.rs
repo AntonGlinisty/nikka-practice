@@ -31,8 +31,8 @@ use kernel::{
         test_scaffolding::set_pid_callback,
     },
     trap::{
-        PAGE_FAULT,
         TRAP_STATS,
+        Trap,
     },
 };
 
@@ -95,7 +95,7 @@ fn cow_fork() {
     }
 
     assert!(
-        TRAP_STATS[PAGE_FAULT].count() > 100,
+        TRAP_STATS[Trap::PageFault].count() > 100,
         "cow_fork should page fault a lot",
     );
 

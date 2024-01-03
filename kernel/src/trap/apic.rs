@@ -1,3 +1,5 @@
+use ku::process::Trap;
+
 use crate::{
     process::Process,
     smp::LocalApic,
@@ -13,21 +15,19 @@ use super::{
 pub(super) extern "x86-interrupt" fn timer(mut context: TrapContext) {
     Process::preempt(&mut context);
 
-    generic_apic_interrupt(super::TIMER);
+    generic_apic_interrupt(Trap::Timer);
 }
 
 /// Обработчик ложных прерываний
 /// ([spurious interrupt](https://en.wikipedia.org/wiki/Interrupt#Spurious_interrupts))
 /// [APIC](https://en.wikipedia.org/wiki/Advanced_Programmable_Interrupt_Controller).
 pub(super) extern "x86-interrupt" fn spurious(_context: TrapContext) {
-    generic_apic_interrupt(super::SPURIOUS);
+    generic_apic_interrupt(Trap::Spurious);
 }
 
 /// Выполняет общую часть обработки для всех прерываний
 /// [APIC](https://en.wikipedia.org/wiki/Advanced_Programmable_Interrupt_Controller).
-/// Аргумент `number` задаёт номер прерывания в общей нумерации таблицы обработчиков прерываний
-/// ([Interrupt descriptor table](https://en.wikipedia.org/wiki/Interrupt_descriptor_table), IDT).
-fn generic_apic_interrupt(number: usize) {
-    TRAP_STATS[number].inc();
+fn generic_apic_interrupt(trap: Trap) {
+    TRAP_STATS[trap].inc();
     LocalApic::end_of_interrupt();
 }

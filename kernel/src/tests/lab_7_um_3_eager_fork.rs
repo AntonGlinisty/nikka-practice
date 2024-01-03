@@ -37,8 +37,8 @@ use kernel::{
         },
     },
     trap::{
-        PAGE_FAULT,
         TRAP_STATS,
+        Trap,
     },
 };
 
@@ -115,12 +115,12 @@ fn t1_exofork_syscall() {
         process_helpers::free(pid);
     }
 
-    let start_page_faults = TRAP_STATS[PAGE_FAULT].count();
+    let start_page_faults = TRAP_STATS[Trap::PageFault].count();
 
     while Scheduler::run_one() {}
 
     assert_eq!(
-        TRAP_STATS[PAGE_FAULT].count(),
+        TRAP_STATS[Trap::PageFault].count(),
         start_page_faults + 1,
         "the child process should page fault",
     );
@@ -130,7 +130,7 @@ fn t1_exofork_syscall() {
 
 #[test_case]
 fn t2_eager_fork() {
-    let start_page_fault_count = TRAP_STATS[PAGE_FAULT].count();
+    let start_page_fault_count = TRAP_STATS[Trap::PageFault].count();
 
     static PARENTS: Spinlock<Vec<(Pid, Pid)>> = Spinlock::new(Vec::new());
 
@@ -154,7 +154,7 @@ fn t2_eager_fork() {
     }
 
     assert_eq!(
-        TRAP_STATS[PAGE_FAULT].count(),
+        TRAP_STATS[Trap::PageFault].count(),
         start_page_fault_count,
         "eager_fork should not page fault",
     );

@@ -45,8 +45,8 @@ use kernel::{
     log::debug,
     time,
     trap::{
-        RTC,
         TRAP_STATS,
+        Trap,
     },
 };
 
@@ -60,7 +60,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     #[cfg(test)]
     test_main();
 
-    while TRAP_STATS[RTC].count() < 10 {
+    while TRAP_STATS[Trap::Rtc].count() < 10 {
         if let Some(frequency) = Pit::tsc_per_second() {
             debug!(%frequency, "CPU frequency measured by PIT");
         }

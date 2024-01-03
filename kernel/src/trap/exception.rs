@@ -3,17 +3,13 @@ use core::{
     mem,
 };
 
-use x86_64::registers::control::Cr2;
-
 use ku::{
     backtrace::Backtrace,
-    memory::{
-        PageFaultInfo,
-        Virt,
-    },
+    memory::Virt,
     process::{
         Info,
         Pid,
+        Trap,
     },
     sync::{
         self,
@@ -43,7 +39,7 @@ use crate::{
 
 /// A helper to generate the code for exception handlers.
 macro_rules! exception_with_error_code {
-    ($name:ident, $number:expr $(,)?) => {
+    ($name:ident, $trap:expr $(,)?) => {
         #[naked]
         extern "C" fn $name() {
             unsafe {
@@ -53,7 +49,7 @@ macro_rules! exception_with_error_code {
                 jmp {trap_trampoline}
                     ",
 
-                    number = const $number,
+                    number = const $trap as usize,
                     trap_trampoline = sym crate::trap::handler::trap_trampoline,
 
                     options(noreturn),
@@ -62,14 +58,14 @@ macro_rules! exception_with_error_code {
         }
     };
 
-    ($idt: ident, $name:ident, $number:expr $(,)?) => {
-        exception_with_error_code!($name, $number);
-        $idt[$number].set_trap_handler($name);
+    ($idt: ident, $name:ident, $trap:expr $(,)?) => {
+        exception_with_error_code!($name, $trap);
+        $idt.get_mut($trap).set_trap_handler($name);
     };
 
-    ($idt: ident, $name:ident, $number:expr, $stack:expr $(,)?) => {
-        exception_with_error_code!($name, $number);
-        $idt[$number]
+    ($idt: ident, $name:ident, $trap:expr, $stack:expr $(,)?) => {
+        exception_with_error_code!($name, $trap);
+        $idt.get_mut($trap)
             .set_trap_handler($name)
             .set_stack_index($stack);
     };
@@ -79,7 +75,7 @@ pub(super) use exception_with_error_code;
 
 /// A helper to generate the code for exception handlers.
 macro_rules! exception_without_error_code {
-    ($name:ident, $number:expr $(,)?) => {
+    ($name:ident, $trap:expr $(,)?) => {
         #[naked]
         extern "C" fn $name() {
             unsafe {
@@ -91,7 +87,7 @@ macro_rules! exception_without_error_code {
                     ",
 
                     error_code = const 0,
-                    number = const $number,
+                    number = const $trap as usize,
                     trap_trampoline = sym crate::trap::handler::trap_trampoline,
 
                     options(noreturn),
@@ -100,9 +96,11 @@ macro_rules! exception_without_error_code {
         }
     };
 
-    ($idt: ident, $name:ident, $number:expr $(,)?) => {
-        exception_without_error_code!($name, $number);
-        $idt[$number].set_trap_handler($name);
+    ($idt: ident, $name:ident, $trap:expr $(,)?) => {
+        {
+            exception_without_error_code!($name, $trap);
+            $idt.get_mut($trap).set_trap_handler($name);
+        }
     };
 }
 
@@ -123,33 +121,19 @@ extern "C" fn generic_trap(
     context: &mut TrapContext, // rdx
     rbp: usize,                // rcx
 ) {
-    if number == super::DOUBLE_FAULT {
+    let trap = Trap::try_from(number).expect("unexpected trap number");
+
+    if trap == Trap::DoubleFault {
         static STOP_ALL_CPUS: Spinlock<()> = Spinlock::new(());
 
         mem::forget(STOP_ALL_CPUS.lock());
         sync::start_panicking();
     }
 
-    TRAP_STATS[number].inc();
+    TRAP_STATS[trap].inc();
 
-    let fatal = number != super::BREAKPOINT && number != super::OVERFLOW;
-
-    let info = match number {
-        super::ALIGNMENT_CHECK |
-        super::DOUBLE_FAULT |
-        super::GENERAL_PROTECTION_FAULT |
-        super::INVALID_TSS |
-        super::SECURITY_EXCEPTION |
-        super::SEGMENT_NOT_PRESENT |
-        super::STACK_SEGMENT_FAULT => Info::Code(error_code),
-
-        super::PAGE_FAULT => Info::PageFault {
-            address: Cr2::read().into(),
-            code: PageFaultInfo::from_bits_truncate(error_code),
-        },
-
-        _ => Info::None,
-    };
+    let fatal = trap != Trap::Breakpoint && trap != Trap::Overflow;
+    let info = Info::new(trap, error_code);
 
     if context.is_user_mode() {
         let pid = Cpu::current_process().expect("user mode without a process");
@@ -160,12 +144,12 @@ extern "C" fn generic_trap(
         let mut process =
             Table::get(pid).expect("failed to find the current process in the process table");
 
-        if process.trap(context, number, info) {
+        if process.trap(context, trap, info) {
             return;
         }
 
         info!(
-            trap = TRAP_STATS[number].name(),
+            trap = TRAP_STATS[trap].name(),
             number,
             %info,
             %context,
@@ -198,14 +182,14 @@ extern "C" fn generic_trap(
             panic!(
                 "kernel mode trap #{} - {}, context: {}, info: {}, backtrace: {}",
                 number,
-                TRAP_STATS[number].name(),
+                TRAP_STATS[trap].name(),
                 context,
                 info,
                 backtrace,
             );
         } else {
             error!(
-                trap = TRAP_STATS[number].name(),
+                trap = TRAP_STATS[trap].name(),
                 number,
                 %context,
                 %info,

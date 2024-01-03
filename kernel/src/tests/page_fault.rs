@@ -11,8 +11,8 @@ use bootloader::{
 use kernel::{
     log::info,
     trap::{
-        PAGE_FAULT,
         TRAP_STATS,
+        Trap,
     },
 };
 
@@ -26,7 +26,7 @@ fn test_entry(boot_info: &'static BootInfo) -> ! {
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    let page_fault_count = TRAP_STATS[PAGE_FAULT].count();
+    let page_fault_count = TRAP_STATS[Trap::PageFault].count();
     info!(page_fault_count);
     if page_fault_count == 1 {
         kernel::pass_test()
@@ -37,7 +37,7 @@ fn panic(info: &PanicInfo) -> ! {
 
 #[test_case]
 fn page_fault() {
-    assert_eq!(TRAP_STATS[PAGE_FAULT].count(), 0);
+    assert_eq!(TRAP_STATS[Trap::PageFault].count(), 0);
 
     unsafe {
         NonNull::<u8>::dangling().as_ptr().read_volatile();

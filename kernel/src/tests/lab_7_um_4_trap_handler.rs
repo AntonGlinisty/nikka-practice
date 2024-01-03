@@ -7,8 +7,8 @@ use kernel::{
         test_scaffolding::disable_interrupts,
     },
     trap::{
-        PAGE_FAULT,
         TRAP_STATS,
+        Trap,
     },
 };
 
@@ -36,7 +36,7 @@ fn trap_handler() {
     let expected_page_faults = 1 + MAX_RECURSION_LEVEL + 2;
 
     assert_eq!(
-        TRAP_STATS[PAGE_FAULT].count(),
+        TRAP_STATS[Trap::PageFault].count(),
         expected_page_faults,
         "trap_handler should page fault once on a non-recursive page fault and \
          MAX_RECURSION_LEVEL + 2 on a recursive one",

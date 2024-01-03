@@ -67,8 +67,8 @@ use kernel::{
         rtc,
     },
     trap::{
-        RTC,
         TRAP_STATS,
+        Trap,
     },
 };
 
@@ -98,7 +98,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     let plot_x_span = 300;
 
-    let mut prev_timer_count = TRAP_STATS[RTC].count();
+    let mut prev_timer_count = TRAP_STATS[Trap::Rtc].count();
 
     let mut rtc_error = Vec::new();
 
@@ -111,7 +111,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     loop {
         let mut flush = false;
 
-        if prev_timer_count < TRAP_STATS[RTC].count() {
+        if prev_timer_count < TRAP_STATS[Trap::Rtc].count() {
             let timer = time::timer();
             make_frame(&mut frame_buffer, &plot_frame, foreground, background).unwrap();
             debug!(duration = %timer.elapsed(), "plot frame");
@@ -130,7 +130,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
             if error.abs() < 100_000 {
                 rtc_error.push(PlotPoint {
-                    x: TRAP_STATS[RTC].count() as i32,
+                    x: TRAP_STATS[Trap::Rtc].count() as i32,
                     y: error,
                 });
             }
@@ -158,7 +158,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
             }
         }
 
-        prev_timer_count = TRAP_STATS[RTC].count();
+        prev_timer_count = TRAP_STATS[Trap::Rtc].count();
 
         if flush {
             frame_buffer.flush();

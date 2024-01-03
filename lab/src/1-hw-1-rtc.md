@@ -128,7 +128,7 @@ fn rtc_write(address: u8, data: u8) {
 [`kernel::trap::idt::IDT`](../../doc/kernel/trap/idt/struct.IDT.html)
 находящимися в том же файле функциями.
 Для RTC выделен номер прерывания
-[`kernel::trap::RTC`](../../doc/kernel/trap/constant.RTC.html),
+[`ku::process::Trap::Rtc`](../../doc/ku/process/trap_info/enum.Trap.html#variant.Rtc),
 а его обработчик --- функция
 [`kernel::trap::pic::rtc()`](../../doc/kernel/trap/pic/fn.rtc.html).
 

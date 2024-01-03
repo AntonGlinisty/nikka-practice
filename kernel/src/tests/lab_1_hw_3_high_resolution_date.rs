@@ -24,9 +24,8 @@ use kernel::{
     Subsystems,
     log::debug,
     trap::{
-        PIT,
-        RTC,
         TRAP_STATS,
+        Trap,
     },
 };
 
@@ -127,7 +126,7 @@ fn high_resolution_date() {
     const PIT_TICKS: i64 = 102;
     const NANOSECONDS_PER_PIT_TICK: i64 = 1_000_000_000 / TICKS_PER_SECOND as i64;
     let mut prev = DateTime::default();
-    let timer_ticks = TRAP_STATS[PIT].count();
+    let timer_ticks = TRAP_STATS[Trap::Pit].count();
     let tick_duration = Duration::nanoseconds(NANOSECONDS_PER_PIT_TICK);
     let max_delta = Duration::nanoseconds(NANOSECONDS_PER_PIT_TICK * 13 / 10);
     let min_delta = Duration::nanoseconds(NANOSECONDS_PER_PIT_TICK * 7 / 10);
@@ -141,7 +140,7 @@ fn high_resolution_date() {
     debug!(timer_ticks = PIT_TICKS, "measuring");
 
     for ticks in 1 .. PIT_TICKS {
-        while TRAP_STATS[PIT].count() < timer_ticks + ticks as usize {
+        while TRAP_STATS[Trap::Pit].count() < timer_ticks + ticks as usize {
             instructions::hlt();
         }
 
@@ -201,8 +200,8 @@ fn high_resolution_date() {
 fn wait_for_two_correlation_points() {
     debug!("waiting for the RTC to tick twice");
 
-    let rtc_ticks = TRAP_STATS[RTC].count();
-    while TRAP_STATS[RTC].count() < rtc_ticks + 2 {
+    let rtc_ticks = TRAP_STATS[Trap::Rtc].count();
+    while TRAP_STATS[Trap::Rtc].count() < rtc_ticks + 2 {
         instructions::hlt();
     }
 }
