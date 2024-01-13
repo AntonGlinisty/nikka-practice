@@ -161,6 +161,23 @@ thread '<unnamed>' panicked at 'there is no such thing as a release load', /rust
 Но вот в следующей --- это весьма вероятно.
 А рекомендуется рассматривать эту задачу как подготовку к следующим двум.
 
+> Дополнительные ссылки про модель памяти:
+>
+> - [Модель памяти Rust](https://doc.rust-lang.org/nomicon/atomics.html#atomics).
+> - Цикл статей Джефа Прешинга:
+>   - [Atomic vs. Non-Atomic Operations](https://preshing.com/20130618/atomic-vs-non-atomic-operations/).
+>   - [The Happens-Before Relation](https://preshing.com/20130702/the-happens-before-relation/).
+>   - [The Synchronizes-With Relation](https://preshing.com/20130823/the-synchronizes-with-relation/).
+>   - ...
+>   - [Acquire and Release Semantics](https://preshing.com/20120913/acquire-and-release-semantics/).
+>   - ...
+> - [Common Compiler Optimisations are Invalid in the C11 Memory Model and what we can do about it](https://plv.mpi-sws.org/c11comp/popl15.pdf).
+> - [Теория и практика многопоточной синхронизации (ТПМС, Concurrency) / Лекции / Весна 2022 / Роман Липовский](https://youtu.be/playlist?list=PL4_hYwCyhAva37lNnoMuBcKRELso5nvBm):
+>   - [ТПМС / Лекция 7 / Shared Memory: Memory Models](https://youtu.be/CEzFMP78D1Y).
+> - [Теория и практика многопоточной синхронизации (ТПМС, Concurrency) / Семинары / Весна 2022 / Роман Липовский](https://youtu.be/playlist?list=PL4_hYwCyhAvYTxm55RBm_HA5Bq5W1Nv-R):
+>   - [Concurrecy(семинар) 7. Модели памяти](https://youtu.be/sU7jguD_lqI).
+>   - [Concurrecy(семинар) 8. Модели памяти. Продолжение](https://youtu.be/Ys5-RcB1iSE).
+
 
 ### Структура [`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html)
 
