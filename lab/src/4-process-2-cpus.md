@@ -151,6 +151,11 @@ unsafe fn Cpu::get() -> &'static mut Cpu
 Документацию на который можно посмотреть в
 [Rust By Example](https://doc.rust-lang.org/nightly/rust-by-example/unsafe/asm.html) и
 [The Rust Reference](https://doc.rust-lang.org/nightly/reference/inline-assembly.html).
+Наиболее полные руководства по архитектуре:
+[AMD64 Architecture Programmer's Manual](https://www.amd.com/content/dam/amd/en/documents/processor-tech-docs/programmer-references/40332.pdf) и
+[Intel® 64 and IA-32 Architectures Software Developer’s Manual](https://software.intel.com/en-us/download/intel-64-and-ia-32-architectures-sdm-combined-volumes-1-2a-2b-2c-2d-3a-3b-3c-3d-and-4).
+Удобный справочник по командам ассемблера: [x86 and amd64 instruction reference](https://www.felixcloutier.com/x86/).
+
 Можно посмотреть на ассемблерный код, который генерирует Rust для Nikka,
 например:
 
