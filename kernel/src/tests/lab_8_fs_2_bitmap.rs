@@ -3,13 +3,26 @@ extern crate alloc;
 use alloc::vec::Vec;
 use core::slice;
 
-use ku::error::Error::NoDisk;
+use chrono::Duration;
+
+use ku::{
+    error::Error::NoDisk,
+    time::{
+        self,
+        TscDuration,
+    },
+};
 
 use kernel::{
     Subsystems,
     fs::{
         BlockCache,
         Kind,
+        test_scaffolding::{
+            Bitmap,
+            block_cache_init,
+            disable_flush,
+        },
     },
     log::debug,
 };
@@ -81,4 +94,38 @@ fn allocation() {
     }
 
     debug!(block_cache_stats = ?BlockCache::stats());
+}
+
+#[test_case]
+fn allocation_has_amortized_constant_complexity() {
+    disable_flush();
+
+    let bitmap_block = 0;
+
+    for log_total_elements in 2 .. 7 {
+        let total_elements = 10_usize.pow(log_total_elements);
+        let reserved_elements = total_elements / 20;
+        let elements = reserved_elements .. total_elements;
+
+        let bitmap_blocks = Bitmap::size_in_blocks(total_elements);
+        block_cache_init(fs_helpers::FS_DISK, bitmap_blocks, bitmap_blocks).unwrap();
+
+        Bitmap::format(bitmap_block, elements.clone()).unwrap();
+        let mut bitmap = Bitmap::new(bitmap_block, elements.clone()).unwrap();
+
+        let timer = time::timer();
+        for _ in elements.clone() {
+            bitmap.allocate().unwrap();
+        }
+        assert_eq!(bitmap.allocate(), Err(NoDisk));
+        let elapsed = timer.elapsed();
+
+        let limit = Duration::microseconds(20 * i64::try_from(total_elements).unwrap());
+        let limit = TscDuration::try_from(limit).unwrap();
+        debug!(%elapsed, count = elements.clone().count(), ?elements, %limit);
+        assert!(
+            elapsed < limit,
+            "Block::allocation() has wrong time complexity",
+        );
+    }
 }

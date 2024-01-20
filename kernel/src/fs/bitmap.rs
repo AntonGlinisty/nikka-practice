@@ -150,8 +150,8 @@ impl Bitmap {
     }
 
     /// Возвращает количество блоков, которые занимает [`Bitmap`] на диске.
-    pub(super) fn size_in_blocks(block_count: usize) -> usize {
-        block_count.div_ceil(size::from(u8::BITS) * BLOCK_SIZE)
+    pub(super) fn size_in_blocks(elements: usize) -> usize {
+        elements.div_ceil(size::from(u8::BITS) * BLOCK_SIZE)
     }
 
     /// Создаёт [`Bitmap`], не проверяя корректность его данных на диске.
@@ -267,6 +267,10 @@ pub mod test_scaffolding {
 
         pub fn free_count(&self) -> usize {
             self.0.free_count()
+        }
+
+        pub fn size_in_blocks(elements: usize) -> usize {
+            super::Bitmap::size_in_blocks(elements)
         }
     }
 }

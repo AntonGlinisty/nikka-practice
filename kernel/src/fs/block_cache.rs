@@ -1,3 +1,5 @@
+use core::sync::atomic::Ordering;
+
 use lazy_static::lazy_static;
 use spin::Mutex;
 
@@ -83,6 +85,10 @@ impl BlockCache {
     ///
     /// См. также [`BlockCache::flush_block_impl()`].
     pub(super) fn flush_block(block_number: usize) -> Result<()> {
+        if !test_scaffolding::FLUSH_ENABLED.load(Ordering::Relaxed) {
+            return Ok(());
+        }
+
         if let Some(block_cache) = BLOCK_CACHE.lock().as_mut() {
             block_cache.flush_block_impl(block_number)?;
             block_cache.disk.flush()
@@ -198,6 +204,11 @@ pub(super) const SECTORS_PER_BLOCK: usize = BLOCK_SIZE / SECTOR_SIZE;
 
 #[doc(hidden)]
 pub mod test_scaffolding {
+    use core::sync::atomic::{
+        AtomicBool,
+        Ordering,
+    };
+
     use ku::{
         error::{
             Error::NoDisk,
@@ -230,4 +241,10 @@ pub mod test_scaffolding {
     pub fn flush_block(block_number: usize) -> Result<()> {
         BlockCache::flush_block(block_number)
     }
+
+    pub fn disable_flush() {
+        FLUSH_ENABLED.store(false, Ordering::Relaxed);
+    }
+
+    pub(super) static FLUSH_ENABLED: AtomicBool = AtomicBool::new(true);
 }
