@@ -21,7 +21,7 @@ use crate as kernel;
 
 /// Выровненный на границу страницы стек.
 #[repr(C, align(4096))]
-pub(crate) struct Stack([u8; STACK_SIZE]);
+pub(crate) struct Stack([u8; Self::STACK_SIZE]);
 
 impl Stack {
     /// Создаёт статически выделенный стек.
@@ -61,7 +61,7 @@ impl Stack {
 
     /// Возвращает разбивку стека на защитный блок памяти и блок для данных в стеке.
     pub(crate) fn zones(&self) -> (Block<Virt>, Block<Virt>) {
-        let zones = &self.0.split_at(GUARD_ZONE_SIZE);
+        let zones = &self.0.split_at(Self::GUARD_ZONE_SIZE);
 
         (Block::from_slice(zones.0), Block::from_slice(zones.1))
     }
@@ -72,8 +72,16 @@ impl Stack {
         &mut self,
         address_space: &mut AddressSpace,
     ) -> Result<()> {
-        address_space.unmap_slice(&mut self.0[.. GUARD_ZONE_SIZE])
+        address_space.unmap_slice(&mut self.0[.. Self::GUARD_ZONE_SIZE])
     }
+
+    /// Размер не отображённой в память защитной области стека.
+    /// Которая служит для обнаружения переполнения стека и
+    /// не допускает перезапись других данных в этом случае.
+    pub(super) const GUARD_ZONE_SIZE: usize = Page::SIZE;
+
+    /// Размер стеков, включая не отображённую в память защитную область.
+    const STACK_SIZE: usize = 32 * Page::SIZE;
 }
 
 /// Создаёт статически выделенный стек.
@@ -137,11 +145,3 @@ lazy_static! {
     pub(crate) static ref EXCEPTION_STACKS: Spinlock<ExceptionStacks> =
         Spinlock::new(ExceptionStacks::new());
 }
-
-/// Размер не отображённой в память защитной области стека.
-/// Которая служит для обнаружения переполнения стека и
-/// не допускает перезапись других данных в этом случае.
-pub(super) const GUARD_ZONE_SIZE: usize = Page::SIZE;
-
-/// Размер стеков, включая не отображённую в память защитную область.
-const STACK_SIZE: usize = 32 * Page::SIZE;

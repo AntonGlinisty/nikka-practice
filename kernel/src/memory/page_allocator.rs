@@ -22,7 +22,7 @@ use super::{
         PageTable,
     },
     size::SizeOf,
-    stack::GUARD_ZONE_SIZE,
+    stack::Stack,
 };
 
 // Used in docs.
@@ -55,7 +55,7 @@ impl PageAllocator {
 
             // Detect stack overruns that corrupt memory allocated by PageAllocator.
             page_allocator
-                .allocate(GUARD_ZONE_SIZE)
+                .allocate(Stack::GUARD_ZONE_SIZE)
                 .expect("failed to create guard zone for PageAllocator");
 
             page_allocator
