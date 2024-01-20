@@ -68,20 +68,22 @@ impl Bitmap {
     /// Форматирует часть диска, начинающуюся с блока `block` и
     /// отведённую под битовую карту для `elements.end` элементов,
     /// его начальным состоянием.
+    ///
+    /// Биты для элементов в диапазоне [`Bitmap::elements`] выставляет в нули.
+    /// Для остальных --- зарезервированных и отсутствующих в битовой карте элементов ---
+    /// в единицы.
     pub(super) fn format(
         block: usize,
         elements: Range<usize>,
     ) -> Result<()> {
-        let mut bitmap = Self::new_unchecked(block, elements.clone());
+        let bitmap = Self::new_unchecked(block, elements.clone());
 
-        bitmap.bitmap.fill(0);
+        let reserved_end = bitmap.elements.start;
+        let reserved_end_index = reserved_end / Self::BITS_PER_ENTRY;
+        bitmap.bitmap[.. reserved_end_index].fill(!0);
+        bitmap.bitmap[reserved_end_index] = (1 << (reserved_end % Self::BITS_PER_ENTRY)) - 1;
 
-        for reserved_element in 0 .. bitmap.elements.start {
-            assert_eq!(
-                bitmap.allocate().expect("the bitmap has been cleared just yet"),
-                reserved_element,
-            );
-        }
+        bitmap.bitmap[reserved_end_index + 1 ..].fill(0);
 
         if elements.end < bitmap.bitmap.len() * Self::BITS_PER_ENTRY {
             bitmap.bitmap[elements.end / Self::BITS_PER_ENTRY] =
@@ -130,6 +132,9 @@ impl Bitmap {
     /// При поиске свободного элемента стартует с номера [`Bitmap::cursor`] в
     /// срезе [`Bitmap::bitmap`] и запоминает в неё позицию,
     /// из которого выделен свободный элемент.
+    ///
+    /// Может опираться на то, что биты для элементов вне диапазона [`Bitmap::elements`]
+    /// гарантированно выставлены в единицы, см. [`Bitmap::format()`].
     pub(super) fn allocate(&mut self) -> Result<usize> {
         // TODO: your code here.
         unimplemented!();
