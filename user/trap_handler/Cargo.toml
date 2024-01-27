@@ -6,7 +6,7 @@ homepage = "https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/index.h
 license = "AGPL-3.0-or-later"
 name = "trap_handler"
 repository = "https://gitlab.com/sergey-v-galtsev/nikka-public"
-version = "0.3.0"
+version = "0.4.0"
 
 [dependencies]
 ku = { path = "../../ku" }

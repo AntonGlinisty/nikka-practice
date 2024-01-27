@@ -3,7 +3,7 @@ authors = ["Sergey V. Galtsev <sergey-v-galtsev@gitlab.com>"]
 edition = "2021"
 license = "AGPL-3.0-or-later"
 name = "hello_world"
-version = "0.3.0"
+version = "0.4.0"
 
 [dependencies]
 nix = "*"

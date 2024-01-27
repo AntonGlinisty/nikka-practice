@@ -44,7 +44,7 @@ checksum = "7b7e4c2464d97fe331d41de9d5db0def0a96f4d823b8b32a2efd503578988973"
 
 [[package]]
 name = "bga"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bitflags 2.4.0",
  "bootloader",
@@ -121,7 +121,7 @@ checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
 name = "cow_fork"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "heapless",
  "ku",
@@ -159,7 +159,7 @@ dependencies = [
 
 [[package]]
 name = "eager_fork"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "heapless",
  "ku",
@@ -208,7 +208,7 @@ dependencies = [
 
 [[package]]
 name = "exit"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "ku",
@@ -374,7 +374,7 @@ dependencies = [
 
 [[package]]
 name = "kernel"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "acpi",
  "bitflags 2.4.0",
@@ -406,7 +406,7 @@ dependencies = [
 
 [[package]]
 name = "ku"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bitflags 2.4.0",
  "chrono",
@@ -444,7 +444,7 @@ dependencies = [
 
 [[package]]
 name = "lib"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "ku",
  "static_assertions",
@@ -475,7 +475,7 @@ checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
 
 [[package]]
 name = "log_value"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "ku",
  "lib",
@@ -483,7 +483,7 @@ dependencies = [
 
 [[package]]
 name = "loop"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "lib",
 ]
@@ -514,7 +514,7 @@ dependencies = [
 
 [[package]]
 name = "memory_syscalls"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "ku",
  "lib",
@@ -606,7 +606,7 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 
 [[package]]
 name = "page_fault"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "ku",
@@ -615,7 +615,7 @@ dependencies = [
 
 [[package]]
 name = "pic8259"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "x86",
 ]
@@ -811,7 +811,7 @@ checksum = "7ffc183a10b4478d04cbbbfc96d0873219d962dd5accaff2ffbd4ceb7df837f4"
 
 [[package]]
 name = "sched_yield"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "ku",
  "lib",
@@ -851,7 +851,7 @@ dependencies = [
 
 [[package]]
 name = "serial"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "x86",
 ]
@@ -931,7 +931,7 @@ dependencies = [
 
 [[package]]
 name = "text"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bitflags 2.4.0",
  "ku",
@@ -1004,7 +1004,7 @@ dependencies = [
 
 [[package]]
 name = "trap_handler"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "ku",
  "lib",

@@ -19,18 +19,18 @@ checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
 
 [[package]]
 name = "asm"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "rand",
 ]
 
 [[package]]
 name = "asm_syscall"
-version = "0.3.0"
+version = "0.4.0"
 
 [[package]]
 name = "atomic"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "ntest_timeout",
@@ -44,7 +44,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "backtrace"
-version = "0.3.0"
+version = "0.4.0"
 
 [[package]]
 name = "bitflags"
@@ -60,7 +60,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "context"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
 ]
@@ -73,7 +73,7 @@ checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
 
 [[package]]
 name = "gdb"
-version = "0.3.0"
+version = "0.4.0"
 
 [[package]]
 name = "getrandom"
@@ -94,7 +94,7 @@ checksum = "f93e7192158dbcda357bdec5fb5788eebf8bbac027f3f33e719d29135ae84156"
 
 [[package]]
 name = "hello_world"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "nix",
 ]
@@ -111,7 +111,7 @@ dependencies = [
 
 [[package]]
 name = "jobserver"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "nix",
 ]
@@ -258,11 +258,11 @@ checksum = "a3f87b73ce11b1619a3c6332f45341e0047173771e8b8b73f87bfeefb7b56244"
 
 [[package]]
 name = "rop"
-version = "0.3.0"
+version = "0.4.0"
 
 [[package]]
 name = "rsh"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "nix",
  "regex",
@@ -270,7 +270,7 @@ dependencies = [
 
 [[package]]
 name = "rwlock"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "ntest_timeout",
 ]
