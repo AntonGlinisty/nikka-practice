@@ -37,10 +37,10 @@ use ku::{
     },
     pipe::{
         self,
-        Buffer,
         Error::Overflow,
         MAX_CAPACITY,
         ReadBuffer,
+        RingBuffer,
         RingBufferWriteTx,
         Tag,
         WriteBuffer,
@@ -257,7 +257,7 @@ fn concurrent() {
 }
 
 fn close<T: Tag>(
-    buffer: Buffer<T>,
+    mut buffer: RingBuffer<T>,
     corrupt: bool,
 ) {
     if corrupt {
