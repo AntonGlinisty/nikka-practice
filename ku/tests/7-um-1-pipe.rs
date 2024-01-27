@@ -63,7 +63,7 @@ const WINDOW_DURATION: Duration = Duration::from_millis(
 );
 
 #[rstest]
-#[timeout(Duration::from_secs(1))]
+#[cfg_attr(not(miri), timeout(Duration::from_secs(1)))]
 fn check_continuous_mapping() {
     log::init();
 
@@ -105,24 +105,42 @@ fn check_continuous_mapping() {
 }
 
 #[rstest]
-#[case(false, false)]
-#[case(false, true)]
-#[case(true, false)]
-#[case(true, true)]
-#[timeout(Duration::from_secs(1))]
-#[ignore]
+#[case(false, false, false)]
+#[case(false, false, true)]
+#[case(false, true, false)]
+#[case(false, true, true)]
+#[case(true, false, false)]
+#[case(true, false, true)]
+#[case(true, true, false)]
+#[case(true, true, true)]
+#[cfg_attr(not(miri), timeout(Duration::from_secs(1)))]
 fn reader_close(
     #[case] corrupt: bool,
     #[case] close_first: bool,
+    #[case] aborted_read_tx: bool,
 ) {
     log::init();
 
-    debug!(corrupt, close_first);
+    debug!(corrupt, close_first, aborted_read_tx);
 
     let mut allocator = BigForPipe::new();
 
-    let (read_buffer, mut write_buffer) = pipe::make(&mut allocator).unwrap();
+    let (mut read_buffer, mut write_buffer) = pipe::make(&mut allocator).unwrap();
     let chunk = [1, 2, 3];
+
+    if aborted_read_tx {
+        let mut write_tx = write_buffer.write_tx().unwrap();
+        write_tx.write(&chunk).unwrap();
+        write_tx.commit();
+
+        let mut read_tx = read_buffer.read_tx().unwrap();
+        unsafe {
+            assert_eq!(read_tx.read().unwrap(), chunk);
+            assert!(read_tx.read().is_none());
+        }
+
+        drop(read_tx);
+    }
 
     let mut write_tx = write_buffer.write_tx().unwrap();
     write_tx.write(&chunk).unwrap();
@@ -143,8 +161,7 @@ fn reader_close(
 #[rstest]
 #[case(false)]
 #[case(true)]
-#[timeout(Duration::from_secs(1))]
-#[ignore]
+#[cfg_attr(not(miri), timeout(Duration::from_secs(1)))]
 fn writer_close(#[case] corrupt: bool) {
     log::init();
 
@@ -180,7 +197,7 @@ fn writer_close(#[case] corrupt: bool) {
 }
 
 #[rstest]
-#[timeout(Duration::from_secs(60))]
+#[cfg_attr(not(miri), timeout(Duration::from_secs(60)))]
 fn sequential() {
     log::init();
 
@@ -224,7 +241,7 @@ fn sequential() {
 }
 
 #[rstest]
-#[timeout(Duration::from_secs(300))]
+#[cfg_attr(not(miri), timeout(Duration::from_secs(300)))]
 fn concurrent() {
     log::init();
 
@@ -563,7 +580,7 @@ impl<'a> Operation<'a> {
         } else if rng.gen_ratio(1, 2) {
             rng.gen_range(0 .. BOUNDARY_SIZE)
         } else {
-            rng.gen_range(MAX_CAPACITY - BOUNDARY_SIZE + 1 .. MAX_CAPACITY + 1)
+            rng.gen_range(MAX_CAPACITY - BOUNDARY_SIZE + 1 ..= MAX_CAPACITY)
         }
     }
 }

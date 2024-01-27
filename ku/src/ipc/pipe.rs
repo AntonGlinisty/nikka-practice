@@ -468,7 +468,10 @@ impl<T: Tag> Drop for RingBufferTx<'_, T> {
 }
 
 /// Тег, отличающий пишущие транзакции от читающих.
-pub trait Tag {}
+pub trait Tag {
+    /// `true` если это писатель.
+    const READ: bool;
+}
 
 /// Читающая транзакция.
 pub type RingBufferReadTx<'a> = RingBufferTx<'a, ReadTag>;
@@ -481,6 +484,7 @@ pub type RingBufferWriteTx<'a> = RingBufferTx<'a, WriteTag>;
 pub struct ReadTag;
 
 impl Tag for ReadTag {
+    const READ: bool = true;
 }
 
 /// Тег пишущих транзакций.
@@ -488,6 +492,7 @@ impl Tag for ReadTag {
 pub struct WriteTag;
 
 impl Tag for WriteTag {
+    const READ: bool = false;
 }
 
 /// Статистики чтения или записи в буфер.
