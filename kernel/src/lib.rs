@@ -73,6 +73,7 @@ use x86::io;
 use ku::{
     self,
     SystemInfo,
+    backtrace::Backtrace,
 };
 use text::println;
 
@@ -245,7 +246,13 @@ pub fn test_runner(tests: &[&dyn Testable]) {
 
 /// Отмечает интеграционный тест как проваленный.
 pub fn fail_test(panic_info: &PanicInfo) -> ! {
-    println!(color(FAIL), "{}\n{:-<51} [failed]", panic_info, "");
+    println!(color(FAIL), "{}", panic_info);
+
+    if let Ok(backtrace) = Backtrace::current() {
+        println!(color(FAIL), "{backtrace:?}");
+    }
+
+    println!(color(FAIL), "{:-<51} [failed]", "");
 
     exit_qemu(ExitCode::FAILURE)
 }
