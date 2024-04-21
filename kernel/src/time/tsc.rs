@@ -100,7 +100,7 @@ impl Tsc {
         TscDuration(lap_end - mem::replace(&mut self.0, lap_end))
     }
 
-    /// Возвращает `true` если с момента создания этого [`Tsc`]
+    /// Возвращает `true`, если с момента создания этого [`Tsc`]
     /// прошло не менее `duration` времени.
     ///
     /// # Note
@@ -213,7 +213,9 @@ impl TryFrom<TscDuration> for Duration {
     }
 }
 
-/// Возвращает [номер текущего такта процессора](https://en.wikipedia.org/wiki/Time_Stamp_Counter) в некоторый момент времени своего исполнения.
+/// Возвращает
+/// [номер текущего такта процессора](https://en.wikipedia.org/wiki/Time_Stamp_Counter)
+/// в некоторый момент времени своего исполнения.
 #[inline(always)]
 pub fn tsc() -> i64 {
     // Do not use `x86::fence::lfence()` and `x86::time::rdtsc()`

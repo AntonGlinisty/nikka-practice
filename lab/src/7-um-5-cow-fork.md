@@ -82,7 +82,9 @@ fn trap_handler(info: &TrapInfo)
 #### `cow_fork()`
 
 ```rust
-fn cow_fork() -> Result<bool>
+fn cow_fork(
+    trap_handler_stack: Block<Page>,
+) -> Result<bool>
 ```
 
 Эта функции похожа на соответствующую функцию `eager_fork()`, но в ней добавляется работа по инициализации обработчика прерываний.

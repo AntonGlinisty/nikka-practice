@@ -409,7 +409,7 @@ fn all_frames_are_freed_on_drop() {
 #[test_case]
 fn garbage_in_duplicate() {
     let virt = Virt::new(0x0000_3000_0000_0000).unwrap();
-    let page = Page::new(virt).unwrap();
+    let page = Page::containing(virt);
 
     unsafe {
         map_page(&mut BASE_ADDRESS_SPACE.lock(), page, KERNEL_RW).unwrap();
@@ -540,7 +540,13 @@ fn tlb_flush() {
     }
 
     let current_mark = get_page_mark(page);
-    debug!(%page, %old_frame, current_mark, old_mark, "the page is currently mapped to the old frame and should contain its old mark");
+    debug!(
+        %page,
+        %old_frame,
+        current_mark,
+        old_mark,
+        "the page is currently mapped to the old frame and should contain its old mark",
+    );
     assert_eq!(current_mark, old_mark);
 
     unsafe {
@@ -550,7 +556,13 @@ fn tlb_flush() {
     }
 
     let current_mark = get_page_mark(page);
-    debug!(%page, %new_frame, current_mark, new_mark, "the page is currently mapped to the new frame and should contain its new mark");
+    debug!(
+        %page,
+        %new_frame,
+        current_mark,
+        new_mark,
+        "the page is currently mapped to the new frame and should contain its new mark",
+    );
     assert_eq!(current_mark, new_mark);
 
     unsafe {

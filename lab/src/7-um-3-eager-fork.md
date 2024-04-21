@@ -202,7 +202,7 @@ unsafe fn copy_page(src: Page, dst: Page)
 #### [`lib::memory::page_table()`](../../doc/lib/memory/fn.page_table.html)
 
 ```rust
-fn page_table(address: Virt, level: u32) -> &'static PageTable
+unsafe fn page_table(address: Virt, level: u32) -> &'static PageTable
 ```
 
 Пользуясь рекурсивной записью таблицы страниц,

@@ -325,6 +325,7 @@ impl Default for DetailedInfo {
     }
 }
 
+// Avoid changing the info during formatting it due to requests to the global allocator.
 impl fmt::Display for DetailedInfo {
     fn fmt(
         &self,

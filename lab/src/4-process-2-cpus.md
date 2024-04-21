@@ -224,6 +224,16 @@ ku::memory::mmu::page_table_root:
 [`Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html).
 Для этого пригодится макрос
 [`memoffset::offset_of!()`](../../doc/memoffset/macro.offset_of.html).
+А
+[передача констант в параметрах макроса `asm!()`](https://doc.rust-lang.org/unstable-book/language-features/asm-const.html)
+доступна нам за счёт `#![feature(asm_const)]`:
+
+```rust
+asm!(
+    "...",
+    the_answer_to_the_ultimate_question_of_life_the_universe_and_everything = const 42,
+);
+```
 
 Полученный адрес нужно будет сохранить в переменной подходящего типа,
 поддерживаемого макросом `asm!()`, например `usize`.

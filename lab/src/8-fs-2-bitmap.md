@@ -43,6 +43,7 @@ fn Bitmap::allocate(
 - Искать каждый раз с самого начала [`Bitmap::bitmap`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#structfield.bitmap) не эффективно. Лучше, например, обходить его по циклу с того места, на котором остановились в прошлый раз. Для хранения этой позиции между вызовами [`Bitmap::allocate()`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#method.allocate) служит поле [`Bitmap::cursor`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#structfield.cursor).
 - Проверять каждый бит тоже не эффективно. Лучше сначала найти значение в [`Bitmap::bitmap`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#structfield.bitmap), в котором есть хотя бы один свободный бит. Поэтому биты сгруппированы именно по [`u64`](https://doc.rust-lang.org/nightly/core/primitive.u64.html), а не например по [`u8`](https://doc.rust-lang.org/nightly/core/primitive.u8.html).
 - Верните ошибку [`Error::NoDisk`](../../doc/kernel/error/enum.Error.html#variant.NoDisk), если свободных элементов не осталось.
+- [`core::ops::Range`](https://doc.rust-lang.org/nightly/core/ops/struct.Range.html) можно создать как `start..end` --- `end` при этом не включается в диапазон, --- или как `start..=end` --- в этом случае `end` включается в получившийся [`Range`](https://doc.rust-lang.org/nightly/core/ops/struct.Range.html).
 
 
 ### Проверьте себя

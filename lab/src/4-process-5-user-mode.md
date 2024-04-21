@@ -78,6 +78,8 @@ unsafe fn Registers::switch_to(registers: *const Registers)
 Документацию на который можно посмотреть в
 [Rust By Example](https://doc.rust-lang.org/nightly/rust-by-example/unsafe/asm.html) и
 [The Rust Reference](https://doc.rust-lang.org/nightly/reference/inline-assembly.html).
+Кроме того, за счёт `#![feature(asm_const)]` нам доступна
+[передача констант в параметрах макроса `asm!()`](https://doc.rust-lang.org/unstable-book/language-features/asm-const.html).
 
 Мы не будем явно сохранять контекст ядра.
 Пусть это сделает за нас компилятор.

@@ -57,6 +57,7 @@ use crate::{
         KERNEL_RW,
         Page,
         USER,
+        USER_R,
         Virt,
         mmu::PageTableFlags,
     },

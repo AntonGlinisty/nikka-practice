@@ -44,11 +44,9 @@ fn recursive_deadlock() {
     log::init();
 
     let spinlock = Spinlock::new(0); // (*)
-    let lock = spinlock.lock(); // (*)
+    let _lock = spinlock.lock(); // (*)
 
     debug!(?spinlock, "attempting to lock a locked spinlock");
     drop(spinlock.lock()); // (*)
     debug!(error = "no panic occurred");
-
-    drop(lock);
 }

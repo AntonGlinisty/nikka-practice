@@ -76,9 +76,9 @@ $ make test
 Например:
 ```console
 $ objdump --all-headers target/kernel/debug/kernel | rustfilt
-$ objdump --disassemble --disassembler-options=intel target/kernel/debug/kernel | rustfilt
+$ objdump --disassemble --disassembler-options=intel --source target/kernel/debug/kernel | rustfilt
 $ objdump --all-headers target/kernel/user/cow_fork | rustfilt
-$ objdump --disassemble --disassembler-options=intel target/kernel/user/cow_fork | rustfilt
+$ objdump --disassemble --disassembler-options=intel --source target/kernel/user/cow_fork | rustfilt
 ```
 
 Для запуска `rustfilt` и других бинарников Rust полезно добавить `$HOME/.cargo/bin/` в свой `$PATH`:

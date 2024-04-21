@@ -4,7 +4,7 @@ set -ex
 
 export TMP=$(mktemp -d)
 
-JOBSERVER=../$(find ../target -name jobserver)
+JOBSERVER=../$(ls --sort=time $(find ../target -name jobserver) | head --lines=1)
 
 (cd env_test && $JOBSERVER 1)
 

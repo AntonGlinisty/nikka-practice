@@ -94,7 +94,7 @@ fn kernel_stacks() {
         a.start_address() < b.start_address()
     });
 
-    for (stack_a, stack_b) in stacks.iter().zip(stacks.iter().skip(1)) {
+    for (stack_a, stack_b) in stacks.iter().zip(&stacks[1 ..]) {
         info!(%stack_a, %stack_b);
         assert!(stack_a.end_address().unwrap() < stack_b.start_address());
     }

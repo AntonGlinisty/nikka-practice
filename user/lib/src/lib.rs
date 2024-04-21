@@ -4,6 +4,7 @@
 
 //! Библиотека для пользовательских процессов.
 
+#![deny(warnings)]
 #![feature(alloc_error_handler)]
 #![feature(allocator_api)]
 #![feature(asm_const)]

@@ -115,7 +115,7 @@ impl From<ResultCode> for Result<()> {
             ResultCode::Unimplemented => Err(Error::Unimplemented),
             ResultCode::InvalidAlignment => Err(Error::InvalidAlignment),
 
-            _ => panic!("unexpected error"),
+            _ => panic!("unexpected error {:?}", result),
         }
     }
 }

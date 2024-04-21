@@ -222,7 +222,7 @@ impl Cpu {
         unimplemented!();
     }
 
-    /// Возвращает структуру [`Cpu`] текущего процессора.
+    /// Возвращает ссылку на структуру [`Cpu`] текущего процессора.
     unsafe fn get() -> &'static mut Cpu {
         // TODO: your code here.
         unimplemented!();

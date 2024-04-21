@@ -162,6 +162,8 @@ fn read_write_speed() {
         "disk write speed",
     );
 
+    debug!(block_cache_stats = ?BlockCache::stats());
+
     fn throughput_per_second(
         size: Size,
         elapsed: TscDuration,
@@ -171,8 +173,6 @@ fn read_write_speed() {
             u128::try_from(elapsed.num_microseconds().unwrap()).unwrap();
         Size::bytes(throughput_per_second.try_into().unwrap())
     }
-
-    debug!(block_cache_stats = ?BlockCache::stats());
 }
 
 #[test_case]

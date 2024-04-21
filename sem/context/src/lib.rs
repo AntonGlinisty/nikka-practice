@@ -3,7 +3,6 @@
 #![allow(unused_variables)]
 
 #![feature(ffi_returns_twice)]
-#![feature(naked_functions)]
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[repr(C)]

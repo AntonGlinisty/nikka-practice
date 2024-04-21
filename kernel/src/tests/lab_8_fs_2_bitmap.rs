@@ -66,8 +66,8 @@ fn allocation() {
     }
 
     slice::heapsort(&mut allocated, |a, b| a < b);
-    for (i, j) in allocated.iter().zip(allocated.iter().skip(1)) {
-        assert_ne!(*i, *j, "allocated the same block twice");
+    for (i, j) in allocated.iter().zip(&allocated[1 ..]) {
+        assert_ne!(i, j, "allocated the same block twice");
     }
 
     let mut free_block_count = 0;

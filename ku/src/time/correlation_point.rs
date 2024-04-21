@@ -34,6 +34,12 @@ impl CorrelationPoint {
         Self { count, tsc }
     }
 
+    /// Возвращает [`CorrelationPoint`], который соответствует тику `count` и
+    /// привязан к текущему такту процессора.
+    pub fn now(count: i64) -> Self {
+        Self::new(count, tsc::tsc())
+    }
+
     /// Возвращает [`CorrelationPoint`], который соответствует тику `count`,
     /// но не привязан ни к какому такту процессора.
     ///
@@ -43,12 +49,6 @@ impl CorrelationPoint {
     /// частотой соответствующих часов.
     pub fn invalid(count: i64) -> Self {
         Self::new(count, 0)
-    }
-
-    /// Возвращает [`CorrelationPoint`], который соответствует тику `count` и
-    /// привязан к текущему такту процессора.
-    pub fn now(count: i64) -> Self {
-        Self::new(count, tsc::tsc())
     }
 
     /// Возвращает `true`, если `self` привязан к какому-нибудь такту процессора.
