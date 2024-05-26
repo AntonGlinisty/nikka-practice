@@ -273,6 +273,29 @@ impl AddressSpace {
         Ok(())
     }
 
+    /// Меняет флаги доступа к заданному блоку виртуальных страниц `pages` на `flags`.
+    ///
+    /// # Safety
+    ///
+    /// Вызывающий код должен гарантировать, что инварианты управления памятью в Rust'е
+    /// не будут нарушены.
+    /// В частности, не осталось ссылок, которые ведут в `pages`.
+    pub unsafe fn remap_block(
+        &mut self,
+        pages: Block<Page>,
+        flags: PageTableFlags,
+    ) -> Result<()> {
+        for page in pages {
+            self.mapping.translate(page.address(), None, flags)?.set_flags(flags);
+
+            unsafe {
+                mmu::flush(page);
+            }
+        }
+
+        Ok(())
+    }
+
     /// Удаляет отображение заданного блока виртуальных страниц `pages`.
     /// Физические фреймы, на которые не осталось других ссылок, освобождаются.
     ///

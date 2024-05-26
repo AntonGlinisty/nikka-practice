@@ -5,12 +5,15 @@ use ku::{
         Overflow,
         PermissionDenied,
     },
+    log::debug,
     memory::{
         Block,
         Page,
+        Virt,
         mmu::{
             KERNEL_R,
             KERNEL_RW,
+            PageTableFlags,
             USER_R,
             USER_RW,
         },
@@ -26,6 +29,7 @@ use kernel::{
     Subsystems,
     memory::test_scaffolding::{
         forbid_frame_leaks,
+        mapping,
         switch_to,
     },
     process::{
@@ -88,12 +92,31 @@ fn map_syscall_group() {
         );
     }
 
+    let additional_flag_sets = [
+        PageTableFlags::empty(),
+        PageTableFlags::ACCESSED,
+        PageTableFlags::DIRTY,
+        PageTableFlags::ACCESSED | PageTableFlags::DIRTY,
+    ];
+
     for flags in [USER_R, USER_RW] {
-        let flags = flags.bits();
-        assert_eq!(
-            map(process.lock(), pid, address, size, flags),
-            Ok(SyscallResult(address)),
-        );
+        for additional_flags in additional_flag_sets {
+            let flags = flags | additional_flags;
+
+            assert_eq!(
+                map(process.lock(), pid, address, size, flags.bits()),
+                Ok(SyscallResult(address)),
+            );
+
+            validate_flags(&process, Virt::new(address).unwrap(), flags);
+
+            let allocated_memory = unsafe { block.try_into_slice::<usize>().unwrap() };
+            assert!(
+                allocated_memory.iter().all(|&x| x == 0),
+                "do not leak information into the user space in allocated frames",
+            );
+        }
+
         for flags in [KERNEL_R, KERNEL_RW] {
             let flags = flags.bits();
             assert_eq!(
@@ -101,7 +124,24 @@ fn map_syscall_group() {
                 Err(PermissionDenied),
             );
         }
-        assert!(copy_mapping(process.lock(), pid, address, new_address, size, flags).is_ok());
+
+        for additional_flags in additional_flag_sets {
+            let flags = flags | additional_flags;
+
+            assert!(
+                copy_mapping(
+                    process.lock(),
+                    pid,
+                    address,
+                    new_address,
+                    size,
+                    flags.bits(),
+                )
+                .is_ok(),
+            );
+
+            validate_flags(&process, Virt::new(new_address).unwrap(), flags);
+        }
     }
 
     let flags = USER_RW.bits();
@@ -140,6 +180,19 @@ fn map_syscall_group() {
             result == Err(InvalidArgument) || result == Err(Overflow),
             "expected Err(InvalidArgument) or Err(Overflow), got {result:?}",
         );
+    }
+
+    fn validate_flags(
+        process: &Spinlock<Process>,
+        virt: Virt,
+        expected_flags: PageTableFlags,
+    ) {
+        let mut process = process.lock();
+        let mut address_space = process.address_space();
+        let mapping = mapping(&mut address_space);
+        let actual_flags = mapping.translate(virt, None, PageTableFlags::empty()).unwrap().flags();
+        debug!(%actual_flags, %expected_flags);
+        assert_eq!(actual_flags, expected_flags);
     }
 }
 
