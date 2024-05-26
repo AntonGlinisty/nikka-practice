@@ -16,6 +16,7 @@ use crate::error::{
 use super::{
     addr::{
         Addr,
+        GroupedHex,
         IsVirt,
         Tag,
         Virt,
@@ -152,6 +153,11 @@ impl<T: Memory> Block<T> {
     /// Возвращает адрес следующего за последним элементом блока.
     pub fn end_address(&self) -> Result<T::Address> {
         T::address_by_index(self.end)
+    }
+
+    /// Возвращает адрес следующего за последним элементом блока.
+    pub fn end_address_u128(&self) -> u128 {
+        u128::try_from(self.end()).unwrap() * u128::try_from(T::SIZE_OF).unwrap()
     }
 
     /// Проверяет, что заданный элемент относится к блоку.
@@ -430,23 +436,19 @@ impl<T: Memory> fmt::Debug for Block<T> {
         &self,
         formatter: &mut fmt::Formatter,
     ) -> fmt::Result {
-        if self.end_address().is_ok() {
-            write!(
-                formatter,
-                "{}, {}[~{}, ~{})",
-                self,
-                T::NAME,
-                Size::new::<T>(self.start),
-                Size::new::<T>(self.end),
-            )
+        write!(
+            formatter,
+            "{}, {} count {}, [~{}, ",
+            self,
+            T::NAME,
+            self.count(),
+            Size::new::<T>(self.start),
+        )?;
+
+        if let Ok(end_address) = usize::try_from(self.end_address_u128()) {
+            write!(formatter, "~{})", Size::bytes(end_address))
         } else {
-            write!(
-                formatter,
-                "{}, {}[~{}, ~16.000EiB)",
-                self,
-                T::NAME,
-                Size::new::<T>(self.start),
-            )
+            write!(formatter, "~16.000EiB)")
         }
     }
 }
@@ -456,22 +458,14 @@ impl<T: Memory> fmt::Display for Block<T> {
         &self,
         formatter: &mut fmt::Formatter,
     ) -> fmt::Result {
-        if let Ok(end_address) = self.end_address() {
-            write!(
-                formatter,
-                "[{}, {}), size {}",
-                self.start_address(),
-                end_address,
-                Size::new::<T>(self.count()),
-            )
-        } else {
-            write!(
-                formatter,
-                "[{}, 0v1_0000_0000_0000_0000), size {}",
-                self.start_address(),
-                Size::new::<T>(self.count()),
-            )
-        }
+        write!(
+            formatter,
+            "[{}, {}{}), size {}",
+            self.start_address(),
+            T::HEX_PREFIX,
+            GroupedHex::new(self.end_address_u128()),
+            Size::new::<T>(self.count()),
+        )
     }
 }
 
@@ -501,6 +495,11 @@ impl<T: Memory> Iterator for IntoIter<T> {
 
 /// Описывает базовые типы для [`Block`] и их операции.
 pub trait Memory: Clone + Copy + SizeOf {
+    /// Заменяет префикс `0x` при печати на:
+    ///   - `0p` (**p**hysical) для физических адресов;
+    ///   - `0v` (**v**irtual) для виртуальных адресов.
+    const HEX_PREFIX: &'static str;
+
     /// Имя базового типа для отладочной печати блока.
     const NAME: &'static str;
 
@@ -540,6 +539,7 @@ pub trait Memory: Clone + Copy + SizeOf {
 }
 
 impl<T: Tag> Memory for Addr<T> {
+    const HEX_PREFIX: &'static str = T::HEX_PREFIX;
     const NAME: &'static str = T::ADDR_NAME;
 
     type Address = Addr<T>;
@@ -569,6 +569,7 @@ impl<T: Tag> Memory for Addr<T> {
 }
 
 impl<T: Tag> Memory for Frage<T> {
+    const HEX_PREFIX: &'static str = T::HEX_PREFIX;
     const NAME: &'static str = T::FRAGE_NAME;
 
     type Address = Addr<T>;

@@ -16,6 +16,7 @@
 #![feature(let_chains)]
 #![feature(slice_ptr_get)]
 #![feature(strict_provenance)]
+#![feature(trait_alias)]
 #![no_std]
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(missing_docs)]

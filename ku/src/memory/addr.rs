@@ -1,14 +1,22 @@
 use core::{
+    cmp::PartialEq,
     fmt,
     marker::PhantomData,
     mem,
     ops::{
         Add,
+        BitAnd,
+        Shl,
+        Shr,
         Sub,
     },
     slice,
 };
 
+use num_traits::{
+    One,
+    Zero,
+};
 use static_assertions::const_assert_eq;
 use x86_64::addr::VirtAddr;
 
@@ -157,24 +165,53 @@ impl<T: Tag> fmt::Display for Addr<T> {
         &self,
         formatter: &mut fmt::Formatter,
     ) -> fmt::Result {
-        write!(formatter, "{}", T::HEX_PREFIX)?;
+        write!(formatter, "{}{}", T::HEX_PREFIX, GroupedHex(self.0))
+    }
+}
 
-        /// Количество бит в одной шестнадцатеричной цифре.
-        const BITS_PER_HEX_DIGIT: usize = 4;
+/// Требования к типам, которые можно печатать в шестнадцатеричном виде с группировкой по разрядам.
+pub trait GroupedHexTrait<T> = BitAnd<Output = T>
+    + Copy
+    + One
+    + PartialEq
+    + Shl<u32, Output = T>
+    + Shr<u32, Output = T>
+    + Sub<Output = T>
+    + Zero
+    + fmt::UpperHex;
 
-        /// Количество шестнадцатеричных цифр в одной группе, отделённой от других символом `_`.
-        const GROUP_HEX_DIGITS: usize = 4;
+/// Вспомогательная обёртка для печати шестнадцатеричных чисел с группировкой по разрядам.
+pub struct GroupedHex<T: GroupedHexTrait<T>, const GROUP_HEX_DIGITS: usize = 4>(T);
 
-        /// Количество бит в одной группе шестнадцатеричных цифр.
-        const GROUP_BITS: u32 = (GROUP_HEX_DIGITS * BITS_PER_HEX_DIGIT) as u32;
+impl<T: GroupedHexTrait<T>> GroupedHex<T> {
+    /// Возвращает обёртку для печати шестнадцатеричных чисел с группировкой по разрядам.
+    pub fn new(value: T) -> Self {
+        Self(value)
+    }
+}
 
-        /// Битовая маска младшей группы шестнадцатеричных цифр.
-        const GROUP_MASK: usize = (1 << GROUP_BITS) - 1;
+impl<T: GroupedHexTrait<T>> GroupedHex<T> {
+    /// Количество бит в одной шестнадцатеричной цифре.
+    const BITS_PER_HEX_DIGIT: usize = 4;
 
-        let mut groups = (0 .. usize::BITS / GROUP_BITS)
+    /// Количество шестнадцатеричных цифр в одной группе, отделённой от других символом `_`.
+    const GROUP_HEX_DIGITS: usize = 4;
+
+    /// Количество бит в одной группе шестнадцатеричных цифр.
+    const GROUP_BITS: u32 = (Self::GROUP_HEX_DIGITS * Self::BITS_PER_HEX_DIGIT) as u32;
+}
+
+impl<T: GroupedHexTrait<T>> fmt::Display for GroupedHex<T> {
+    fn fmt(
+        &self,
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
+        let group_mask = (T::one() << Self::GROUP_BITS) - T::one();
+
+        let mut groups = (0 .. usize::BITS / Self::GROUP_BITS)
             .rev()
-            .map(|index| (index, (self.0 >> (index * GROUP_BITS)) & GROUP_MASK))
-            .skip_while(|&(index, group)| index > 0 && group == 0)
+            .map(|index| (index, (self.0 >> (index * Self::GROUP_BITS)) & group_mask))
+            .skip_while(|&(index, group)| index > 0 && group == T::zero())
             .map(|(_, group)| group);
 
         write!(
@@ -184,7 +221,12 @@ impl<T: Tag> fmt::Display for Addr<T> {
         )?;
 
         for group in groups {
-            write!(formatter, "_{:0width$X}", group, width = GROUP_HEX_DIGITS)?;
+            write!(
+                formatter,
+                "_{:0width$X}",
+                group,
+                width = Self::GROUP_HEX_DIGITS,
+            )?;
         }
 
         Ok(())
