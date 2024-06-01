@@ -59,7 +59,10 @@ pub use ku::{
 
 use crate::{
     Subsystems,
-    log::info,
+    log::{
+        error,
+        info,
+    },
     time,
 };
 
@@ -147,6 +150,12 @@ pub(super) fn init(
 
         *FRAME_ALLOCATOR.lock() =
             FrameAllocator::Main(main_frame_allocator::init(&boot_info.memory_map));
+    }
+
+    if subsystems.contains(Subsystems::VIRT_MEMORY | Subsystems::MAIN_FRAME_ALLOCATOR) &&
+        let Err(error) = EXCEPTION_STACKS.lock().make_guard_zones()
+    {
+        error!(?error, "failed to make guard zones for the trap stacks");
     }
 
     info!(duration = %timer.elapsed(), "memory init");

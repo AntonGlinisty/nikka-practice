@@ -81,10 +81,7 @@ use log::{
     info,
     warn,
 };
-use memory::{
-    EXCEPTION_STACKS,
-    gdt,
-};
+use memory::gdt;
 
 // Used in docs.
 #[allow(unused)]
@@ -173,21 +170,15 @@ pub fn init_subsystems(
     gdt::init();
     trap::init();
 
-    if subsystems & Subsystems::MEMORY != Subsystems::empty() {
+    if subsystems.intersects(Subsystems::MEMORY) {
         memory::init(boot_info, subsystems);
     }
 
-    if subsystems.contains(Subsystems::MEMORY) {
-        if let Err(error) = EXCEPTION_STACKS.lock().make_guard_zones() {
-            warn!(?error, "failed to make guard zones in exception stacks")
-        }
-    }
-
-    if subsystems & Subsystems::SMP != Subsystems::empty() {
+    if subsystems.intersects(Subsystems::SMP) {
         smp::init(boot_info, subsystems);
     }
 
-    if subsystems & Subsystems::PROCESS != Subsystems::empty() {
+    if subsystems.intersects(Subsystems::PROCESS) {
         process::init(subsystems);
     }
 }
