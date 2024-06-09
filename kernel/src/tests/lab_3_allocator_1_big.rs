@@ -17,9 +17,13 @@ use core::{
 
 use static_assertions::const_assert_eq;
 
-use ku::allocator::{
-    DryAllocator,
-    Initialize,
+use ku::{
+    allocator::{
+        BigAllocator,
+        DryAllocator,
+        Initialize,
+    },
+    error::Result,
 };
 
 use kernel::{
@@ -27,6 +31,7 @@ use kernel::{
     allocator,
     log::debug,
     memory::{
+        AddressSpace,
         BASE_ADDRESS_SPACE,
         Block,
         FRAME_ALLOCATOR,
@@ -87,6 +92,114 @@ fn shrink_is_not_a_noop() {
 }
 
 #[test_case]
+fn copy_mapping_frame_references() {
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+    let layout = Layout::from_size_align(3 * Page::SIZE, Page::SIZE).unwrap();
+
+    let mut old_block = Block::default();
+    let mut new_block = Block::default();
+
+    for block in [&mut old_block, &mut new_block] {
+        *block = address_space.allocator(USER_RW).reserve(layout).unwrap();
+        check_mapped(&mut address_space, *block, false);
+    }
+
+    unsafe {
+        address_space.allocator(USER_RW).map(old_block).unwrap();
+    }
+
+    check_mapped(&mut address_space, old_block, true);
+    check_mapped(&mut address_space, new_block, false);
+    check_reference_count(&mut address_space, old_block, 1);
+
+    unsafe {
+        address_space.allocator(USER_RW).copy_mapping(old_block, new_block).unwrap();
+    }
+
+    check_mapped(&mut address_space, old_block, true);
+    check_equal(&mut address_space, old_block, new_block);
+    check_reference_count(&mut address_space, old_block, 2);
+
+    unsafe {
+        address_space.allocator(USER_RW).unmap(old_block).unwrap();
+    }
+
+    check_mapped(&mut address_space, old_block, false);
+    check_mapped(&mut address_space, new_block, true);
+    check_reference_count(&mut address_space, new_block, 1);
+
+    unsafe {
+        address_space.allocator(USER_RW).unmap(new_block).unwrap();
+    }
+
+    for block in [old_block, new_block] {
+        check_mapped(&mut address_space, block, false);
+
+        unsafe {
+            address_space.allocator(USER_RW).unreserve(block).unwrap();
+        }
+    }
+
+    fn check_equal(
+        address_space: &mut AddressSpace,
+        a: Block<Page>,
+        b: Block<Page>,
+    ) {
+        debug!(%a, %b, "blocks should be equal");
+
+        for (a_page, b_page) in a.into_iter().zip(b) {
+            let a_pte = translate(address_space, a_page);
+            let b_pte = translate(address_space, b_page);
+            debug!(?a_pte, ?b_pte);
+            assert_eq!(a_pte, b_pte);
+        }
+    }
+
+    fn check_reference_count(
+        address_space: &mut AddressSpace,
+        block: Block<Page>,
+        expected_reference_count: usize,
+    ) {
+        debug!(%block, expected_reference_count);
+
+        for page in block {
+            let translate_result = translate(address_space, page);
+            if let Ok(pte) = translate_result {
+                let reference_count =
+                    FRAME_ALLOCATOR.lock().reference_count(pte.frame().unwrap()).unwrap();
+                debug!(%page, ?pte, reference_count);
+                assert_eq!(reference_count, expected_reference_count);
+            } else {
+                debug!(%page, ?translate_result);
+                assert_eq!(
+                    expected_reference_count, 0,
+                    "intermediate page is not mapped?",
+                );
+            }
+        }
+    }
+
+    fn check_mapped(
+        address_space: &mut AddressSpace,
+        block: Block<Page>,
+        should_be_mapped: bool,
+    ) {
+        debug!(%block, should_be_mapped);
+
+        for page in block {
+            let translate_result = translate(address_space, page);
+            if let Ok(pte) = translate_result {
+                debug!(%page, ?pte);
+                assert_eq!(pte.is_present(), should_be_mapped, "pte: {pte:?}");
+            } else {
+                debug!(%page, ?translate_result);
+                assert!(!should_be_mapped, "intermediate page is not mapped?");
+            }
+        }
+    }
+}
+
+#[test_case]
 fn grow_and_shrink() {
     memory_allocator_grow_and_shrink();
 }
@@ -131,7 +244,11 @@ fn check_frames<T>(
     prev_frames: Vec<PageTableEntry>,
 ) -> Vec<PageTableEntry> {
     let block = Block::from_slice(vec.as_slice()).enclosing();
-    let frames: Vec<_> = block.into_iter().map(translate).collect();
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+    let frames: Vec<_> = block
+        .into_iter()
+        .map(|page| translate(&mut address_space, page).unwrap())
+        .collect();
     debug!(%block, ?frames);
 
     for pte in &frames {
@@ -153,8 +270,11 @@ fn check_frames<T>(
     frames
 }
 
-fn translate(page: Page) -> PageTableEntry {
-    *mapping(&mut BASE_ADDRESS_SPACE.lock()).translate(page.address()).unwrap()
+fn translate(
+    address_space: &mut AddressSpace,
+    page: Page,
+) -> Result<PageTableEntry> {
+    mapping(address_space).translate(page.address()).map(|pte| *pte)
 }
 
 macro_rules! my_assert {
