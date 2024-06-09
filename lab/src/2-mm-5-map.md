@@ -29,7 +29,8 @@ unsafe fn AddressSpace::map_page_to_frame(
 в файле [`kernel/src/memory/address_space.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/address_space.rs).
 Он должен отобразить заданную виртуальную страницу `page` на заданный физический фрейм `frame` с указанными флагами доступа `flags`.
 Используйте
-[`Mapping::translate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.translate)
+[`Mapping::path()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.path),
+[`Path::map_intermediate()`](../../doc/kernel/memory/mapping/struct.Path.html#method.map_intermediate)
 и
 [`FRAME_ALLOCATOR`](../../doc/kernel/memory/struct.FRAME_ALLOCATOR.html).
 Вам может пригодиться метод
@@ -56,7 +57,7 @@ unsafe fn AddressSpace::map_page_to_frame(
 Если же отображение `page` поменялось, старый физический фрейм освобождается,
 если на него не осталось других ссылок.
 Удалить старое отображение можно с помощью метода
-[`AddressSpace::unmap_pte()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.unmap_pte).
+[`Path::unmap()`](../../doc/kernel/memory/mapping/struct.Path.html#method.unmap).
 
 Используя
 [`FrameAllocator::allocate()`](../../doc/kernel/memory/frame_allocator/enum.FrameAllocator.html#method.allocate)
@@ -91,20 +92,23 @@ unsafe fn AddressSpace::unmap_page(
 ) -> Result<()>
 ```
 
-и его вспомогательный [метод](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.unmap_pte)
+в файле
+[`kernel/src/memory/address_space.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/address_space.rs).
+
+А также вспомогательный
+[метод](../../doc/kernel/memory/mapping/struct.Path.html#method.unmap)
 
 ```rust
-unsafe fn AddressSpace::unmap_pte(
-    page: Page,
-    pte: &mut PageTableEntry,
+unsafe fn Path::unmap(
+    &mut self,
+    frame_allocator: &mut FrameAllocator,
 ) -> Result<()>
 ```
 
-в файле [`kernel/src/memory/address_space.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/address_space.rs).
+в файле
+[`kernel/src/memory/mapping.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/mapping.rs).
 Воспользуйтесь
-[`Mapping::translate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.translate),
-теперь в качестве `flags` ему можно передать пустой набор флагов
-[`PageTableFlags::empty()`](../../doc/kernel/memory/mmu/struct.PageTableFlags.html#method.empty).
+[`Mapping::path()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.path).
 
 **Важно** сбросить запись в буфере ассоциативной трансляции
 ([Translation lookaside buffer](https://en.wikipedia.org/wiki/Translation_lookaside_buffer),

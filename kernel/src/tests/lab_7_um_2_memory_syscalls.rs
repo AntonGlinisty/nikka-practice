@@ -29,6 +29,7 @@ use kernel::{
     Subsystems,
     memory::test_scaffolding::{
         forbid_frame_leaks,
+        get_pte,
         mapping,
         switch_to,
     },
@@ -190,7 +191,8 @@ fn map_syscall_group() {
         let mut process = process.lock();
         let mut address_space = process.address_space();
         let mapping = mapping(&mut address_space);
-        let actual_flags = mapping.translate(virt, None, PageTableFlags::empty()).unwrap().flags();
+        let path = mapping.path(virt);
+        let actual_flags = get_pte(&path).unwrap().flags();
         debug!(%actual_flags, %expected_flags);
         assert_eq!(actual_flags, expected_flags);
     }

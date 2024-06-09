@@ -9,6 +9,7 @@ pub use ku::memory::mmu::{
     PAGE_TABLE_INDEX_BITS,
     PAGE_TABLE_INDEX_MASK,
     PAGE_TABLE_LEAF_LEVEL,
+    PAGE_TABLE_LEVEL_COUNT,
     PAGE_TABLE_ROOT_LEVEL,
     PageTable,
     PageTableEntry,

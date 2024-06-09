@@ -5,6 +5,7 @@ use core::slice;
 
 use kernel::{
     Subsystems,
+    error::Error::NoPage,
     log::info,
     memory::{
         BASE_ADDRESS_SPACE,
@@ -52,9 +53,7 @@ fn kernel_stacks() {
         let stack_mapping_error = "kernel stack is not mapped";
 
         for stack_page in stack.enclosing() {
-            let stack_pte = mapping
-                .translate(stack_page.address(), None, PageTableFlags::empty())
-                .expect(stack_mapping_error);
+            let stack_pte = mapping.translate(stack_page.address()).expect(stack_mapping_error);
             let stack_frame = stack_pte.frame().expect(stack_mapping_error);
             let stack_flags = stack_pte.flags();
 
@@ -78,15 +77,15 @@ fn kernel_stacks() {
         }
 
         for stack_guard_page in stack_guard.enclosing() {
-            let stack_guard_mapping_error = "kernel stack guard is not unmapped";
-            let stack_guard_pte = mapping
-                .translate(stack_guard_page.address(), None, PageTableFlags::empty())
-                .expect(stack_mapping_error);
-            let stack_guard_frame = stack_guard_pte.frame().expect_err(stack_guard_mapping_error);
-            let stack_guard_flags = stack_guard_pte.flags();
+            let stack_guard_frame =
+                mapping.translate(stack_guard_page.address()).and_then(|pte| pte.frame());
 
-            info!(cpu, %stack_guard_page, ?stack_guard_frame, ?stack_guard_flags);
-            assert!(!stack_guard_pte.is_present(), "{stack_guard_mapping_error}");
+            info!(cpu, ?stack_guard_frame);
+            assert_eq!(
+                stack_guard_frame,
+                Err(NoPage),
+                "kernel stack guard is not unmapped",
+            );
         }
     }
 

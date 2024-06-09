@@ -34,9 +34,8 @@ use super::{
         Page,
     },
     mapping::Mapping,
-    mmu,
     mmu::{
-        PageTableEntry,
+        self,
         PageTableFlags,
     },
     page_allocator::PageAllocator,
@@ -234,24 +233,6 @@ impl AddressSpace {
         Ok(()) // TODO: remove before flight.
     }
 
-    /// Вспомогательный метод
-    /// для [`AddressSpace::map_page_to_frame()`] и [`AddressSpace::unmap_page()`].
-    /// Удаляет отображение заданной виртуальной страницы `page`, отображённой через запись `pte`.
-    /// Физический фрейм освобождается, если на него не осталось других ссылок.
-    ///
-    /// # Safety
-    ///
-    /// Вызывающий код должен гарантировать, что инварианты управления памятью в Rust'е
-    /// не будут нарушены.
-    /// В частности, не осталось ссылок, которые ведут в удаляемую страницу.
-    unsafe fn unmap_pte(
-        page: Page,
-        pte: &mut PageTableEntry,
-    ) -> Result<()> {
-        // TODO: your code here.
-        unimplemented!();
-    }
-
     /// Выделяет нужное количество физических фреймов
     /// и отображает в них заданный блок виртуальных страниц `pages`
     /// с заданными флагами доступа `flags`.
@@ -286,11 +267,7 @@ impl AddressSpace {
         flags: PageTableFlags,
     ) -> Result<()> {
         for page in pages {
-            self.mapping.translate(page.address(), None, flags)?.set_flags(flags);
-
-            unsafe {
-                mmu::flush(page);
-            }
+            self.mapping.path(page.address()).set_flags(flags)?;
         }
 
         Ok(())

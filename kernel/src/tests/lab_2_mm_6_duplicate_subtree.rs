@@ -6,10 +6,7 @@ use kernel::{
         BASE_ADDRESS_SPACE,
         FRAME_ALLOCATOR,
         Virt,
-        mmu::{
-            PageTableFlags,
-            USER,
-        },
+        mmu::USER,
         test_scaffolding::{
             duplicate,
             forbid_frame_leaks,
@@ -34,7 +31,10 @@ fn duplicate_and_drop() {
 
     {
         let original_mapping = mapping(&mut address_space);
-        original_mapping.translate(a, Some(&mut FRAME_ALLOCATOR.lock()), USER).unwrap();
+        original_mapping
+            .path(a)
+            .map_intermediate(&mut FRAME_ALLOCATOR.lock(), USER)
+            .unwrap();
         mm_helpers::check_intermediate_flags(original_mapping, a, USER);
     }
 
@@ -43,7 +43,7 @@ fn duplicate_and_drop() {
 
     {
         let original_mapping = mapping(&mut address_space);
-        let pte = original_mapping.translate(b, None, PageTableFlags::empty());
+        let pte = original_mapping.translate(b);
         assert_eq!(pte, Err(NoPage));
     }
 
@@ -62,10 +62,12 @@ fn duplicate_and_drop() {
         let mapping_copy = mapping(&mut address_space_copy);
         let original_mapping = mapping(address_space);
 
-        if allocate_intermediate {
-            mapping_copy.translate(virt, Some(&mut FRAME_ALLOCATOR.lock()), USER).unwrap();
-        } else {
-            mapping_copy.translate(virt, None, USER).unwrap();
+        {
+            let mut frame_allocator = FRAME_ALLOCATOR.lock();
+            let start_free_frames = frame_allocator.count();
+            mapping_copy.path(virt).map_intermediate(&mut frame_allocator, USER).unwrap();
+            let end_free_frames = frame_allocator.count();
+            assert!(allocate_intermediate || end_free_frames == start_free_frames);
         }
 
         mm_helpers::check_intermediate_flags(mapping_copy, virt, USER);

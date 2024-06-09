@@ -16,10 +16,12 @@ use kernel::{
             KERNEL_RW,
             PAGE_OFFSET_BITS,
             PageTableFlags,
+            USER,
             USER_RW,
         },
         test_scaffolding::{
             forbid_frame_leaks,
+            get_pte,
             mapping,
             phys2virt,
             phys2virt_map,
@@ -44,7 +46,7 @@ fn t01_translate() {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
     let mapping = mapping(&mut address_space);
 
-    let pte = mapping.translate(virt, None, PageTableFlags::empty()).unwrap();
+    let pte = mapping.translate(virt).unwrap();
 
     debug!(?pte);
 
@@ -90,9 +92,9 @@ fn t02_map_intermediate() {
     let mapping = mapping(&mut address_space);
 
     let virt = Virt::new(0xFFFF_FFFF_FFFF_FFFF).unwrap();
-    let pte = mapping
-        .translate(virt, Some(&mut frame_allocator), PageTableFlags::empty())
-        .unwrap();
+    let mut path = mapping.path(virt);
+    path.map_intermediate(&mut frame_allocator, PageTableFlags::empty()).unwrap();
+    let pte = get_pte(&path).unwrap();
 
     debug!(?pte);
 
@@ -102,7 +104,8 @@ fn t02_map_intermediate() {
     mm_helpers::check_intermediate_flags(mapping, virt, PageTableFlags::PRESENT);
 
     for flags in [KERNEL_RW, USER_RW] {
-        mapping.translate(virt, None, flags).unwrap();
+        mapping.path(virt).map_intermediate(&mut frame_allocator, flags).unwrap();
+        assert_eq!(frame_allocator.count(), end_free_frames);
         mm_helpers::check_intermediate_flags(mapping, virt, flags);
     }
 }
@@ -117,9 +120,7 @@ fn t03_no_excessive_intermediate_flags() {
 
     let virt = Virt::new(0xFFFF_8FFF_FFFF_FFFF).unwrap();
     let flags = PageTableFlags::all().difference(FULL_ACCESS);
-    let pte = mapping.translate(virt, Some(&mut frame_allocator), flags).unwrap();
-
-    debug!(?pte);
+    mapping.path(virt).map_intermediate(&mut frame_allocator, flags).unwrap();
 
     let end_free_frames = frame_allocator.count();
     assert!(start_free_frames > end_free_frames);
@@ -133,9 +134,11 @@ fn t04_huge_page() {
     let mapping = mapping(&mut address_space);
 
     let phys2virt = phys2virt(mapping);
-    let pte = mapping.translate(phys2virt.address(), None, PageTableFlags::empty());
+    let result = mapping
+        .path(phys2virt.address())
+        .map_intermediate(&mut FRAME_ALLOCATOR.lock(), USER);
 
-    assert_eq!(pte, Err(Unimplemented));
+    assert_eq!(result, Err(Unimplemented));
 }
 
 #[test_case]
@@ -144,7 +147,7 @@ fn t05_no_page() {
     let mapping = mapping(&mut address_space);
 
     let virt = Virt::new(0xFFFF_FFFF_FFDF_FFFF).unwrap();
-    let pte = mapping.translate(virt, None, PageTableFlags::empty());
+    let pte = mapping.translate(virt);
 
     assert_eq!(pte, Err(NoPage));
 }
@@ -171,6 +174,8 @@ fn t99_no_frame() {
     assert!(real_frame_count <= frame_count);
 
     let virt = Virt::new(0xFFFF_FFFF_FFAF_FFFF).unwrap();
-    let pte = mapping.translate(virt, Some(&mut frame_allocator), PageTableFlags::empty());
+    let pte = mapping
+        .path(virt)
+        .map_intermediate(&mut frame_allocator, PageTableFlags::empty());
     assert_eq!(pte, Err(NoFrame));
 }

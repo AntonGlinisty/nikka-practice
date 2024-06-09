@@ -34,7 +34,6 @@ use kernel::{
         Virt,
         mmu::{
             PageTableEntry,
-            PageTableFlags,
             USER_RW,
         },
         size::MiB,
@@ -155,9 +154,7 @@ fn check_frames<T>(
 }
 
 fn translate(page: Page) -> PageTableEntry {
-    *mapping(&mut BASE_ADDRESS_SPACE.lock())
-        .translate(page.address(), None, PageTableFlags::empty())
-        .unwrap()
+    *mapping(&mut BASE_ADDRESS_SPACE.lock()).translate(page.address()).unwrap()
 }
 
 macro_rules! my_assert {

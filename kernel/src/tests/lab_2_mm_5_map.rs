@@ -130,9 +130,7 @@ fn map_twice() {
 
     fn translate(virt: Virt) -> PageTableEntry {
         let mut address_space = BASE_ADDRESS_SPACE.lock();
-        *mapping(&mut address_space)
-            .translate(virt, None, PageTableFlags::empty())
-            .unwrap()
+        *mapping(&mut address_space).translate(virt).unwrap()
     }
 }
 
@@ -140,9 +138,5 @@ fn translate(
     address_space: &mut AddressSpace,
     page: Page,
 ) -> Frame {
-    mapping(address_space)
-        .translate(page.address(), None, PageTableFlags::empty())
-        .unwrap()
-        .frame()
-        .unwrap()
+    mapping(address_space).translate(page.address()).unwrap().frame().unwrap()
 }

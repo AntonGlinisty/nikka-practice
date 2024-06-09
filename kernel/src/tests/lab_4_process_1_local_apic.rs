@@ -25,9 +25,7 @@ fn mapped_properly() {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
     let mapping = mapping(&mut address_space);
     let mapping_error = "Local APIC is not mapped";
-    let pte = mapping
-        .translate(local_apic, None, PageTableFlags::empty())
-        .expect(mapping_error);
+    let pte = mapping.translate(local_apic).expect(mapping_error);
     let frame = pte.frame().expect(mapping_error);
     let flags = pte.flags();
 

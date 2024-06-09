@@ -51,7 +51,6 @@ use crate::{
         USER_R,
         USER_RW,
         Virt,
-        mmu::PageTableFlags,
     },
 };
 
@@ -146,10 +145,8 @@ fn map_log(address_space: &mut AddressSpace) -> Result<(ReadBuffer, WriteBuffer)
 /// страницы с общей информацией о системе.
 /// См. [`SystemInfo`].
 fn map_system_info(address_space: &mut AddressSpace) -> Result<*const SystemInfo> {
-    let system_info_frame = address_space
-        .mapping()
-        .translate(Virt::from_ref(&SYSTEM_INFO), None, PageTableFlags::empty())?
-        .frame()?;
+    let system_info_frame =
+        address_space.mapping().translate(Virt::from_ref(&SYSTEM_INFO))?.frame()?;
 
     let system_info_page = address_space
         .allocate(mem::size_of_val(&SYSTEM_INFO))?

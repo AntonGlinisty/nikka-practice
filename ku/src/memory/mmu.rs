@@ -9,7 +9,7 @@ use static_assertions::const_assert_eq;
 
 use crate::{
     error::{
-        Error::NoFrame,
+        Error::NoPage,
         Result,
     },
     log::warn,
@@ -49,7 +49,7 @@ impl PageTableEntry {
         if self.is_present() {
             Ok(Frame::new(self.phys()).unwrap())
         } else {
-            Err(NoFrame)
+            Err(NoPage)
         }
     }
 
@@ -155,7 +155,7 @@ pub type PageTable = [PageTableEntry; PAGE_TABLE_ENTRY_COUNT];
 bitflags! {
     /// Флаги в записи таблицы страниц.
     /// Аналогичны [`x86_64::structures::paging::page_table::PageTableFlags`].
-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
     pub struct PageTableFlags: usize {
         /// Страница отображена в память.
         const PRESENT = 1 << 0;
@@ -285,6 +285,9 @@ pub const PAGE_TABLE_LEAF_LEVEL: u32 = 0;
 
 /// Номер корневого уровня таблицы страниц.
 pub const PAGE_TABLE_ROOT_LEVEL: u32 = 3;
+
+/// Количество уровней в дереве отображения.
+pub const PAGE_TABLE_LEVEL_COUNT: usize = PAGE_TABLE_ROOT_LEVEL as usize + 1;
 
 const_assert_eq!(
     mem::size_of::<PageTable>(),

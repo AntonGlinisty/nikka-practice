@@ -67,92 +67,60 @@ fn phys2virt::map(phys2virt: Page, address: Phys) -> Virt
 
 ![](2-mm-4-translate.svg)
 
-Вооружившись этими знаниями, реализуйте [метод](../../doc/kernel/memory/mapping/struct.Mapping.html#method.translate)
+Вооружившись этими знаниями, реализуйте [метод](../../doc/kernel/memory/mapping/struct.Mapping.html#method.path)
 ```rust
-unsafe fn Mapping::translate(
+fn Mapping::path(
     &mut self,
     virt: Virt,
-    mut frame_allocator: Option<&mut FrameAllocator>,
-    flags: PageTableFlags,
-) -> Result<&mut PageTableEntry>
+) -> Path
 ```
 
 в файле [`kernel/src/memory/mapping.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/mapping.rs).
-Он принимает на вход
+Он принимает на вход виртуальный адрес `virt`, который нужно транслировать.
+И возвращает путь в дереве отображения страниц
+[`Path`](../../doc/kernel/memory/mapping/struct.Path.html),
+соответствующий входному виртуальному адресу `virt`.
 
-- Виртуальный адрес `virt`, который нужно транслировать.
-- Опциональный аллокатор фреймов `frame_allocator`.
-- Флаги `flags` для промежуточных записей таблиц страниц.
-
-И возвращает ссылку на запись
-[`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html)
-в
-[`PageTable`](../../doc/ku/memory/mmu/type.PageTable.html)
-листьевого уровня (L0 на схеме),
-соответствующую входному виртуальному адресу `virt`.
-Возвращается ссылка на изменяемую
-[`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html),
-а не например
-[`Phys`](../../doc/ku/memory/addr/type.Phys.html).
-Чтобы вызывающая функция могла потом как-либо модифицировать отображение `virt` --- удалить это отображение, изменить его флаги, поменять физический адрес.
-Получить же целевой
-[`Phys`](../../doc/ku/memory/addr/type.Phys.html)
-из возвращённой
-[`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html)
-можно в одно действие ---
-[`PageTableEntry::phys()`](../../doc/ku/memory/mmu/struct.PageTableEntry.html#method.phys).
-
-[`Mapping::translate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.translate)
-должен пройти от корневой L3 до листьевой L0 по физическим фреймам, которые возвращает метод
+[`Mapping::path()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.path)
+должен пройти от корневой L3 по физическим фреймам, которые возвращает метод
 [`fn PageTableEntry::frame() -> Result<Frame>`](../../doc/ku/memory/mmu/struct.PageTableEntry.html#method.frame)
-для промежуточных
+для существующих узлов дерева
 [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html).
-Если какая-то из этих промежуточных
+
+Если какая-то из этих
 [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html)
-не отображена на физическую память, то есть два варианта:
+не отображена на физическую память или содержит флаг
+[`PageTableFlags::HUGE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.HUGE),
+на этом построение пути заканчивается.
 
-- Входной `frame_allocator` равен [`None`](https://doc.rust-lang.org/nightly/core/option/enum.Option.html#variant.None), тогда [`Mapping::translate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.translate) сразу выходит, возвращая ошибку [`Error::NoPage`](../../doc/kernel/error/enum.Error.html#variant.NoPage).
-- Входной `frame_allocator` равен [`Some`](https://doc.rust-lang.org/nightly/core/option/enum.Option.html#variant.Some), тогда [`Mapping::translate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.translate) аллоцирует с его помощью фрейм для недостающей промежуточной [`PageTable`](../../doc/ku/memory/mmu/type.PageTable.html). Обязательно очищает её --- все записи в ней должны быть равны значению, которое возвращает метод [`PageTableEntry::default()`](../../doc/ku/memory/mmu/struct.PageTableEntry.html#method.default). И устанавливает этот фрейм в промежуточную [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html) методом [`PageTableEntry::set_frame()`](../../doc/ku/memory/mmu/struct.PageTableEntry.html#method.set_frame). Теперь промежуточная таблица отображена в память.
+Реализуйте [метод](../../doc/kernel/memory/mapping/struct.Path.html#method.map_intermediate)
+```rust
+pub fn Path::map_intermediate(
+    &mut self,
+    frame_allocator: &mut FrameAllocator,
+    flags: PageTableFlags,
+) -> Result<()> {
+```
 
-Вам может пригодиться конструкция `frame_allocator.as_mut().ok_or(NoPage)?`. В ней
-[`Option::as_mut()`](https://doc.rust-lang.org/nightly/core/option/enum.Option.html#method.as_mut)
-преобразует `&mut Option<FrameAllocator>` в `Option<&mut FrameAllocator>`.
-Далее, уже встречавшаяся нам `Option::ok_or(NoPage)` преобразует
-[`Option::None`](https://doc.rust-lang.org/nightly/core/option/enum.Option.html#variant.None)
-в
-[`Result::Err(NoPage)`](https://doc.rust-lang.org/nightly/core/result/enum.Result.html#variant.Err)
-а
-[`Option::Some(frame_allocator)`](https://doc.rust-lang.org/nightly/core/option/enum.Option.html#variant.Some)
-в
-[`Result::Ok(frame_allocator)`](https://doc.rust-lang.org/nightly/core/result/enum.Result.html#variant.Ok).
-Последним штрихом `?` разворачивает
-[`Result::Ok(frame_allocator)`](https://doc.rust-lang.org/nightly/core/result/enum.Result.html#variant.Ok)
-в содержащийся внутри `&mut FrameAllocator`, а
-[`Result::Err`](https://doc.rust-lang.org/nightly/core/result/enum.Result.html#variant.Err)
-прокидывает в вызывающую функцию.
-Именно изменяемый `&mut FrameAllocator` нужен нам чтобы аллоцировать из него фреймы для промежуточных таблиц
-[`PageTable`](../../doc/ku/memory/mmu/type.PageTable.html),
-если это понадобится.
-Ещё один вариант --- использовать
-[`Option::as_deref_mut()`](https://doc.rust-lang.org/nightly/core/option/enum.Option.html#method.as_deref_mut)
-вместо
-[`Option::as_mut()`](https://doc.rust-lang.org/nightly/core/option/enum.Option.html#method.as_mut).
+Он должен достроить путь в дереве отображения страниц,
+соответствующий виртуальному адресу
+[`Path::virt`](../../doc/kernel/memory/mapping/struct.Path.html#structfield.virt),
+до листьевого уровня (L0 на схеме).
+Чтобы вызывающая функция могла потом как-либо модифицировать отображение
+[`Path::virt`](../../doc/kernel/memory/mapping/struct.Path.html#structfield.virt) ---
+изменить его флаги, поменять физический адрес.
 
-Если во
-[`FrameAllocator`](../../doc/kernel/memory/frame_allocator/enum.FrameAllocator.html)
-не окажется свободных фреймов, он вернёт ошибку
-[`Error::NoFrame`](../../doc/kernel/error/enum.Error.html#variant.NoFrame),
-как мы реализовали в
-[задаче 2](../../lab/book/2-mm-1-boot-frame-allocator.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-2--%D0%B0%D0%BB%D0%BB%D0%BE%D0%BA%D0%B0%D1%86%D0%B8%D1%8F-%D1%84%D1%80%D0%B5%D0%B9%D0%BC%D0%BE%D0%B2).
-Заметьте, что:
-
-- Если в [`Mapping::translate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.translate)
-не передали [`FrameAllocator`](../../doc/kernel/memory/frame_allocator/enum.FrameAllocator.html), она возвращает [`Error::NoPage`](../../doc/kernel/error/enum.Error.html#variant.NoPage). Это означает "виртуальная страница для данного `virt` не отображена в физическую память".
-- А если передали, но он не смог выделить свободный физический фрейм, то [`Mapping::translate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.translate) вернёт ошибку [`kernel::error::Error::NoFrame`](../../doc/kernel/error/enum.Error.html#variant.NoFrame). Это означает "во время исполнения операции понадобилось выделить дополнительный физический фрейм, но свободных фреймов не осталось".
-
-У этих двух ситуаций разный смысл, поэтому
-[`Mapping::translate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.translate)
-возвращает для них разные значения ошибок.
+Недостающие узлы этот метод выделяет с помощью передаваемого ей на вход `frame_allocator`.
+Только что выданную
+[`PageTable`](../../doc/ku/memory/mmu/type.PageTable.html)
+нужно обязательно очистить ---
+все записи в ней должны быть равны значению, которое возвращает метод
+[`PageTableEntry::default()`](../../doc/ku/memory/mmu/struct.PageTableEntry.html#method.default).
+Только после этого можно установить этот фрейм в промежуточную
+[`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html)
+методом
+[`PageTableEntry::set_frame()`](../../doc/ku/memory/mmu/struct.PageTableEntry.html#method.set_frame).
+Теперь промежуточная таблица отображена в память.
 
 Если в промежуточной таблице встретилась запись, в которой
 [`PageTableEntry::flags()`](../../doc/ku/memory/mmu/struct.PageTableEntry.html#method.flags)
@@ -170,13 +138,15 @@ unsafe fn Mapping::translate(
 Делается это для экономии физических фреймов на само отображение.
 
 Кроме того, есть ещё такой момент.
-Если вызывающая функция захочет отобразить `virt`, например, с возможностью записи, и установит
+Если вызывающая функция захочет отобразить
+[`Path::virt`](../../doc/kernel/memory/mapping/struct.Path.html#structfield.virt),
+например, с возможностью записи, и установит
 соответствующий флаг
 [`PageTableFlags::WRITABLE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.WRITABLE)
 только в том элементе
 [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html)
 таблицы L0, которую вернёт
-[`Mapping::translate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.translate),
+[`Path::get_mut()`](../../doc/kernel/memory/mapping/struct.Path.html#method.get_mut),
 этого может оказаться недостаточно.
 Дело в том, что процессор пересечёт флаги [`PageTableFlags::WRITABLE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.WRITABLE)
 из всех промежуточных
@@ -190,19 +160,15 @@ unsafe fn Mapping::translate(
 несмотря на то что в
 [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html)
 таблицы L0, она разрешена.
-Поэтому в промежуточных
+Поэтому во всех промежуточных, не только выделяемых,
 [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html)
 функция
-[`Mapping::translate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.translate)
+[`Path::map_intermediate()`](../../doc/kernel/memory/mapping/struct.Path.html#method.map_intermediate)
 должна будет включить флаги, заданные ей в аргументе `flags`.
 И никакие флаги промежуточных
 [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html)
 она не должна случайно сбросить при этой операции.
 Альтернативой было бы либо сразу включать все доступы в промежуточных
-[`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html),
-либо возвращать из
-[`Mapping::translate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.translate)
-весь набор промежуточных
 [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html).
 Также заметьте, что включать нужно только флаги доступа, они задаются константой
 [`ku::memory::mmu::FULL_ACCESS`](../../doc/ku/memory/mmu/constant.FULL_ACCESS.html).
@@ -214,9 +180,8 @@ unsafe fn Mapping::translate(
 
 ```rust
 fn Mapping::map_intermediate(
+    &mut self,
     pte: &mut PageTableEntry,
-    flags: PageTableFlags,
-    phys2virt: Page,
     frame_allocator: &mut FrameAllocator,
 ) -> Result<()>
 ```
@@ -225,10 +190,8 @@ fn Mapping::map_intermediate(
 
 Запись `()` в её результате означает пустой [кортеж](https://doc.rust-lang.ru/book/ch03-02-data-types.html#%D0%9A%D0%BE%D1%80%D1%82%D0%B5%D0%B6%D0%B8), --- это аналог `void` языка C++.
 То есть, функция либо возвращает `Ok(())`, если она отработала успешно, либо ошибку.
-Функция [`Mapping::map_intermediate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.map_intermediate) статическая, она не принимает `self`.
-Чтобы её вызвать нужно явно указать `Self::` или `Mapping::`.
 
-При реализации `Mapping::translate()` и `Mapping::map_intermediate()` вам также могут пригодиться:
+При реализации `Mapping::path()`, `Path::map_intermediate()` и `Mapping::map_intermediate()` вам также могут пригодиться:
 
 - Поле [`Mapping::page_table_root`](../../doc/kernel/memory/mapping/struct.Mapping.html#structfield.page_table_root), оно содержит адрес фрейма корневой таблицы L3, то есть фактически копию регистра [`CR3`](https://wiki.osdev.org/CPU_Registers_x86#CR3).
 - Константа [`ku::memory::mmu::PAGE_TABLE_ROOT_LEVEL`](../../doc/ku/memory/mmu/constant.PAGE_TABLE_ROOT_LEVEL.html) --- та самая 3 из обозначения L3 для корневой таблицы страниц --- третий уровень считая с нуля.
@@ -237,20 +200,6 @@ fn Mapping::map_intermediate(
 - Метод [`fill()`](https://doc.rust-lang.org/nightly/core/primitive.slice.html#method.fill) срезов.
 - Цикл, чтобы обойти уровни таблицы. Для уменьшения потенциальных возможностей совершить ошибку, можно было бы сделать таблицы страниц разных уровней не совместимыми в системе типов, [как здесь](https://os.phil-opp.com/page-tables/#some-clever-solution). Тогда компилятор не дал бы их перепутать в коде. Но такой подход, к сожалению, не даст написать обычный цикл по уровням, только рекурсию на обобщённых функциях или копипасту. Поэтому в Nikka выбор сделан в пользу одного и того же типа для узлов всех уровней.
 - Итерирование в обратном порядке: `for i in (5..10).rev()`, или же `for i in (5..=10).rev()` если `10` должно быть включительно.
-- Сохранение в самом начале функции [`Mapping::translate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.translate) значения `self.phys2virt` в отдельную переменную и использование уже новой переменной, если столкнётесь с излишней консервативностью borrow checker'а, подобного вида:
-```console
-error[E0503]: cannot use `self.phys2virt` because it was mutably borrowed
-  --> src/memory/mapping.rs:58:65
-   |
-55 |             let ... = self...;
-   |                       ---- borrow of `*self` occurs here
-...
-58 |                 Self::map_intermediate(..., self.phys2virt, frame_allocator.as_mut().ok_or(NoPage)?)?;
-   |                                             ^^^^^^^^^^^^^^ use of borrowed `*self`
-...
-61 |             if ... {
-   |                --- borrow later used here
-```
 
 Теперь должен проходить тест
 

@@ -29,6 +29,7 @@ use kernel::{
         test_scaffolding::{
             duplicate,
             forbid_frame_leaks,
+            get_pte,
             map_page,
             mapping,
             new_address_space,
@@ -313,9 +314,9 @@ fn garbage_after_map_intermediate() {
     let mapping = mapping(&mut address_space);
 
     let virt = Virt::new(0x0000_4000_0000_0000).unwrap();
-    let pte = mapping
-        .translate(virt, Some(&mut frame_allocator), PageTableFlags::empty())
-        .unwrap();
+    let mut path = mapping.path(virt);
+    path.map_intermediate(&mut frame_allocator, PageTableFlags::empty()).unwrap();
+    let pte = get_pte(&path).unwrap();
 
     let expected_pte = PageTableEntry::default();
 
@@ -328,8 +329,7 @@ fn garbage_after_map_intermediate() {
 
     for neighbour in 1 .. PAGE_TABLE_ENTRY_COUNT {
         let neighbour_virt = (virt + neighbour * Page::SIZE).unwrap();
-        let neighbour_pte =
-            mapping.translate(neighbour_virt, None, PageTableFlags::empty()).unwrap();
+        let neighbour_pte = mapping.translate(neighbour_virt).unwrap();
         if *neighbour_pte != expected_pte {
             debug!(?neighbour_pte, ?expected_pte);
         }
@@ -610,6 +610,6 @@ fn tlb_flush() {
 fn translate(
     address_space: &mut AddressSpace,
     virt: Virt,
-) -> &mut PageTableEntry {
-    mapping(address_space).translate(virt, None, PageTableFlags::empty()).unwrap()
+) -> &PageTableEntry {
+    mapping(address_space).translate(virt).unwrap()
 }

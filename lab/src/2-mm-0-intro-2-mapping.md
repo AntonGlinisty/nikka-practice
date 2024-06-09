@@ -1,9 +1,14 @@
 ## Страничные отображения
 
 Основную работу по преобразованию виртуальных адресов в соответствующие физические будет делать метод
-[`Mapping::translate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.translate)
+[`Mapping::path()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.path)
 структуры
-[`kernel::memory::mapping::Mapping`](../../doc/kernel/memory/mapping/struct.Mapping.html).
+[`kernel::memory::mapping::Mapping`](../../doc/kernel/memory/mapping/struct.Mapping.html),
+которая работает с деревом страничного отображения.
+И структура
+[`kernel::memory::mapping::Path`](file:///.../nikka/doc/kernel/memory/mapping/struct.Path.html),
+которая задаёт в этом дереве путь от корня до отображённого физического фрейма.
+
 
 Обратное преобразование, из физического адреса в виртуальный, вообще говоря не является функцией, так как один и тот же физический адрес может быть отображён на несколько разных виртуальных адресов в одном адресном пространстве.
 Однако, очень полезно находить какой-нибудь виртуальный адрес, соответствующий данному физическому.
