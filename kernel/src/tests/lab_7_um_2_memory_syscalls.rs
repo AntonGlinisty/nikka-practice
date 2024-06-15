@@ -1,3 +1,5 @@
+use chrono::Duration;
+
 use ku::{
     error::Error::{
         self,
@@ -44,6 +46,10 @@ use kernel::{
             set_pid,
             unmap,
         },
+    },
+    time::{
+        self,
+        TscDuration,
     },
     trap::{
         TRAP_STATS,
@@ -232,6 +238,45 @@ fn map_over_kernel(
             Err(PermissionDenied),
         );
     }
+}
+
+#[test_case]
+fn copy_mapping_of_enormous_blocks() {
+    let _guard = forbid_frame_leaks();
+
+    let process = Spinlock::new(process_helpers::make(MEMORY_ALLOCATOR_ELF));
+    set_pid(&mut process.lock(), Pid::new(0));
+    let pid = process.lock().pid().into_usize();
+    switch_to(process.lock().address_space());
+
+    let mut old = process.lock().address_space().allocate(Page::SIZE << 20).unwrap();
+    let new = old.tail(old.count() / 2).unwrap();
+
+    let old_address = old.start_address().into_usize();
+    let new_address = new.start_address().into_usize();
+    let size = old.size();
+    let flags = USER_R.bits();
+
+    let iterations = 1_000;
+    let timeout = TscDuration::try_from(Duration::seconds(2)).unwrap();
+    let timer = time::timer();
+
+    for iteration in 1 ..= iterations {
+        assert_eq!(
+            copy_mapping(process.lock(), pid, old_address, new_address, size, flags),
+            Err(NoPage),
+        );
+
+        let elapsed = timer.elapsed();
+
+        assert!(
+            elapsed < timeout,
+            "only {iteration} iterations of copy_mapping() in {elapsed}",
+        );
+    }
+
+    let elapsed = timer.elapsed();
+    debug!(iterations, %elapsed, "iterations of copy_mapping()");
 }
 
 #[test_case]
