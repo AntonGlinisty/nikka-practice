@@ -14,9 +14,9 @@ use ku::{
     error::{
         Error::{
             InvalidArgument,
+            NoPage,
             Null,
             Overflow,
-            PermissionDenied,
         },
         Result,
     },
@@ -83,10 +83,10 @@ fn main() {
     my_assert!(block.is_ok(), "the Block::from_index(1, 2) should be ok");
 
     let result = log_block(block.unwrap(), 0);
-    my_assert!(result.is_err(), "expected Err(PermissionDenied), got Ok");
+    my_assert!(result.is_err(), "expected Err(NoPage), got Ok");
     my_assert!(
-        result == Err(PermissionDenied),
-        "expected Err(PermissionDenied), got another error",
+        result == Err(NoPage),
+        "expected Err(NoPage), got another error",
         ResultCode::from(result).into(),
     );
 

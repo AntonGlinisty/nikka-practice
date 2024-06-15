@@ -1,7 +1,9 @@
 use ku::{
     error::Error::{
+        self,
         InvalidAlignment,
         InvalidArgument,
+        NoPage,
         Overflow,
         PermissionDenied,
     },
@@ -66,7 +68,7 @@ fn map_syscall_group() {
     switch_to(process.lock().address_space());
 
     let block = Block::from_slice("some kernel memory".as_bytes()).enclosing();
-    map_over_kernel(&process, block);
+    map_over_kernel(&process, block, &[PermissionDenied]);
 
     let block = process.lock().address_space().allocate(2 * Page::SIZE).unwrap();
     let mut head = block;
@@ -74,7 +76,7 @@ fn map_syscall_group() {
     unsafe {
         process.lock().address_space().map_block(tail, KERNEL_RW).unwrap();
     }
-    map_over_kernel(&process, block);
+    map_over_kernel(&process, block, &[NoPage, PermissionDenied]);
     unsafe {
         process.lock().address_space().unmap_block(tail).unwrap();
     }
@@ -150,7 +152,7 @@ fn map_syscall_group() {
     assert!(unmap(process.lock(), pid, new_address, size).is_ok());
     assert_eq!(
         copy_mapping(process.lock(), pid, address, new_address, size, flags),
-        Err(PermissionDenied),
+        Err(NoPage),
     );
     assert!(unmap(process.lock(), pid, address, size).is_err());
 
@@ -201,6 +203,7 @@ fn map_syscall_group() {
 fn map_over_kernel(
     process: &Spinlock<Process>,
     block: Block<Page>,
+    expected_errors: &[Error],
 ) {
     let pid = process.lock().pid().into_usize();
 
@@ -209,9 +212,12 @@ fn map_over_kernel(
     let new_block = process.lock().address_space().allocate(block.size()).unwrap();
     let new_address = new_block.start_address().into_usize();
 
-    assert_eq!(
-        unmap(process.lock(), pid, address, size),
-        Err(PermissionDenied),
+    let error = unmap(process.lock(), pid, address, size).unwrap_err();
+    assert!(
+        expected_errors.iter().any(|x| *x == error),
+        "expected one of {:?} but got {:?}",
+        expected_errors,
+        error,
     );
 
     for flags in [KERNEL_R, KERNEL_RW, USER_R, USER_RW] {

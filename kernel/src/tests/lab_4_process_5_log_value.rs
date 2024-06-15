@@ -1,6 +1,7 @@
 use ku::{
     error::Error::{
         InvalidArgument,
+        NoPage,
         Null,
         Overflow,
         PermissionDenied,
@@ -75,10 +76,7 @@ fn log_value_implementation() {
 
     assert!(log_value(process.lock(), info, 1, 0, 0).is_ok());
 
-    assert_eq!(
-        log_value(process.lock(), info, 1, 1, 0),
-        Err(PermissionDenied),
-    );
+    assert_eq!(log_value(process.lock(), info, 1, 1, 0), Err(NoPage));
 
     let result = log_value(process.lock(), info, 0, 0, 0);
     assert!(

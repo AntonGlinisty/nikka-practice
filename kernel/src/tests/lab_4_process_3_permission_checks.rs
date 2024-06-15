@@ -1,6 +1,6 @@
 use kernel::{
     Subsystems,
-    error::Error::PermissionDenied,
+    error::Error::NoPage,
     log::debug,
     memory::{
         AddressSpace,
@@ -81,7 +81,7 @@ fn non_present() {
             let expected = if block.size() == 0 {
                 Ok(unsafe { block.try_into_slice().unwrap() })
             } else {
-                Err(PermissionDenied)
+                Err(NoPage)
             };
 
             if slice != expected {
