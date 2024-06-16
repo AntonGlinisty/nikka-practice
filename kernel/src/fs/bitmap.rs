@@ -78,17 +78,7 @@ impl Bitmap {
     ) -> Result<()> {
         let bitmap = Self::new_unchecked(block, elements.clone());
 
-        let reserved_end = bitmap.elements.start;
-        let reserved_end_index = reserved_end / Self::BITS_PER_ENTRY;
-        bitmap.bitmap[.. reserved_end_index].fill(!0);
-        bitmap.bitmap[reserved_end_index] = (1 << (reserved_end % Self::BITS_PER_ENTRY)) - 1;
-
-        bitmap.bitmap[reserved_end_index + 1 ..].fill(0);
-
-        if elements.end < bitmap.bitmap.len() * Self::BITS_PER_ENTRY {
-            bitmap.bitmap[elements.end / Self::BITS_PER_ENTRY] =
-                !0 << (elements.end % Self::BITS_PER_ENTRY);
-        }
+        // TODO: your code here.
 
         bitmap.validate()?;
 

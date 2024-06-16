@@ -33,6 +33,31 @@ mod init;
 init!(Subsystems::MEMORY);
 
 #[test_case]
+fn reserved_elements() {
+    let block = 2;
+
+    block_cache_init(fs_helpers::FS_DISK, block + 1, block + 1).unwrap();
+
+    for start in (0 .. 128).step_by(7) {
+        for end in ((start + 1) .. (start + 128)).step_by(13) {
+            Bitmap::format(block, start .. end).unwrap();
+            let mut bitmap = Bitmap::new(block, start .. end).unwrap();
+
+            for _ in start .. end {
+                let element =
+                    bitmap.allocate().expect("failed to allocate a supposedly free element");
+                assert!(
+                    start <= element && element < end,
+                    "allocated a reserved element",
+                );
+            }
+
+            bitmap.allocate().expect_err("allocated from a supposedly empty bitmap");
+        }
+    }
+}
+
+#[test_case]
 fn allocation() {
     let (mut block_bitmap, ..) = fs_helpers::simple_fs(Kind::File);
 

@@ -23,6 +23,22 @@ struct Bitmap {
 
 ### Задача 2 --- битовая карта занятых блоков или inode
 
+Доделайте [метод](../../doc/kernel/fs/bitmap/struct.Bitmap.html#method.format)
+
+```rust
+fn format(
+    block: usize,
+    elements: Range<usize>,
+) -> Result<()>
+```
+
+в файле
+[`kernel/src/fs/bitmap.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/fs/bitmap.rs).
+
+Вам нужно инициализировать массив `bitmap.bitmap` так,
+чтобы для элементов, перечисленных в `elements`, соответствующие биты были равны нулю --- элементы свободны.
+А для всех остальных --- зарезервированных и отсутствующих в битовой карте элементов --- соответствующие биты были равны единице.
+
 Реализуйте [метод](../../doc/kernel/fs/bitmap/struct.Bitmap.html#method.allocate)
 
 ```rust
@@ -36,7 +52,7 @@ fn Bitmap::allocate(
 
 Функция должна найти по
 [`Bitmap::bitmap`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#structfield.bitmap)
-свободный элемент и аллоцировать его.
+свободный элемент --- нулевой бит --- и выделить его.
 
 - Верните номер выделенного элемента.
 - После того как новый элемент выделен, сбросьте изменившийся блок самого [`Bitmap::bitmap`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#structfield.bitmap) на диск с помощью реализованной вами функции [`BlockCache::flush_block()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.flush_block). Когда меняете метаданные, лучше сразу сбрасывать их на диск, так меньше вероятность поломки файловой системы, например, при сбое питания.
