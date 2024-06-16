@@ -1,4 +1,5 @@
 use core::{
+    cmp,
     fmt,
     iter::IntoIterator,
     marker::PhantomData,
@@ -188,6 +189,38 @@ impl<T: Memory> Block<T> {
         block: Self,
     ) -> bool {
         self.start <= block.start && block.end <= self.end
+    }
+
+    /// Проверяет, что заданный `block` не пересекается с текущим.
+    pub fn is_disjoint(
+        &self,
+        block: Self,
+    ) -> bool {
+        self.is_empty() ||
+            block.is_empty() ||
+            (!self.contains_address(block.start_address()) &&
+                !block.contains_address(self.start_address()))
+    }
+
+    /// Возвращает `true`, если блок пуст.
+    pub const fn is_empty(&self) -> bool {
+        self.start == self.end
+    }
+
+    /// Возвращает пересечение блока `block` с текущим.
+    pub fn intersection(
+        &self,
+        block: Self,
+    ) -> Self {
+        let start = cmp::max(self.start(), block.start());
+        let end = cmp::min(self.end(), block.end());
+
+        if start <= end {
+            Block::from_index(start, end)
+                .expect("an intersection of valid blocks should be a valid block")
+        } else {
+            Block::zero()
+        }
     }
 
     /// Возвращает подблок исходного блока, задающийся диапазоном `range`.

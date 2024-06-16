@@ -68,6 +68,7 @@ unsafe fn copy_mapping(
 
 - [`Block::count()`](../../doc/ku/memory/block/struct.Block.html#method.count),
 - [`Block::from_index()`](../../doc/ku/memory/block/struct.Block.html#method.from_index),
+- [`Block::is_disjoint()`](../../doc/ku/memory/block/struct.Block.html#method.is_disjoint),
 - [`Block::tail()`](../../doc/ku/memory/block/struct.Block.html#method.tail),
 - [`Block::try_into_non_null_slice()`](../../doc/ku/memory/block/struct.Block.html#method.try_into_non_null_slice).
 

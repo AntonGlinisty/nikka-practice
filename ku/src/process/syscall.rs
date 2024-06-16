@@ -55,7 +55,7 @@ pub enum Syscall {
 }
 
 /// Данные, возвращаемые из системных вызовов.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct SyscallResult(pub usize);
 
 /// Код ошибки, возвращаемый из системных вызовов.

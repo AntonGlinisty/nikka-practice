@@ -1,4 +1,5 @@
 #![feature(custom_test_frameworks)]
+#![feature(iterator_try_reduce)]
 #![no_main]
 #![no_std]
 #![reexport_test_harness_main = "test_main"]

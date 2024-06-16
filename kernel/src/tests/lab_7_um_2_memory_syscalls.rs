@@ -241,6 +241,104 @@ fn map_over_kernel(
 }
 
 #[test_case]
+fn copy_mapping_of_intersecting_blocks() {
+    let _guard = forbid_frame_leaks();
+
+    let process = Spinlock::new(process_helpers::make(MEMORY_ALLOCATOR_ELF));
+    set_pid(&mut process.lock(), Pid::new(0));
+    let pid = process.lock().pid().into_usize();
+    switch_to(process.lock().address_space());
+
+    let block = process.lock().address_space().allocate(5 * Page::SIZE).unwrap();
+    let old = block.slice(1 .. block.count() - 1).unwrap();
+    let old_address = old.start_address().into_usize();
+    let size = old.size();
+    let flags = USER_R.bits();
+
+    let mut transactional = true;
+    let mut intersection_is_supported = true;
+
+    let try_unmap_page = |page: Page| -> bool {
+        match unmap(process.lock(), pid, page.address().into_usize(), Page::SIZE) {
+            Ok(_) => true,
+            Err(error) => {
+                assert_eq!(error, NoPage);
+                false
+            },
+        }
+    };
+
+    for hole in [None, old.into_iter().nth(1)] {
+        for new_offset in 0 ..= 2 {
+            let new = block.slice(new_offset .. block.count() - (2 - new_offset)).unwrap();
+            let new_address = new.start_address().into_usize();
+
+            for page in old {
+                assert!(!try_unmap_page(page));
+            }
+
+            assert_eq!(
+                map(process.lock(), pid, old_address, size, flags,),
+                Ok(SyscallResult(old_address)),
+            );
+
+            if let Some(hole) = hole {
+                assert!(try_unmap_page(hole));
+            }
+
+            for page in new {
+                if !old.contains(page) {
+                    assert!(!try_unmap_page(page));
+                }
+            }
+
+            let result = copy_mapping(process.lock(), pid, old_address, new_address, size, flags);
+
+            debug!(%old, %new, ?hole, ?result, "copy mapping of intersecting blocks");
+
+            if hole.is_some() {
+                assert!(result.is_err());
+
+                for page in new {
+                    if !old.contains(page) && try_unmap_page(page) {
+                        debug!(
+                            %page,
+                            "failed copy_mapping() syscall \
+                             has modified the page mapping of the new block",
+                        );
+                        transactional = false;
+                    }
+                }
+            } else if result.is_ok() {
+                for page in new {
+                    if !old.contains(page) {
+                        assert!(try_unmap_page(page));
+                    }
+                }
+            } else {
+                intersection_is_supported = false;
+                assert_eq!(result, Err(InvalidArgument));
+            }
+
+            for page in old {
+                assert_eq!(try_unmap_page(page), hole != Some(page));
+            }
+        }
+    }
+
+    debug!(
+        intersection_is_supported,
+        transactional,
+        "{}",
+        if intersection_is_supported && transactional {
+            "congratulations, copy_mapping() is transactional and supports intersecting blocks"
+        } else {
+            "copy_mapping()"
+        }
+    );
+}
+
+#[test_case]
 fn copy_mapping_of_enormous_blocks() {
     let _guard = forbid_frame_leaks();
 
