@@ -23,7 +23,10 @@ use ku::{
         DryAllocator,
         Initialize,
     },
-    error::Result,
+    error::{
+        Error::NoPage,
+        Result,
+    },
 };
 
 use kernel::{
@@ -42,7 +45,10 @@ use kernel::{
             USER_RW,
         },
         size::MiB,
-        test_scaffolding::mapping,
+        test_scaffolding::{
+            forbid_frame_leaks,
+            mapping,
+        },
     },
 };
 
@@ -58,6 +64,84 @@ fn basic() {
 #[test_case]
 fn alignment() {
     memory_allocator_alignment();
+}
+
+#[test_case]
+fn grow_and_shrink_unmap_old_block() {
+    let _guard = forbid_frame_leaks();
+
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+
+    let small_layout = Layout::from_size_align(4 * Page::SIZE, Page::SIZE).unwrap();
+    let small_allocation = address_space
+        .allocator(USER_RW)
+        .dry_allocate(small_layout, Initialize::Garbage)
+        .unwrap();
+    let small_block = Block::from_slice(unsafe { small_allocation.as_uninit_slice() }).enclosing();
+
+    let big_layout = Layout::from_size_align(8 * Page::SIZE, Page::SIZE).unwrap();
+    let big_allocation = unsafe {
+        address_space
+            .allocator(USER_RW)
+            .dry_grow(
+                small_allocation.as_non_null_ptr(),
+                small_layout,
+                big_layout,
+                Initialize::Garbage,
+            )
+            .unwrap()
+    };
+    let big_block = Block::from_slice(unsafe { big_allocation.as_uninit_slice() }).enclosing();
+
+    debug!(%small_block, %big_block);
+
+    let unmapped_pages = difference_should_be_unmapped(&mut address_space, small_block, big_block);
+    debug!(unmapped_pages);
+    assert!(unmapped_pages <= small_block.count());
+
+    let medium_layout = Layout::from_size_align(6 * Page::SIZE, Page::SIZE).unwrap();
+    let medium_allocation = unsafe {
+        address_space
+            .allocator(USER_RW)
+            .dry_shrink(big_allocation.as_non_null_ptr(), big_layout, medium_layout)
+            .unwrap()
+    };
+    let medium_block =
+        Block::from_slice(unsafe { medium_allocation.as_uninit_slice() }).enclosing();
+
+    debug!(%big_block, %medium_block);
+
+    let unmapped_pages = difference_should_be_unmapped(&mut address_space, big_block, medium_block);
+    debug!(unmapped_pages);
+    assert!(unmapped_pages >= big_block.count() - medium_block.count());
+
+    unsafe {
+        address_space
+            .allocator(USER_RW)
+            .dry_deallocate(medium_allocation.as_non_null_ptr(), medium_layout);
+    }
+
+    fn difference_should_be_unmapped(
+        address_space: &mut AddressSpace,
+        old: Block<Page>,
+        new: Block<Page>,
+    ) -> usize {
+        let old_minus_new_left =
+            Block::<Page>::from_index(old.start(), cmp::min(old.end(), new.start()));
+        let old_minus_new_right =
+            Block::<Page>::from_index(cmp::max(old.start(), new.end()), old.end());
+
+        let mut unmapped_pages = 0;
+
+        for block in [old_minus_new_left, old_minus_new_right].into_iter().flatten() {
+            for page in block {
+                assert_eq!(unsafe { address_space.unmap_page(page) }, Err(NoPage));
+            }
+            unmapped_pages += block.count();
+        }
+
+        unmapped_pages
+    }
 }
 
 #[test_case]
