@@ -277,7 +277,7 @@ impl ReadBuffer {
     /// считает что противоположная сторона испортила буфер и расценивает его как закрытый.
     fn advance_tail(&mut self) -> Option<usize> {
         // TODO: your code here.
-        unimplemented!();
+        None // TODO: remove before flight.
     }
 }
 
@@ -317,7 +317,7 @@ impl WriteBuffer {
     /// считает что противоположная сторона испортила буфер и расценивает его как закрытый.
     fn advance_head(&mut self) -> Option<usize> {
         // TODO: your code here.
-        unimplemented!();
+        None // TODO: remove before flight.
     }
 }
 
