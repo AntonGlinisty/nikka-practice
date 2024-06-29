@@ -1,7 +1,6 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use core::slice;
 
 use kernel::{
     Subsystems,
@@ -89,8 +88,8 @@ fn kernel_stacks() {
         }
     }
 
-    slice::heapsort(stacks.as_mut_slice(), |a, b| {
-        a.start_address() < b.start_address()
+    introsort::sort_by(stacks.as_mut_slice(), &|a, b| {
+        a.start_address().cmp(&b.start_address())
     });
 
     for (stack_a, stack_b) in stacks.iter().zip(&stacks[1 ..]) {

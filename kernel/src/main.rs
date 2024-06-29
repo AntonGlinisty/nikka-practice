@@ -5,8 +5,6 @@
 #![deny(warnings)]
 #![feature(custom_test_frameworks)]
 #![feature(maybe_uninit_slice)]
-#![feature(panic_info_message)]
-#![feature(sort_internals)]
 #![no_std]
 #![no_main]
 #![reexport_test_harness_main = "test_main"]

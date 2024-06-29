@@ -1,6 +1,5 @@
 #![deny(warnings)]
 #![feature(allocator_api)]
-#![feature(slice_group_by)]
 
 use std::{
     fmt,
@@ -630,7 +629,7 @@ impl fmt::Display for RunLengthEncoding<'_> {
         let mut block_count = 0;
         let mut total_len = 0;
 
-        for block in self.0.group_by(|a, b| a == b) {
+        for block in self.0.chunk_by(|a, b| a == b) {
             write!(formatter, "{:?} x {}, ", block[0] as char, block.len())?;
             block_count += 1;
             total_len += block.len();

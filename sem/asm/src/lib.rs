@@ -9,7 +9,7 @@ use core::arch::asm;
 
 /// Складывает регистры RSI и RDI, а результат возвращает в RAX.
 #[naked]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn sum() -> ! {
     unsafe {
         asm!(
@@ -33,7 +33,7 @@ pub struct Struct {
 /// Принимает указатель на структуру типа [`Struct`] в регистре RDI.
 /// Записывает в её поле `result` значение `x + y`.
 #[naked]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn sum_struct() -> ! {
     unsafe {
         asm!(
@@ -53,7 +53,7 @@ pub extern "C" fn sum_struct() -> ! {
 /// Возвращает сумму элементов массива в регистре RAX.
 #[allow(named_asm_labels)]
 #[naked]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn sum_array() -> ! {
     unsafe {
         asm!(
@@ -73,7 +73,7 @@ pub extern "C" fn sum_array() -> ! {
 /// Не меняет содержимое регистра R15.
 #[allow(named_asm_labels)]
 #[naked]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn sum_va_arg() -> ! {
     unsafe {
         asm!(

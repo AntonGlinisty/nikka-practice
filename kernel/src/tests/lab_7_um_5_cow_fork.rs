@@ -5,12 +5,9 @@ use alloc::{
     string::String,
     vec::Vec,
 };
-use core::{
-    slice,
-    sync::atomic::{
-        AtomicUsize,
-        Ordering,
-    },
+use core::sync::atomic::{
+    AtomicUsize,
+    Ordering,
 };
 
 use ku::{
@@ -103,9 +100,9 @@ fn cow_fork() {
 
     assert_eq!(parents.len(), 12, "wrong total number of child processes");
 
-    slice::heapsort(&mut parents, |a, b| a < b);
+    introsort::sort(&mut parents);
 
-    for children in parents.group_by(|a, b| a.0 == b.0) {
+    for children in parents.chunk_by(|a, b| a.0 == b.0) {
         assert_eq!(
             children.len(),
             3,

@@ -6,10 +6,7 @@ use alloc::{
     vec,
     vec::Vec,
 };
-use core::{
-    slice,
-    str,
-};
+use core::str;
 
 use kernel::{
     Subsystems,
@@ -130,7 +127,7 @@ fn test_list(
     let root = fs.open("").unwrap();
     let usage = build_list(fs, &root, "", &mut actual);
 
-    slice::heapsort(&mut actual, |a, b| a < b);
+    introsort::sort(&mut actual);
     assert_eq!(actual, expected);
 
     if actual.is_empty() {

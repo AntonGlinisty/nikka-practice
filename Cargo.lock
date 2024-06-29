@@ -82,9 +82,9 @@ checksum = "b4682ae6287fcf752ecaabbfcc7b6f9b72aa33933dc23a554d853aea8eea8635"
 
 [[package]]
 name = "bootloader"
-version = "0.9.23"
+version = "0.9.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6e02311b16c9819e7c72866d379cdd3026c3b7b25c1edf161f548f8e887e7ff"
+checksum = "365861702868e2a37b4247aaecc7bd8f4389baec8d025497ad8ba7ff37ee9440"
 
 [[package]]
 name = "byteorder"
@@ -355,6 +355,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
+name = "introsort"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe795ec48bf36f5d1075cb14e1467908a26bc69e6276193480d514aa59131c02"
+
+[[package]]
 name = "itertools"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -382,6 +388,7 @@ dependencies = [
  "chrono",
  "derive_more",
  "duplicate",
+ "introsort",
  "itertools 0.11.0",
  "ku",
  "lazy_static",

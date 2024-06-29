@@ -1,5 +1,3 @@
-use core::slice;
-
 use ku::{
     error::Result,
     memory::size::MiB,
@@ -182,7 +180,7 @@ fn allocated_frames_are_not_used() {
     assert_eq!(end_free_frames, 0);
     assert!(frames_poisoned >= start_free_frames - max_frames_for_intermediates);
 
-    slice::heapsort(&mut frames[.. frames_poisoned], |a, b| a < b);
+    introsort::sort(&mut frames[.. frames_poisoned]);
     for (a, b) in frames.iter().zip(&frames[1 .. frames_poisoned]) {
         assert_ne!(a, b, "allocated the same frame twice");
     }
@@ -234,7 +232,7 @@ fn allocated_frames_are_unique() {
     assert_eq!(frame_allocator.count(), 0);
     assert_eq!(frame_allocator.allocate(), Err(NoFrame));
 
-    slice::heapsort(&mut frames[.. free_frames], |a, b| a < b);
+    introsort::sort(&mut frames[.. free_frames]);
     for (a, b) in frames.iter().zip(&frames[1 .. free_frames]) {
         assert_ne!(a, b, "allocated the same frame twice");
     }

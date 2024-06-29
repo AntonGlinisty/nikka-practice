@@ -1,4 +1,7 @@
-use core::mem;
+use core::{
+    mem,
+    ptr,
+};
 
 use lazy_static::lazy_static;
 
@@ -90,7 +93,7 @@ macro_rules! make_static_stack {
         #[link_section = ".stack"]
         static mut STACK: Stack = Stack::new_static();
 
-        unsafe { &mut STACK }
+        Virt::from_ptr(ptr::addr_of_mut!(STACK))
     }};
 }
 
@@ -101,11 +104,11 @@ pub(crate) struct ExceptionStacks {
     /// То есть в аварийной ситуации, когда
     /// [продолжение миссии невозможно](https://en.wikipedia.org/wiki/Launch_escape_system).
     /// ![](https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Apollo_Pad_Abort_Test_-2.jpg/440px-Apollo_Pad_Abort_Test_-2.jpg)
-    launch_escape_stack: &'static mut Stack,
+    launch_escape_stack: Virt,
 
     /// Стек для обработки [Page Fault](https://en.wikipedia.org/wiki/Page_fault) на
     /// Bootstrap Processor до инициализации структур [`kernel::smp::Cpu`].
-    page_fault_stack: &'static mut Stack,
+    page_fault_stack: Virt,
 }
 
 impl ExceptionStacks {
@@ -121,23 +124,33 @@ impl ExceptionStacks {
     /// добавляет в стеки для непредвиденных исключений защитные зоны.
     pub(crate) fn make_guard_zones(&mut self) -> Result<()> {
         let address_space = &mut BASE_ADDRESS_SPACE.lock();
-        unsafe {
-            self.launch_escape_stack.make_guard_zone(address_space)?;
-            self.page_fault_stack.make_guard_zone(address_space)
+
+        for stack in [self.launch_escape_stack, self.page_fault_stack] {
+            unsafe {
+                stack
+                    .try_into_mut::<Stack>()
+                    .expect(Self::MESSAGE)
+                    .make_guard_zone(address_space)?;
+            }
         }
+
+        Ok(())
     }
 
     /// Возвращает указатель на вершину пустого стека выделенного для обработки
     /// [Double Fault](https://en.wikipedia.org/wiki/Double_fault).
     pub(crate) fn double_fault_rsp(&self) -> Virt {
-        self.launch_escape_stack.pointer()
+        unsafe { self.launch_escape_stack.try_into_ref::<Stack>().expect(Self::MESSAGE).pointer() }
     }
 
     /// Возвращает указатель на вершину пустого стека выделенного для обработки
     /// [Page Fault](https://en.wikipedia.org/wiki/Page_fault).
     pub(super) fn page_fault_rsp(&self) -> Virt {
-        self.page_fault_stack.pointer()
+        unsafe { self.page_fault_stack.try_into_ref::<Stack>().expect(Self::MESSAGE).pointer() }
     }
+
+    /// Адрес стека нулевой или не выровнен по границе страниц.
+    const MESSAGE: &str = "exception stacks are not initialized properly";
 }
 
 lazy_static! {

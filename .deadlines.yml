@@ -13,7 +13,6 @@
         - sem/asm_syscall/src/lib.rs
         - sem/atomic/src/impl.s
         - sem/backtrace/src/lib.rs
-        - sem/context/src/impl.s
         - sem/gdb/key.txt
         - sem/hello_world/src/*.rs
         - sem/jobserver/src/*.rs
@@ -211,14 +210,6 @@
       allow_list: *allow_list
       check:
         - cd sem/rop && cargo test
-
-    - task: context
-      score: 100
-
-      url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/context
-      allow_list: *allow_list
-      check:
-        - cd sem/context && cargo test -- --nocapture --test-threads=1
 
     - task: asm_syscall
       score: 100

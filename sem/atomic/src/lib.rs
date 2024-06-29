@@ -65,7 +65,7 @@ unsafe impl Send for Atomic {
 unsafe impl Sync for Atomic {
 }
 
-extern "C" {
+unsafe extern "C" {
     /// Атомарно читает по указателю `atomic`.
     fn atomic_load(atomic: *const usize) -> usize;
 

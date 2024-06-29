@@ -6,7 +6,6 @@
 //! [Bochs Graphics Adaptor](https://wiki.osdev.org/Bochs_VBE_Extensions).
 
 #![feature(int_roundings)]
-#![feature(panic_info_message)]
 #![no_std]
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(missing_docs)]

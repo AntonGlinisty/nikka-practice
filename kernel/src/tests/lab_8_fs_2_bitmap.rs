@@ -1,7 +1,6 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use core::slice;
 
 use chrono::Duration;
 
@@ -90,7 +89,7 @@ fn allocation() {
         block_bitmap.allocate().unwrap();
     }
 
-    slice::heapsort(&mut allocated, |a, b| a < b);
+    introsort::sort(&mut allocated);
     for (i, j) in allocated.iter().zip(&allocated[1 ..]) {
         assert_ne!(i, j, "allocated the same block twice");
     }
@@ -113,7 +112,7 @@ fn allocation() {
     );
     assert_eq!(block_bitmap.allocate(), Err(NoDisk));
 
-    slice::heapsort(&mut reallocated, |a, b| a < b);
+    introsort::sort(&mut reallocated);
     for (i, j) in allocated.iter().step_by(2).zip(reallocated) {
         assert_eq!(*i, j);
     }

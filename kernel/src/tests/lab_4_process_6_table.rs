@@ -1,7 +1,6 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use core::slice;
 
 use kernel::{
     Subsystems,
@@ -47,7 +46,7 @@ fn full_capacity() {
 
     dummy_process().expect_err("the process table is bigger than it should be");
 
-    slice::heapsort(slots.as_mut_slice(), |a, b| a < b);
+    introsort::sort(slots.as_mut_slice());
     let slots_have_expected_range = slots.iter().enumerate().all(|(index, slot)| index == *slot);
     assert!(slots_have_expected_range);
 

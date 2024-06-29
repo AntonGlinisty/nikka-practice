@@ -1,6 +1,7 @@
 use core::{
     hint,
     mem,
+    ptr,
 };
 
 use bitflags::bitflags;
@@ -274,7 +275,7 @@ impl LocalApic {
 
     /// Возвращает структуру [`LocalApic`] текущего CPU.
     fn get() -> &'static mut Self {
-        unsafe { &mut LOCAL_APIC }
+        unsafe { &mut *ptr::addr_of_mut!(LOCAL_APIC) }
     }
 
     /// Разрешает использование local APIC.

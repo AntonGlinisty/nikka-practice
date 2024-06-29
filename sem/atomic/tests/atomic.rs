@@ -2,6 +2,7 @@
 
 use std::{
     hint,
+    ptr,
     sync::atomic::{
         AtomicBool,
         Ordering,
@@ -37,7 +38,10 @@ fn xchg() {
     static FLAG: Atomic = Atomic::new(1);
     static mut COUNTER: usize = 0;
 
-    run_threads(move || exchanger(&FLAG, unsafe { &mut COUNTER } as *mut usize));
+    run_threads(move || {
+        exchanger(&FLAG, unsafe { &mut *ptr::addr_of_mut!(COUNTER) }
+            as *mut usize)
+    });
 }
 
 #[test]

@@ -37,6 +37,7 @@ pic8259 = { path = "../pic8259" }
 text = { path = "../text" }
 
 [dev-dependencies]
+introsort = { version = "*", default-features = false }
 xmas-elf = "*"
 
 [package.metadata.bootimage]

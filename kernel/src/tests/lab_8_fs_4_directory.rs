@@ -1,10 +1,7 @@
 extern crate alloc;
 
 use alloc::format;
-use core::{
-    slice,
-    str,
-};
+use core::str;
 
 use ku::{
     error::Error::{
@@ -88,7 +85,7 @@ fn basic_operations() {
     assert_eq!(fs.write(&file_2, offset_2, &buffer), Ok(buffer.len()));
 
     let mut list = fs.list(&directory).unwrap();
-    slice::heapsort(&mut list, |a, b| a.name() < b.name());
+    introsort::sort_by(&mut list, &|a, b| a.name().cmp(b.name()));
     debug!(?list);
 
     assert_eq!(list.len(), 2);
