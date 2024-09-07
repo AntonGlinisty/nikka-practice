@@ -301,7 +301,7 @@ impl LocalApic {
             &mut self.lvt_lint1,
             &mut self.lvt_error,
         ] {
-            interrupt.update(|x| *x |= MASK_INTERRUPT);
+            interrupt.update(|x| x | MASK_INTERRUPT);
         }
     }
 
@@ -338,8 +338,6 @@ impl LocalApic {
 
 /// Задаёт формат одного регистра local APIC.
 mod register {
-    use volatile::Volatile;
-
     /// Задаёт формат одного регистра local APIC.
     #[derive(Clone, Copy)]
     #[repr(C)]
@@ -354,7 +352,7 @@ mod register {
 
         /// Читает значение из регистра.
         pub(super) fn get(&self) -> u32 {
-            Volatile::new(&self.0).read()
+            unsafe { (&self.0 as *const u32).read_volatile() }
         }
 
         /// Записывает значение в регистр.
@@ -362,15 +360,15 @@ mod register {
             &mut self,
             value: u32,
         ) {
-            Volatile::new(&mut self.0).write(value);
+            unsafe { (&mut self.0 as *mut u32).write_volatile(value) }
         }
 
         /// Обновляет значение в регистре с помощью заданной `f`.
-        pub(super) fn update<F: FnOnce(&mut u32)>(
+        pub(super) fn update<F: FnOnce(u32) -> u32>(
             &mut self,
             f: F,
         ) {
-            Volatile::new(&mut self.0).update(f);
+            self.set(f(self.get()));
         }
     }
 }

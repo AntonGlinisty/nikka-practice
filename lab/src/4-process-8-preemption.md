@@ -43,8 +43,8 @@ extern "x86-interrupt" fn timer(mut context: TrapContext)
 [`kernel::trap::TrapContext`](../../doc/kernel/trap/struct.TrapContext.html) ---
 обёртка для уже знакомого
 [`kernel::process::registers::ModeContext`](../../doc/kernel/process/registers/struct.ModeContext.html).
-Она помечает запись в него как
-[`volatile::Volatile`](../../doc/volatile/struct.Volatile.html),
+Она делает запись в него через
+[`core::ptr::write_volatile()`](https://doc.rust-lang.org/nightly/core/ptr/fn.write_volatile.html),
 чтобы компилятор такую операцию записи не выкинул.
 Дело в том, что
 [`TrapContext`](../../doc/kernel/trap/struct.TrapContext.html)
@@ -59,7 +59,7 @@ extern "x86-interrupt" fn timer(mut context: TrapContext)
 и эту запись увидит инструкция процессора
 [`iretq`](https://www.felixcloutier.com/x86/iret:iretd:iretq).
 Чтобы предотвратить выкидывание оптимизатором команд записи в `context` и нужен
-[`Volatile`](../../doc/volatile/struct.Volatile.html).
+[`core::ptr::write_volatile()`](https://doc.rust-lang.org/nightly/core/ptr/fn.write_volatile.html).
 
 В [методе](../../doc/kernel/process/process/struct.Process.html#method.enter_user_mode)
 

@@ -30,7 +30,6 @@ spin = "*"
 static_assertions = "*"
 tracing = { git = "https://github.com/tokio-rs/tracing", version = "*", default-features = false }
 tracing-core = { git = "https://github.com/tokio-rs/tracing", version = "*", default-features = false }
-volatile = "=0.4.5"
 x86 = "*"
 x86_64 = "*"
 

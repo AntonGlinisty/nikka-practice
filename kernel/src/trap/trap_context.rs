@@ -1,12 +1,11 @@
 use core::fmt;
 
-use volatile::Volatile;
-
 use crate::process::ModeContext;
 
 #[allow(rustdoc::private_intra_doc_links)]
 /// Обёртка для [`ModeContext`].
-/// Она помечает запись в него как [`Volatile`], чтобы компилятор такую операцию записи не выкинул.
+/// Она делает запись в него через [`core::ptr::write_volatile()`],
+/// чтобы компилятор такую операцию записи не выкинул.
 #[repr(transparent)]
 pub struct TrapContext(ModeContext);
 
@@ -23,12 +22,16 @@ impl TrapContext {
     }
 
     /// Записывает `context` в этот [`TrapContext`].
-    /// Помечает запись как [`Volatile`], чтобы компилятор такую операцию записи не выкинул.
+    ///
+    /// Делает это через [`core::ptr::write_volatile()`],
+    /// чтобы компилятор такую операцию записи не выкинул.
     pub(crate) fn set(
         &mut self,
         context: ModeContext,
     ) {
-        Volatile::new(&mut self.0).write(context);
+        unsafe {
+            (&mut self.0 as *mut ModeContext).write_volatile(context);
+        }
     }
 }
 
