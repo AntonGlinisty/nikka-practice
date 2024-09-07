@@ -164,11 +164,11 @@ fn stress(
 
 #[derive(Display)]
 #[display(
-    fmt = "{{ size: {}, align: {}, ptr: {}, sum: {} }}",
-    "layout.size()",
-    "layout.align()",
+    "{{ size: {}, align: {}, ptr: {}, sum: {} }}",
+    layout.size(),
+    layout.align(),
     ptr,
-    sum
+    sum,
 )]
 struct Allocation<'a> {
     allocator: &'a dyn GlobalAlloc,

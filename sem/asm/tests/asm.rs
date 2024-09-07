@@ -157,7 +157,6 @@ fn test_sum_va_arg() {
 
     /// Переключает стек внутрь `x`.
     /// Регистр `R15` зарезервирован под сохранённый `RSP`.
-    #[allow(named_asm_labels)]
     fn dressed_sum(x: &[i64]) -> i64 {
         let result;
 
@@ -166,13 +165,13 @@ fn test_sum_va_arg() {
                 "
                 mov r15, rsp
 
-            push_loop_begin:
+            2:
                 or rcx, rcx
-                jz push_loop_end
+                jz 3f
                 dec rcx
                 push [rsi + 8 * rcx]
-                jmp push_loop_begin
-            push_loop_end:
+                jmp 2b
+            3:
 
                 xor rsi, rsi
 

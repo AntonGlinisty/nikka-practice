@@ -8,4 +8,4 @@ name = "jobserver"
 version = "0.4.0"
 
 [dependencies]
-nix = "*"
+nix = { version = "0.27.*", features = ["fs", "process"] }

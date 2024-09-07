@@ -15,7 +15,7 @@ acpi = "*"
 bitflags = "*"
 bootloader = { version = "0.9.*", features = ["map_physical_memory"] }
 chrono = { version = "*", default-features = false }
-derive_more = "*"
+derive_more = { version = "*", default-features = false, features = ["full"] }
 duplicate = "*"
 itertools = { version = "*", default-features = false }
 lazy_static = { version = "*", features = ["spin_no_std"] }

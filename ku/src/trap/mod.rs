@@ -300,7 +300,7 @@ impl Info {
             Trap::StackSegmentFault => Info::Code(error_code),
 
             Trap::PageFault => Info::PageFault {
-                address: Cr2::read().into(),
+                address: Cr2::read().expect("read bad value from %cr2").into(),
                 code: PageFaultInfo::from_bits_truncate(error_code),
             },
 

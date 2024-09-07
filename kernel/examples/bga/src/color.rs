@@ -27,7 +27,7 @@ impl From24Bpp for Rgb888 {
 /// 5 бит на красный канал, 6 бит на зелёный и 5 бит на синий.
 #[derive(Clone, Copy, Debug, Default, Display, Eq, PartialEq)]
 #[display(
-    fmt = "{:02X}:{:02X}:{:02X}",
+    "{:02X}:{:02X}:{:02X}",
     (u32::from(self.r()) << COMPONENT_SHIFT_FOR_24_BPP) / (u32::from(Self::MAX_R) + 1),
     (u32::from(self.g()) << COMPONENT_SHIFT_FOR_24_BPP) / (u32::from(Self::MAX_G) + 1),
     (u32::from(self.b()) << COMPONENT_SHIFT_FOR_24_BPP) / (u32::from(Self::MAX_B) + 1),

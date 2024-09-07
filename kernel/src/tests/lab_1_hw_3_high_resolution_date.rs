@@ -156,7 +156,7 @@ fn high_resolution_date() {
             samples += 1;
             max = cmp::max(max, delta);
             min = cmp::min(min, delta);
-            sum = sum + delta;
+            sum += delta;
             let error = (delta - tick_duration).num_nanoseconds().unwrap();
             sum2 += error * error;
         }

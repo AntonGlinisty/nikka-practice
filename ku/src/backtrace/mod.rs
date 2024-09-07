@@ -8,6 +8,8 @@ use core::{
     num::NonZeroUsize,
 };
 
+use derive_more::Display;
+
 use crate::{
     error::Result,
     memory::{
@@ -173,7 +175,8 @@ impl fmt::Display for Backtrace {
 }
 
 /// Узел списка стековых фреймов.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Display)]
+#[display("{:#X}", return_address.map(NonZeroUsize::get).unwrap_or(0))]
 #[repr(C)]
 pub struct StackFrame {
     /// Адрес внешнего стекового фрейма --- фрейма вызвавшей функции.
@@ -256,19 +259,6 @@ impl StackFrame {
         }
 
         Ok(stack_frame)
-    }
-}
-
-impl fmt::Display for StackFrame {
-    fn fmt(
-        &self,
-        formatter: &mut fmt::Formatter,
-    ) -> fmt::Result {
-        write!(
-            formatter,
-            "{:#X}",
-            self.return_address.map(NonZeroUsize::get).unwrap_or(0),
-        )
     }
 }
 

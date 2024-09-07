@@ -32,12 +32,7 @@ use super::block_cache::SECTORS_PER_BLOCK;
 
 /// [PATA](https://en.wikipedia.org/wiki/Parallel_ATA)--диск.
 #[derive(Clone, Copy, Debug, Display)]
-#[display(
-    fmt = "{{ id: {}, io_port: {:#04X}, io_disk: {} }}",
-    id,
-    io_port,
-    io_disk
-)]
+#[display("{{ id: {}, io_port: {:#04X}, io_disk: {} }}", id, io_port, io_disk)]
 pub(super) struct Disk {
     /// Идентификатор диска --- `0 .. 4`.
     id: u8,

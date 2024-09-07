@@ -229,7 +229,7 @@ bitflags! {
 /// [часов реального времени (Real-time clock, RTC)](https://en.wikipedia.org/wiki/Real-time_clock).
 #[derive(Clone, Copy, Default, Display, Eq, PartialEq)]
 #[display(
-    fmt = "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+    "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
     year,
     month,
     day,
