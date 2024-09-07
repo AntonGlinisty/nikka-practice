@@ -74,10 +74,11 @@ pub(super) fn boot_ap(
     phys2virt: Page,
     cpu: &mut Cpu,
 ) -> Result<()> {
+    let cpu_id = cpu.id();
     let code_size = switch_mode_code_size();
     let code_size_is_unrealistic = code_size < 8;
     if code_size_is_unrealistic {
-        debug!(cpu = cpu.id(), %code_size, "AP init does not seem to be implemented, skipping it");
+        debug!(cpu = cpu_id, %code_size, "AP init does not seem to be implemented, skipping it");
         return Ok(());
     }
 
@@ -86,14 +87,14 @@ pub(super) fn boot_ap(
 
     let boot_memory = prepare_boot_code(phys2virt, cpu, &initialized)?;
 
-    LocalApic::send_init(cpu.id(), boot_memory.code_frame())?;
+    LocalApic::send_init(cpu_id, boot_memory.code_frame())?;
 
     let message = "boot Application Processor";
 
     if let Err(error) = wait_initialized(&initialized, Duration::seconds(1), boot_memory) {
-        error!(cpu = cpu.id(), duration = %timer.elapsed(), ?error, message);
+        error!(cpu = cpu_id, duration = %timer.elapsed(), ?error, message);
     } else {
-        info!(cpu = cpu.id(), duration = %timer.elapsed(), message);
+        info!(cpu = cpu_id, duration = %timer.elapsed(), message);
     }
 
     Ok(())
@@ -315,8 +316,8 @@ impl fmt::Debug for BootStack {
 /// Все нужные структуры и значения регистров копируются с BSP.
 #[allow(named_asm_labels)]
 #[cold]
-#[link_section = ".switch_from_real_mode_to_long_mode"]
 #[naked]
+#[unsafe(link_section = ".switch_from_real_mode_to_long_mode")]
 extern "C" fn switch_from_real_mode_to_long_mode() -> ! {
     unsafe {
         asm!(

@@ -4,6 +4,7 @@
 
 #![allow(clippy::missing_safety_doc)]
 #![allow(clippy::unusual_byte_groupings)]
+#![allow(unsafe_op_in_unsafe_fn)]
 #![no_std]
 
 use x86::io;

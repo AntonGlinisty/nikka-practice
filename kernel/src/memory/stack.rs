@@ -90,7 +90,7 @@ impl Stack {
 /// Создаёт статически выделенный стек.
 macro_rules! make_static_stack {
     () => {{
-        #[link_section = ".stack"]
+        #[unsafe(link_section = ".stack")]
         static mut STACK: Stack = Stack::new_static();
 
         Virt::from_ptr(ptr::addr_of_mut!(STACK))

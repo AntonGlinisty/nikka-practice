@@ -1,3 +1,4 @@
+#![allow(unsafe_op_in_unsafe_fn)]
 #![deny(warnings)]
 #![feature(allocator_api)]
 
@@ -83,7 +84,7 @@ fn check_continuous_mapping() {
     let (read_buf, write_buf) = buf.split_at_mut(block.size() / 2);
 
     for write_ref in write_buf {
-        let value = write_rng.gen();
+        let value = write_rng.r#gen();
         let write_ptr = write_ref as *mut u8;
         unsafe {
             write_ptr.write_volatile(value);
@@ -91,7 +92,7 @@ fn check_continuous_mapping() {
     }
 
     for read_ref in read_buf {
-        let value = read_rng.gen();
+        let value = read_rng.r#gen();
         let read_ptr = read_ref as *const u8;
         assert_eq!(
             unsafe { read_ptr.read_volatile() },

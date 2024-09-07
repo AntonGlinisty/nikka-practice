@@ -3,6 +3,7 @@
 #![allow(unused_variables)]
 
 #![allow(clippy::unusual_byte_groupings)]
+#![allow(unsafe_op_in_unsafe_fn)]
 #![no_std]
 
 use core::hint;

@@ -4,6 +4,7 @@
 
 //! Библиотека для пользовательских процессов.
 
+#![allow(unsafe_op_in_unsafe_fn)]
 #![deny(warnings)]
 #![feature(alloc_error_handler)]
 #![feature(allocator_api)]
@@ -54,7 +55,7 @@ use ku::{
 
 /// Точка входа в процесс пользователя.
 /// Получает от ядра ссылку `process_info` на информацию о текущем процессе.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn _start(process_info: &'static mut ProcessInfo) -> ! {
     info::set_process_info(process_info);
 
@@ -62,7 +63,7 @@ pub extern "C" fn _start(process_info: &'static mut ProcessInfo) -> ! {
 
     dispatch::set_global_default(Dispatch::from_static(&LOG_COLLECTOR)).unwrap();
 
-    extern "Rust" {
+    unsafe extern "Rust" {
         fn main();
     }
 
@@ -107,7 +108,7 @@ fn panic(panic_info: &PanicInfo) -> ! {
 #[macro_export]
 macro_rules! entry {
     ($path:path) => {
-        #[export_name = "main"]
+        #[unsafe(export_name = "main")]
         pub unsafe fn check_main_signature() {
             let main: fn() = $path;
 

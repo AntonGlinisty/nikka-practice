@@ -5,6 +5,7 @@
 //! Общая для пространств ядра и пользователя библиотека.
 //! ku --- **k**ernel && **u**ser.
 
+#![allow(unsafe_op_in_unsafe_fn)]
 #![deny(warnings)]
 #![feature(adt_const_params)]
 #![feature(allocator_api)]
