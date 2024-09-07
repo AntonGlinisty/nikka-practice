@@ -142,10 +142,12 @@ pub fn page_table_root() -> Frame {
 /// В частности, что не осталось ссылок, ведущих в страницы, для которых целевое
 /// страничное отображение отличается от текущего.
 pub unsafe fn set_page_table_root(page_table_root: Frame) {
-    asm!(
-        "mov cr3, {pte}",
-        pte = in(reg) page_table_root.address().into_usize(),
-    );
+    unsafe {
+        asm!(
+            "mov cr3, {pte}",
+            pte = in(reg) page_table_root.address().into_usize(),
+        );
+    }
 }
 
 /// Узел таблицы страниц.

@@ -4,7 +4,6 @@
 
 #![allow(clippy::missing_safety_doc)]
 #![allow(clippy::unusual_byte_groupings)]
-#![allow(unsafe_op_in_unsafe_fn)]
 #![no_std]
 
 use x86::io;
@@ -22,22 +21,28 @@ pub unsafe fn init(first_interrupt_index: u8) {
     const ICW1_MANDATORY_BITS: u8 = 0b_1 << 4;
     const ICW1: u8 = ICW1_USE_ICW4 | ICW1_CASCADE | ICW1_LEVEL_TRIGGERED | ICW1_MANDATORY_BITS;
 
-    io::outb(PIC0_COMMAND, ICW1);
-    io::outb(PIC1_COMMAND, ICW1);
+    unsafe {
+        io::outb(PIC0_COMMAND, ICW1);
+        io::outb(PIC1_COMMAND, ICW1);
+    }
 
     let icw2_for_pic0: u8 = first_interrupt_index;
     let icw2_for_pic1: u8 = first_interrupt_index + INTERRUPT_LINE_COUNT;
 
-    io::outb(PIC0_DATA, icw2_for_pic0);
-    io::outb(PIC1_DATA, icw2_for_pic1);
+    unsafe {
+        io::outb(PIC0_DATA, icw2_for_pic0);
+        io::outb(PIC1_DATA, icw2_for_pic1);
+    }
 
     const CASCADE_LINE: u8 = 2;
     const CASCADE_LINES_BITMASK: u8 = 1 << CASCADE_LINE;
     const ICW3_FOR_PIC0: u8 = CASCADE_LINES_BITMASK;
     const ICW3_FOR_PIC1: u8 = CASCADE_LINE;
 
-    io::outb(PIC0_DATA, ICW3_FOR_PIC0);
-    io::outb(PIC1_DATA, ICW3_FOR_PIC1);
+    unsafe {
+        io::outb(PIC0_DATA, ICW3_FOR_PIC0);
+        io::outb(PIC1_DATA, ICW3_FOR_PIC1);
+    }
 
     // With an automatic End Of Interrupt there is no need
     // for sending an explicit End Of Interrupt.
@@ -57,24 +62,32 @@ pub unsafe fn init(first_interrupt_index: u8) {
         ICW4_UNBUFFERED_MODE |
         ICW4_NORMAL_NESTED_MODE;
 
-    io::outb(PIC0_DATA, ICW4);
-    io::outb(PIC1_DATA, ICW4);
+    unsafe {
+        io::outb(PIC0_DATA, ICW4);
+        io::outb(PIC1_DATA, ICW4);
+    }
 
     const DISABLED_INTERRUPT_LINES_BITMASK: u8 = 0b_0000_0000;
     const OCW1: u8 = DISABLED_INTERRUPT_LINES_BITMASK;
 
-    io::outb(PIC0_DATA, OCW1);
-    io::outb(PIC1_DATA, OCW1);
+    unsafe {
+        io::outb(PIC0_DATA, OCW1);
+        io::outb(PIC1_DATA, OCW1);
+    }
 }
 
 pub unsafe fn end_of_interrupt(pic_interrupt_number: usize) {
     const EOI: u8 = 0x20;
 
     if pic_interrupt_number >= 8 {
-        io::outb(PIC1_COMMAND, EOI);
+        unsafe {
+            io::outb(PIC1_COMMAND, EOI);
+        }
     }
 
-    io::outb(PIC0_COMMAND, EOI);
+    unsafe {
+        io::outb(PIC0_COMMAND, EOI);
+    }
 }
 
 const PIC0_COMMAND: u16 = 0x20;

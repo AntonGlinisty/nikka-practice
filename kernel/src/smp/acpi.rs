@@ -169,7 +169,7 @@ impl AcpiHandler for AcpiMapper {
         let pointer =
             NonNull::new(pointer).expect("phys2virt::map() should not return a null pointer");
 
-        PhysicalMapping::new(physical_address, pointer, size, size, *self)
+        unsafe { PhysicalMapping::new(physical_address, pointer, size, size, *self) }
     }
 
     fn unmap_physical_region<T>(_: &PhysicalMapping<Self, T>) {

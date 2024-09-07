@@ -1,4 +1,3 @@
-#![allow(unsafe_op_in_unsafe_fn)]
 #![deny(warnings)]
 #![feature(allocator_api)]
 

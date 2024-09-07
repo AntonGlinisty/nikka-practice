@@ -32,5 +32,7 @@ use ku::memory::Page;
 /// Вызывающий код должен работать в режиме ядра
 /// (в [кольце защиты](https://en.wikipedia.org/wiki/Protection_ring) 0).
 pub unsafe fn flush(page: Page) {
-    tlb::flush(page.address().into_usize());
+    unsafe {
+        tlb::flush(page.address().into_usize());
+    }
 }

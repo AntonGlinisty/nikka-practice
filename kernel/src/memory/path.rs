@@ -193,9 +193,8 @@ impl Mapping {
         &self,
         frame: Frame,
     ) -> &PageTable {
-        phys2virt::map(self.phys2virt, frame.address())
-            .try_into_ref()
-            .expect("bad phys2virt or frame")
+        let page_table = phys2virt::map(self.phys2virt, frame.address());
+        unsafe { page_table.try_into_ref().expect("bad phys2virt or frame") }
     }
 
     /// Возвращает изменяемую ссылку на узел таблицы страниц,
@@ -211,9 +210,8 @@ impl Mapping {
         &mut self,
         frame: Frame,
     ) -> &mut PageTable {
-        phys2virt::map(self.phys2virt, frame.address())
-            .try_into_mut()
-            .expect("bad phys2virt or frame")
+        let page_table = phys2virt::map(self.phys2virt, frame.address());
+        unsafe { page_table.try_into_mut().expect("bad phys2virt or frame") }
     }
 
     /// Возвращает изменяемую ссылку на одну запись узла таблицы страниц,
@@ -235,7 +233,7 @@ impl Mapping {
     ) -> &mut PageTableEntry {
         let index_shift = PAGE_OFFSET_BITS + level * PAGE_TABLE_INDEX_BITS;
         let index = (virt.into_usize() >> index_shift) & PAGE_TABLE_INDEX_MASK;
-        let page_table = self.page_table_mut(page_table_frame);
+        let page_table = unsafe { self.page_table_mut(page_table_frame) };
 
         &mut page_table[index]
     }

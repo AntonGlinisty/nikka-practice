@@ -124,7 +124,9 @@ unsafe impl Allocator for MapAllocator {
         ptr: NonNull<u8>,
         layout: Layout,
     ) {
-        Self::new().dry_deallocate(ptr, layout);
+        unsafe {
+            Self::new().dry_deallocate(ptr, layout);
+        }
     }
 
     unsafe fn grow(
@@ -133,9 +135,11 @@ unsafe impl Allocator for MapAllocator {
         old_layout: Layout,
         new_layout: Layout,
     ) -> result::Result<NonNull<[u8]>, AllocError> {
-        Self::new()
-            .dry_grow(ptr, old_layout, new_layout, Initialize::Garbage)
-            .map_err(|_| AllocError)
+        unsafe {
+            Self::new()
+                .dry_grow(ptr, old_layout, new_layout, Initialize::Garbage)
+                .map_err(|_| AllocError)
+        }
     }
 
     unsafe fn grow_zeroed(
@@ -144,9 +148,11 @@ unsafe impl Allocator for MapAllocator {
         old_layout: Layout,
         new_layout: Layout,
     ) -> result::Result<NonNull<[u8]>, AllocError> {
-        Self::new()
-            .dry_grow(ptr, old_layout, new_layout, Initialize::Zero)
-            .map_err(|_| AllocError)
+        unsafe {
+            Self::new()
+                .dry_grow(ptr, old_layout, new_layout, Initialize::Zero)
+                .map_err(|_| AllocError)
+        }
     }
 
     unsafe fn shrink(
@@ -155,6 +161,6 @@ unsafe impl Allocator for MapAllocator {
         old_layout: Layout,
         new_layout: Layout,
     ) -> result::Result<NonNull<[u8]>, AllocError> {
-        Self::new().dry_shrink(ptr, old_layout, new_layout).map_err(|_| AllocError)
+        unsafe { Self::new().dry_shrink(ptr, old_layout, new_layout).map_err(|_| AllocError) }
     }
 }

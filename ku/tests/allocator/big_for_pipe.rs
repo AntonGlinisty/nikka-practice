@@ -111,15 +111,17 @@ unsafe impl BigAllocator for BigForPipe {
         assert_eq!(block.size(), self.reserved.size() / 2);
         assert!(self.reserved.contains_block(block));
 
-        let ptr = mman::mmap::<File>(
-            NonZeroUsize::new(block.start_address().into_usize()),
-            NonZeroUsize::new(block.size()).unwrap(),
-            ProtFlags::PROT_READ | ProtFlags::PROT_WRITE,
-            MapFlags::MAP_ANONYMOUS | MapFlags::MAP_SHARED | MapFlags::MAP_FIXED,
-            None,
-            0,
-        )
-        .unwrap();
+        let ptr = unsafe {
+            mman::mmap::<File>(
+                NonZeroUsize::new(block.start_address().into_usize()),
+                NonZeroUsize::new(block.size()).unwrap(),
+                ProtFlags::PROT_READ | ProtFlags::PROT_WRITE,
+                MapFlags::MAP_ANONYMOUS | MapFlags::MAP_SHARED | MapFlags::MAP_FIXED,
+                None,
+                0,
+            )
+            .unwrap()
+        };
 
         self.buffer = Self::block(ptr, block.size())?;
 
@@ -144,14 +146,16 @@ unsafe impl BigAllocator for BigForPipe {
         assert_eq!(old_block.size(), new_block.size());
         assert!(self.reserved.contains_block(new_block));
 
-        let ptr = mman::mremap(
-            old_block.start_address().try_into_mut_ptr()?,
-            0,
-            new_block.size(),
-            MRemapFlags::MREMAP_MAYMOVE | MRemapFlags::MREMAP_FIXED,
-            Some(new_block.start_address().try_into_mut_ptr()?),
-        )
-        .unwrap();
+        let ptr = unsafe {
+            mman::mremap(
+                old_block.start_address().try_into_mut_ptr()?,
+                0,
+                new_block.size(),
+                MRemapFlags::MREMAP_MAYMOVE | MRemapFlags::MREMAP_FIXED,
+                Some(new_block.start_address().try_into_mut_ptr()?),
+            )
+            .unwrap()
+        };
 
         self.mirrored_buffer = Self::block(ptr, new_block.size())?;
 

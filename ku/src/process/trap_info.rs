@@ -245,7 +245,9 @@ impl TrapInfo {
     /// - В стеке контекста исключения должно быть достаточно места для адреса возврата ---
     ///   [`Virt`].
     pub unsafe fn prepare_for_ret(&mut self) -> Result<()> {
-        *self.context.push::<Virt>()?.try_into_mut()? = self.context.rip();
+        unsafe {
+            *self.context.push::<Virt>()?.try_into_mut()? = self.context.rip();
+        }
         Ok(())
     }
 }

@@ -249,7 +249,9 @@ impl AddressSpace {
         flags: PageTableFlags,
     ) -> Result<()> {
         for page in pages {
-            self.map_page(page, flags)?;
+            unsafe {
+                self.map_page(page, flags)?;
+            }
         }
 
         Ok(())
@@ -287,7 +289,9 @@ impl AddressSpace {
         pages: Block<Page>,
     ) -> Result<()> {
         for page in pages {
-            self.unmap_page(page)?;
+            unsafe {
+                self.unmap_page(page)?;
+            }
         }
 
         Ok(())
@@ -371,7 +375,7 @@ impl AddressSpace {
             *element = MaybeUninit::zeroed();
         }
 
-        Ok(MaybeUninit::slice_assume_init_mut(slice))
+        Ok(unsafe { MaybeUninit::slice_assume_init_mut(slice) })
     }
 
     /// Удаляет отображение заданного среза `slice`.
@@ -394,11 +398,13 @@ impl AddressSpace {
         let block = Block::new(start, end)?;
         let page_count = block.count();
 
-        for element in slice.iter_mut() {
-            ptr::drop_in_place(element as *mut T);
-        }
+        unsafe {
+            for element in slice.iter_mut() {
+                ptr::drop_in_place(element as *mut T);
+            }
 
-        self.unmap_block(block)?;
+            self.unmap_block(block)?;
+        }
 
         trace!(
             addr = %start.address(),
@@ -440,7 +446,7 @@ impl AddressSpace {
         &mut self,
         element: &'static mut T,
     ) -> Result<()> {
-        self.unmap_slice(Block::<Virt>::from_mut(element).try_into_mut_slice::<T>()?)
+        unsafe { self.unmap_slice(Block::<Virt>::from_mut(element).try_into_mut_slice::<T>()?) }
     }
 
     /// Проверяет доступность блока виртуальной памяти `block` на чтение и
@@ -598,14 +604,14 @@ pub(super) mod test_scaffolding {
         page: Page,
         flags: PageTableFlags,
     ) -> Result<()> {
-        address_space.map_page(page, flags)
+        unsafe { address_space.map_page(page, flags) }
     }
 
     pub unsafe fn unmap_page(
         address_space: &mut AddressSpace,
         page: Page,
     ) -> Result<()> {
-        address_space.unmap_page(page)
+        unsafe { address_space.unmap_page(page) }
     }
 
     pub fn check_permission<T>(

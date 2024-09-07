@@ -142,11 +142,13 @@ impl Disk {
     ) -> Result<()> {
         self.wait_ready()?;
 
-        io::outb(
-            self.io_port + 6,
-            RESERVED_SHOULD_BE_ONES | argument | (self.io_disk << 4),
-        );
-        io::outb(self.io_port + 7, command.bits());
+        unsafe {
+            io::outb(
+                self.io_port + 6,
+                RESERVED_SHOULD_BE_ONES | argument | (self.io_disk << 4),
+            );
+            io::outb(self.io_port + 7, command.bits());
+        }
 
         self.wait_ready()
     }
@@ -164,9 +166,11 @@ impl Disk {
 
         self.wait_ready()?;
 
-        io::outb(self.io_port + 2, sector_count as u8);
-        self.write_sector_number(start_sector);
-        io::outb(self.io_port + 7, command.bits());
+        unsafe {
+            io::outb(self.io_port + 2, sector_count as u8);
+            self.write_sector_number(start_sector);
+            io::outb(self.io_port + 7, command.bits());
+        }
 
         Ok(())
     }
@@ -191,7 +195,9 @@ impl Disk {
             (u32::from(RESERVED_SHOULD_BE_ONES | LBA | (self.io_disk << 4)) << 24);
 
         for (port, x) in self.sector_number_ports().zip(value.to_le_bytes()) {
-            io::outb(port, x);
+            unsafe {
+                io::outb(port, x);
+            }
         }
     }
 
@@ -272,16 +278,18 @@ unsafe fn outs32(
     port: u16,
     buffer: &[u32],
 ) {
-    asm!(
-        "
-        rep outs dx, LONG PTR [rsi]
-        ",
-        in("rdx") port,
-        in("rcx") buffer.len(),
-        in("rsi") buffer.as_ptr(),
-        lateout("rcx") _,
-        options(nostack),
-    );
+    unsafe {
+        asm!(
+            "
+            rep outs dx, LONG PTR [rsi]
+            ",
+            in("rdx") port,
+            in("rcx") buffer.len(),
+            in("rsi") buffer.as_ptr(),
+            lateout("rcx") _,
+            options(nostack),
+        );
+    }
 }
 
 /// Читает из порта ввода--вывода номер `port` данные в буфер `buffer`.
@@ -289,16 +297,18 @@ unsafe fn ins32(
     port: u16,
     buffer: &mut [u32],
 ) {
-    asm!(
-        "
-        rep ins LONG PTR [rdi], dx
-        ",
-        in("rdx") port,
-        in("rcx") buffer.len(),
-        in("rdi") buffer.as_mut_ptr(),
-        lateout("rcx") _,
-        options(nostack),
-    );
+    unsafe {
+        asm!(
+            "
+            rep ins LONG PTR [rdi], dx
+            ",
+            in("rdx") port,
+            in("rcx") buffer.len(),
+            in("rdi") buffer.as_mut_ptr(),
+            lateout("rcx") _,
+            options(nostack),
+        );
+    }
 }
 
 /// Размер сектора [PATA](https://en.wikipedia.org/wiki/Parallel_ATA)--диска.

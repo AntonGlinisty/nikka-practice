@@ -83,7 +83,9 @@ impl RFlags {
     /// В частности, до включения [`RFlags::INTERRUPT_FLAG`]
     /// должны быть настроены таблицы прерываний.
     pub unsafe fn write(&self) {
-        rflags::write_raw(size::into_u64(self.0));
+        unsafe {
+            rflags::write_raw(size::into_u64(self.0));
+        }
     }
 }
 

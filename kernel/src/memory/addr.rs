@@ -561,7 +561,7 @@ impl Virt {
         if ptr.is_null() {
             Err(Null)
         } else {
-            Ok(&*ptr)
+            Ok(unsafe { &*ptr })
         }
     }
 
@@ -581,7 +581,7 @@ impl Virt {
         if ptr.is_null() {
             Err(Null)
         } else {
-            Ok(&mut *ptr)
+            Ok(unsafe { &mut *ptr })
         }
     }
 
@@ -604,7 +604,7 @@ impl Virt {
         if ptr.is_null() {
             Err(Null)
         } else {
-            Ok(slice::from_raw_parts(ptr, len))
+            Ok(unsafe { slice::from_raw_parts(ptr, len) })
         }
     }
 
@@ -627,7 +627,7 @@ impl Virt {
         if ptr.is_null() {
             Err(Null)
         } else {
-            Ok(slice::from_raw_parts_mut(ptr, len))
+            Ok(unsafe { slice::from_raw_parts_mut(ptr, len) })
         }
     }
 
@@ -677,25 +677,25 @@ impl IsVirt for Virt {
     }
 
     unsafe fn try_into_ref<'a, T>(self) -> Result<&'a T> {
-        Virt::try_into_ref::<'a, T>(self)
+        unsafe { Virt::try_into_ref::<'a, T>(self) }
     }
 
     unsafe fn try_into_mut<'a, T>(self) -> Result<&'a mut T> {
-        Virt::try_into_mut::<'a, T>(self)
+        unsafe { Virt::try_into_mut::<'a, T>(self) }
     }
 
     unsafe fn try_into_slice<'a, T>(
         self,
         len: usize,
     ) -> Result<&'a [T]> {
-        Virt::try_into_slice::<T>(self, len)
+        unsafe { Virt::try_into_slice::<T>(self, len) }
     }
 
     unsafe fn try_into_mut_slice<'a, T>(
         self,
         len: usize,
     ) -> Result<&'a mut [T]> {
-        Virt::try_into_mut_slice::<T>(self, len)
+        unsafe { Virt::try_into_mut_slice::<T>(self, len) }
     }
 }
 

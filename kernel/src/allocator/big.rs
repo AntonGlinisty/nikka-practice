@@ -91,14 +91,14 @@ unsafe impl BigAllocator for Big<'_> {
         &mut self,
         block: Block<Page>,
     ) -> Result<()> {
-        self.address_space.map_block(block, self.flags)
+        unsafe { self.address_space.map_block(block, self.flags) }
     }
 
     unsafe fn unmap(
         &mut self,
         block: Block<Page>,
     ) -> Result<()> {
-        self.address_space.unmap_block(block)
+        unsafe { self.address_space.unmap_block(block) }
     }
 
     unsafe fn copy_mapping(

@@ -70,7 +70,9 @@ unsafe impl Allocator for MemoryAllocator<'_> {
         ptr: NonNull<u8>,
         layout: Layout,
     ) {
-        self.address_space.lock().allocator(self.flags).dry_deallocate(ptr, layout);
+        unsafe {
+            self.address_space.lock().allocator(self.flags).dry_deallocate(ptr, layout);
+        }
     }
 
     unsafe fn grow(
@@ -79,11 +81,13 @@ unsafe impl Allocator for MemoryAllocator<'_> {
         old_layout: Layout,
         new_layout: Layout,
     ) -> result::Result<NonNull<[u8]>, AllocError> {
-        self.address_space
-            .lock()
-            .allocator(self.flags)
-            .dry_grow(ptr, old_layout, new_layout, Initialize::Garbage)
-            .map_err(|_| AllocError)
+        unsafe {
+            self.address_space
+                .lock()
+                .allocator(self.flags)
+                .dry_grow(ptr, old_layout, new_layout, Initialize::Garbage)
+                .map_err(|_| AllocError)
+        }
     }
 
     unsafe fn grow_zeroed(
@@ -92,11 +96,13 @@ unsafe impl Allocator for MemoryAllocator<'_> {
         old_layout: Layout,
         new_layout: Layout,
     ) -> result::Result<NonNull<[u8]>, AllocError> {
-        self.address_space
-            .lock()
-            .allocator(self.flags)
-            .dry_grow(ptr, old_layout, new_layout, Initialize::Zero)
-            .map_err(|_| AllocError)
+        unsafe {
+            self.address_space
+                .lock()
+                .allocator(self.flags)
+                .dry_grow(ptr, old_layout, new_layout, Initialize::Zero)
+                .map_err(|_| AllocError)
+        }
     }
 
     unsafe fn shrink(
@@ -105,10 +111,12 @@ unsafe impl Allocator for MemoryAllocator<'_> {
         old_layout: Layout,
         new_layout: Layout,
     ) -> result::Result<NonNull<[u8]>, AllocError> {
-        self.address_space
-            .lock()
-            .allocator(self.flags)
-            .dry_shrink(ptr, old_layout, new_layout)
-            .map_err(|_| AllocError)
+        unsafe {
+            self.address_space
+                .lock()
+                .allocator(self.flags)
+                .dry_shrink(ptr, old_layout, new_layout)
+                .map_err(|_| AllocError)
+        }
     }
 }

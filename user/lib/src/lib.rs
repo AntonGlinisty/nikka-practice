@@ -4,7 +4,6 @@
 
 //! Библиотека для пользовательских процессов.
 
-#![allow(unsafe_op_in_unsafe_fn)]
 #![deny(warnings)]
 #![feature(alloc_error_handler)]
 #![feature(allocator_api)]

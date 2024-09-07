@@ -319,7 +319,8 @@ where
     /// которые не относятся к возвращаемым ошибкам.
     pub unsafe fn try_into_ref<'a, Q>(self) -> Result<&'a Q> {
         if self.size() == mem::size_of::<Q>() {
-            self.start_address().try_into_ref::<Q>()
+            let start_address = self.start_address();
+            unsafe { start_address.try_into_ref::<Q>() }
         } else {
             Err(InvalidArgument)
         }
@@ -339,7 +340,8 @@ where
     /// которые не относятся к возвращаемым ошибкам.
     pub unsafe fn try_into_mut<'a, Q>(self) -> Result<&'a mut Q> {
         if self.size() == mem::size_of::<Q>() {
-            self.start_address().try_into_mut::<Q>()
+            let start_address = self.start_address();
+            unsafe { start_address.try_into_mut::<Q>() }
         } else {
             Err(InvalidArgument)
         }
@@ -360,7 +362,9 @@ where
     /// которые не относятся к возвращаемым ошибкам.
     pub unsafe fn try_into_slice<'a, Q>(self) -> Result<&'a [Q]> {
         if self.size() % mem::size_of::<Q>() == 0 {
-            self.start_address().try_into_slice::<Q>(self.size() / mem::size_of::<Q>())
+            let start_address = self.start_address();
+            let len = self.size() / mem::size_of::<Q>();
+            unsafe { start_address.try_into_slice::<Q>(len) }
         } else {
             Err(InvalidArgument)
         }
@@ -381,7 +385,9 @@ where
     /// которые не относятся к возвращаемым ошибкам.
     pub unsafe fn try_into_mut_slice<'a, Q>(self) -> Result<&'a mut [Q]> {
         if self.size() % mem::size_of::<Q>() == 0 {
-            self.start_address().try_into_mut_slice::<Q>(self.size() / mem::size_of::<Q>())
+            let start_address = self.start_address();
+            let len = self.size() / mem::size_of::<Q>();
+            unsafe { start_address.try_into_mut_slice::<Q>(len) }
         } else {
             Err(InvalidArgument)
         }
@@ -401,7 +407,8 @@ where
     /// что не будут нарушены инварианты управления памятью в Rust,
     /// которые не относятся к возвращаемым ошибкам.
     pub unsafe fn try_into_non_null_slice<Q>(self) -> Result<NonNull<[Q]>> {
-        Ok(self.try_into_mut_slice()?.into())
+        let slice = unsafe { self.try_into_mut_slice()? };
+        Ok(slice.into())
     }
 }
 

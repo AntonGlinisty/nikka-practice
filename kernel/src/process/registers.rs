@@ -114,23 +114,25 @@ impl Registers {
     pub(super) unsafe fn switch_to(registers: *mut Registers) {
         let old_kernel_rsp = rsp();
 
-        asm!(
-            "
-            // TODO: your code here.
+        unsafe {
+            asm!(
+                "
+                // TODO: your code here.
 
-            iretq
+                iretq
 
-        store_user_mode_context:
+            store_user_mode_context:
 
-            // TODO: your code here.
+                // TODO: your code here.
 
-        switch_to_kernel_mode:
+            switch_to_kernel_mode:
 
-            // TODO: your code here.
-            ",
+                // TODO: your code here.
+                ",
 
-            // TODO: your code here.
-        );
+                // TODO: your code here.
+            );
+        }
 
         let new_kernel_rsp = rsp();
 
@@ -156,7 +158,9 @@ impl Registers {
     /// Текущий контекст ядра уничтожается.
     #[naked]
     pub(super) unsafe extern "C" fn sched_yield() -> ! {
-        asm!("jmp switch_to_kernel_mode", options(noreturn));
+        unsafe {
+            asm!("jmp switch_to_kernel_mode", options(noreturn));
+        }
     }
 
     /// Вытесняет текущий исполняющийся процесс с процессора принудительно.
@@ -171,7 +175,9 @@ impl Registers {
     /// восстановление контекста ядра.
     #[naked]
     pub(super) unsafe extern "C" fn switch_from() -> ! {
-        asm!("jmp store_user_mode_context", options(noreturn));
+        unsafe {
+            asm!("jmp store_user_mode_context", options(noreturn));
+        }
     }
 }
 

@@ -54,6 +54,8 @@ unsafe impl Allocator for Fallback {
             return;
         }
 
-        mman::munmap(ptr.as_mut() as *mut u8 as *mut c_void, layout.size()).unwrap();
+        unsafe {
+            mman::munmap(ptr.as_mut() as *mut u8 as *mut c_void, layout.size()).unwrap();
+        }
     }
 }

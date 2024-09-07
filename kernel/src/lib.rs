@@ -5,7 +5,6 @@
 //! Библиотека ядра.
 //! Позволяет подключать ядро как при обычном запуске, так и при запуске интеграционных тестов.
 
-#![allow(unsafe_op_in_unsafe_fn)]
 #![cfg_attr(test, no_main)]
 #![deny(warnings)]
 #![feature(abi_x86_interrupt)]

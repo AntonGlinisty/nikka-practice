@@ -3,7 +3,6 @@
 #![allow(unused_variables)]
 
 #![allow(clippy::unusual_byte_groupings)]
-#![allow(unsafe_op_in_unsafe_fn)]
 #![no_std]
 
 use core::hint;
@@ -29,8 +28,10 @@ impl Serial for Com {
         const COM1_LINE: u16 = 0x03FB;
 
         unsafe fn out_u16(value: u16) {
-            io::outb(COM1_LSB, value as u8);
-            io::outb(COM1_MSB, (value >> 8) as u8);
+            unsafe {
+                io::outb(COM1_LSB, value as u8);
+                io::outb(COM1_MSB, (value >> 8) as u8);
+            }
         }
 
         unsafe {

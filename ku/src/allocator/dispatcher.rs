@@ -198,7 +198,9 @@ unsafe impl<T: Allocator> GlobalAlloc for Dispatcher<T> {
 
         let ptr = NonNull::new(ptr).expect("should not get null ptr in dealloc()");
 
-        self.fallback.deallocate(ptr, layout);
+        unsafe {
+            self.fallback.deallocate(ptr, layout);
+        }
 
         self.update_fallback_info(Operation::Deallocation, layout);
     }
@@ -230,9 +232,9 @@ unsafe impl<T: Allocator> GlobalAlloc for Dispatcher<T> {
         let old_ptr = NonNull::new(old_ptr).expect("should not get null ptr in realloc()");
 
         let new_ptr = if old_layout.size() < new_layout.size() {
-            self.fallback.grow(old_ptr, old_layout, new_layout)
+            unsafe { self.fallback.grow(old_ptr, old_layout, new_layout) }
         } else {
-            self.fallback.shrink(old_ptr, old_layout, new_layout)
+            unsafe { self.fallback.shrink(old_ptr, old_layout, new_layout) }
         };
 
         if let Ok(new_ptr) = new_ptr {

@@ -75,7 +75,7 @@ impl Stack {
         &mut self,
         address_space: &mut AddressSpace,
     ) -> Result<()> {
-        address_space.unmap_slice(&mut self.0[.. Self::GUARD_ZONE_SIZE])
+        unsafe { address_space.unmap_slice(&mut self.0[.. Self::GUARD_ZONE_SIZE]) }
     }
 
     /// Размер не отображённой в память защитной области стека.

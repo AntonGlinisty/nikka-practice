@@ -127,7 +127,7 @@ impl Drop for Table {
 /// Так как размер таблицы процессов [`Table`] после инициализации мы никогда не меняем,
 /// и в частности не уменьшаем, время жизни каждого её слота --- практически `'static`.
 unsafe fn forge_static_lifetime<T>(x: &T) -> &'static T {
-    &*(x as *const T) as &'static T
+    unsafe { &*(x as *const T) as &'static T }
 }
 
 lazy_static! {
