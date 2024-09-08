@@ -1,7 +1,7 @@
 - group: syscalls
-  start: 14-09-2023 18:00
-  deadline: 28-09-2023 23:59
-  second_deadline: 01-02-2024 23:59
+  start: 10-09-2024 18:00
+  deadline: 26-09-2024 23:59
+  second_deadline: 01-02-2025 23:59
   enabled: true
   tasks:
     - task: hello_world
@@ -89,10 +89,10 @@
       check:
         - cd sem/jobserver && cargo build && ./test.sh
 
-- group: lab-1-time [bonus]
-  start: 21-09-2023 18:00
-  deadline: 20-12-2023 23:59
-  second_deadline: 01-02-2024 23:59
+- group: lab-1-time
+  start: 17-09-2024 18:00
+  deadline: 20-12-2024 23:59
+  second_deadline: 01-02-2025 23:59
   enabled: true
   tasks:
     - task: rtc
@@ -111,7 +111,7 @@
       check:
         - cd ku && cargo test --test 5-sync-2-spinlock
 
-    - task: sequence_lock
+    - task: sequence-lock
       score: 100
 
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-3-sequence-lock.html
@@ -135,10 +135,48 @@
       check:
         - cd kernel && cargo test --test 1-hw-3-high-resolution-date
 
+- group: asm
+  start: 24-09-2024 18:00
+  deadline: 10-10-2024 23:59
+  second_deadline: 01-02-2025 23:59
+  enabled: true
+  tasks:
+    - task: gdb
+      score: 100
+
+      url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/gdb
+      allow_list: *allow_list
+      check:
+        - cd sem/gdb && ./binary.static
+
+    - task: asm
+      score: 100
+
+      url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/asm
+      allow_list: *allow_list
+      check:
+        - cd sem/asm && cargo test
+
+    - task: rop
+      score: 100
+
+      url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/rop
+      allow_list: *allow_list
+      check:
+        - cd sem/rop && cargo test
+
+    - task: asm_syscall
+      score: 100
+
+      url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/asm_syscall
+      allow_list: *allow_list
+      check:
+        - cd sem/asm_syscall && cargo test
+
 - group: lab-2-memory
-  start: 28-09-2023 18:00
-  deadline: 12-10-2023 23:59
-  second_deadline: 01-02-2024 23:59
+  start: 01-10-2024 18:00
+  deadline: 17-10-2024 23:59
+  second_deadline: 01-02-2025 23:59
   enabled: true
   tasks:
     - task: boot-frame-allocator
@@ -181,48 +219,10 @@
       check:
         - cd kernel && cargo test --test 2-mm-*
 
-- group: asm
-  start: 05-10-2023 18:00
-  deadline: 19-10-2023 23:59
-  second_deadline: 01-02-2024 23:59
-  enabled: true
-  tasks:
-    - task: gdb
-      score: 100
-
-      url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/gdb
-      allow_list: *allow_list
-      check:
-        - cd sem/gdb && ./binary.static
-
-    - task: asm
-      score: 100
-
-      url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/asm
-      allow_list: *allow_list
-      check:
-        - cd sem/asm && cargo test
-
-    - task: rop
-      score: 100
-
-      url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/rop
-      allow_list: *allow_list
-      check:
-        - cd sem/rop && cargo test
-
-    - task: asm_syscall
-      score: 100
-
-      url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/asm_syscall
-      allow_list: *allow_list
-      check:
-        - cd sem/asm_syscall && cargo test
-
 - group: backtrace
-  start: 12-10-2023 18:00
-  deadline: 26-10-2023 23:59
-  second_deadline: 01-02-2024 23:59
+  start: 08-10-2024 18:00
+  deadline: 24-10-2024 23:59
+  second_deadline: 01-02-2025 23:59
   enabled: true
   tasks:
     - task: backtrace
@@ -234,9 +234,9 @@
         - cd sem/backtrace && cargo test -- --nocapture --test-threads=1
 
 - group: lab-3-smp
-  start: 19-10-2023 18:00
-  deadline: 02-11-2023 23:59
-  second_deadline: 01-02-2024 23:59
+  start: 15-10-2024 18:00
+  deadline: 31-10-2024 23:59
+  second_deadline: 01-02-2025 23:59
   enabled: true
   tasks:
     - task: big-allocator
@@ -280,9 +280,9 @@
         - cd kernel && cargo test --test 2-mm-* --test 5-sync-5-ap-init
 
 - group: atomic
-  start: 26-10-2023 18:00
-  deadline: 09-11-2023 23:59
-  second_deadline: 01-02-2024 23:59
+  start: 22-10-2024 18:00
+  deadline: 07-11-2024 23:59
+  second_deadline: 01-02-2025 23:59
   enabled: true
   tasks:
     - task: atomic
@@ -299,12 +299,12 @@
       url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/rwlock
       allow_list: *allow_list
       check:
-        - cd sem/rwlock && cargo test -- --nocapture --test-threads=1 && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test -- --nocapture --test-threads=1
+        - cd sem/rwlock && cargo test -- --nocapture --test-threads=1 && cargo clean && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test -- --nocapture --test-threads=1
 
 - group: lab-4-process
-  start: 02-11-2023 18:00
-  deadline: 18-11-2023 23:59
-  second_deadline: 01-02-2024 23:59
+  start: 29-10-2024 18:00
+  deadline: 14-11-2024 23:59
+  second_deadline: 01-02-2025 23:59
   enabled: true
   tasks:
     - task: elf
@@ -364,9 +364,9 @@
         - cd kernel && cargo test --test 2-mm-* --test 3-smp-[134]-* --test 4-process-3-elf --test 4-process-9-scheduler
 
 - group: lab-6-user-memory-tricks
-  start: 16-11-2023 18:00
-  deadline: 07-12-2023 23:59
-  second_deadline: 01-02-2024 23:59
+  start: 12-11-2024 18:00
+  deadline: 28-11-2024 23:59
+  second_deadline: 01-02-2025 23:59
   enabled: true
   tasks:
     - task: pipe
@@ -410,9 +410,9 @@
         - cd kernel && cargo test --test 2-mm-* --test 3-smp-[134]-* --test 4-process-[123]-* --test 6-um-*
 
 - group: lab-7-file-system
-  start: 07-12-2023 18:00
-  deadline: 20-12-2023 23:59
-  second_deadline: 01-02-2024 23:59
+  start: 26-11-2024 18:00
+  deadline: 12-12-2024 23:59
+  second_deadline: 01-02-2025 23:59
   enabled: true
   tasks:
     - task: block-cache
