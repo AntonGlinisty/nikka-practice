@@ -152,6 +152,7 @@ compose:
 install:
 	@(which rustup > /dev/null || (curl https://sh.rustup.rs -sSf | sh))
 	@(which bootimage > /dev/null || (cargo install bootimage))
+	@(which rustfilt > /dev/null || (cargo install rustfilt))
 
 nikka.pdf: FORCE
 	@trueprint \
