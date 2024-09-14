@@ -9,7 +9,10 @@ use std::{
     time::Duration,
 };
 
-use derive_more::AddAssign;
+use derive_more::{
+    Add,
+    Sum,
+};
 use rstest::rstest;
 
 use ku::{
@@ -57,38 +60,40 @@ fn atomic_correlation_point() {
 fn single_writer() {
     log::init();
 
-    static RUN: AtomicBool = AtomicBool::new(true);
-    static POINT: AtomicCorrelationPoint = AtomicCorrelationPoint::new();
-
-    let mut threads = Vec::new();
-
-    for thread in 0 .. THREAD_COUNT {
-        threads.push(
-            thread::Builder::new()
-                .name(format!("reader #{thread}"))
-                .spawn(move || reader(&POINT))
-                .unwrap(),
-        );
-    }
-
-    let writer_thread = thread::Builder::new()
-        .name("writer_thread".to_string())
-        .spawn(move || writer(&POINT, &RUN))
-        .unwrap();
-
-    let mut stats = Stats::default();
-    while let Some(thread) = threads.pop() {
-        stats += thread.join().unwrap();
-    }
+    let run = AtomicBool::new(true);
+    let point = AtomicCorrelationPoint::new();
 
     let Stats {
         consistent,
         inconsistent,
-    } = stats;
+    } = thread::scope(|scope| {
+        let threads: Vec<_> = (0 .. THREAD_COUNT)
+            .map(|thread| {
+                thread::Builder::new()
+                    .name(format!("reader #{thread}"))
+                    .spawn_scoped(scope, || reader(&point))
+                    .unwrap()
+            })
+            .collect();
 
-    RUN.store(false, Ordering::Release);
+        let writer_thread = {
+            thread::Builder::new()
+                .name("writer".to_string())
+                .spawn_scoped(scope, || writer(&point, &run))
+                .unwrap()
+        };
 
-    assert!(writer_thread.join().is_ok());
+        let stats = threads
+            .into_iter()
+            .map(|thread| thread.join().expect("readers should finish successfully"))
+            .sum();
+
+        run.store(false, Ordering::Release);
+
+        writer_thread.join().expect("writer should finish successfully");
+
+        stats
+    });
 
     debug!(consistent, inconsistent);
     assert!(
@@ -144,7 +149,7 @@ fn writer(
     }
 }
 
-#[derive(AddAssign, Clone, Copy, Default)]
+#[derive(Add, Clone, Copy, Default, Sum)]
 struct Stats {
     consistent: usize,
     inconsistent: usize,

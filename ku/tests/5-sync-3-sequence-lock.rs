@@ -9,7 +9,10 @@ use std::{
     time::Duration,
 };
 
-use derive_more::AddAssign;
+use derive_more::{
+    Add,
+    Sum,
+};
 use rstest::rstest;
 
 use ku::{
@@ -71,38 +74,40 @@ fn exclusive_access() {
 fn single_writer() {
     log::init();
 
-    static RUN: AtomicBool = AtomicBool::new(true);
-    static SEQUENCE_LOCK: SequenceLock<(usize, usize)> = SequenceLock::new((0, 0));
-
-    let mut threads = Vec::new();
-
-    for thread in 0 .. THREAD_COUNT {
-        threads.push(
-            thread::Builder::new()
-                .name(format!("reader_thread #{thread}"))
-                .spawn(move || reader(&SEQUENCE_LOCK))
-                .unwrap(),
-        );
-    }
-
-    let writer_thread = thread::Builder::new()
-        .name("writer_thread".to_string())
-        .spawn(move || exclusive_writer(&SEQUENCE_LOCK, &RUN))
-        .unwrap();
-
-    let mut stats = Stats::default();
-    while let Some(thread) = threads.pop() {
-        stats += thread.join().unwrap();
-    }
+    let run = AtomicBool::new(true);
+    let sequence_lock = SequenceLock::new((0, 0));
 
     let Stats {
         consistent,
         inconsistent,
-    } = stats;
+    } = thread::scope(|scope| {
+        let reader_threads: Vec<_> = (0 .. THREAD_COUNT)
+            .map(|thread| {
+                thread::Builder::new()
+                    .name(format!("reader #{thread}"))
+                    .spawn_scoped(scope, || reader(&sequence_lock))
+                    .unwrap()
+            })
+            .collect();
 
-    RUN.store(false, Ordering::Release);
+        let writer_thread = {
+            thread::Builder::new()
+                .name("writer".to_string())
+                .spawn_scoped(scope, || exclusive_writer(&sequence_lock, &run))
+                .unwrap()
+        };
 
-    assert!(writer_thread.join().is_ok());
+        let stats = reader_threads
+            .into_iter()
+            .map(|thread| thread.join().expect("readers should finish successfully"))
+            .sum();
+
+        run.store(false, Ordering::Release);
+
+        writer_thread.join().expect("writer should finish successfully");
+
+        stats
+    });
 
     debug!(consistent, inconsistent);
     assert!(
@@ -120,43 +125,46 @@ fn single_writer() {
 fn multiple_writers() {
     log::init();
 
-    static RUN: AtomicBool = AtomicBool::new(true);
-    static SEQUENCE_LOCK: SequenceLock<(usize, usize)> = SequenceLock::new((0, 0));
-
-    let mut reader_threads = Vec::new();
-    let mut writer_threads = Vec::new();
-
-    for thread in 0 .. THREAD_COUNT {
-        reader_threads.push(
-            thread::Builder::new()
-                .name(format!("reader_thread #{thread}"))
-                .spawn(move || reader(&SEQUENCE_LOCK))
-                .unwrap(),
-        );
-
-        writer_threads.push(
-            thread::Builder::new()
-                .name(format!("writer_thread #{thread}"))
-                .spawn(move || non_exclusive_writer(&SEQUENCE_LOCK, &RUN))
-                .unwrap(),
-        );
-    }
-
-    let mut stats = Stats::default();
-    while let Some(thread) = reader_threads.pop() {
-        stats += thread.join().unwrap();
-    }
+    let run = AtomicBool::new(true);
+    let sequence_lock = SequenceLock::new((0, 0));
 
     let Stats {
         consistent,
         inconsistent,
-    } = stats;
+    } = thread::scope(|scope| {
+        let reader_threads: Vec<_> = (0 .. THREAD_COUNT)
+            .map(|thread| {
+                thread::Builder::new()
+                    .name(format!("reader #{thread}"))
+                    .spawn_scoped(scope, || reader(&sequence_lock))
+                    .unwrap()
+            })
+            .collect();
 
-    RUN.store(false, Ordering::Release);
+        let writer_threads: Vec<_> = (0 .. THREAD_COUNT)
+            .map(|thread| {
+                thread::Builder::new()
+                    .name(format!("writer #{thread}"))
+                    .spawn_scoped(scope, || non_exclusive_writer(&sequence_lock, &run))
+                    .unwrap()
+            })
+            .collect();
 
-    while let Some(thread) = writer_threads.pop() {
-        assert!(thread.join().is_ok());
-    }
+        let stats = reader_threads
+            .into_iter()
+            .map(|thread| thread.join().expect("readers should finish successfully"))
+            .sum();
+
+        run.store(false, Ordering::Release);
+
+        let writers_finished_successfully = writer_threads
+            .into_iter()
+            .map(|thread| thread.join())
+            .all(|result| result.is_ok());
+        assert!(writers_finished_successfully);
+
+        stats
+    });
 
     debug!(consistent, inconsistent);
     assert!(
@@ -174,32 +182,32 @@ fn multiple_writers() {
 fn multiple_exclusive_writers() {
     log::init();
 
-    static RUN: AtomicBool = AtomicBool::new(true);
-    static SEQUENCE_LOCK: SequenceLock<(usize, usize)> = SequenceLock::new((0, 0));
+    let run = AtomicBool::new(true);
+    let sequence_lock = SequenceLock::new((0, 0));
 
-    let mut threads = Vec::new();
+    thread::scope(|scope| {
+        let writer_threads: Vec<_> = (0 .. THREAD_COUNT)
+            .map(|thread| {
+                thread::Builder::new()
+                    .name(format!("writer #{thread}"))
+                    .spawn_scoped(scope, || exclusive_writer(&sequence_lock, &run))
+                    .unwrap()
+            })
+            .collect();
 
-    for thread in 0 .. THREAD_COUNT {
-        threads.push(
-            thread::Builder::new()
-                .name(format!("writer_thread #{thread}"))
-                .spawn(move || exclusive_writer(&SEQUENCE_LOCK, &RUN))
-                .unwrap(),
-        );
-    }
+        thread::sleep(Duration::from_secs(1));
 
-    thread::sleep(Duration::from_secs(1));
+        run.store(false, Ordering::Release);
 
-    RUN.store(false, Ordering::Release);
+        let non_exclusivity_detection_count = writer_threads
+            .into_iter()
+            .map(|thread| thread.join())
+            .filter(|result| result.is_err())
+            .count();
 
-    let mut non_exclusivity_detection_count = 0;
-    while let Some(thread) = threads.pop() {
-        if thread.join().is_err() {
-            non_exclusivity_detection_count += 1;
-        }
-    }
-    debug!(non_exclusivity_detection_count);
-    assert!(non_exclusivity_detection_count > 0);
+        debug!(non_exclusivity_detection_count);
+        assert!(non_exclusivity_detection_count > 0);
+    });
 }
 
 fn reader(sequence_lock: &SequenceLock<(usize, usize)>) -> Stats {
@@ -266,7 +274,7 @@ fn non_exclusive_writer(
     }
 }
 
-#[derive(AddAssign, Clone, Copy, Default)]
+#[derive(Add, Clone, Copy, Default, Sum)]
 struct Stats {
     consistent: usize,
     inconsistent: usize,

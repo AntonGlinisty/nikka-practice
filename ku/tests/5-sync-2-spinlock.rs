@@ -9,7 +9,10 @@ use std::{
     time::Duration,
 };
 
-use derive_more::AddAssign;
+use derive_more::{
+    Add,
+    Sum,
+};
 use rstest::rstest;
 
 use ku::{
@@ -79,23 +82,24 @@ fn exclusive_access() {
 fn deadlock() {
     log::init();
 
-    static A: Spinlock<i32> = Spinlock::new(0);
-    static B: Spinlock<i32> = Spinlock::new(1);
-    static BARRIER: AtomicUsize = AtomicUsize::new(0);
+    let a = Spinlock::new(0);
+    let b = Spinlock::new(1);
+    let barrier = AtomicUsize::new(0);
 
-    let (lock_a, lock_b) = (A.lock(), B.lock());
-    debug!(?A, ?B, "attempting create a deadlock on two spinlocks");
+    let (lock_a, lock_b) = (a.lock(), b.lock());
+    debug!(?a, ?b, "attempting create a deadlock on two spinlocks");
 
     fn acquire_two_spinlocks(
-        x: &'static Spinlock<i32>,
-        y: &'static Spinlock<i32>,
+        x: &Spinlock<i32>,
+        y: &Spinlock<i32>,
+        barrier: &AtomicUsize,
     ) {
         let lock_x = x.lock();
         debug!(?lock_x, "acquired first lock");
 
-        BARRIER.fetch_add(1, Ordering::Relaxed);
+        barrier.fetch_add(1, Ordering::Relaxed);
         loop {
-            let arrived = BARRIER.load(Ordering::Relaxed);
+            let arrived = barrier.load(Ordering::Relaxed);
             debug!(arrived, "waiting on a barrier");
             if arrived >= 2 {
                 break;
@@ -109,19 +113,21 @@ fn deadlock() {
         drop(lock_x);
     }
 
-    let ab = thread::spawn(move || acquire_two_spinlocks(&A, &B));
-    let ba = thread::spawn(move || acquire_two_spinlocks(&B, &A));
+    thread::scope(|s| {
+        let ab = s.spawn(|| acquire_two_spinlocks(&a, &b, &barrier));
+        let ba = s.spawn(|| acquire_two_spinlocks(&b, &a, &barrier));
 
-    drop(lock_a);
-    drop(lock_b);
+        drop(lock_a);
+        drop(lock_b);
 
-    let ab_result = ab.join();
-    let ba_result = ba.join();
-    debug!(?ab_result, ?ba_result);
-    assert!(
-        ab_result.is_err() || ba_result.is_err(),
-        "at least one of the results should contain an error: {ab_result:?}, {ba_result:?}",
-    );
+        let ab_result = ab.join();
+        let ba_result = ba.join();
+        debug!(?ab_result, ?ba_result);
+        assert!(
+            ab_result.is_err() || ba_result.is_err(),
+            "at least one of the results should contain an error: {ab_result:?}, {ba_result:?}",
+        );
+    });
 }
 
 #[rstest]
@@ -132,14 +138,14 @@ fn concurrent() {
     const ITERATION_COUNT: usize = 100_000;
     const THREAD_COUNT: usize = 100;
 
-    static SPINLOCK: Spinlock<(usize, usize)> = Spinlock::new((0, 0));
+    let spinlock = Spinlock::new((0, 0));
 
-    fn check_spinlock() -> Stats {
+    fn check_spinlock(spinlock: &Spinlock<(usize, usize)>) -> Stats {
         let mut report = true;
         let mut stats = Stats::default();
 
         for iteration in 0 .. ITERATION_COUNT {
-            let mut lock = SPINLOCK.lock();
+            let mut lock = spinlock.lock();
             let data = *lock;
 
             if 2 * data.0 == data.1 {
@@ -162,35 +168,29 @@ fn concurrent() {
             lock.1 = 2 * i + 2;
         }
 
+        stats.completed = 1;
+
         stats
     }
 
-    let mut threads = Vec::new();
-
-    for thread in 0 .. THREAD_COUNT {
-        threads.push(
-            thread::Builder::new()
-                .name(format!("thread #{thread}"))
-                .spawn(move || check_spinlock())
-                .unwrap(),
-        );
-    }
-
-    let mut false_positive_count = 0;
-    let mut stats = Stats::default();
-    while let Some(thread) = threads.pop() {
-        if let Ok(thread_stats) = thread.join() {
-            stats += thread_stats;
-        } else {
-            false_positive_count += 1;
-        }
-    }
-
     let Stats {
+        completed,
         consistent,
         inconsistent,
-    } = stats;
+    } = thread::scope(|s| {
+        let threads: Vec<_> = (0 .. THREAD_COUNT)
+            .map(|thread| {
+                thread::Builder::new()
+                    .name(format!("thread #{thread}"))
+                    .spawn_scoped(s, || check_spinlock(&spinlock))
+                    .unwrap()
+            })
+            .collect();
 
+        threads.into_iter().map(|thread| thread.join().unwrap_or_default()).sum()
+    });
+
+    let false_positive_count = THREAD_COUNT - completed;
     debug!(false_positive_count, "false positive deadlock detections");
 
     debug!(consistent, inconsistent);
@@ -203,11 +203,12 @@ fn concurrent() {
         "detected {inconsistent} inconsistent data reads",
     );
 
-    debug!(spinlock = ?SPINLOCK);
+    debug!(?spinlock);
 }
 
-#[derive(AddAssign, Clone, Copy, Default)]
+#[derive(Add, Clone, Copy, Default, Sum)]
 struct Stats {
+    completed: usize,
     consistent: usize,
     inconsistent: usize,
 }

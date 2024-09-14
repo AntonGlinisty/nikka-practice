@@ -8,12 +8,14 @@ use std::{
     },
     cmp,
     mem,
+    sync::Arc,
     thread,
 };
 
 use derive_more::{
-    AddAssign,
+    Add,
     Display,
+    Sum,
 };
 use rand::{
     Rng,
@@ -60,28 +62,27 @@ fn single_threaded() {
 fn multi_threaded() {
     log::init();
 
-    static ALLOCATOR: Dispatcher<Fallback> = Dispatcher::new(Fallback);
+    let allocator = Arc::new(Dispatcher::new(Fallback));
 
     let thread_count = thread::available_parallelism().unwrap().get();
 
-    let mut threads = Vec::new();
+    let threads: Vec<_> = (0 .. thread_count)
+        .map(|thread| {
+            let allocator = allocator.clone();
 
-    for thread in 0 .. thread_count {
-        threads.push(thread::spawn(move || {
-            stress(&ALLOCATOR, MULTI_THREADED_ITERATIONS, SEED + thread)
-        }));
-    }
+            thread::spawn(move || stress(&*allocator, MULTI_THREADED_ITERATIONS, SEED + thread))
+        })
+        .collect();
 
-    let mut stats = Stats::default();
-    while let Some(thread) = threads.pop() {
-        stats += thread.join().unwrap();
-    }
+    let stats = threads
+        .into_iter()
+        .map(|thread| thread.join().expect("threads should finish successfully"))
+        .sum();
 
-    static DETAILED_INFO: Spinlock<DetailedInfo> = Spinlock::new(DetailedInfo::new());
-    let mut detailed_info = DETAILED_INFO.lock();
-    ALLOCATOR.detailed_info(&mut detailed_info);
+    let detailed_info: Spinlock<DetailedInfo> = Spinlock::new(DetailedInfo::new());
+    allocator.detailed_info(&mut detailed_info.lock());
 
-    validate_info(stats, &detailed_info);
+    validate_info(stats, &detailed_info.lock());
 }
 
 fn validate_info(
@@ -269,7 +270,7 @@ impl Drop for Allocation<'_> {
     }
 }
 
-#[derive(AddAssign, Clone, Copy, Default)]
+#[derive(Add, Clone, Copy, Default, Sum)]
 struct Stats {
     allocations: usize,
     requested: usize,
