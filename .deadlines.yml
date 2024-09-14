@@ -103,6 +103,14 @@
       check:
         - cd kernel && cargo test --test 1-hw-1-rtc && cargo test --test 1-hw-1-rtc -- -rtc base=2050-12-31T23:59:53 && cargo test --test 1-hw-1-rtc -- -rtc base=2050-01-01T11:59:53
 
+    - task: once-lock
+      score: 50
+
+      url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-3-once-lock.html
+      allow_list: *allow_list
+      check:
+        - cd ku && cargo test --test 5-sync-1-once-lock -- --test-threads=1 && cargo clean && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 5-sync-1-once-lock
+
     - task: spinlock
       score: 100
 

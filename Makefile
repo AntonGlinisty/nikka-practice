@@ -79,13 +79,20 @@ test: install
 		rustup component add rustfmt; \
 		for crate in $(CRATES); do \
 			cd $$crate; \
-			RUST_BACKTRACE=1 cargo test || exit 1; \
+			if [ .$$crate = .ku ]; then \
+				test_flags='-- --test-threads=1'; \
+			else \
+				test_flags=''; \
+			fi; \
+			RUST_BACKTRACE=1 cargo test $$test_flags || exit 1; \
 			cargo clippy || exit 1; \
 			cargo fmt --check || exit 1; \
 			cd - >/dev/null; \
 		done; \
 		cd ku; \
-		MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 1-time-5-correlation-point; \
+		for test in 1-time-2-once-lock 1-time-5-correlation-point; do \
+			MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test $$test; \
+		done; \
 		cd - >/dev/null; \
 		cd sem/rwlock; \
 		MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test -- --nocapture --test-threads=1; \
