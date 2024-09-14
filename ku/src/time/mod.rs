@@ -113,4 +113,6 @@ pub mod test_scaffolding {
         correlation_point::test_scaffolding::*,
         tsc::test_scaffolding::*,
     };
+
+    pub const NSECS_PER_SEC: i64 = super::NSECS_PER_SEC;
 }

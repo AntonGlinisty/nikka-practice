@@ -11,8 +11,10 @@ use ku::{
     self,
     time::{
         self,
+        Hz,
         pit8254::TICKS_PER_SECOND,
         test_scaffolding::{
+            NSECS_PER_SEC,
             datetime_with_resolution,
             forge_tsc,
             new_correlation_interval,
@@ -22,7 +24,10 @@ use ku::{
 
 use kernel::{
     Subsystems,
-    log::debug,
+    log::{
+        debug,
+        error,
+    },
     trap::{
         TRAP_STATS,
         Trap,
@@ -80,16 +85,32 @@ fn stress() {
         base_tsc_step: usize,
         tsc_step: usize,
     ) {
-        let max_delta = Duration::seconds(30);
-        let min_delta = Duration::microseconds(100);
+        let mock_cpu_frequency = Hz::new(tsc_per_tick.try_into().unwrap()).unwrap();
+
+        let mock_rdtsc_interval = Duration::nanoseconds(NSECS_PER_SEC / tsc_per_tick);
+        let min_delta = mock_rdtsc_interval / 2;
+
+        let max_valid_delta = Duration::nanoseconds(tsc_end * NSECS_PER_SEC / tsc_per_tick);
+        let max_delta = max_valid_delta * 2;
+
+        debug!(
+            %mock_cpu_frequency,
+            %mock_rdtsc_interval,
+            %min_delta,
+            %max_valid_delta,
+            %max_delta,
+            "expected bounds for the real time delta between two points \
+             for the given mock CPU frequency",
+        );
 
         for base_tsc in (1 .. tsc_end).step_by(base_tsc_step) {
             let correlation_interval =
                 new_correlation_interval::<TICKS_PER_SECOND>(base_tsc, base_tsc + tsc_per_tick);
 
+            let tsc_0 = forge_tsc(0);
             let point_0 = datetime_with_resolution::<PARTS_PER_SECOND, TICKS_PER_SECOND>(
                 &correlation_interval,
-                forge_tsc(0),
+                tsc_0,
             );
 
             for tsc in (-tsc_end .. tsc_end).step_by(tsc_step) {
@@ -97,21 +118,33 @@ fn stress() {
                     continue;
                 }
 
-                let point_tsc = datetime_with_resolution::<PARTS_PER_SECOND, TICKS_PER_SECOND>(
+                let tsc_1 = forge_tsc(tsc);
+                let point_1 = datetime_with_resolution::<PARTS_PER_SECOND, TICKS_PER_SECOND>(
                     &correlation_interval,
-                    forge_tsc(tsc),
+                    tsc_1,
                 );
 
                 let delta = if tsc < 0 {
-                    point_0 - point_tsc
+                    point_0 - point_1
                 } else {
-                    point_tsc - point_0
+                    point_1 - point_0
                 };
 
                 if delta < min_delta || max_delta < delta {
+                    debug!(
+                        ?tsc_0,
+                        ?tsc_1,
+                        "checking absolute real time delta between two mock RDTSC points",
+                    );
+                    debug!(
+                        ?correlation_interval,
+                        "correlation interval for converting RDTSC points into the real dates",
+                    );
+                    debug!(%point_0, %point_1, "points");
+
                     let message =
-                        "delta between tsc = point_tsc and Tsc(0) = point_0 is out of bounds";
-                    debug!(%tsc, %point_tsc, %point_0, %delta, %min_delta, %max_delta, message);
+                        "delta between points converted into the real dates is out of bounds";
+                    error!(%point_0, %point_1, %delta, %min_delta, %max_delta, message);
                     panic!("{}", message);
                 }
             }
