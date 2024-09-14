@@ -3,13 +3,13 @@
 use std::{
     sync::atomic::{
         AtomicBool,
-        AtomicUsize,
         Ordering,
     },
     thread,
     time::Duration,
 };
 
+use derive_more::AddAssign;
 use rstest::rstest;
 
 use ku::{
@@ -71,8 +71,6 @@ fn exclusive_access() {
 fn single_writer() {
     log::init();
 
-    static CONSISTENT: AtomicUsize = AtomicUsize::new(0);
-    static INCONSISTENT: AtomicUsize = AtomicUsize::new(0);
     static RUN: AtomicBool = AtomicBool::new(true);
     static SEQUENCE_LOCK: SequenceLock<(usize, usize)> = SequenceLock::new((0, 0));
 
@@ -82,7 +80,7 @@ fn single_writer() {
         threads.push(
             thread::Builder::new()
                 .name(format!("reader_thread #{thread}"))
-                .spawn(move || reader(&SEQUENCE_LOCK, &CONSISTENT, &INCONSISTENT))
+                .spawn(move || reader(&SEQUENCE_LOCK))
                 .unwrap(),
         );
     }
@@ -92,16 +90,20 @@ fn single_writer() {
         .spawn(move || exclusive_writer(&SEQUENCE_LOCK, &RUN))
         .unwrap();
 
+    let mut stats = Stats::default();
     while let Some(thread) = threads.pop() {
-        assert!(thread.join().is_ok());
+        stats += thread.join().unwrap();
     }
+
+    let Stats {
+        consistent,
+        inconsistent,
+    } = stats;
 
     RUN.store(false, Ordering::Release);
 
     assert!(writer_thread.join().is_ok());
 
-    let consistent = CONSISTENT.load(Ordering::Relaxed);
-    let inconsistent = INCONSISTENT.load(Ordering::Relaxed);
     debug!(consistent, inconsistent);
     assert!(
         consistent >= THREAD_COUNT * MIN_DIFFERENT_READS,
@@ -118,8 +120,6 @@ fn single_writer() {
 fn multiple_writers() {
     log::init();
 
-    static CONSISTENT: AtomicUsize = AtomicUsize::new(0);
-    static INCONSISTENT: AtomicUsize = AtomicUsize::new(0);
     static RUN: AtomicBool = AtomicBool::new(true);
     static SEQUENCE_LOCK: SequenceLock<(usize, usize)> = SequenceLock::new((0, 0));
 
@@ -130,7 +130,7 @@ fn multiple_writers() {
         reader_threads.push(
             thread::Builder::new()
                 .name(format!("reader_thread #{thread}"))
-                .spawn(move || reader(&SEQUENCE_LOCK, &CONSISTENT, &INCONSISTENT))
+                .spawn(move || reader(&SEQUENCE_LOCK))
                 .unwrap(),
         );
 
@@ -142,9 +142,15 @@ fn multiple_writers() {
         );
     }
 
+    let mut stats = Stats::default();
     while let Some(thread) = reader_threads.pop() {
-        assert!(thread.join().is_ok());
+        stats += thread.join().unwrap();
     }
+
+    let Stats {
+        consistent,
+        inconsistent,
+    } = stats;
 
     RUN.store(false, Ordering::Release);
 
@@ -152,8 +158,6 @@ fn multiple_writers() {
         assert!(thread.join().is_ok());
     }
 
-    let consistent = CONSISTENT.load(Ordering::Relaxed);
-    let inconsistent = INCONSISTENT.load(Ordering::Relaxed);
     debug!(consistent, inconsistent);
     assert!(
         consistent >= THREAD_COUNT * MIN_DIFFERENT_READS,
@@ -198,30 +202,25 @@ fn multiple_exclusive_writers() {
     assert!(non_exclusivity_detection_count > 0);
 }
 
-fn reader(
-    sequence_lock: &SequenceLock<(usize, usize)>,
-    global_consistent: &AtomicUsize,
-    global_inconsistent: &AtomicUsize,
-) {
-    let mut consistent = 0;
-    let mut inconsistent = 0;
+fn reader(sequence_lock: &SequenceLock<(usize, usize)>) -> Stats {
     let mut iteration = 0;
     let mut prev = 0;
     let mut report = true;
+    let mut stats = Stats::default();
 
     while iteration < MIN_DIFFERENT_READS {
         let data = sequence_lock.read();
 
         if 2 * data.0 == data.1 {
             if data.0 > 0 {
-                consistent += 1;
+                stats.consistent += 1;
             }
         } else {
             if report {
                 error!(?data, iteration, "inconsistent data");
                 report = false;
             }
-            inconsistent += 1;
+            stats.inconsistent += 1;
         }
 
         if data.0 != prev {
@@ -230,8 +229,7 @@ fn reader(
         }
     }
 
-    global_consistent.fetch_add(consistent, Ordering::Relaxed);
-    global_inconsistent.fetch_add(inconsistent, Ordering::Relaxed);
+    stats
 }
 
 fn exclusive_writer(
@@ -266,6 +264,12 @@ fn non_exclusive_writer(
 
         lock.1 = 2 * i + 2;
     }
+}
+
+#[derive(AddAssign, Clone, Copy, Default)]
+struct Stats {
+    consistent: usize,
+    inconsistent: usize,
 }
 
 const MIN_DIFFERENT_READS: usize = 100;

@@ -9,6 +9,7 @@ use std::{
     time::Duration,
 };
 
+use derive_more::AddAssign;
 use rstest::rstest;
 
 use ku::{
@@ -131,14 +132,11 @@ fn concurrent() {
     const ITERATION_COUNT: usize = 100_000;
     const THREAD_COUNT: usize = 100;
 
-    static CONSISTENT: AtomicUsize = AtomicUsize::new(0);
-    static INCONSISTENT: AtomicUsize = AtomicUsize::new(0);
     static SPINLOCK: Spinlock<(usize, usize)> = Spinlock::new((0, 0));
 
-    fn check_spinlock() {
-        let mut consistent = 0;
-        let mut inconsistent = 0;
+    fn check_spinlock() -> Stats {
         let mut report = true;
+        let mut stats = Stats::default();
 
         for iteration in 0 .. ITERATION_COUNT {
             let mut lock = SPINLOCK.lock();
@@ -146,14 +144,14 @@ fn concurrent() {
 
             if 2 * data.0 == data.1 {
                 if data.0 > 0 {
-                    consistent += 1;
+                    stats.consistent += 1;
                 }
             } else {
                 if report {
                     error!(?data, iteration, "inconsistent data");
                     report = false;
                 }
-                inconsistent += 1;
+                stats.inconsistent += 1;
             }
 
             let i = data.0;
@@ -164,8 +162,7 @@ fn concurrent() {
             lock.1 = 2 * i + 2;
         }
 
-        CONSISTENT.fetch_add(consistent, Ordering::Relaxed);
-        INCONSISTENT.fetch_add(inconsistent, Ordering::Relaxed);
+        stats
     }
 
     let mut threads = Vec::new();
@@ -174,23 +171,28 @@ fn concurrent() {
         threads.push(
             thread::Builder::new()
                 .name(format!("thread #{thread}"))
-                .spawn(move || {
-                    check_spinlock();
-                })
+                .spawn(move || check_spinlock())
                 .unwrap(),
         );
     }
 
     let mut false_positive_count = 0;
+    let mut stats = Stats::default();
     while let Some(thread) = threads.pop() {
-        if thread.join().is_err() {
+        if let Ok(thread_stats) = thread.join() {
+            stats += thread_stats;
+        } else {
             false_positive_count += 1;
         }
     }
+
+    let Stats {
+        consistent,
+        inconsistent,
+    } = stats;
+
     debug!(false_positive_count, "false positive deadlock detections");
 
-    let consistent = CONSISTENT.load(Ordering::Relaxed);
-    let inconsistent = INCONSISTENT.load(Ordering::Relaxed);
     debug!(consistent, inconsistent);
     assert!(
         consistent > ITERATION_COUNT / 10,
@@ -202,4 +204,10 @@ fn concurrent() {
     );
 
     debug!(spinlock = ?SPINLOCK);
+}
+
+#[derive(AddAssign, Clone, Copy, Default)]
+struct Stats {
+    consistent: usize,
+    inconsistent: usize,
 }

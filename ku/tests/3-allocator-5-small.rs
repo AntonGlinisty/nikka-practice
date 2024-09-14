@@ -8,14 +8,13 @@ use std::{
     },
     cmp,
     mem,
-    sync::atomic::{
-        AtomicUsize,
-        Ordering,
-    },
     thread,
 };
 
-use derive_more::Display;
+use derive_more::{
+    AddAssign,
+    Display,
+};
 use rand::{
     Rng,
     SeedableRng,
@@ -49,13 +48,12 @@ fn single_threaded() {
 
     let allocator = Dispatcher::new(Fallback);
 
-    let (allocations, requested) = stress(&allocator, SINGLE_THREADED_ITERATIONS, SEED);
+    let stats = stress(&allocator, SINGLE_THREADED_ITERATIONS, SEED);
 
-    static DETAILED_INFO: Spinlock<DetailedInfo> = Spinlock::new(DetailedInfo::new());
-    let mut detailed_info = DETAILED_INFO.lock();
-    allocator.detailed_info(&mut detailed_info);
+    let detailed_info: Spinlock<DetailedInfo> = Spinlock::new(DetailedInfo::new());
+    allocator.detailed_info(&mut detailed_info.lock());
 
-    validate_info(allocations, requested, &detailed_info);
+    validate_info(stats, &detailed_info.lock());
 }
 
 #[test]
@@ -64,41 +62,30 @@ fn multi_threaded() {
 
     static ALLOCATOR: Dispatcher<Fallback> = Dispatcher::new(Fallback);
 
-    static ALLOCATIONS: AtomicUsize = AtomicUsize::new(0);
-    static REQUESTED: AtomicUsize = AtomicUsize::new(0);
-
     let thread_count = thread::available_parallelism().unwrap().get();
 
     let mut threads = Vec::new();
 
     for thread in 0 .. thread_count {
         threads.push(thread::spawn(move || {
-            let (allocations, requested) =
-                stress(&ALLOCATOR, MULTI_THREADED_ITERATIONS, SEED + thread);
-
-            ALLOCATIONS.fetch_add(allocations, Ordering::Relaxed);
-            REQUESTED.fetch_add(requested, Ordering::Relaxed);
+            stress(&ALLOCATOR, MULTI_THREADED_ITERATIONS, SEED + thread)
         }));
     }
 
+    let mut stats = Stats::default();
     while let Some(thread) = threads.pop() {
-        thread.join().unwrap();
+        stats += thread.join().unwrap();
     }
 
     static DETAILED_INFO: Spinlock<DetailedInfo> = Spinlock::new(DetailedInfo::new());
     let mut detailed_info = DETAILED_INFO.lock();
     ALLOCATOR.detailed_info(&mut detailed_info);
 
-    validate_info(
-        ALLOCATIONS.load(Ordering::Relaxed),
-        REQUESTED.load(Ordering::Relaxed),
-        &detailed_info,
-    );
+    validate_info(stats, &detailed_info);
 }
 
 fn validate_info(
-    allocations: usize,
-    requested: usize,
+    stats: Stats,
     detailed_info: &DetailedInfo,
 ) {
     info!(total = %detailed_info.total());
@@ -107,9 +94,9 @@ fn validate_info(
     assert!(detailed_info.is_valid());
 
     let total = detailed_info.total();
-    assert_eq!(total.allocations().positive(), allocations);
-    assert!(total.allocated().positive() >= requested);
-    assert_eq!(total.requested().positive(), requested);
+    assert_eq!(total.allocations().positive(), stats.allocations);
+    assert!(total.allocated().positive() >= stats.requested);
+    assert_eq!(total.requested().positive(), stats.requested);
     assert_eq!(total.allocations().balance(), 0);
     assert_eq!(total.allocated().balance(), 0);
     assert_eq!(total.requested().balance(), 0);
@@ -121,11 +108,10 @@ fn stress(
     allocator: &'_ dyn GlobalAlloc,
     iterations: usize,
     seed: usize,
-) -> (usize, usize) {
+) -> Stats {
     let mut active = Vec::new();
-    let mut allocations = 0;
-    let mut requested = 0;
     let mut rng = SmallRng::seed_from_u64(size::into_u64(seed));
+    let mut stats = Stats::default();
 
     for iteration in 1 ..= iterations {
         let operation = rng.gen_range(0 .. 3);
@@ -141,8 +127,8 @@ fn stress(
 
         if active.is_empty() || operation == 0 {
             let allocation = Allocation::generate(allocator, &mut rng);
-            allocations += 1;
-            requested += allocation.layout.size();
+            stats.allocations += 1;
+            stats.requested += allocation.layout.size();
             active.push(allocation);
         } else if active.len() > MAX_ACTIVE_ALLOCATIONS || operation == 1 {
             let last = active.pop().unwrap();
@@ -154,12 +140,12 @@ fn stress(
             drop(to_be_freed);
         } else if operation == 2 {
             active[index].resize(&mut rng);
-            allocations += 1;
-            requested += active[index].layout.size();
+            stats.allocations += 1;
+            stats.requested += active[index].layout.size();
         }
     }
 
-    (allocations, requested)
+    stats
 }
 
 #[derive(Display)]
@@ -281,6 +267,12 @@ impl Drop for Allocation<'_> {
             self.allocator.dealloc(self.ptr(), self.layout);
         }
     }
+}
+
+#[derive(AddAssign, Clone, Copy, Default)]
+struct Stats {
+    allocations: usize,
+    requested: usize,
 }
 
 const DIFFERENT_SIZES: usize = 1024;

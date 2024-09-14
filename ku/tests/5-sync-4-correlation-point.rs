@@ -3,13 +3,13 @@
 use std::{
     sync::atomic::{
         AtomicBool,
-        AtomicUsize,
         Ordering,
     },
     thread,
     time::Duration,
 };
 
+use derive_more::AddAssign;
 use rstest::rstest;
 
 use ku::{
@@ -57,8 +57,6 @@ fn atomic_correlation_point() {
 fn single_writer() {
     log::init();
 
-    static CONSISTENT: AtomicUsize = AtomicUsize::new(0);
-    static INCONSISTENT: AtomicUsize = AtomicUsize::new(0);
     static RUN: AtomicBool = AtomicBool::new(true);
     static POINT: AtomicCorrelationPoint = AtomicCorrelationPoint::new();
 
@@ -68,7 +66,7 @@ fn single_writer() {
         threads.push(
             thread::Builder::new()
                 .name(format!("reader #{thread}"))
-                .spawn(move || reader(&POINT, &CONSISTENT, &INCONSISTENT))
+                .spawn(move || reader(&POINT))
                 .unwrap(),
         );
     }
@@ -78,16 +76,20 @@ fn single_writer() {
         .spawn(move || writer(&POINT, &RUN))
         .unwrap();
 
+    let mut stats = Stats::default();
     while let Some(thread) = threads.pop() {
-        assert!(thread.join().is_ok());
+        stats += thread.join().unwrap();
     }
+
+    let Stats {
+        consistent,
+        inconsistent,
+    } = stats;
 
     RUN.store(false, Ordering::Release);
 
     assert!(writer_thread.join().is_ok());
 
-    let consistent = CONSISTENT.load(Ordering::Relaxed);
-    let inconsistent = INCONSISTENT.load(Ordering::Relaxed);
     debug!(consistent, inconsistent);
     assert!(
         consistent >= THREAD_COUNT * MIN_DIFFERENT_READS,
@@ -99,15 +101,10 @@ fn single_writer() {
     );
 }
 
-fn reader(
-    point: &AtomicCorrelationPoint,
-    global_consistent: &AtomicUsize,
-    global_inconsistent: &AtomicUsize,
-) {
-    let mut consistent = 0;
-    let mut inconsistent = 0;
+fn reader(point: &AtomicCorrelationPoint) -> Stats {
     let mut iteration = 0;
     let mut prev = 0;
+    let mut stats = Stats::default();
     let mut report = true;
 
     while iteration < MIN_DIFFERENT_READS {
@@ -115,14 +112,14 @@ fn reader(
 
         if 2 * data.count() == data.tsc() {
             if data.count() > 0 {
-                consistent += 1;
+                stats.consistent += 1;
             }
         } else {
             if report {
                 error!(?data, iteration, "inconsistent data");
                 report = false;
             }
-            inconsistent += 1;
+            stats.inconsistent += 1;
         }
 
         if data.count() != prev {
@@ -131,8 +128,7 @@ fn reader(
         }
     }
 
-    global_consistent.fetch_add(consistent, Ordering::Relaxed);
-    global_inconsistent.fetch_add(inconsistent, Ordering::Relaxed);
+    stats
 }
 
 fn writer(
@@ -146,6 +142,12 @@ fn writer(
         point.inc(2 * value + 2);
         value += 3;
     }
+}
+
+#[derive(AddAssign, Clone, Copy, Default)]
+struct Stats {
+    consistent: usize,
+    inconsistent: usize,
 }
 
 const MIN_DIFFERENT_READS: usize = 1_000;
