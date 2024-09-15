@@ -83,7 +83,7 @@
 из
 [предыдущей задачи](../../lab/book/5-sync-3-sequence-lock.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-3--%D1%80%D0%B5%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-sequencelock).
 А в чём-то он будет сложнее, --- теперь нам не доступен
-[приём read-don't-modify-write](https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf).
+[приём read-don't-modify-write](https://web.archive.org/web/20230318132751/https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf).
 Так как он требует запись в память, в которую мы не позволим писать из пространства пользователя.
 
 В поле
@@ -121,7 +121,7 @@
 [предыдущей задаче](../../lab/book/5-sync-3-sequence-lock.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-3--%D1%80%D0%B5%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-sequencelock).
 
 
-### Задача 4 --- реализация [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
+### Задача 5 --- реализация [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
 
 Реализуйте описанные алгоритмы чтения и записи.
 Читает из структуры
@@ -189,7 +189,7 @@ fn AtomicCorrelationPoint::inc(&self, tsc: i64)
 Поэтому ему достаточно инкрементировать логическое значение своего счётчика при каждом прерывании.
 
 Учтите, что в этой задаче точно не нужен
-[приём "read-dont-modify-write"](https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf).
+[приём "read-dont-modify-write"](https://web.archive.org/web/20230318132751/https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf).
 Как и в предыдущей задаче, его может хотеться использовать в читателе.
 Но читатель потенциально будет выполняться в режиме пользователя.
 А значит, не сможет выполнять запись в общесистемную структуру
@@ -209,11 +209,11 @@ fn AtomicCorrelationPoint::inc(&self, tsc: i64)
 [`core::sync::atomic::Ordering`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html)
 в них.
 Чтобы заменить недоступный
-[приём read-don't-modify-write](https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf)
+[приём read-don't-modify-write](https://web.archive.org/web/20230318132751/https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf)
 теперь придётся придумать более хитрую схему синхронизации, чем в
 [предыдущей задачи](../../lab/book/5-sync-3-sequence-lock.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-3--%D1%80%D0%B5%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-sequencelock).
 
-В отличие от предыдущей задачи, тесты проверяют корректность расстановки
+Тесты проверяют корректность расстановки
 [`Ordering`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html)
 с помощью эмулятора
 [Miri](https://github.com/rust-lang/miri).
@@ -242,162 +242,34 @@ fn AtomicCorrelationPoint::inc(&self, tsc: i64)
 Это стресс--тест с писателем и читателем, который запускается в многопоточном окружении под linux:
 
 ```console
-/.../nikka$ (cd ku; cargo test --test 5-sync-4-correlation-point)
+/.../nikka$ (cd ku; cargo test --test 5-sync-4-correlation-point -- --test-threads=1)
 ...
 running 3 tests
-test correlation_point ... ok
 test atomic_correlation_point ... ok
-2023-11-05T13:23:34.515701Z : ThreadId(07) consistent_count=124867666 inconsistent_count=0
-test single_writer ... ok
+test correlation_point ... ok
+test single_writer ... 2024-09-15T19:05:05.412813Z : single_writer consistent=13813664 inconsistent=0
+ok
 
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.58s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.49s
 ```
 
 
 #### Запуск теста [`ku/tests/5-sync-4-correlation-point.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/tests/5-sync-4-correlation-point.rs) под [Miri](https://github.com/rust-lang/miri)
 
-Также его можно запустить под эмулятором
-[Miri](https://github.com/rust-lang/miri)
-промежуточного представления
-[Mid-level Intermediate Representation (MIR)](https://rustc-dev-guide.rust-lang.org/mir/index.html)
-для Rust'овского кода.
-
-
-##### Установка [Miri](https://github.com/rust-lang/miri)
-
-Сначала нужно будет поставить
+Запустите тест под
 [Miri](https://github.com/rust-lang/miri),
-выполнив команды
-
-```console
-/.../nikka$ rustup component add miri
-info: syncing channel updates for 'nightly-2023-09-16-x86_64-unknown-linux-gnu'
-info: latest update on 2023-09-16, rust version 1.74.0-nightly (20999de3a 2023-09-15)
-info: component 'clippy' for target 'x86_64-unknown-linux-gnu' is up to date
-info: component 'llvm-tools' for target 'x86_64-unknown-linux-gnu' is up to date
-info: component 'rust-src' is up to date
-info: component 'rustc-dev' for target 'x86_64-unknown-linux-gnu' is up to date
-info: component 'rustfmt' for target 'x86_64-unknown-linux-gnu' is up to date
-info: downloading component 'miri'
-info: installing component 'miri'
-info: component 'miri' for target 'x86_64-unknown-linux-gnu' is up to date
-```
-
-и
-
-```console
-/.../nikka$ cargo miri setup
-Preparing a sysroot for Miri (target: x86_64-unknown-linux-gnu)...
-A sysroot for Miri is now available in `/.../.cache/miri`.
-```
-
-из корня репозитория.
-Если вы запустите `cargo miri setup` не из корня репозитория, то можете получить ошибку вроде такой:
-
-```console
-error[E0464]: multiple candidates for `rmeta` dependency `core` found
- --> /.../.rustup/toolchains/nightly-2023-09-16-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/rustc-std-workspace-core/lib.rs:4:9
-  |
-4 | pub use core::*;
-  |         ^^^^
-  |
-  = note: candidate #1: /tmp/.tmp7Ev1h4/target/x86_64-unknown-linux-gnu/release/deps/libcore-e0e4ecdb825dac0d.rmeta
-  = note: candidate #2: /tmp/.tmp7Ev1h4/target/x86_64-unknown-linux-gnu/release/deps/libcore-8c8751fb386a7e4e.rmeta
-
-For more information about this error, try `rustc --explain E0464`.
-error: could not compile `rustc-std-workspace-core` (lib) due to previous error
-fatal error: failed to build sysroot: sysroot build failed
-```
-
-
-##### Запуск теста под [Miri](https://github.com/rust-lang/miri)
-
-Теперь можно запустить тест под
-[Miri](https://github.com/rust-lang/miri),
-дополнительно передав ему параметр `-Zmiri-disable-isolation`:
+дополнительно передав ему параметр `MIRIFLAGS="-Zmiri-disable-isolation"`:
 
 ```console
 /.../nikka$ (cd ku; MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 5-sync-4-correlation-point)
-Preparing a sysroot for Miri (target: x86_64-unknown-linux-gnu)... done
 ...
 running 3 tests
 test atomic_correlation_point ... ok
 test correlation_point ... ok
-test single_writer ... 2023-11-05T13:24:36.597550Z : ThreadId(07) consistent_count=19458 inconsistent_count=0
+test single_writer ... 2024-09-15T19:06:54.568237Z : single_writer consistent=19543 inconsistent=0
 ok
 
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
-```
-
-
-##### [Miri](https://github.com/rust-lang/miri) находит ошибки в использовании модели памяти
-
-Эмулятор
-[Miri](https://github.com/rust-lang/miri)
-в том числе выполняет переупорядочивание инструкций в соответствии с моделью памяти языка:
-
-> Miri supports almost all Rust language features; in particular, unwinding and concurrency are properly supported (including some experimental emulation of weak memory effects, i.e., reads can return outdated values).
-
-За счёт этого можно найти ошибки в расстановке
-[`Ordering`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html).
-Поэтому, после внесения ошибки в
-[`Ordering`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html)
-под
-[Miri](https://github.com/rust-lang/miri)
-тест падает:
-
-```console
-/.../nikka$ (cd ku; MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 5-sync-4-correlation-point)
-Preparing a sysroot for Miri (target: x86_64-unknown-linux-gnu)... done
-...
-running 3 tests
-test atomic_correlation_point ... ok
-test correlation_point ... ok
-test single_writer ... 2023-11-05T13:35:31.653085Z X reader_thread #6 inconsistent data data=CorrelationPoint { count: 1, tsc: 4 } iteration=1
-2023-11-05T13:35:31.633290Z X reader_thread #7 inconsistent data data=CorrelationPoint { count: 7, tsc: 16 } iteration=0
-2023-11-05T13:35:31.638295Z X reader_thread #0 inconsistent data data=CorrelationPoint { count: 61, tsc: 124 } iteration=0
-2023-11-05T13:35:31.620411Z X reader_thread #9 inconsistent data data=CorrelationPoint { count: 7, tsc: 16 } iteration=0
-2023-11-05T13:35:31.616408Z X reader_thread #3 inconsistent data data=CorrelationPoint { count: 7, tsc: 16 } iteration=0
-2023-11-05T13:35:31.634590Z X reader_thread #8 inconsistent data data=CorrelationPoint { count: 1, tsc: 4 } iteration=0
-2023-11-05T13:35:31.706226Z X reader_thread #4 inconsistent data data=CorrelationPoint { count: 100, tsc: 202 } iteration=1
-2023-11-05T13:35:31.872129Z X reader_thread #2 inconsistent data data=CorrelationPoint { count: 175, tsc: 352 } iteration=2
-2023-11-05T13:35:31.871054Z X reader_thread #1 inconsistent data data=CorrelationPoint { count: 172, tsc: 346 } iteration=4
-2023-11-05T13:35:32.332227Z X reader_thread #5 inconsistent data data=CorrelationPoint { count: 349, tsc: 700 } iteration=9
-2023-11-05T13:35:59.537162Z : ThreadId(07) consistent_count=14210 inconsistent_count=3793
-FAILED
-
-failures:
-
----- single_writer stdout ----
-thread '<unnamed>' panicked at ku/tests/5-sync-4-correlation-point.rs:94:5:
-assertion `left == right` failed: detected 3793 inconsistent data reads
-  left: 3793
- right: 0
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-thread 'single_writer' panicked at ku/tests/5-sync-4-correlation-point.rs:49:1:
-explicit panic
-
-
-failures:
-    single_writer
-
-test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out
-
-error: test failed, to rerun pass `--test 5-sync-4-correlation-point`
-```
-
-Хотя, с той же ошибкой, при обычном запуске тест проходит:
-
-```console
-/.../nikka$ (cd ku; cargo test --test 5-sync-4-correlation-point)
-...
-running 3 tests
-test correlation_point ... ok
-test atomic_correlation_point ... ok
-2023-11-05T13:39:01.075616Z : ThreadId(07) consistent_count=3832656 inconsistent_count=0
-test single_writer ... ok
-
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.42s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 44.93s
 ```
 
 
@@ -410,54 +282,62 @@ test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 ```console
 /.../nikka$ (cd kernel; cargo test --test 5-sync-4-correlation-point)
 ...
+Running: `qemu-system-x86_64 -drive format=raw,file=/.../nikka/target/kernel/debug/deps/bootimage-5_sync_4_correlation_point-72dcb329204c56d5.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none -drive file=../fs.img,index=1,media=disk,driver=raw`
+19:09:33 0 I RTC init; acknowledged_settings = RegisterB(USE_24_HOUR_FORMAT | UPDATE_ENDED_INTERRUPT)
+19:09:33 0 I time init
+19:09:33 0 I Nikka booted; now = 2024-09-15 19:09:33 UTC; tsc = Tsc(3388378113)
+19:09:33 0 I GDT init
+19:09:33 0 I traps init
+running 2 tests
+
 5_sync_4_correlation_point::correlation_point_reader--------
-16:38:34 0 D same = 200; different = 107; point = CorrelationPoint { count: 213000, tsc: 426000 }
-16:38:35 0 D same = 908; different = 482; point = CorrelationPoint { count: 962000, tsc: 1924000 }
-16:38:36 0 D same = 1627; different = 863; point = CorrelationPoint { count: 1725000, tsc: 3450000 }
-16:38:37 0 D same = 2346; different = 1244; point = CorrelationPoint { count: 2486000, tsc: 4972000 }
-16:38:38 0 D same = 3067; different = 1625; point = CorrelationPoint { count: 3249000, tsc: 6498000 }
-16:38:39 0 D same = 3784; different = 2006; point = CorrelationPoint { count: 4010000, tsc: 8020000 }
-16:38:40 0 D same = 4503; different = 2387; point = CorrelationPoint { count: 4773000, tsc: 9546000 }
-16:38:41 0 D same = 5222; different = 2768; point = CorrelationPoint { count: 5534000, tsc: 11068000 }
-16:38:42 0 D same = 5942; different = 3148; point = CorrelationPoint { count: 6294000, tsc: 12588000 }
-16:38:43 0 D same = 6651; different = 3525; point = CorrelationPoint { count: 7049000, tsc: 14098000 }
-16:38:44 0 D same = 7366; different = 3904; point = CorrelationPoint { count: 7806000, tsc: 15612000 }
-16:38:45 0 D same = 8083; different = 4284; point = CorrelationPoint { count: 8565999, tsc: 17131998 }
-16:38:46 0 D same = 8800; different = 4663; point = CorrelationPoint { count: 9325000, tsc: 18650000 }
-16:38:47 0 D same = 9516; different = 5043; point = CorrelationPoint { count: 10085000, tsc: 20170000 }
-16:38:48 0 D same = 10231; different = 5422; point = CorrelationPoint { count: 10842000, tsc: 21684000 }
-16:38:49 0 D same = 10948; different = 5802; point = CorrelationPoint { count: 11602000, tsc: 23204000 }
-16:38:50 0 D same = 11660; different = 6180; point = CorrelationPoint { count: 12358000, tsc: 24716000 }
-16:38:51 0 D same = 12378; different = 6559; point = CorrelationPoint { count: 13117000, tsc: 26234000 }
-16:38:52 0 D same = 13091; different = 6938; point = CorrelationPoint { count: 13874000, tsc: 27748000 }
-16:38:53 0 D same = 13809; different = 7318; point = CorrelationPoint { count: 14633999, tsc: 29267998 }
-16:38:54 0 D same = 14524; different = 7696; point = CorrelationPoint { count: 15390000, tsc: 30780000 }
-16:38:55 0 D same = 15228; different = 8070; point = CorrelationPoint { count: 16138000, tsc: 32276000 }
-16:38:56 0 D same = 15921; different = 8438; point = CorrelationPoint { count: 16874000, tsc: 33748000 }
-16:38:57 0 D same = 16622; different = 8809; point = CorrelationPoint { count: 17617000, tsc: 35234000 }
-16:38:58 0 D same = 17299; different = 9168; point = CorrelationPoint { count: 18333999, tsc: 36667998 }
-16:38:59 0 D same = 17990; different = 9534; point = CorrelationPoint { count: 19066000, tsc: 38132000 }
-16:39:00 0 D same = 18674; different = 9895; point = CorrelationPoint { count: 19789000, tsc: 39578000 }
+19:09:35 0 D same = 720; different = 364; point = CorrelationPoint { count: 726000, tsc: 1452000 }
+19:09:36 0 D same = 1469; different = 743; point = CorrelationPoint { count: 1485000, tsc: 2970000 }
+19:09:37 0 D same = 2223; different = 1124; point = CorrelationPoint { count: 2246000, tsc: 4492000 }
+19:09:38 0 D same = 2978; different = 1506; point = CorrelationPoint { count: 3010000, tsc: 6020000 }
+19:09:39 0 D same = 3731; different = 1887; point = CorrelationPoint { count: 3773000, tsc: 7546000 }
+19:09:40 0 D same = 4486; different = 2269; point = CorrelationPoint { count: 4537000, tsc: 9074000 }
+19:09:41 0 D same = 5240; different = 2650; point = CorrelationPoint { count: 5298000, tsc: 10596000 }
+19:09:42 0 D same = 5996; different = 3032; point = CorrelationPoint { count: 6062000, tsc: 12124000 }
+19:09:43 0 D same = 6749; different = 3414; point = CorrelationPoint { count: 6826000, tsc: 13652000 }
+19:09:44 0 D same = 7501; different = 3794; point = CorrelationPoint { count: 7586000, tsc: 15172000 }
+19:09:45 0 D same = 8250; different = 4173; point = CorrelationPoint { count: 8345000, tsc: 16690000 }
+19:09:46 0 D same = 9001; different = 4553; point = CorrelationPoint { count: 9105000, tsc: 18210000 }
+19:09:47 0 D same = 9754; different = 4934; point = CorrelationPoint { count: 9866000, tsc: 19732000 }
+19:09:48 0 D same = 10509; different = 5315; point = CorrelationPoint { count: 10629000, tsc: 21258000 }
+19:09:49 0 D same = 11262; different = 5697; point = CorrelationPoint { count: 11393000, tsc: 22786000 }
+19:09:50 0 D same = 12011; different = 6076; point = CorrelationPoint { count: 12150000, tsc: 24300000 }
+19:09:51 0 D same = 12765; different = 6457; point = CorrelationPoint { count: 12913000, tsc: 25826000 }
+19:09:52 0 D same = 13516; different = 6837; point = CorrelationPoint { count: 13673000, tsc: 27346000 }
+19:09:53 0 D same = 14269; different = 7218; point = CorrelationPoint { count: 14434000, tsc: 28868000 }
+19:09:54 0 D same = 15020; different = 7598; point = CorrelationPoint { count: 15194000, tsc: 30388000 }
+19:09:55 0 D same = 15774; different = 7979; point = CorrelationPoint { count: 15957000, tsc: 31914000 }
+19:09:56 0 D same = 16524; different = 8359; point = CorrelationPoint { count: 16717000, tsc: 33434000 }
+19:09:57 0 D same = 17276; different = 8739; point = CorrelationPoint { count: 17477000, tsc: 34954000 }
+19:09:58 0 D same = 18029; different = 9120; point = CorrelationPoint { count: 18238000, tsc: 36476000 }
+19:09:59 0 D same = 18782; different = 9501; point = CorrelationPoint { count: 19001000, tsc: 38002000 }
+19:10:00 0 D same = 19534; different = 9881; point = CorrelationPoint { count: 19761000, tsc: 39522000 }
 5_sync_4_correlation_point::correlation_point_reader [passed]
 
 5_sync_4_correlation_point::correlation_point_writer--------
-16:39:00 0 D iteration = 0; failure_count = 0; success_count = 0; point = CorrelationPoint { count: 0, tsc: 0 }
-16:39:01 0 D iteration = 966; failure_count = 144083; success_count = 211805; point = CorrelationPoint { count: 966, tsc: 1932 }
-16:39:02 0 D iteration = 2325; failure_count = 346723; success_count = 509584; point = CorrelationPoint { count: 2326, tsc: 4652 }
-16:39:03 0 D iteration = 3684; failure_count = 549214; success_count = 807221; point = CorrelationPoint { count: 3685, tsc: 7370 }
-16:39:04 0 D iteration = 5018; failure_count = 747451; success_count = 1109919; point = CorrelationPoint { count: 5018, tsc: 10036 }
-16:39:05 0 D iteration = 5487; failure_count = 807952; success_count = 1473640; point = CorrelationPoint { count: 5487, tsc: 10974 }
-16:39:06 0 D iteration = 5959; failure_count = 868840; success_count = 1839664; point = CorrelationPoint { count: 5959, tsc: 11918 }
-16:39:07 0 D iteration = 6445; failure_count = 931534; success_count = 2216461; point = CorrelationPoint { count: 6445, tsc: 12890 }
-16:39:08 0 D iteration = 6935; failure_count = 994744; success_count = 2595594; point = CorrelationPoint { count: 6935, tsc: 13870 }
-16:39:09 0 D iteration = 7424; failure_count = 1057825; success_count = 2974704; point = CorrelationPoint { count: 7424, tsc: 14848 }
-16:39:10 0 D iteration = 7914; failure_count = 1121035; success_count = 3354853; point = CorrelationPoint { count: 7914, tsc: 15828 }
-16:39:11 0 D iteration = 8404; failure_count = 1184245; success_count = 3734031; point = CorrelationPoint { count: 8404, tsc: 16808 }
-16:39:12 0 D iteration = 8874; failure_count = 1244875; success_count = 4098568; point = CorrelationPoint { count: 8874, tsc: 17748 }
-16:39:13 0 D iteration = 9332; failure_count = 1303957; success_count = 4453354; point = CorrelationPoint { count: 9332, tsc: 18664 }
-16:39:14 0 D iteration = 9792; failure_count = 1363297; success_count = 4810096; point = CorrelationPoint { count: 9792, tsc: 19584 }
-16:39:14 0 D iteration = 10000; failure_count = 1390129; success_count = 4970533
+19:10:00 0 D iteration = 0; failure_count = 0; success_count = 0; point = CorrelationPoint { count: 0, tsc: 0 }
+19:10:01 0 D iteration = 824; failure_count = 123074; success_count = 223826; point = CorrelationPoint { count: 825, tsc: 1650 }
+19:10:02 0 D iteration = 2063; failure_count = 307536; success_count = 559535; point = CorrelationPoint { count: 2063, tsc: 4126 }
+19:10:03 0 D iteration = 3310; failure_count = 493488; success_count = 897522; point = CorrelationPoint { count: 3311, tsc: 6622 }
+19:10:04 0 D iteration = 4557; failure_count = 679142; success_count = 1235249; point = CorrelationPoint { count: 4557, tsc: 9114 }
+19:10:05 0 D iteration = 5303; failure_count = 784216; success_count = 1607382; point = CorrelationPoint { count: 5303, tsc: 10606 }
+19:10:06 0 D iteration = 5784; failure_count = 846265; success_count = 2005302; point = CorrelationPoint { count: 5784, tsc: 11568 }
+19:10:07 0 D iteration = 6262; failure_count = 907927; success_count = 2401540; point = CorrelationPoint { count: 6262, tsc: 12524 }
+19:10:08 0 D iteration = 6742; failure_count = 969847; success_count = 2798852; point = CorrelationPoint { count: 6742, tsc: 13484 }
+19:10:09 0 D iteration = 7222; failure_count = 1031767; success_count = 3196085; point = CorrelationPoint { count: 7222, tsc: 14444 }
+19:10:10 0 D iteration = 7702; failure_count = 1093687; success_count = 3593388; point = CorrelationPoint { count: 7702, tsc: 15404 }
+19:10:11 0 D iteration = 8183; failure_count = 1155865; success_count = 3992220; point = CorrelationPoint { count: 8184, tsc: 16368 }
+19:10:12 0 D iteration = 8664; failure_count = 1217785; success_count = 4390456; point = CorrelationPoint { count: 8664, tsc: 17328 }
+19:10:13 0 D iteration = 9146; failure_count = 1279963; success_count = 4789518; point = CorrelationPoint { count: 9146, tsc: 18292 }
+19:10:14 0 D iteration = 9626; failure_count = 1341883; success_count = 5186924; point = CorrelationPoint { count: 9626, tsc: 19252 }
+19:10:14 0 D iteration = 10000; failure_count = 1390129; success_count = 5495523
 5_sync_4_correlation_point::correlation_point_writer [passed]
+19:10:14 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ```
 
 
@@ -710,18 +590,6 @@ test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 >>
 >>> Теперь вы можете, например, построить гистограмму количества раз, сколько исполнялись инструкции по разным адресам.
 >>> И найти самые горячие циклы кода.
-
-
-### Theory and Practice of Concurrency
-
-Более подробно познакомиться с конкурентностью, атомарными переменными, синхронизациями, моделями памяти и т.п.,
-вы можете на курсе Ромы Липовского "Theory and Practice of Concurrency":
-
-- Публичный доступ:
-  - [Плейлист с лекциями](https://youtube.com/playlist?list=PL4_hYwCyhAva37lNnoMuBcKRELso5nvBm).
-  - [Репозиторий курса](https://gitlab.com/Lipovsky/concurrency-course).
-- Личный кабинет ШАД, [весна 2023](https://lk.yandexdataschool.ru/courses/2023-spring/7.1141-theory-and-practice-of-concurrency/classes/) или [весна 2022](https://lk.yandexdataschool.ru/courses/2022-spring/7.1013-theory-and-practice-of-concurrency/classes/).
-- [Wiki yandex-team](https://wiki.yandex-team.ru/hr/volnoslushateli/lekcii-shad/).
 
 
 ### Ориентировочный объём работ этой части лабораторки

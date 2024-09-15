@@ -6,6 +6,9 @@
 Подробное описание есть в
 [спецификации микросхемы Motorola MC146818](https://pdf1.alldatasheet.com/datasheet-pdf/view/122156/MOTOROLA/MC146818.html).
 Современные микросхемы RTC поддерживают совместимость с ней.
+Также можно посмотреть более современную документацию, например на чипсет
+[Intel® 7 Series Chipset Family PCH Datasheet](https://web.archive.org/web/20181006150645/https://www.intel.com/content/dam/www/public/us/en/documents/datasheets/7-series-chipset-pch-datasheet.pdf).
+В ней RTC описывается в секции "13.6 Real Time Clock Registers".
 
 Прежде всего напишем драйвер для работы с микросхемой
 [часов реального времени (Real-time clock, RTC)](https://en.wikipedia.org/wiki/Real-time_clock).
@@ -151,16 +154,24 @@ fn rtc_write(address: u8, data: u8) {
 
 ```rust
 interrupts::without_interrupts(|| {
+    let address = DISABLE_NMI | REGISTER_B;
     defer! {
-        rtc_read(!DISABLE_NMI | REGISTER_B);
+        rtc_read(!DISABLE_NMI);
     }
 
-    old_settings = RegisterB::from_bits(rtc_read(DISABLE_NMI | REGISTER_B)).unwrap();
-    new_settings =
-        (old_settings & !RegisterB::DAYLIGHT_SAVING) | RegisterB::UPDATE_ENDED_INTERRUPT;
-    rtc_write(DISABLE_NMI | REGISTER_B, new_settings.bits());
-    acknowledged_settings = RegisterB::from_bits(rtc_read(DISABLE_NMI | REGISTER_B)).unwrap();
+    /// Такого не должно происходить, все 8 бит в [`RegisterB`] определены.
+    const UNDEFINED_FLAG_FOUND: &str = "undefined flag found in RTC register B";
 
+    old_settings = RegisterB::from_bits(rtc_read(address)).expect(UNDEFINED_FLAG_FOUND);
+    if old_settings.contains(RegisterB::DAYLIGHT_SAVING) {
+        error!("RTC time is not in UTC (DST is on), expect the system time to be incorrect");
+    }
+
+    new_settings = old_settings | RegisterB::UPDATE_ENDED_INTERRUPT;
+    rtc_write(address, new_settings.bits());
+
+    acknowledged_settings =
+        RegisterB::from_bits(rtc_read(address)).expect(UNDEFINED_FLAG_FOUND);
     SETTINGS.store(acknowledged_settings.bits(), Ordering::Relaxed);
 });
 ```
@@ -168,29 +179,32 @@ interrupts::without_interrupts(|| {
 То есть, она
 
 - Выключает все [прерывания](https://en.wikipedia.org/wiki/Interrupt), в том числе [немаскируемые](https://en.wikipedia.org/wiki/Non-maskable_interrupt), на время конфигурирования микросхемы. Иначе она может остаться в [некорректном состоянии](https://wiki.osdev.org/RTC#Avoiding_NMI_and_Other_Interrupts_While_Programming).
-- Выключает переход на летнее время --- `!`[`RegisterB::DAYLIGHT_SAVING`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.DAYLIGHT_SAVING).
+- Проверяет переход на летнее время --- [`RegisterB::DAYLIGHT_SAVING`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.DAYLIGHT_SAVING). Если он включён, компьютер точно не во [всемирном координированном времени (Coordinated Universal Time, UTC)](https://en.wikipedia.org/wiki/Coordinated_Universal_Time). И показания системных часов будут некорректны, так как мы не знаем временную зону в которой находимся.
 - Включает [прерывание](https://en.wikipedia.org/wiki/Interrupt), посылаемое процессору микросхемой после обновления показаний времени при тике, --- [`RegisterB::UPDATE_ENDED_INTERRUPT`](../../doc/kernel/time/rtc/struct.RegisterB.html#associatedconstant.UPDATE_ENDED_INTERRUPT).
 - Остальные настройки оставляет без изменений.
+- Сохраняет конфигурацию микросхемы в глобальной переменной [`kernel::time::rtc::SETTINGS`](../../doc/kernel/time/rtc/static.SETTINGS.html).
 
 Далее [`rtc::init()`](../../doc/kernel/time/rtc/fn.init.html):
 
-- Сохраняет конфигурацию микросхемы в глобальной переменной [`kernel::time::rtc::SETTINGS`](../../doc/kernel/time/rtc/static.SETTINGS.html).
 - Проверяет что микросхема подтвердила изменение конфигурации.
 - Читает текущие показания времени из микросхемы.
 
 ```rust
-SETTINGS.store(acknowledged_settings.bits(), Ordering::Relaxed);
-
 if acknowledged_settings == new_settings {
     let rtc = SYSTEM_INFO.rtc();
+    let timestamp = timestamp();
     rtc.store_prev(CorrelationPoint::invalid(
-        timestamp().unwrap_or(0) * TICKS_PER_SECOND,
+        timestamp.unwrap_or(0) * TICKS_PER_SECOND,
     ));
 
-    if is_time_valid() {
-        info!(?acknowledged_settings, "RTC init");
-    } else {
+    if !is_time_valid() {
         error!("RTC reports low battery, its time and date values are incorrect");
+    } else if timestamp.is_none() {
+        error!("failed to read time and date from RTC consistently");
+    } else if timestamp == Some(0) {
+        error!("wrong time and date from RTC");
+    } else {
+        info!(?acknowledged_settings, "RTC init");
     }
 } else {
     // ...
@@ -213,7 +227,9 @@ if acknowledged_settings == new_settings {
 
 ```rust
 fn timestamp() -> Option<i64> {
-    Date::read().map(|date| DateTime::<Utc>::from_utc(date.into(), Utc).timestamp())
+    Date::read()
+        .and_then(|date| date.try_into().ok())
+        .map(|date| DateTime::<Utc>::from_naive_utc_and_offset(date, Utc).timestamp())
 }
 ```
 
@@ -371,13 +387,14 @@ fn kernel::time::rtc::parse_hour(
 >
 > ```rust
 > interrupts::without_interrupts(|| {
+>     let address = DISABLE_NMI | REGISTER_B;
+>
 >     // ...
 >
->     new_settings =
->         (old_settings & !RegisterB::DAYLIGHT_SAVING & !RegisterB::USE_24_HOUR_FORMAT) |
+>     new_settings = (old_settings & !RegisterB::USE_24_HOUR_FORMAT) |
 >         RegisterB::UPDATE_ENDED_INTERRUPT;
 >
->     rtc_write(DISABLE_NMI | REGISTER_B, (new_settings | RegisterB::SET_CLOCK).bits());
+>     rtc_write(address, (new_settings | RegisterB::SET_CLOCK).bits());
 >
 >     if new_settings.contains(RegisterB::USE_BINARY_FORMAT) {
 >         rtc_write(4, 11);
@@ -389,8 +406,8 @@ fn kernel::time::rtc::parse_hour(
 >         rtc_write(0, 5 * 16 + 5);
 >     }
 >
->     rtc_write(DISABLE_NMI | REGISTER_B, new_settings.bits());
->     acknowledged_settings = RegisterB::from_bits(rtc_read(DISABLE_NMI | REGISTER_B)).unwrap();
+>     rtc_write(address, new_settings.bits());
+>     acknowledged_settings = RegisterB::from_bits(rtc_read(address)).expect(UNDEFINED_FLAG_FOUND);
 >
 >     // ...
 > });
@@ -606,65 +623,74 @@ assertion `left == right` failed
 ```console
 /.../nikka$ (cd kernel; cargo test --test 1-hw-1-rtc)
 ...
-Running: `qemu-system-x86_64 -drive format=raw,file=/.../nikka/target/kernel/debug/deps/bootimage-1_hw_1_rtc-416dde23a6046d3f.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none -drive file=../fs.img,index=1,media=disk,driver=raw`
-16:22:20 0 I RTC init; acknowledged_settings = RegisterB(USE_24_HOUR_FORMAT | UPDATE_ENDED_INTERRUPT)
-16:22:20 0 I time init
-16:22:20 0 I Nikka booted; now = 2023-09-17 16:22:20 UTC; tsc = Tsc(2392673640)
-16:22:20 0 I GDT init
-16:22:20 0 I traps init
+Running: `qemu-system-x86_64 -drive format=raw,file=/.../nikka/target/kernel/debug/deps/bootimage-1_hw_1_rtc-1edfb6843de9248c.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none -drive file=../fs.img,index=1,media=disk,driver=raw`
+17:57:04 0 I RTC init; acknowledged_settings = RegisterB(USE_24_HOUR_FORMAT | UPDATE_ENDED_INTERRUPT)
+17:57:04 0 I time init
+17:57:04 0 I Nikka booted; now = 2024-09-15 17:57:04 UTC; tsc = Tsc(3407705256)
+17:57:04 0 I GDT init
+17:57:04 0 I traps init
 running 2 tests
 
 1_hw_1_rtc::different_rtc_formats-------------------------
-16:22:20 0 D hour_24 = 0; hour_12 = 12; pm = 0
-16:22:20 0 D hour_24 = 1; hour_12 = 1; pm = 0
-16:22:20 0 D hour_24 = 2; hour_12 = 2; pm = 0
-16:22:20 0 D hour_24 = 3; hour_12 = 3; pm = 0
-16:22:20 0 D hour_24 = 4; hour_12 = 4; pm = 0
-16:22:20 0 D hour_24 = 5; hour_12 = 5; pm = 0
-16:22:20 0 D hour_24 = 6; hour_12 = 6; pm = 0
-16:22:20 0 D hour_24 = 7; hour_12 = 7; pm = 0
-16:22:20 0 D hour_24 = 8; hour_12 = 8; pm = 0
-16:22:20 0 D hour_24 = 9; hour_12 = 9; pm = 0
-16:22:20 0 D hour_24 = 10; hour_12 = 10; pm = 0
-16:22:20 0 D hour_24 = 11; hour_12 = 11; pm = 0
-16:22:20 0 D hour_24 = 12; hour_12 = 12; pm = 1
-16:22:20 0 D hour_24 = 13; hour_12 = 1; pm = 1
-16:22:20 0 D hour_24 = 14; hour_12 = 2; pm = 1
-16:22:20 0 D hour_24 = 15; hour_12 = 3; pm = 1
-16:22:20 0 D hour_24 = 16; hour_12 = 4; pm = 1
-16:22:20 0 D hour_24 = 17; hour_12 = 5; pm = 1
-16:22:20 0 D hour_24 = 18; hour_12 = 6; pm = 1
-16:22:20 0 D hour_24 = 19; hour_12 = 7; pm = 1
-16:22:20 0 D hour_24 = 20; hour_12 = 8; pm = 1
-16:22:20 0 D hour_24 = 21; hour_12 = 9; pm = 1
-16:22:20 0 D hour_24 = 22; hour_12 = 10; pm = 1
-16:22:20 0 D hour_24 = 23; hour_12 = 11; pm = 1
+17:57:04 0 D hour_24 = 0; hour_12 = 12; pm = 0
+17:57:04 0 D hour_24 = 1; hour_12 = 1; pm = 0
+17:57:04 0 D hour_24 = 2; hour_12 = 2; pm = 0
+17:57:04 0 D hour_24 = 3; hour_12 = 3; pm = 0
+17:57:04 0 D hour_24 = 4; hour_12 = 4; pm = 0
+17:57:04 0 D hour_24 = 5; hour_12 = 5; pm = 0
+17:57:04 0 D hour_24 = 6; hour_12 = 6; pm = 0
+17:57:04 0 D hour_24 = 7; hour_12 = 7; pm = 0
+17:57:04 0 D hour_24 = 8; hour_12 = 8; pm = 0
+17:57:04 0 D hour_24 = 9; hour_12 = 9; pm = 0
+17:57:04 0 D hour_24 = 10; hour_12 = 10; pm = 0
+17:57:04 0 D hour_24 = 11; hour_12 = 11; pm = 0
+17:57:04 0 D hour_24 = 12; hour_12 = 12; pm = 1
+17:57:04 0 D hour_24 = 13; hour_12 = 1; pm = 1
+17:57:04 0 D hour_24 = 14; hour_12 = 2; pm = 1
+17:57:04 0 D hour_24 = 15; hour_12 = 3; pm = 1
+17:57:04 0 D hour_24 = 16; hour_12 = 4; pm = 1
+17:57:04 0 D hour_24 = 17; hour_12 = 5; pm = 1
+17:57:04 0 D hour_24 = 18; hour_12 = 6; pm = 1
+17:57:04 0 D hour_24 = 19; hour_12 = 7; pm = 1
+17:57:04 0 D hour_24 = 20; hour_12 = 8; pm = 1
+17:57:04 0 D hour_24 = 21; hour_12 = 9; pm = 1
+17:57:04 0 D hour_24 = 22; hour_12 = 10; pm = 1
+17:57:04 0 D hour_24 = 23; hour_12 = 11; pm = 1
 1_hw_1_rtc::different_rtc_formats---------------- [passed]
 
 1_hw_1_rtc::rtc_read_inconsistent-------------------------
-16:22:20 0 D waiting for the RTC to tick at least once
-16:22:21 0 D start = 2023-09-17 16:22:21 UTC
-16:22:22 0 D rtc_count = 1; new_rtc_count = 2
-16:22:22 0 D now = 2023-09-17 16:22:22 UTC; rtc_count = 2
-16:22:23 0 D rtc_count = 2; new_rtc_count = 3
-16:22:23 0 D now = 2023-09-17 16:22:23 UTC; rtc_count = 3
-16:22:24 0 D rtc_count = 3; new_rtc_count = 4
-16:22:24 0 D now = 2023-09-17 16:22:24 UTC; rtc_count = 4
-16:22:25 0 D rtc_count = 4; new_rtc_count = 5
-16:22:25 0 D now = 2023-09-17 16:22:25 UTC; rtc_count = 5
-16:22:26 0 D rtc_count = 5; new_rtc_count = 6
-16:22:26 0 D now = 2023-09-17 16:22:26 UTC; rtc_count = 6
-16:22:27 0 D rtc_count = 6; new_rtc_count = 7
-16:22:27 0 D now = 2023-09-17 16:22:27 UTC; rtc_count = 7
-16:22:28 0 D rtc_count = 7; new_rtc_count = 8
-16:22:28 0 D now = 2023-09-17 16:22:28 UTC; rtc_count = 8
-16:22:29 0 D rtc_count = 8; new_rtc_count = 9
-16:22:29 0 D now = 2023-09-17 16:22:29 UTC; rtc_count = 9
-16:22:30 0 D rtc_count = 9; new_rtc_count = 10
-16:22:30 0 D now = 2023-09-17 16:22:30 UTC; rtc_count = 10
+17:57:04 0 D waiting for the RTC to tick at least once
+17:57:06 0 D start = 2024-09-15 17:57:06 UTC
+17:57:07 0 D rtc_count = 1; new_rtc_count = 2
+17:57:07 0 D now = 2024-09-15 17:57:07 UTC; rtc_count = 2
+17:57:08 0 D rtc_count = 2; new_rtc_count = 3
+17:57:08 0 D now = 2024-09-15 17:57:08 UTC; rtc_count = 3
+17:57:09 0 D rtc_count = 3; new_rtc_count = 4
+17:57:09 0 D now = 2024-09-15 17:57:09 UTC; rtc_count = 4
+17:57:10 0 D rtc_count = 4; new_rtc_count = 5
+17:57:10 0 D now = 2024-09-15 17:57:10 UTC; rtc_count = 5
+17:57:11 0 D rtc_count = 5; new_rtc_count = 6
+17:57:11 0 D now = 2024-09-15 17:57:11 UTC; rtc_count = 6
+17:57:12 0 D rtc_count = 6; new_rtc_count = 7
+17:57:12 0 D now = 2024-09-15 17:57:12 UTC; rtc_count = 7
+17:57:13 0 D rtc_count = 7; new_rtc_count = 8
+17:57:13 0 D now = 2024-09-15 17:57:13 UTC; rtc_count = 8
+17:57:14 0 D rtc_count = 8; new_rtc_count = 9
+17:57:14 0 D now = 2024-09-15 17:57:14 UTC; rtc_count = 9
+17:57:15 0 D rtc_count = 9; new_rtc_count = 10
+17:57:15 0 D now = 2024-09-15 17:57:15 UTC; rtc_count = 10
 1_hw_1_rtc::rtc_read_inconsistent---------------- [passed]
-16:22:30 0 I exit qemu; exit_code = ExitCode(SUCCESS)
+17:57:15 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ```
+
+
+### Ссылки
+
+- [Intel® 7 Series Chipset Family PCH Datasheet](https://web.archive.org/web/20181006150645/https://www.intel.com/content/dam/www/public/us/en/documents/datasheets/7-series-chipset-pch-datasheet.pdf).
+- [The x86 Interrupt List aka "Ralf Brown's Interrupt List", "RBIL"](http://www.cs.cmu.edu/~ralf/files.html).
+- [XT, AT and PS/2 I/O port addresses](https://bochs.sourceforge.io/techspec/PORTS.LST).
+- [Linux Device Drivers for your Girl Friend](https://sysplay.github.io/books/LinuxDrivers/book/Content/Part01.html).
+- [Advanced x86: BIOS and System Management Mode Internals Input/Output](https://opensecuritytraining.info/IntroBIOS_files/Day1_04_Advanced%20x86%20-%20BIOS%20and%20SMM%20Internals%20-%20IO.pdf).
 
 
 ### Ориентировочный объём работ этой части лабораторки

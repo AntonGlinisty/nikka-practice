@@ -1,183 +1,5 @@
 ## Спин-блокировка
 
-Целью этой и последующей задачи является реализация
-[блокировки с использованием цикла активного ожидания](https://en.wikipedia.org/wiki/Spinlock).
-Мы предполагаем, что критические секции, пользующиеся этой блокировкой, будут короткими.
-Если не делать эти задачи, то будет использоваться реализация
-[`spin::mutex::Mutex`](../../doc/spin/mutex/struct.Mutex.html)
-из сторонней библиотеки
-[`spin`](../../doc/spin/index.html).
-Она не предоставляет удобных средств отладки
-[взаимоблокировок](https://en.wikipedia.org/wiki/Deadlock),
-которую мы как раз и хотим реализовать.
-Если вы пропустите эти задачи, а в будущем столкнётесь с зависаниями,
-то настоятельно рекомендуется вернуться к этим задачам и всё же сделать их.
-Тогда отлаживать зависания будет проще.
-
-Честные алгоритмы обнаружения
-[взаимоблокировок](https://en.wikipedia.org/wiki/Deadlock)
-строят двудольный граф на потоках управления и примитивах синхронизации.
-В нём проводятся направленные рёбра из вершин, отвечающих каждому захваченному
-примитиву синхронизации в вершину владеющего им в данный момент потоку управления.
-А также направленные рёбра из вершин, отвечающих каждому ожидающему потоку управления в вершину
-примитива синхронизации, освобождения которого ждёт этот поток.
-Цикл в таком графе и есть
-[взаимоблокировка](https://en.wikipedia.org/wiki/Deadlock).
-Было бы удобно иметь столь полную отладочную информацию при возникновении
-[взаимоблокировок](https://en.wikipedia.org/wiki/Deadlock).
-Но это потребует достаточно сложной реализации.
-
-Пойдём более простым путём.
-Будем считать, что если в течение длительного времени потоку не удалось
-захватить спин-блокировку, то возникла
-[взаимоблокировка](https://en.wikipedia.org/wiki/Deadlock).
-Причём в ней, кроме ожидающего потока участвует также текущий владелец
-спин-блокировки.
-То есть, достаточно будет:
-
-- Ограничить ожидание освобождения блокировки при попытке захвата.
-- Сохранять в спин-блокировке информацию о захватившем её месте кода.
-
-Первый пункт реализуем в этой задаче, вместе с основным функционалом спин-блокировки.
-А со вторым пунктом нам поможет следующая задача.
-
-
-### Модель памяти, Acquire и Release, опасность SeqCst
-
-Рекомендуется освоить
-[`Ordering::Acquire`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Acquire)
-и
-[`Ordering::Release`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Release).
-Тем более, что у них очень интуитивная семантика.
-А именно,
-[`Ordering::Acquire`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Acquire)
-должен стоять на операции захвата примитива синхронизации,
-а
-[`Ordering::Release`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Release) ---
-на его освобождении.
-Обратите внимание, что они должны стоять на одной и той же атомарной переменной.
-
-Но нужно держать в голове, что
-[`Ordering::Acquire`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Acquire)
-можно ставить только на операции, выполняющие чтение.
-И она относится именно к читающей части операции, если сама операция выполняет кроме чтения ещё и запись.
-А
-[`Ordering::Release`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Release)
-можно ставить только на операции, выполняющие запись.
-Аналогично,
-[`Ordering::Release`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Release)
-относится именно к записывающей части операции, если сама операция выполняет кроме записи ещё и чтение.
-На операции выполняющие и чтение и запись, можно также ставить
-[`Ordering::AcqRel`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.AcqRel),
-это будет означать что на читающую часть распространяется
-[`Ordering::Acquire`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Acquire),
-а на пишущую ---
-[`Ordering::Release`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Release).
-
-То есть, например, никаким образом на операцию чтения нельзя поставить
-[`Ordering::Release`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Release).
-Мы столкнёмся с этим ограничением в следующей задаче, и будем вынуждены ради необходимого
-[`Ordering::Release`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Release)
-при освобождении примитива синхронизации сделать запись, которая не нужна ни для чего больше.
-
-Использование
-[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst)
-не снимает такое ограничение.
-На операциях, выполняющих только чтение, она почти что превращается в
-[`Ordering::Acquire`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Acquire),
-а на операциях, выполняющих только запись --- в
-[`Ordering::Release`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Release).
-
-Обратите внимание, что
-[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst)
-использовать не рекомендуется.
-Так как мнение "использовать
-[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst)
-гарантированно безопасно" неверно.
-Режим
-[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst)
-позволяет делать довольно специфические вещи, которые реально нужны довольно редко.
-[А вот гарантий корректности не даёт, это заблуждение](https://github.com/rust-lang/nomicon/issues/166).
-
-Если в алгоритме синхронизации вам понадобилось написать что-нибудь вроде
-
-```rust
-... sequence.load(Ordering::Release) ...
-```
-
-Компилятор выдаст ошибку:
-
-```console
-$ cargo test --test 5-sync-3-sequence-lock
-   Compiling ku v0.1.0 (.../nikka/ku)
-error: atomic loads cannot have `Release` or `AcqRel` ordering
-   --> ku/src/sync/sequence_lock.rs:139:48
-    |
-139 |         ... self.sequence.load(Ordering::Release) ...
-    |                                ^^^^^^^^^^^^^^^^^
-    |
-    = note: `#[deny(invalid_atomic_ordering)]` on by default
-    = help: consider using ordering modes `Acquire`, `SeqCst` or `Relaxed`
-
-error: could not compile `ku` due to previous error
-```
-
-А если её подавить с помощью `#[allow(invalid_atomic_ordering)]`, то уже при запуске будет
-[паника](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicI64.html#panics):
-
-```
-thread '<unnamed>' panicked at 'there is no such thing as a release load', /rustc/bc4b39c271bbd36736cbf1c0a1ac23d5df38d365/library/core/src/sync/atomic.rs:2964:24
-```
-
-Если же в этом месте поменять
-[`Ordering::Release`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Release)
-на
-[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst),
-не меняя остальную часть алгоритма синхронизации,
-то компиляция пройдёт и паники не будет.
-Но код скорее всего будет **некорректен**, --- простая замена на
-[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst)
-не исправит сам алгоритм синхронизации.
-И это будет почти что эквивалентно записи
-```
-... sequence.load(Ordering::Acquire) ...
-```
-Плюс дополнительное снижающее эффективность свойство, --- все атомарные операции, помеченные
-[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst),
-будут выстроены в одинаковый с точки зрения всех ядер порядок.
-
-То есть, использование
-[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst)
-скроет ошибку в алгоритме синхронизации, о наличии которой заботливо предупреждали компилятор и паника.
-К такому же эффекту приведёт смена
-[`Ordering::Release`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Release)
-на
-[`Ordering::Relaxed`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Relaxed).
-Но [`Ordering::Relaxed`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Relaxed)
-хотя бы бросается в глаза в коде.
-В этой задаче вы скорее всего не напишете код, в котором
-[`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst)
-скрыл бы наличие ошибки.
-Но вот в следующей --- это весьма вероятно.
-А рекомендуется рассматривать эту задачу как подготовку к следующим двум.
-
-> Дополнительные ссылки про модель памяти:
->
-> - [Модель памяти Rust](https://doc.rust-lang.org/nomicon/atomics.html#atomics).
-> - Цикл статей Джефа Прешинга:
->   - [Atomic vs. Non-Atomic Operations](https://preshing.com/20130618/atomic-vs-non-atomic-operations/).
->   - [The Happens-Before Relation](https://preshing.com/20130702/the-happens-before-relation/).
->   - [The Synchronizes-With Relation](https://preshing.com/20130823/the-synchronizes-with-relation/).
->   - ...
->   - [Acquire and Release Semantics](https://preshing.com/20120913/acquire-and-release-semantics/).
->   - ...
-> - [Common Compiler Optimisations are Invalid in the C11 Memory Model and what we can do about it](https://plv.mpi-sws.org/c11comp/popl15.pdf).
-> - [Теория и практика многопоточной синхронизации (ТПМС, Concurrency) / Лекции / Весна 2022 / Роман Липовский](https://youtu.be/playlist?list=PL4_hYwCyhAva37lNnoMuBcKRELso5nvBm):
->   - [ТПМС / Лекция 7 / Shared Memory: Memory Models](https://youtu.be/CEzFMP78D1Y).
-> - [Теория и практика многопоточной синхронизации (ТПМС, Concurrency) / Семинары / Весна 2022 / Роман Липовский](https://youtu.be/playlist?list=PL4_hYwCyhAvYTxm55RBm_HA5Bq5W1Nv-R):
->   - [Concurrecy(семинар) 7. Модели памяти](https://youtu.be/sU7jguD_lqI).
->   - [Concurrecy(семинар) 8. Модели памяти. Продолжение](https://youtu.be/Ys5-RcB1iSE).
-
 
 ### Структура [`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html)
 
@@ -187,7 +9,7 @@ thread '<unnamed>' panicked at 'there is no such thing as a release load', /rust
 [`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html):
 
 ```rust
-pub struct Spinlock<T> {
+pub struct Spinlock<T, const PANIC_STRATEGY> {
     data: UnsafeCell<T>,
     defined: &'static Location<'static>,
     locked: AtomicBool,
@@ -204,6 +26,32 @@ pub struct Spinlock<T> {
 Без явного захвата блокировки обратиться с защищаемому полю не получится ---
 это невозможно будет выразить в коде так, чтобы он скомпилировался.
 Такой подход позволяет избавиться от ошибок из-за невнимательности.
+
+Также она параметризована константой `PANIC_STRATEGY` типа
+[`ku::sync::panic::PanicStrategy`](../../doc/ku/sync/panic/enum.PanicStrategy.html).
+Она регулирует поведение конкретной спин-блокировки после паники ядра.
+
+Обычно блокировки защищают какие-то данные от того чтобы они были прочитаны в некорректном состоянии.
+Когда ядро паникует на одном из процессоров, оно может удерживать некоторые блокировки,
+а данные могут находиться в несогласованном состоянии --- могут быть нарушены какие-нибудь инварианты.
+Поэтому лучшее, что можно сделать --- остановить ядро на всех процессорах,
+чтобы не испортить ситуацию сильнее.
+Момент попытки захвата блокировки вполне подходит для этой цели.
+А реализуют её спин-блокировки у которых стратегия поведения при панике ---
+[`PanicStrategy::Halt`](../../doc/ku/sync/panic/enum.PanicStrategy.html#variant.Halt).
+Это значение по умолчанию для параметра `PANIC_STRATEGY`.
+
+Но для блокировок, которые защищают механизмы журналирования, этот вариант не удачен.
+С одной стороны, в журналировании нет ценных данных пользователя, которые можно было бы испортить.
+А с другой стороны, пусть в чём-то некорректная, но отладочная информация о произошедшей панике
+очень полезна при отладке.
+Поэтому в блокировках, которые использует подсистема журналирования, выбирается другая стратегия ---
+[`PanicStrategy::KnockDown`](../../doc/ku/sync/panic/enum.PanicStrategy.html#variant.KnockDown).
+При ней все блокировки становятся всё время открытыми, как пожарные выходы из зданий,
+и позволяют захват произвольное конкурентное количество раз.
+Обработчик паники сообщает блокировкам о том что ядро перешло в режим паники с помощью свободных функций
+[`ku::sync::panic::start_panicking()`](../../doc/ku/sync/panic/fn.start_panicking.html) и
+[`ku::sync::panic::is_panicking()`](../../doc/ku/sync/panic/fn.is_panicking.html).
 
 Поле
 [`Spinlock::data`](../../doc/ku/sync/spinlock/struct.Spinlock.html#structfield.data)
@@ -263,20 +111,20 @@ data: UnsafeCell<T>,
 ### Структура [`SpinlockGuard`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html)
 
 Структура
-[`SpinlockGuard<'a, T>`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html)
+[`SpinlockGuard<'a, T, PANIC_STRATEGY>`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html)
 параметризована защищаемым типом данных `T` и временем жизни `'a`
 структуры
-[`Spinlock<T>`](../../doc/ku/sync/spinlock/struct.Spinlock.html),
+[`Spinlock<T, PANIC_STRATEGY>`](../../doc/ku/sync/spinlock/struct.Spinlock.html),
 к которой она привязана.
 
 В файле
 [`ku/src/sync/spinlock.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/sync/spinlock.rs)
 после выполнения задачи её определение должно содержать ссылку на исходный
-[`Spinlock<T>`](../../doc/ku/sync/spinlock/struct.Spinlock.html):
+[`Spinlock<T, PANIC_STRATEGY>`](../../doc/ku/sync/spinlock/struct.Spinlock.html):
 
 ```rust
-pub struct SpinlockGuard<'a, T> {
-    spinlock: &'a Spinlock<T>,
+pub struct SpinlockGuard<'a, T, const PANIC_STRATEGY> {
+    spinlock: &'a Spinlock<T, PANIC_STRATEGY>,
 }
 ```
 
@@ -304,7 +152,7 @@ pub struct SpinlockGuard<'a, T> {
 выполняет роль деструктора.
 
 
-### Задача 2 --- реализация [`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html)
+### Задача 3 --- реализация [`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html)
 
 Изучите [примеры использования `Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html#examples).
 
@@ -325,7 +173,7 @@ fn Spinlock::try_lock_impl(
     &self,
     max_tries: usize,
     callsite: Callsite,
-) -> Option<SpinlockGuard<'_, T>>
+) -> Option<SpinlockGuard<'_, T, PANIC_STRATEGY>>
 ```
 
 в файле [`ku/src/sync/spinlock.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/sync/spinlock.rs).
@@ -366,14 +214,14 @@ fn Spinlock::try_lock_impl(
 [метод](../../doc/ku/sync/spinlock/struct.Spinlock.html#method.try_lock)
 
 ```rust
-fn Spinlock::try_lock(&self) -> Option<SpinlockGuard<'_, T>>
+fn Spinlock::try_lock(&self) -> Option<SpinlockGuard<'_, T, PANIC_STRATEGY>>
 ```
 
 и публичный
 [метод](../../doc/ku/sync/spinlock/struct.Spinlock.html#method.lock)
 
 ```rust
-fn Spinlock::lock(&self) -> SpinlockGuard<'_, T>
+fn Spinlock::lock(&self) -> SpinlockGuard<'_, T, PANIC_STRATEGY>
 ```
 
 в файле
@@ -400,13 +248,13 @@ let callsite = Callsite::new(Location::caller());
 Поправьте тип поля
 [`SpinlockGuard::spinlock`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html#structfield.spinlock)
 на
-[`&'a Spinlock<T>`](../../doc/ku/sync/spinlock/struct.Spinlock.html)
+[`&'a Spinlock<T, PANIC_STRATEGY>`](../../doc/ku/sync/spinlock/struct.Spinlock.html)
 в определении структуры
 [`SpinlockGuard`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html).
 А в методах
 [`SpinlockGuard::deref()`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html#method.deref)
 и
-[`SpinlockGuard::deref()`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html#method.deref_mut)
+[`SpinlockGuard::deref_mut()`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html#method.deref_mut)
 замените `self.spinlock.deref()` и `self.spinlock.deref_mut()`
 на
 
@@ -472,9 +320,17 @@ fn SpinlockGuard::drop(&mut self)
 
 > В своей реализации вы можете применить какие-нибудь из
 > [стандартных оптимизаций](https://en.wikipedia.org/wiki/Spinlock#Significant_optimizations).
+> При этом имеет смысл оптимизировать только случай, когда блокировка захватывается с первого раза.
+> Оптимизировать цикл ожидания её освобождения не имеет смысла --- то, когда этот цикл закончится,
+> зависит не от оптимальности его кода, а от того когда блокировку освободит конкурентный код.
+> Но в этом случае можно сэкономить электроэнергию, возможно, заряд аккумулятора.
+> Для этого мы и используем
+> [`core::hint::spin_loop()`](https://doc.rust-lang.org/nightly/core/hint/fn.spin_loop.html).
 
 
 ### Проверьте себя
+
+#### Обычный запуск теста [`ku/tests/5-sync-2-spinlock.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/tests/5-sync-2-spinlock.rs)
 
 На этот раз тесты находятся не в `kernel`, а в `ku` ---
 [`ku/tests/5-sync-2-spinlock.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/tests/5-sync-2-spinlock.rs).
@@ -482,126 +338,64 @@ fn SpinlockGuard::drop(&mut self)
 Вы увидите сборку и журнал запуска тестов:
 
 ```console
-/.../nikka$ (cd ku; cargo test --test 5-sync-2-spinlock)
-   Compiling ku v0.1.0 (/.../nikka/ku)
-    Finished test [unoptimized + debuginfo] target(s) in 1.80s
-     Running tests/5-sync-2-spinlock.rs (/.../nikka/target/debug/deps/5_sync_2_spinlock-9aabd4c2d0ab5e71)
+/.../nikka$ (cd ku; cargo test --test 5-sync-2-spinlock -- --test-threads=1)
+...
+running 5 tests
+test concurrent ... 2024-09-15T18:40:44.020212Z : concurrent false positive deadlock detections false_positive_count=96
+2024-09-15T18:40:44.020413Z : concurrent consistent=400000 inconsistent=0
+2024-09-15T18:40:44.020477Z : concurrent spinlock=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:146:29, locked: false, data: (400037, 800074), stats: Stats { failures: 96, locks: 400038, unlocks: 400038, waits: 112625451 } }
+2024-09-15T18:40:44.020552Z : concurrent dropping spinlock=ku/tests/5-sync-2-spinlock.rs:146:29 stats=Stats { failures: 96, locks: 400038, unlocks: 400038, waits: 112625451 }
+ok
+test deadlock ... 2024-09-15T18:40:44.021420Z :   deadlock attempting create a deadlock on two spinlocks a=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:81:22, locked: true, stats: Stats { failures: 1, locks: 1, unlocks: 0, waits: 1 } } b=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:82:22, locked: true, stats: Stats { failures: 1, locks: 1, unlocks: 0, waits: 1 } }
+2024-09-15T18:40:44.021626Z : ThreadId(106) acquired first lock lock_x=0
+2024-09-15T18:40:44.021655Z : ThreadId(107) acquired first lock lock_x=1
+2024-09-15T18:40:44.021698Z : ThreadId(106) waiting on a barrier arrived=1
+2024-09-15T18:40:44.021723Z : ThreadId(107) waiting on a barrier arrived=2
+2024-09-15T18:40:44.021744Z : ThreadId(106) waiting on a barrier arrived=2
+2024-09-15T18:40:44.045714Z :   deadlock ab_result=Err(Any { .. }) ba_result=Err(Any { .. })
+2024-09-15T18:40:44.045853Z :   deadlock dropping spinlock=ku/tests/5-sync-2-spinlock.rs:82:22 stats=Stats { failures: 2, locks: 2, unlocks: 2, waits: 1000001 }
+2024-09-15T18:40:44.045967Z :   deadlock dropping spinlock=ku/tests/5-sync-2-spinlock.rs:81:22 stats=Stats { failures: 2, locks: 2, unlocks: 2, waits: 1000001 }
+ok
+test exclusive_access ... 2024-09-15T18:40:44.046349Z : exclusive_access unlocked spinlock=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:66:24, locked: false, data: 1, stats: Stats { failures: 0, locks: 1, unlocks: 1, waits: 0 } }
+2024-09-15T18:40:44.046442Z : exclusive_access dropping spinlock=ku/tests/5-sync-2-spinlock.rs:66:24 stats=Stats { failures: 0, locks: 2, unlocks: 2, waits: 0 }
+ok
+test lock_unlock ... 2024-09-15T18:40:44.046751Z :      lock_unlock locked spinlock=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:25:20, locked: true, stats: Stats { failures: 1, locks: 1, unlocks: 0, waits: 1 } }
+2024-09-15T18:40:44.046866Z :      lock_unlock unlocked spinlock=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:25:20, locked: false, data: 1, stats: Stats { failures: 2, locks: 2, unlocks: 2, waits: 2 } }
+2024-09-15T18:40:44.046954Z :      lock_unlock dropping spinlock=ku/tests/5-sync-2-spinlock.rs:25:20 stats=Stats { failures: 2, locks: 3, unlocks: 3, waits: 2 }
+ok
+test try_lock ... 2024-09-15T18:40:44.047226Z :         try_lock locked spinlock=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:47:20, locked: true, stats: Stats { failures: 1, locks: 1, unlocks: 0, waits: 1 } }
+2024-09-15T18:40:44.047301Z :         try_lock unlocked spinlock=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:47:20, locked: false, data: 0, stats: Stats { failures: 2, locks: 2, unlocks: 2, waits: 2 } }
+2024-09-15T18:40:44.047370Z :         try_lock dropping spinlock=ku/tests/5-sync-2-spinlock.rs:47:20 stats=Stats { failures: 2, locks: 3, unlocks: 3, waits: 2 }
+ok
 
-running 6 tests
-2023-07-22T16:40:07.457510Z : ThreadId(07) attempting create a deadlock on two spinlocks A=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:97:31, locked: true, stats: Stats { failures: 1, locks: 1, unlocks: 0, waits: 1 } } B=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:98:31, locked: true, stats: Stats { failures: 1, locks: 1, unlocks: 0, waits: 1 } }
-2023-07-22T16:40:07.457507Z : ThreadId(08) locked spinlock=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:25:20, locked: true, stats: Stats { failures: 1, locks: 1, unlocks: 0, waits: 1 } }
-2023-07-22T16:40:07.457508Z : ThreadId(09) unlocked spinlock=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:66:24, locked: false, data: 1, stats: Stats { failures: 0, locks: 1, unlocks: 1, waits: 0 } }
-2023-07-22T16:40:07.458180Z : ThreadId(09) dropping spinlock=ku/tests/5-sync-2-spinlock.rs:66:24 stats=Stats { failures: 0, locks: 2, unlocks: 2, waits: 0 }
-2023-07-22T16:40:07.458420Z : ThreadId(08) unlocked spinlock=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:25:20, locked: false, data: 1, stats: Stats { failures: 2, locks: 2, unlocks: 2, waits: 2 } }
-2023-07-22T16:40:07.458474Z : ThreadId(08) dropping spinlock=ku/tests/5-sync-2-spinlock.rs:25:20 stats=Stats { failures: 2, locks: 3, unlocks: 3, waits: 2 }
-test exclusive_access ... ok
-test lock_unlock ... ok
-2023-07-22T16:40:07.506380Z : ThreadId(22) acquired first lock lock_x=1
-2023-07-22T16:40:07.506509Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.511349Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.530346Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.530439Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.530523Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.530606Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.530689Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.530773Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.530856Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.530938Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.531021Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.531103Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.531184Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.531266Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.531348Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.531429Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.531511Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.538944Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.539435Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.539525Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.539609Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.539692Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.539774Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.539856Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.539939Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.540021Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.540104Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.540187Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.540270Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.540353Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.540435Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.540517Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.540599Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.540682Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.540764Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.546345Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.546430Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.546514Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.546597Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.546679Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.546762Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.550371Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.550453Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.550535Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.550618Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.550701Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.550783Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.550866Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.550948Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.551031Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.551113Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.551195Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.551277Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.551358Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.551438Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.551520Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.551603Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.551685Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.551768Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.551851Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.551933Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.552016Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.552098Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.552181Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.552263Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.552345Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.552428Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.552510Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.552592Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.552675Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.552758Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.552840Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.552922Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.553005Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.553087Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.553170Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.553252Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.553334Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.553416Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.553498Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.553581Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.553663Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.553745Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.553828Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.558369Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.558453Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.558536Z : ThreadId(22) waiting on a barrier arrived=1
-2023-07-22T16:40:07.570668Z : ThreadId(20) acquired first lock lock_x=0
-2023-07-22T16:40:07.578410Z : ThreadId(20) waiting on a barrier arrived=2
-2023-07-22T16:40:07.618351Z : ThreadId(22) waiting on a barrier arrived=2
-2023-07-22T16:40:07.870405Z : ThreadId(115) locked spinlock=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:47:20, locked: true, stats: Stats { failures: 1, locks: 1, unlocks: 0, waits: 1 } }
-2023-07-22T16:40:07.870587Z : ThreadId(115) unlocked spinlock=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:47:20, locked: false, data: 0, stats: Stats { failures: 2, locks: 2, unlocks: 2, waits: 2 } }
-2023-07-22T16:40:07.870687Z : ThreadId(115) dropping spinlock=ku/tests/5-sync-2-spinlock.rs:47:20 stats=Stats { failures: 2, locks: 3, unlocks: 3, waits: 2 }
-test try_lock ... ok
-2023-07-22T16:40:07.905846Z : ThreadId(114) attempting to lock a locked spinlock spinlock=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:81:20, locked: true, stats: Stats { failures: 1, locks: 1, unlocks: 0, waits: 1 } }
-2023-07-22T16:40:07.962697Z : ThreadId(07) ab_result=Err(Any { .. }) ba_result=Ok(())
-test deadlock ... ok
-2023-07-22T16:40:08.011447Z : ThreadId(114) dropping spinlock=ku/tests/5-sync-2-spinlock.rs:81:20 stats=Stats { failures: 2, locks: 1, unlocks: 1, waits: 1000001 }
-test recursive_deadlock - should panic ... ok
-2023-07-22T16:40:08.759670Z : ThreadId(06) false positive deadlock detections false_positive_count=96
-2023-07-22T16:40:08.759737Z : ThreadId(06) consistent_count=400000 inconsistent_count=0
-2023-07-22T16:40:08.759774Z : ThreadId(06) spinlock=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:157:49, locked: false, data: (400109, 800218), stats: Stats { failures: 96, locks: 400110, unlocks: 400110, waits: 104025504 } }
-test concurrent ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.49s
+```
 
-test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.30s
+
+#### Запуск теста [`ku/tests/5-sync-2-spinlock.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/tests/5-sync-2-spinlock.rs) под [Miri](https://github.com/rust-lang/miri)
+
+```console
+/.../nikka$ (cd ku; cargo clean; MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 5-sync-2-spinlock)
+...
+running 4 tests
+test concurrent ... 2024-09-15T18:42:22.765266Z : concurrent false positive deadlock detections false_positive_count=0
+2024-09-15T18:42:22.937881Z : concurrent consistent=4999 inconsistent=0
+2024-09-15T18:42:23.062438Z : concurrent spinlock=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:146:29, locked: false, data: (5000, 10000), stats: Stats { failures: 0, locks: 5001, unlocks: 5001, waits: 85673 } }
+2024-09-15T18:42:23.233720Z : concurrent dropping spinlock=ku/tests/5-sync-2-spinlock.rs:146:29 stats=Stats { failures: 0, locks: 5001, unlocks: 5001, waits: 85673 }
+ok
+test exclusive_access ... 2024-09-15T18:42:23.744910Z : exclusive_access unlocked spinlock=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:66:24, locked: false, data: 1, stats: Stats { failures: 0, locks: 1, unlocks: 1, waits: 0 } }
+2024-09-15T18:42:23.926065Z : exclusive_access dropping spinlock=ku/tests/5-sync-2-spinlock.rs:66:24 stats=Stats { failures: 0, locks: 2, unlocks: 2, waits: 8 }
+ok
+test lock_unlock ... 2024-09-15T18:42:24.412766Z :      lock_unlock locked spinlock=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:25:20, locked: true, stats: Stats { failures: 1, locks: 1, unlocks: 0, waits: 1 } }
+2024-09-15T18:42:24.598041Z :      lock_unlock unlocked spinlock=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:25:20, locked: false, data: 1, stats: Stats { failures: 2, locks: 2, unlocks: 2, waits: 2 } }
+2024-09-15T18:42:24.755148Z :      lock_unlock dropping spinlock=ku/tests/5-sync-2-spinlock.rs:25:20 stats=Stats { failures: 2, locks: 3, unlocks: 3, waits: 2 }
+ok
+test try_lock ... 2024-09-15T18:42:25.297762Z :         try_lock locked spinlock=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:47:20, locked: true, stats: Stats { failures: 1, locks: 1, unlocks: 0, waits: 27 } }
+2024-09-15T18:42:25.484351Z :         try_lock unlocked spinlock=Spinlock { defined: ku/tests/5-sync-2-spinlock.rs:47:20, locked: false, data: 0, stats: Stats { failures: 2, locks: 2, unlocks: 2, waits: 28 } }
+2024-09-15T18:42:25.639493Z :         try_lock dropping spinlock=ku/tests/5-sync-2-spinlock.rs:47:20 stats=Stats { failures: 2, locks: 3, unlocks: 3, waits: 28 }
+ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 36.37s
 ```
 
 

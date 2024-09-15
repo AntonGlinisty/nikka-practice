@@ -117,7 +117,7 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-2-spinlock.html
       allow_list: *allow_list
       check:
-        - cd ku && cargo test --test 5-sync-2-spinlock && cargo clean && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 5-sync-2-spinlock
+        - cd ku && cargo test --test 5-sync-2-spinlock -- --test-threads=1 && cargo clean && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 5-sync-2-spinlock
 
     - task: sequence-lock
       score: 100
@@ -125,7 +125,7 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-3-sequence-lock.html
       allow_list: *allow_list
       check:
-        - cd ku && cargo test --test 5-sync-3-sequence-lock --test 5-sync-2-deadlock && cargo clean && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 5-sync-3-sequence-lock
+        - cd ku && cargo test --test 5-sync-3-sequence-lock --test 5-sync-2-deadlock -- --test-threads=1 && cargo clean && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 5-sync-3-sequence-lock
 
     - task: correlation-point
       score: 100
@@ -133,7 +133,7 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-4-correlation-point.html
       allow_list: *allow_list
       check:
-        - cd ku && cargo test --test 5-sync-4-correlation-point && cd - && cd kernel && cargo test --test 5-sync-4-correlation-point
+        - cd ku && cargo test --test 5-sync-4-correlation-point -- --test-threads=1 && cargo clean && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 5-sync-4-correlation-point && cd - && cd kernel && cargo test --test 5-sync-4-correlation-point
 
     - task: high-resolution-date
       score: 50

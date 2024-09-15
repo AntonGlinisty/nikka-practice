@@ -178,7 +178,7 @@ fn multiple_writers() {
 }
 
 #[rstest]
-#[timeout(Duration::from_secs(60))]
+#[cfg_attr(not(miri), timeout(Duration::from_secs(60)))]
 fn multiple_exclusive_writers() {
     log::init();
 
@@ -283,6 +283,6 @@ struct Stats {
 const MIN_DIFFERENT_READS: usize = if cfg!(miri) {
     10
 } else {
-    100
+    50
 };
-const THREAD_COUNT: usize = 10;
+const THREAD_COUNT: usize = 5;

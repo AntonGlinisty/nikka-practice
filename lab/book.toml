@@ -10,8 +10,8 @@ title = "Лабораторные работы"
 edition = "2021"
 
 [output.html]
-curly-quotes = true
 mathjax-support = true
+smart-punctuation = true
 
 [output.linkcheck]
 exclude = ['index\.html\?search=Page']

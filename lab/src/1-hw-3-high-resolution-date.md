@@ -117,7 +117,7 @@ fn CorrelationInterval::datetime_with_resolution<const PARTS_PER_SECOND: i64>(
 Мы заметим это на старте системы по низкому --- секундному --- разрешению в записях журнала.
 
 
-### Задача 5 --- реализация основного метода повышения разрешения часов
+### Задача 6 --- реализация основного метода повышения разрешения часов
 
 Для этой задачи понадобится готовое решение [задачи 1](../../lab/book/1-hw-1-rtc.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-1--%D1%87%D1%82%D0%B5%D0%BD%D0%B8%D0%B5-%D1%80%D0%B5%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%B3%D0%BE-%D0%B2%D1%80%D0%B5%D0%BC%D0%B5%D0%BD%D0%B8-%D0%B8%D0%B7-%D0%BC%D0%B8%D0%BA%D1%80%D0%BE%D1%81%D1%85%D0%B5%D0%BC%D1%8B-rtc).
 
@@ -412,32 +412,43 @@ static LOG_COLLECTOR: LogCollector = LogCollector::new(Format::Timeless, Level::
 ```console
 /.../nikka$ (cd kernel; cargo test --test 1-hw-3-high-resolution-date)
 ...
+Running: `qemu-system-x86_64 -drive format=raw,file=/.../nikka/target/kernel/debug/deps/bootimage-1_hw_3_high_resolution_date-25b840e57425b93b.bin -no-reboot -m size=128M -smp cpus=4 -device isa-debug-exit,iobase=0xF4,iosize=0x04 -serial stdio -display none -drive file=../fs.img,index=1,media=disk,driver=raw`
+19:19:08 0 I RTC init; acknowledged_settings = RegisterB(USE_24_HOUR_FORMAT | UPDATE_ENDED_INTERRUPT)
+19:19:08 0 I time init
+19:19:08 0 I Nikka booted; now = 2024-09-15 19:19:08 UTC; tsc = Tsc(3433616106)
+19:19:08 0 I GDT init
+19:19:08 0 I traps init
+running 3 tests
+
 1_hw_3_high_resolution_date::high_resolution_date---------
-16:50:10 0 D waiting for the RTC to tick twice
-16:50:12.003 0 D measuring; timer_ticks = 102
-16:50:17.019 0 D measured; samples = 100; min = PT0.043444808S; max = PT0.050378112S; mean = PT0.049998107S; deviation = PT0.000809628S
-16:50:17.023 0 D restrictions; min_delta = PT0.040S; max_delta = PT0.060S; min_mean = PT0.049500S; max_mean = PT0.050500S; min_deviation = PT0.000000100S; max_deviation = PT0.005S
+19:19:08 0 D waiting for the RTC to tick twice
+19:19:11.003 0 D measuring; timer_ticks = 102
+19:19:16.045 0 D measured; samples = 100; min = PT0.047241212S; max = PT0.050180976S; mean = PT0.049996803S; deviation = PT0.000358895S
+19:19:16.063 0 D restrictions; min_delta = PT0.04S; max_delta = PT0.06S; min_mean = PT0.0495S; max_mean = PT0.0505S; min_deviation = PT0.0000001S; max_deviation = PT0.005S
 1_hw_3_high_resolution_date::high_resolution_date [passed]
 
 1_hw_3_high_resolution_date::points_beyond_interval-------
-16:50:17.027 0 D waiting for the RTC to tick twice
-16:50:19.001 0 D before_boot = 2023-09-17 16:50:07.091008303 UTC
-16:50:19.007 0 D boot = 2023-09-17 16:50:10.008804597 UTC
-16:50:19.011 0 D now = 2023-09-17 16:50:19.000589843 UTC
-16:50:19.013 0 D future = 2023-09-17 16:50:21.918491449 UTC
-16:50:19.015 0 D left = 2023-09-17 16:50:07.091008303 UTC; right = 2023-09-17 16:50:10.008804597 UTC; difference = PT2.917796294S
-16:50:19.029 0 D left = 2023-09-17 16:50:10.008804597 UTC; right = 2023-09-17 16:50:19.000589843 UTC; difference = PT8.991785246S
-16:50:19.041 0 D left = 2023-09-17 16:50:19.000589843 UTC; right = 2023-09-17 16:50:21.918491449 UTC; difference = PT2.917901606S
+19:19:16.077 0 D waiting for the RTC to tick twice
+19:19:18.001 0 D before_boot = 2024-09-15 19:19:05.094764797 UTC
+19:19:18.009 0 D boot = 2024-09-15 19:19:08.011217239 UTC
+19:19:18.013 0 D now = 2024-09-15 19:19:18.000596671 UTC
+19:19:18.017 0 D future = 2024-09-15 19:19:20.917140679 UTC
+19:19:18.021 0 D left = 2024-09-15 19:19:05.094764797 UTC; right = 2024-09-15 19:19:08.011217239 UTC; difference = PT2.916452442S
+19:19:18.041 0 D left = 2024-09-15 19:19:08.011217239 UTC; right = 2024-09-15 19:19:18.000596671 UTC; difference = PT9.989379432S
+19:19:18.059 0 D left = 2024-09-15 19:19:18.000596671 UTC; right = 2024-09-15 19:19:20.917140679 UTC; difference = PT2.916544008S
 1_hw_3_high_resolution_date::points_beyond_interval [passed]
 
 1_hw_3_high_resolution_date::stress-----------------------
-16:50:19.065 0 D waiting for the RTC to tick twice
+19:19:18.089 0 D waiting for the RTC to tick twice
+19:19:20.003 0 D expected bounds for the real time delta between two points for the given mock CPU frequency; mock_cpu_frequency = 2.000 kHz; mock_rdtsc_interval = PT0.0005S; min_delta = PT0.00025S; max_valid_delta = PT2S; max_delta = PT4S
+19:19:36.423 0 D expected bounds for the real time delta between two points for the given mock CPU frequency; mock_cpu_frequency = 2.000 kHz; mock_rdtsc_interval = PT0.0005S; min_delta = PT0.00025S; max_valid_delta = PT0.05S; max_delta = PT0.1S
 1_hw_3_high_resolution_date::stress-------------- [passed]
+19:19:36.653 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ```
 
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- ku/src/time/correlation_interval.rs | 26 ++++++++++++++++++++++++--
- 1 file changed, 24 insertions(+), 2 deletions(-)
+ ku/src/time/correlation_interval.rs | 27 +++++++++++++++++++++++++--
+ 1 file changed, 25 insertions(+), 2 deletions(-)
 ```

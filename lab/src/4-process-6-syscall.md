@@ -332,7 +332,7 @@ $ (cd kernel; cargo test --test 4-process-6-syscall)
 ```
 
 Если в первой лабораторке вы попытались воспользоваться
-[приёмом "read-dont-modify-write"](https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf),
+[приёмом "read-dont-modify-write"](https://web.archive.org/web/20230318132751/https://web.archive.org/web/20230318132751/https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf),
 то в режиме пользователя и вызов `time::delay()` из
 [`user/exit/src/main.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/user/exit/src/main.rs)
 и вызов `time::now()` из

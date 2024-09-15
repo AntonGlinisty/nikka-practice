@@ -10,12 +10,10 @@
 
 ### Модель памяти, Acquire и Release, опасность SeqCst
 
-К сожалению, как и в предыдущей задаче,
-на архитектуре
-[x86-64](https://en.wikipedia.org/wiki/X86-64)
-тест не может проверить корректность расстановки
-[`Ordering`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html).
-Поэтому ей стоит уделить повышенное внимание.
+Тесты проверяют корректность расстановки
+[`Ordering`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html)
+с помощью эмулятора
+[Miri](https://github.com/rust-lang/miri).
 [Как и раньше](../../lab/book/5-sync-2-spinlock.html#%D0%9C%D0%BE%D0%B4%D0%B5%D0%BB%D1%8C-%D0%BF%D0%B0%D0%BC%D1%8F%D1%82%D0%B8-acquire-%D0%B8-release),
 [`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst)
 использовать не рекомендуется.
@@ -84,7 +82,7 @@
 Что сломало бы синхронизацию.
 
 На помощь приходит
-[приём read-don't-modify-write](https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf),
+[приём read-don't-modify-write](https://web.archive.org/web/20230318132751/https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf),
 идея которого состоит в следующем.
 Нам нужно подобрать операцию записи, которая не изменит записываемое значение.
 Эта операция, естественно, должна знать какое значение было раньше, поэтому нам подойдут только операции,
@@ -114,7 +112,7 @@
 ### Ссылки
 
 - [Writing a seqlock in Rust.](https://pitdicker.github.io/Writing-a-seqlock-in-Rust/)
-- [Can Seqlocks Get Along With Programming Language Memory Models?](https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf)
+- [Can Seqlocks Get Along With Programming Language Memory Models?](https://web.archive.org/web/20230318132751/https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf)
 - [Crate seqlock.](https://docs.rs/seqlock/0.1.2/seqlock/)
 
 
@@ -122,14 +120,14 @@
 
 Структура
 [`SequenceLockGuard`](../../doc/ku/sync/sequence_lock/struct.SequenceLockGuard.html)
-по своему назначению и реализации полностью аналогична структуре
+по своему назначению и реализации похожа на структуру
 [`SpinlockGuard`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html).
 Посмотрите про неё
 [в предыдущей задаче](../../lab/book/5-sync-2-spinlock.html#%D0%A1%D1%82%D1%80%D1%83%D0%BA%D1%82%D1%83%D1%80%D0%B0-spinlockguard),
 даже если не решали её.
 
 
-### Задача 3 --- реализация [`SequenceLock`](../../doc/ku/sync/sequence_lock/struct.SequenceLock.html)
+### Задача 4 --- реализация [`SequenceLock`](../../doc/ku/sync/sequence_lock/struct.SequenceLock.html)
 
 Реализуйте
 [метод](../../doc/ku/sync/sequence_lock/struct.SequenceLock.html#method.write_lock)
@@ -202,13 +200,57 @@ fn SequenceLock::read(&self) -> T
 [`ku/src/sync/sequence_lock.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/sync/sequence_lock.rs).
 
 Для того чтобы прочитать защищаемые данные, используйте функцию
-[`core::ptr::read_volatile()`](https://doc.rust-lang.org/nightly/core/ptr/fn.read_volatile.html):
+[`atomic_memcpy::atomic_load()`](https://docs.rs/atomic-memcpy/latest/atomic_memcpy/fn.atomic_load.html):
 
 ```rust
-let data = unsafe { ptr::read_volatile(self.data.get()) };
+let data = unsafe { atomic_memcpy::atomic_load(self.data.get(), Ordering::...) };
 ```
 
-Реализуйте
+Это заполнит `data` сырыми байтами, необязательно соответствующими какому-нибудь валидному значению типа `T`.
+Так как возможно конкурентно часть байтов была перезаписана уже другим значением.
+Именно поэтому функция
+[`atomic_memcpy::atomic_load()`](https://docs.rs/atomic-memcpy/latest/atomic_memcpy/fn.atomic_load.html)
+возвращает данные, которые помечены как
+[`core::mem::MaybeUninit`](https://doc.rust-lang.org/nightly/core/mem/union.MaybeUninit.html).
+Только в случае, если повторное чтение поля
+[`SequenceLock::sequence`](../../doc/ku/sync/sequence_lock/struct.SequenceLock.html#structfield.sequence)
+вернуло то же значение, что и первое чтение,
+прочитанные байты согласованны --- содержат валидное значение типа `T`.
+И только в этом случае их корректно превратить в переменную типа `T` с помощью метода
+[`MaybeUninit::assume_init()`](https://doc.rust-lang.org/nightly/core/mem/union.MaybeUninit.html#method.assume_init):
+
+```rust
+let data = unsafe { data.assume_init() };
+```
+
+Аналогичным образом реализуйте
+[метод](../../doc/ku/sync/sequence_lock/struct.SequenceLockGuard.html#method.get)
+
+```rust
+fn SequenceLockGuard::get(&mut self) -> T
+```
+
+В нём
+[`MaybeUninit::assume_init()`](https://doc.rust-lang.org/nightly/core/mem/union.MaybeUninit.html#method.assume_init)
+можно вызвать сразу, так как этот метод доступен только тому, кто держит блокировку на запись.
+
+Реализуйте и обратный
+[метод](../../doc/ku/sync/sequence_lock/struct.SequenceLockGuard.html#method.set)
+
+```rust
+fn SequenceLockGuard::set(&mut self)
+```
+
+в котором нужно будет записать защищаемые данные, с помощью функции
+[`atomic_memcpy::atomic_store()`](https://docs.rs/atomic-memcpy/latest/atomic_memcpy/fn.atomic_store.html):
+
+```rust
+unsafe {
+    atomic_memcpy::atomic_store(self.sequence_lock.data.get(), value, Ordering::...);
+}
+```
+
+Также реализуйте
 [метод](../../doc/ku/sync/sequence_lock/struct.SequenceLockGuard.html#method.drop)
 
 ```rust
@@ -226,7 +268,6 @@ fn SequenceLockGuard::drop(&mut self)
 - Метод [`core::sync::atomic::AtomicBool::load()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicBool.html#method.load).
 - Метод [`core::sync::atomic::AtomicBool::store()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicBool.html#method.store).
 - Метод [`core::sync::atomic::AtomicUsize::fetch_add()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicUsize.html#method.fetch_add).
-- Функция [`core::ptr::read_volatile()`](https://doc.rust-lang.org/nightly/core/ptr/fn.read_volatile.html).
 - Функция [`core::hint::spin_loop()`](https://doc.rust-lang.org/nightly/core/hint/fn.spin_loop.html), которая сообщает процессору, что он находится в цикле активного ожидания внешнего события.
 - Метод [`SequenceLock::is_locked(sequence: u64)`](../../doc/ku/sync/sequence_lock/struct.SequenceLock.html#method.is_locked). Он возвращает `true`, если значение `sequence` означает, что захвачена блокировка на запись.
 
@@ -314,11 +355,19 @@ _5_sync_2_spinlock::recursive_deadlock::_$u7b$$u7b$closure$u7d$$u7d$::he690e3d8e
 
 > ### Гонка данных
 >
-> В нашей реализации
+> Если бы в
 > [`SequenceLock`](../../doc/ku/sync/sequence_lock/struct.SequenceLock.html)
-> есть гонка данных, которая формально является
+> вместо
+> [`atomic_memcpy::atomic_load()`](https://docs.rs/atomic-memcpy/latest/atomic_memcpy/fn.atomic_load.html)
+> и
+> [`atomic_memcpy::atomic_store()`](https://docs.rs/atomic-memcpy/latest/atomic_memcpy/fn.atomic_store.html)
+> мы бы использовали что-нибудь вроде
+> [`core::ptr::read_volatile()`](https://doc.rust-lang.org/nightly/core/ptr/fn.read_volatile.html)
+> и
+> [`core::ptr::write_volatile()`](https://doc.rust-lang.org/nightly/core/ptr/fn.write_volatile.html),
+> то в нём была бы гонка данных, которая формально является
 > [Undefined Behavior](https://doc.rust-lang.org/nomicon/races.html).
-> Причём [Miri](https://github.com/rust-lang/miri) её находит:
+> Причём [Miri](https://github.com/rust-lang/miri) её нашла бы:
 > ```console
 > /.../nikka/ku$ cargo miri test --test 5-sync-3-sequence-lock
 > Preparing a sysroot for Miri (target: x86_64-unknown-linux-gnu)... done
@@ -365,28 +414,15 @@ _5_sync_2_spinlock::recursive_deadlock::_$u7b$$u7b$closure$u7d$$u7d$::he690e3d8e
 > note: test exited abnormally; to see the full output pass --nocapture to the harness.
 > ```
 >
-> Пока предлагается оставить всё как есть, так как тут мы сталкиваемся с текущими органичениями языка.
->
-> В
-> [следующей задаче](../../lab/book/5-sync-4-correlation-point.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-4--%D1%80%D0%B5%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-atomiccorrelationpoint)
-> на секвентную блокировку в частном случае, уже гонки данных не должно быть:
-> ```console
-> /.../nikka/ku$ cargo miri test --test 5-sync-4-correlation-point
-> Preparing a sysroot for Miri (target: x86_64-unknown-linux-gnu)... done
->    Compiling ku v0.1.0 (/.../nikka/ku)
->     Finished test [unoptimized + debuginfo] target(s) in 0.49s
->      Running tests/5-sync-4-correlation-point.rs (/.../nikka/target/miri/x86_64-unknown-linux-gnu/debug/deps/5_sync_4_correlation_point-a4a526eb7ffb5ab4)
->
-> running 3 tests
-> test atomic_correlation_point ... ok
-> test correlation_point ... ok
-> test single_writer ... ok
->
-> test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
-> ```
+> См. также:
+> - [Add LLVM atomic memcpy intrinsics, expose in core/std #58599](https://github.com/rust-lang/rust/issues/58599).
+> - [Crate `atomic_memcpy`](https://docs.rs/atomic-memcpy/latest/atomic_memcpy/).
+> - [P1478R7: Byte-wise atomic memcpy](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p1478r7.html).
 
 
 ### Проверьте себя
+
+#### Обычный запуск тестов [`ku/tests/5-sync-3-sequence-lock.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/tests/5-sync-3-sequence-lock.rs) и [`ku/tests/5-sync-2-deadlock.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/tests/5-sync-2-deadlock.rs)
 
 На этот раз тесты находятся не в `kernel`, а в `ku` ---
 [`ku/tests/5-sync-3-sequence-lock.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/tests/5-sync-3-sequence-lock.rs)
@@ -396,41 +432,57 @@ _5_sync_2_spinlock::recursive_deadlock::_$u7b$$u7b$closure$u7d$$u7d$::he690e3d8e
 Вы увидите сборку и журнал запуска тестов:
 
 ```console
-/.../nikka$ (cd ku; cargo test --test 5-sync-3-sequence-lock --test 5-sync-2-deadlock)
-   Compiling ku v0.1.0 (/.../nikka/ku)
-    Finished test [unoptimized + debuginfo] target(s) in 2.25s
-     Running tests/5-sync-2-deadlock.rs (/.../nikka/target/debug/deps/5_sync_2_deadlock-324948b448ed2776)
-
+/.../nikka$ (cd ku; cargo test --test 5-sync-3-sequence-lock --test 5-sync-2-deadlock -- --test-threads=1)
 running 4 tests
-2023-07-22T17:14:51.265702Z : deadlock_line_number_in_panic_message attempting to lock a locked spinlock spinlock=Spinlock { defined: ku/tests/5-sync-2-deadlock.rs:42:20, locked: true, owner: ku/tests/5-sync-2-deadlock.rs:43:25, backtrace: [0x40EE5E], stats: Stats { failures: 1, locks: 1, unlocks: 0, waits: 1 } }
-2023-07-22T17:14:51.265704Z :      owner_line_number_in_panic_message attempting to lock a locked spinlock spinlock=Spinlock { defined: ku/tests/5-sync-2-deadlock.rs:42:20, locked: true, owner: ku/tests/5-sync-2-deadlock.rs:43:25, backtrace: [0x40EE5E], stats: Stats { failures: 1, locks: 1, unlocks: 0, waits: 1 } }
-2023-07-22T17:14:51.265702Z : definition_line_number_in_panic_message attempting to lock a locked spinlock spinlock=Spinlock { defined: ku/tests/5-sync-2-deadlock.rs:42:20, locked: true, owner: ku/tests/5-sync-2-deadlock.rs:43:25, backtrace: [0x40EE5E], stats: Stats { failures: 1, locks: 1, unlocks: 0, waits: 1 } }
-2023-07-22T17:14:51.265703Z :               deadlock_in_panic_message attempting to lock a locked spinlock spinlock=Spinlock { defined: ku/tests/5-sync-2-deadlock.rs:42:20, locked: true, owner: ku/tests/5-sync-2-deadlock.rs:43:25, backtrace: [0x40EE5E], stats: Stats { failures: 1, locks: 1, unlocks: 0, waits: 1 } }
-2023-07-22T17:14:51.287957Z :      owner_line_number_in_panic_message dropping spinlock=ku/tests/5-sync-2-deadlock.rs:42:20 stats=Stats { failures: 2, locks: 1, unlocks: 1, waits: 1000001 }
-test owner_line_number_in_panic_message - should panic ... ok
-2023-07-22T17:14:51.288244Z :               deadlock_in_panic_message dropping spinlock=ku/tests/5-sync-2-deadlock.rs:42:20 stats=Stats { failures: 2, locks: 1, unlocks: 1, waits: 1000001 }
-test deadlock_in_panic_message - should panic ... ok
-2023-07-22T17:14:51.289283Z :   deadlock_line_number_in_panic_message dropping spinlock=ku/tests/5-sync-2-deadlock.rs:42:20 stats=Stats { failures: 2, locks: 1, unlocks: 1, waits: 1000001 }
-test deadlock_line_number_in_panic_message - should panic ... ok
-2023-07-22T17:14:51.293327Z : definition_line_number_in_panic_message dropping spinlock=ku/tests/5-sync-2-deadlock.rs:42:20 stats=Stats { failures: 2, locks: 1, unlocks: 1, waits: 1000001 }
-test definition_line_number_in_panic_message - should panic ... ok
+test deadlock_in_panic_message - should panic ... 2024-09-15T18:47:51.384544Z : deadlock_in_panic_message attempting to lock a locked spinlock spinlock=Spinlock { defined: ku/tests/5-sync-2-deadlock.rs:50:20, locked: true, owner: ku/tests/5-sync-2-deadlock.rs:51:26, stats: Stats { failures: 1, locks: 1, unlocks: 0, waits: 1 } }
+2024-09-15T18:47:51.407592Z : deadlock_in_panic_message dropping spinlock=ku/tests/5-sync-2-deadlock.rs:50:20 stats=Stats { failures: 2, locks: 1, unlocks: 1, waits: 1000001 }
+ok
+test deadlock_line_number_in_panic_message - should panic ... 2024-09-15T18:47:51.408262Z : deadlock_line_number_in_panic_message attempting to lock a locked spinlock spinlock=Spinlock { defined: ku/tests/5-sync-2-deadlock.rs:50:20, locked: true, owner: ku/tests/5-sync-2-deadlock.rs:51:26, stats: Stats { failures: 1, locks: 1, unlocks: 0, waits: 1 } }
+2024-09-15T18:47:51.432363Z : deadlock_line_number_in_panic_message dropping spinlock=ku/tests/5-sync-2-deadlock.rs:50:20 stats=Stats { failures: 2, locks: 1, unlocks: 1, waits: 1000001 }
+ok
+test definition_line_number_in_panic_message - should panic ... 2024-09-15T18:47:51.432937Z : definition_line_number_in_panic_message attempting to lock a locked spinlock spinlock=Spinlock { defined: ku/tests/5-sync-2-deadlock.rs:50:20, locked: true, owner: ku/tests/5-sync-2-deadlock.rs:51:26, stats: Stats { failures: 1, locks: 1, unlocks: 0, waits: 1 } }
+2024-09-15T18:47:51.456460Z : definition_line_number_in_panic_message dropping spinlock=ku/tests/5-sync-2-deadlock.rs:50:20 stats=Stats { failures: 2, locks: 1, unlocks: 1, waits: 1000001 }
+ok
+test owner_line_number_in_panic_message - should panic ... 2024-09-15T18:47:51.457040Z :      owner_line_number_in_panic_message attempting to lock a locked spinlock spinlock=Spinlock { defined: ku/tests/5-sync-2-deadlock.rs:50:20, locked: true, owner: ku/tests/5-sync-2-deadlock.rs:51:26, stats: Stats { failures: 1, locks: 1, unlocks: 0, waits: 1 } }
+2024-09-15T18:47:51.487128Z :      owner_line_number_in_panic_message dropping spinlock=ku/tests/5-sync-2-deadlock.rs:50:20 stats=Stats { failures: 2, locks: 1, unlocks: 1, waits: 1000001 }
+ok
 
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
 
-     Running tests/5-sync-3-sequence-lock.rs (/.../nikka/target/debug/deps/5_sync_3_sequence_lock-4232a645c57babf4)
+     Running tests/5-sync-3-sequence-lock.rs (/.../nikka/target/debug/deps/5_sync_3_sequence_lock-71934c6f7bdc2faa)
 
 running 6 tests
 test exclusive_access ... ok
+test multiple_exclusive_writers ... 2024-09-15T18:47:52.491405Z : multiple_exclusive_writers non_exclusivity_detection_count=5
+ok
+test multiple_writers ... 2024-09-15T18:48:08.513542Z :           multiple_writers consistent=1404 inconsistent=0
+ok
+test single_writer ... 2024-09-15T18:48:13.140448Z :              single_writer consistent=2817 inconsistent=0
+ok
 test write ... ok
 test write_lock ... ok
-2023-07-22T17:14:52.298462Z : ThreadId(07) non_exclusivity_detection_count=9
-test multiple_exclusive_writers ... ok
-2023-07-22T17:14:54.712710Z : ThreadId(08) consistent_count=1007 inconsistent_count=0
-test multiple_writers ... ok
-2023-07-22T17:14:55.062643Z : ThreadId(09) consistent_count=17323 inconsistent_count=0
-test single_writer ... ok
 
-test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.77s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 21.65s
+```
+
+
+#### Запуск тестов [`ku/tests/5-sync-3-sequence-lock.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/tests/5-sync-3-sequence-lock.rs) и [`ku/tests/5-sync-2-deadlock.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/tests/5-sync-2-deadlock.rs) под [Miri](https://github.com/rust-lang/miri)
+
+```
+/.../nikka$ (cd ku; cargo clean; MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 5-sync-3-sequence-lock)
+...
+running 6 tests
+test exclusive_access ... ok
+test multiple_exclusive_writers ... 2024-09-15T18:57:43.016155Z : multiple_exclusive_writers non_exclusivity_detection_count=5
+ok
+test multiple_writers ... 2024-09-15T18:57:45.137066Z :           multiple_writers consistent=98 inconsistent=0
+ok
+test single_writer ... 2024-09-15T18:57:51.362522Z :              single_writer consistent=56 inconsistent=0
+ok
+test write ... ok
+test write_lock ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.58s
 ```
 
 

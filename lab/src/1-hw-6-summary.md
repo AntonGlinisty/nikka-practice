@@ -1,4 +1,4 @@
-## Собирая всё вместе
+## Собираем всё вместе
 
 В файле [`kernel/src/main.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/main.rs) определена функция `kernel_main()`.
 Вы можете использовать её по своему усмотрению, например проверяя какую-нибудь функциональность.
