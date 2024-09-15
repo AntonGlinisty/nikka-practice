@@ -1,10 +1,11 @@
 #![deny(warnings)]
 
+#[cfg(not(miri))]
+use std::sync::atomic::{
+    AtomicUsize,
+    Ordering,
+};
 use std::{
-    sync::atomic::{
-        AtomicUsize,
-        Ordering,
-    },
     thread,
     time::Duration,
 };
@@ -65,7 +66,7 @@ fn try_lock() {
 }
 
 #[rstest]
-#[timeout(Duration::from_secs(1))]
+#[timeout(Duration::from_secs(10))]
 fn exclusive_access() {
     log::init();
 
@@ -77,6 +78,7 @@ fn exclusive_access() {
     assert_eq!(*spinlock.lock(), 1);
 }
 
+#[cfg(not(miri))]
 #[rstest]
 #[timeout(Duration::from_secs(10))]
 fn deadlock() {
@@ -131,12 +133,20 @@ fn deadlock() {
 }
 
 #[rstest]
-#[timeout(Duration::from_secs(60))]
+#[cfg_attr(not(miri), timeout(Duration::from_secs(60)))]
 fn concurrent() {
     log::init();
 
-    const ITERATION_COUNT: usize = 100_000;
-    const THREAD_COUNT: usize = 100;
+    const ITERATION_COUNT: usize = if cfg!(miri) {
+        500
+    } else {
+        100_000
+    };
+    const THREAD_COUNT: usize = if cfg!(miri) {
+        10
+    } else {
+        100
+    };
 
     let spinlock = Spinlock::new((0, 0));
 

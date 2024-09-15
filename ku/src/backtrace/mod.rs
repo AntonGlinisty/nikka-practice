@@ -1,8 +1,9 @@
 /// Отладочная информация [`Callsite`] о точке вызова некоторой функции.
 pub mod callsite;
 
+#[cfg(not(miri))]
+use core::arch::asm;
 use core::{
-    arch::asm,
     fmt,
     mem,
     num::NonZeroUsize,
@@ -10,6 +11,8 @@ use core::{
 
 use derive_more::Display;
 
+#[cfg(miri)]
+use crate::error::Error::Unimplemented;
 use crate::{
     error::Result,
     memory::{
@@ -97,11 +100,19 @@ impl Backtrace {
         })
     }
 
+    /// Возвращает ошибку, так как для получения трассировки стека нужен ассемблер.
+    /// А [Miri](https://github.com/rust-lang/miri) его не поддерживает.
+    #[cfg(miri)]
+    pub fn current() -> Result<Self> {
+        Err(Unimplemented)
+    }
+
     /// Возвращает трассировку текущего стека.
     ///
     /// Мы указываем компилятору выполнить встраивание этой функции,
     /// чтобы не порождать дополнительный стековый фрейм под её вызов и не захламлять трассировку стека.
     /// В результате, функция вызвавшая [`Backtrace::current()`], в него не попадёт.
+    #[cfg(not(miri))]
     #[inline(always)]
     pub fn current() -> Result<Self> {
         let rsp: usize;
@@ -196,10 +207,18 @@ impl StackFrame {
         Self::validate(rbp)
     }
 
+    /// Возвращает ошибку, так как для получения текущего фрейма нужен ассемблер.
+    /// А [Miri](https://github.com/rust-lang/miri) его не поддерживает.
+    #[cfg(miri)]
+    pub fn current() -> Result<Self> {
+        Err(Unimplemented)
+    }
+
     /// Возвращает текущий стековый фрейм.
     ///
     /// Мы указываем компилятору выполнить встраивание этой функции,
     /// чтобы не порождать дополнительный стековый фрейм под её вызов и не захламлять трассировку стека.
+    #[cfg(not(miri))]
     #[inline(always)]
     pub fn current() -> Result<Self> {
         Self::new(rbp())
@@ -266,6 +285,7 @@ impl StackFrame {
 ///
 /// Мы указываем компилятору выполнить встраивание этой функции,
 /// чтобы не порождать дополнительный стековый фрейм под её вызов и не захламлять трассировку стека.
+#[cfg(not(miri))]
 #[inline(always)]
 fn rbp() -> usize {
     let rbp: usize;

@@ -117,7 +117,7 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-2-spinlock.html
       allow_list: *allow_list
       check:
-        - cd ku && cargo test --test 5-sync-2-spinlock
+        - cd ku && cargo test --test 5-sync-2-spinlock && cargo clean && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 5-sync-2-spinlock
 
     - task: sequence-lock
       score: 100
