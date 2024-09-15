@@ -1,18 +1,37 @@
-FROM rust:1.63
+FROM rust:1.81
 
 RUN apt-get update
 RUN apt-get install sudo qemu-system-x86 -y
 
-RUN mkdir -p /opt/shad/rust
+RUN mkdir -p /opt/shad/nikka
 COPY .gitlab-ci.yml /opt/shad/.grader-ci.yml
 
-WORKDIR /opt/shad/rust
+WORKDIR /opt/shad/nikka
 COPY . .
 
 RUN rm --force --recursive .git .jj
 RUN rm --force --recursive $(find . -name \*.orig -o -name \*.rej -o -name \*.diff)
 
 RUN make install
-RUN cd sem && cargo build && cargo test
+RUN cargo miri setup
+
+RUN cd sem && cargo build
 RUN cd tools && cargo build
-RUN make test
+RUN cd ku && cargo build
+RUN cd kernel && cargo build
+
+RUN for task in $(grep task: .manytask.yml | cut -f2 -d: | grep -v 'gdb'); do \
+    cargo run --manifest-path tools/check/Cargo.toml -- \
+    --student-repo /opt/shad/nikka \
+    --original-repo /opt/shad/nikka \
+    --ci-branch-name submit/$task \
+    --user-id galtsev \
+    --dry-run || exit 1; \
+done
+
+RUN cargo run --manifest-path tools/compose/Cargo.toml -- \
+    --in-path /opt/shad/nikka \
+    --out-path /opt/shad/nikka \
+    --spare tools --spare Cargo.lock --spare .compose.yml
+
+RUN if grep -R 'compose::begin_private' $(find . -name \*.rs\*); then exit 1; fi
