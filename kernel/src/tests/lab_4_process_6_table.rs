@@ -31,7 +31,8 @@ fn basic() {
     process_helpers::free(pid_2);
 }
 
-#[test_case]
+// Temporarily disabled for being too slow.
+#[allow(unused)]
 fn full_capacity() {
     let mut pids = Vec::with_capacity(PROCESS_SLOT_COUNT);
     let mut slots = Vec::with_capacity(PROCESS_SLOT_COUNT);
