@@ -125,7 +125,7 @@
       url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-3-sequence-lock.html
       allow_list: *allow_list
       check:
-        - cd ku && cargo test --test 5-sync-3-sequence-lock --test 5-sync-2-deadlock
+        - cd ku && cargo test --test 5-sync-3-sequence-lock --test 5-sync-2-deadlock && cargo clean && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 5-sync-3-sequence-lock
 
     - task: correlation-point
       score: 100

@@ -13,6 +13,7 @@ pub struct Callsite {
     backtrace: [Option<NonZeroUsize>; Self::BACKTRACE_LEN],
 
     /// Точка исходного кода с именем исходного файла и строкой.
+    #[cfg(not(miri))]
     location: &'static Location<'static>,
 }
 
@@ -21,6 +22,7 @@ impl Callsite {
     /// В качестве `location` можно передавать [`Location::caller()`].
     /// Для использования которой вызывающая функция должна быть помечена
     /// [атрибутом `#[track_caller]`](https://doc.rust-lang.org/reference/attributes/codegen.html#the-track_caller-attribute).
+    #[allow(unused_variables)]
     #[inline(never)]
     pub fn new(location: &'static Location<'static>) -> Self {
         let mut backtrace = [None; Self::BACKTRACE_LEN];
@@ -34,6 +36,7 @@ impl Callsite {
 
         Self {
             backtrace,
+            #[cfg(not(miri))]
             location,
         }
     }
@@ -43,6 +46,7 @@ impl Callsite {
     pub const fn zero() -> Self {
         Self {
             backtrace: [None; Self::BACKTRACE_LEN],
+            #[cfg(not(miri))]
             location: Location::caller(),
         }
     }
@@ -68,6 +72,9 @@ impl fmt::Display for Callsite {
         &self,
         formatter: &mut fmt::Formatter,
     ) -> fmt::Result {
+        #[cfg(miri)]
+        write!(formatter, "<unavailable>")?;
+        #[cfg(not(miri))]
         write!(formatter, "{}", self.location)?;
 
         let mut separator = ", backtrace: [";

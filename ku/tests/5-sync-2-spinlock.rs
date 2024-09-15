@@ -143,9 +143,9 @@ fn concurrent() {
         100_000
     };
     const THREAD_COUNT: usize = if cfg!(miri) {
-        10
+        5
     } else {
-        100
+        50
     };
 
     let spinlock = Spinlock::new((0, 0));

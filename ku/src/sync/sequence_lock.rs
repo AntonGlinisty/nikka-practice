@@ -1,16 +1,13 @@
 use core::{
     cell::UnsafeCell,
     hint,
-    ops::{
-        Deref,
-        DerefMut,
-    },
-    ptr,
     sync::atomic::{
         AtomicU64,
         Ordering,
     },
 };
+
+use atomic_memcpy;
 
 // Used in docs.
 #[allow(unused)]
@@ -50,7 +47,7 @@ impl<T: Copy> SequenceLock<T> {
     ///
     /// Возвращает [`SequenceLockGuard`], который:
     ///   - Позволяет читать и писать в защищаемые [`SequenceLock`] данные
-    ///     с помощью типажей [`Deref`] и [`DerefMut`] соответственно.
+    ///     методами [`SequenceLockGuard::get()`] и [`SequenceLockGuard::set()`] соответственно.
     ///   - Автоматически освобождает блокировку в реализации типажа [`Drop`].
     pub fn write_lock(&self) -> SequenceLockGuard<'_, T> {
         // TODO: your code here.
@@ -64,6 +61,11 @@ impl<T: Copy> SequenceLock<T> {
     /// Полезна, если писатель только один, или синхронизация писателей достигается не
     /// с помощью [`SequenceLock`], а каким-то другим способом.
     /// Например, [`Spinlock`] использует этот метод в момент удержания собственной блокировки.
+    ///
+    /// Возвращает [`SequenceLockGuard`], который:
+    ///   - Позволяет читать и писать в защищаемые [`SequenceLock`] данные
+    ///     методами [`SequenceLockGuard::get()`] и [`SequenceLockGuard::set()`] соответственно.
+    ///   - Автоматически освобождает блокировку в реализации типажа [`Drop`].
     ///
     /// # Safety
     ///
@@ -117,24 +119,27 @@ unsafe impl<T: Copy + Send> Sync for SequenceLock<T> {
 /// Захваченный на запись [`SequenceLock`].
 ///
 /// - Позволяет читать и писать в защищаемые [`SequenceLock`] данные
-///   с помощью типажей [`Deref`] и [`DerefMut`] соотвественно.
+///   методами [`SequenceLockGuard::get()`] и [`SequenceLockGuard::set()`] соответственно.
 /// - Автоматически освобождает блокировку в реализации типажа [`Drop`].
 pub struct SequenceLockGuard<'a, T: Copy> {
     /// Захваченный на запись [`SequenceLock`].
     sequence_lock: &'a SequenceLock<T>,
 }
 
-impl<T: Copy> Deref for SequenceLockGuard<'_, T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        unsafe { &*self.sequence_lock.data.get() }
+impl<T: Copy> SequenceLockGuard<'_, T> {
+    /// Читает защищаемые [`SequenceLock`] данные.
+    pub fn get(&self) -> T {
+        // TODO: your code here.
+        unimplemented!();
     }
-}
 
-impl<T: Copy> DerefMut for SequenceLockGuard<'_, T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { &mut *self.sequence_lock.data.get() }
+    /// Записывает защищаемые [`SequenceLock`] данные.
+    pub fn set(
+        &mut self,
+        value: T,
+    ) {
+        // TODO: your code here.
+        unimplemented!();
     }
 }
 

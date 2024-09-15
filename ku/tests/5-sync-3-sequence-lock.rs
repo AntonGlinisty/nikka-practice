@@ -31,7 +31,7 @@ fn write() {
     let sequence_lock = SequenceLock::new(0);
 
     unsafe {
-        *sequence_lock.write() = 3;
+        sequence_lock.write().set(3);
     }
 
     let a = sequence_lock.read();
@@ -46,7 +46,7 @@ fn write() {
 fn write_lock() {
     let sequence_lock = SequenceLock::new(0);
 
-    *sequence_lock.write_lock() = 3;
+    sequence_lock.write_lock().set(3);
 
     let a = sequence_lock.read();
     let b = sequence_lock.read();
@@ -246,14 +246,14 @@ fn exclusive_writer(
 ) {
     while run.load(Ordering::Acquire) {
         let mut lock = unsafe { sequence_lock.write() };
-        let data = *lock;
+        let data = lock.get();
 
         let i = data.0;
-        lock.0 = i + 1;
+        lock.set((i + 1, 0));
 
         thread::yield_now();
 
-        lock.1 = 2 * i + 2;
+        lock.set((i + 1, 2 * i + 2));
     }
 }
 
@@ -263,14 +263,14 @@ fn non_exclusive_writer(
 ) {
     while run.load(Ordering::Acquire) {
         let mut lock = sequence_lock.write_lock();
-        let data = *lock;
+        let data = lock.get();
 
         let i = data.0;
-        lock.0 = i + 1;
+        lock.set((i + 1, 0));
 
         thread::yield_now();
 
-        lock.1 = 2 * i + 2;
+        lock.set((i + 1, 2 * i + 2));
     }
 }
 
@@ -280,5 +280,9 @@ struct Stats {
     inconsistent: usize,
 }
 
-const MIN_DIFFERENT_READS: usize = 100;
+const MIN_DIFFERENT_READS: usize = if cfg!(miri) {
+    10
+} else {
+    100
+};
 const THREAD_COUNT: usize = 10;
