@@ -136,7 +136,7 @@ doc: FORCE
 
 clean:
 	@( \
-		for crate in $(CRATES); do \
+		for crate in $(CRATES) tools; do \
 			cd $$crate; \
 			cargo clean; \
 			cd - >/dev/null; \

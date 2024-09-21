@@ -20,7 +20,7 @@ use structopt::StructOpt;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-const CONFIG_NAME: &str = ".deadlines.yml";
+const CONFIG_NAME: &str = ".manytask.yml";
 const REPORT_URL: &str = "https://os.manytask.org/api/report";
 const SUDO_PRESERVE_ENVS: &[&str] = &["PATH", "HOME", "CARGO_HOME", "RUSTUP_HOME"];
 const TESTER_TOKEN_ENV: &str = "TESTER_TOKEN";
@@ -28,7 +28,7 @@ const TESTER_TOKEN_ENV: &str = "TESTER_TOKEN";
 #[derive(Deserialize, Clone)]
 struct Task {
     task: String,
-    allow_list: Vec<String>,
+    allow_list: Option<Vec<String>>,
     check: Vec<String>,
 }
 
@@ -37,8 +37,13 @@ struct Group {
     tasks: Vec<Task>,
 }
 #[derive(Deserialize, Clone)]
+struct Deadlines {
+    schedule: Vec<Group>,
+}
+#[derive(Deserialize, Clone)]
 struct Config {
-    groups: Vec<Group>,
+    allow_list: Option<Vec<String>>,
+    deadlines: Deadlines,
 }
 
 impl Config {
@@ -46,7 +51,7 @@ impl Config {
         &self,
         task_name: &str,
     ) -> Option<&Task> {
-        for group in &self.groups {
+        for group in &self.deadlines.schedule {
             for task in &group.tasks {
                 if task.task == task_name {
                     return Some(task);
@@ -58,10 +63,11 @@ impl Config {
     }
 }
 
-fn read_config() -> Result<Config> {
-    let config = fs::read_to_string(CONFIG_NAME)?;
-    let groups = serde_yaml::from_str(config.as_str())?;
-    Ok(Config { groups })
+fn read_config(opts: &Opts) -> Result<Config> {
+    let config_path = format!("{}/{}", opts.original_repo.display(), CONFIG_NAME);
+    let config = fs::read_to_string(&config_path)
+        .with_context(|| format!("failed to read config from {config_path}"))?;
+    Ok(serde_yaml::from_str(config.as_str())?)
 }
 
 #[derive(StructOpt, Debug)]
@@ -82,6 +88,9 @@ struct Opts {
 
     #[structopt(long = "sandbox")]
     sandbox: bool,
+
+    #[structopt(long = "dry-run")]
+    dry_run: bool,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -156,13 +165,18 @@ fn submit_report(
 
 fn do_main(opts: Opts) -> Result<()> {
     let task_name = parse_task_name(&opts.ci_branch_name).context("failed to parse task name")?;
-    let config = read_config()?;
+    let config = read_config(&opts)?;
 
     if let Some(task) = config.find_task(task_name) {
         let orig_path = &opts.original_repo;
         let stud_path = &opts.student_repo;
 
-        for pattern in &task.allow_list {
+        for pattern in &task
+            .allow_list
+            .clone()
+            .or(config.allow_list.clone())
+            .with_context(|| format!("no allow_list for task {task_name}"))?
+        {
             let path = orig_path.join(pattern.as_str());
 
             for entry in glob(path.to_str().unwrap())? {
@@ -188,6 +202,10 @@ fn do_main(opts: Opts) -> Result<()> {
         }
 
         check_task(&opts, task).context("task check failed")?;
+        if opts.dry_run {
+            return Ok(());
+        }
+
         let tester_token = env::var(TESTER_TOKEN_ENV)
             .with_context(|| format!("envirnnment variable '{}' is not set", TESTER_TOKEN_ENV))?;
         submit_report(&opts.user_id, task_name, &tester_token).context("failed to submit report")
