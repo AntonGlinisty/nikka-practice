@@ -115,9 +115,12 @@ lab: $(RUST_PATH)/mdbook doc lab/src/*.dot lab/src/*.md
 		for i in *.dot; do dot -Tsvg $$i > $${i%dot}svg; done; \
 		cd - >/dev/null; \
 		cd lab; \
+		cp book-base.toml book.toml; \
+		mdbook build; \
+		cp book-linkcheck.toml book.toml; \
 		mdbook build; \
 		mv book/html html; \
-		rm --force --recursive book; \
+		rm --force --recursive book book.toml; \
 		mkdir book; \
 		mv html book/; \
 		mv book/html/* book/; \

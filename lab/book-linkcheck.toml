@@ -15,5 +15,4 @@ smart-punctuation = true
 
 [output.linkcheck]
 exclude = ['index\.html\?search=Page']
-follow-web-links = true
 traverse-parent-directories = true

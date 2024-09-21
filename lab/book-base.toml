@@ -1,0 +1,14 @@
+[book]
+authors = ["Sergey V. Galtsev"]
+language = "ru"
+license = "GNU AGPLv3"
+multilingual = true
+src = "src"
+title = "Лабораторные работы"
+
+[rust]
+edition = "2021"
+
+[output.html]
+mathjax-support = true
+smart-punctuation = true
