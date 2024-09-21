@@ -110,6 +110,7 @@ test-gdb: install
 
 lab: $(RUST_PATH)/mdbook doc lab/src/*.dot lab/src/*.md
 	@( \
+		sed -i 's@/home/[a-z-]*/tmp/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/\.@/.../.@g' lab/src/*.md; \
 		cd lab/src; \
 		for i in *.dot; do dot -Tsvg $$i > $${i%dot}svg; done; \
 		cd - >/dev/null; \
@@ -129,7 +130,7 @@ fs-dump:
 doc: FORCE
 	@( \
 		cargo doc --document-private-items; \
-		find target/doc/src -name \*.rs.html -delete; \
+		rm --force $$(grep --files-with-matches 'compose::begin_private' $$(find target/doc/src -name \*.rs.html) ); \
 		rm --force --recursive doc; \
 		mv target/doc .; \
 	)
