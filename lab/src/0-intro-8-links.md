@@ -1,11 +1,7 @@
 ## Ссылки
 
 
-### Этот курс
-
-- [Публичный репозиторий Nikka](https://gitlab.com/sergey-v-galtsev/nikka-public).
-- [Задачи в manytask](https://os.manytask.org/).
-- [Описание лаб](https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/index.html).
+{{#include ../../README.md}}
 
 
 ### Операционные системы
