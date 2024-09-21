@@ -113,11 +113,16 @@ pub(super) mod test_scaffolding {
         super::{
             Block,
             Page,
+            mmu::PageTable,
         },
         PageAllocator,
     };
 
     pub(in super::super) fn block(page_allocator: &PageAllocator) -> Block<Page> {
         page_allocator.block
+    }
+
+    pub fn find_unused_block(page_table_root: &PageTable) -> Option<Block<Page>> {
+        PageAllocator::find_unused_block(page_table_root)
     }
 }

@@ -174,6 +174,7 @@ pub mod test_scaffolding {
         frame_allocator::test_scaffolding::*,
         main_frame_allocator::test_scaffolding::*,
         mapping::test_scaffolding::*,
+        page_allocator::test_scaffolding::*,
         phys2virt::test_scaffolding::*,
     };
 

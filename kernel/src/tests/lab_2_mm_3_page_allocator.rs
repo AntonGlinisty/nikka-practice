@@ -1,6 +1,13 @@
-use ku::memory::size::{
-    Size,
-    TiB,
+use ku::memory::{
+    mmu::{
+        PAGE_TABLE_ENTRY_COUNT,
+        PageTableEntry,
+        PageTableFlags,
+    },
+    size::{
+        Size,
+        TiB,
+    },
 };
 
 use kernel::{
@@ -11,6 +18,7 @@ use kernel::{
         Page,
         Virt,
         test_scaffolding::{
+            find_unused_block,
             forbid_frame_leaks,
             page_allocator_block,
         },
@@ -31,6 +39,37 @@ fn sanity_check() {
 
     assert!(page_allocator_block.size() > 100 * TiB);
     assert!(page_allocator_block.size() < 128 * TiB);
+}
+
+#[test_case]
+fn some_used_entries() {
+    let _guard = forbid_frame_leaks();
+
+    let tests: [&[usize]; 6] = [&[], &[0], &[2], &[31], &[31, 254], &[0, 2, 31, 254]];
+
+    for used_entries in tests.iter() {
+        let mut page_table_root = [PageTableEntry::default(); PAGE_TABLE_ENTRY_COUNT];
+        for used_entry in used_entries.iter() {
+            for half in 0 ..= 1 {
+                page_table_root[used_entry + half * PAGE_TABLE_ENTRY_COUNT / 2]
+                    .set_flags(PageTableFlags::PRESENT);
+            }
+        }
+
+        let unused_block = find_unused_block(&page_table_root);
+
+        debug!(?used_entries, ?unused_block);
+
+        let unused_block = unused_block.unwrap();
+
+        assert!(unused_block.size() > 100 * TiB);
+
+        if used_entries.is_empty() {
+            assert_eq!(unused_block.size(), 128 * TiB);
+        } else {
+            assert!(unused_block.size() < 128 * TiB);
+        }
+    }
 }
 
 #[test_case]
