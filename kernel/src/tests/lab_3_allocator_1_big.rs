@@ -328,11 +328,11 @@ fn check_frames<T>(
     prev_frames: Vec<PageTableEntry>,
 ) -> Vec<PageTableEntry> {
     let block = Block::from_slice(vec.as_slice()).enclosing();
+    let mut frames = Vec::with_capacity(block.count());
     let mut address_space = BASE_ADDRESS_SPACE.lock();
-    let frames: Vec<_> = block
-        .into_iter()
-        .map(|page| translate(&mut address_space, page).unwrap())
-        .collect();
+    for page in block {
+        frames.push(translate(&mut address_space, page).unwrap())
+    }
     debug!(%block, ?frames);
 
     for pte in &frames {
