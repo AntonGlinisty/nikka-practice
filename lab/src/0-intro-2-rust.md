@@ -44,7 +44,11 @@ Rust имеет те же свойства, но в дополнение пре�
 После реализации аллокатора нам также будет доступна
 [`alloc`](https://doc.rust-lang.org/nightly/alloc/index.html)
 часть стандартной библиотеки.
-Так что, например [`alloc::vec::Vec`](https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html) будет нам доступен.
+Так что, например
+[`alloc::vec::Vec`](https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html)
+и
+[`alloc::collections::BTreeMap`](https://doc.rust-lang.org/nightly/alloc/collections/btree_map/struct.BTreeMap.html)
+будут нам доступны.
 
 Учтите, что многие объекты из
 [`alloc`](https://doc.rust-lang.org/nightly/alloc/index.html) и

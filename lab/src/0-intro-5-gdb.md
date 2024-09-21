@@ -96,24 +96,32 @@ export PATH="$HOME/.cargo/bin:$PATH"
 ~/nikka$ cd kernel
 ~/nikka/kernel$ cargo test --test 6-um-3-eager-fork
 ...
-23:02:48.579 0 E panicked at 'I did my best, it wasn't much', user/eager_fork/src/main.rs:47:5; backtrace = 0x10008593 0x10008479 0x100085B8 0x10008CD9; pid = 2:1
+22:16:28.397 0 E panicked at user/eager_fork/src/main.rs:47:5:
+I did my best, it wasn't much; backtrace = 0x10007BFD 0x10007AA7 0x10007C18 0x1000825D; pid = 2:1
 ```
 Его можно расшифровать с помощью `llvm-symbolizer`:
 ```console
-~/nikka/kernel$ echo '0x10008593 0x10008479 0x100085B8 0x10008CD9' | tr -d ',_' | tr 'v ' 'x\n' | llvm-symbolizer --exe ../target/kernel/user/eager_fork
-eager_fork::fork_tree::h6af1cf920637510d
-/.../nikka/user/eager_fork/src/main.rs:47:5
+/.../nikka/kernel$ echo '0x10007BFD 0x10007AA7 0x10007C18 0x1000825D' | tr -d ',_' | tr 'v ' 'x\n' | llvm-symbolizer --exe ../target/kernel/user/eager_fork
+??
+??:0:0
 
-eager_fork::main::h7eeb3104124da585
+eager_fork::main::hbb74cf0a448b5219
 /.../nikka/user/eager_fork/src/main.rs:40:1
 
 main
-/.../nikka/user/lib/src/lib.rs:88:10
+/.../nikka/user/lib/src/lib.rs:115:10
 
 _start
-/.../nikka/user/lib/src/lib.rs:60:19
+/.../nikka/user/lib/src/lib.rs:69:19
 ```
-Или же можно использовать утилиту `addr2line`.
+Или же можно использовать утилиту `addr2line`:
+```console
+/.../nikka/kernel$ echo '0x10007BFD 0x10007AA7 0x10007C18 0x1000825D' | tr -d ',_' | tr 'v ' 'x\n' | addr2line --exe=../target/kernel/user/eager_fork --pretty-print --demangle
+??:0
+/.../nikka/user/eager_fork/src/main.rs:40
+/.../nikka/user/lib/src/lib.rs:115
+/.../nikka/user/lib/src/lib.rs:69
+```
 
 Если вы хотите добавить журналирование backtrace, это можно сделать с помощью
 [`ku::backtrace::Backtrace`](../../doc/ku/backtrace/struct.Backtrace.html):
