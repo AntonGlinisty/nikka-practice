@@ -31,6 +31,7 @@ pub use frage::{
     Page,
 };
 pub use mmu::{
+    FULL_ACCESS,
     KERNEL_RW,
     USER_RW,
 };

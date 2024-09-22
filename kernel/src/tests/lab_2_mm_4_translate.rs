@@ -12,16 +12,12 @@ use kernel::{
         Frame,
         Virt,
         mmu::{
-            FULL_ACCESS,
-            KERNEL_RW,
             PAGE_OFFSET_BITS,
             PageTableFlags,
             USER,
-            USER_RW,
         },
         test_scaffolding::{
             forbid_frame_leaks,
-            get_pte,
             mapping,
             phys2virt,
             phys2virt_map,
@@ -86,50 +82,12 @@ fn t01_translate() {
 #[test_case]
 fn t02_map_intermediate() {
     let _guard = forbid_frame_leaks();
-
-    let mut frame_allocator = FRAME_ALLOCATOR.lock();
-    let start_free_frames = frame_allocator.count();
-
-    let mut address_space = BASE_ADDRESS_SPACE.lock();
-    let mapping = mapping(&mut address_space);
-
-    let virt = Virt::new(0xFFFF_FFFF_FFFF_FFFF).unwrap();
-    let mut path = mapping.path(virt);
-    path.map_intermediate(&mut frame_allocator, PageTableFlags::empty()).unwrap();
-    let pte = get_pte(&path).unwrap();
-
-    debug!(?pte);
-
-    let end_free_frames = frame_allocator.count();
-    assert!(start_free_frames > end_free_frames);
-
-    mm_helpers::check_intermediate_flags(mapping, virt, PageTableFlags::PRESENT);
-
-    for flags in [KERNEL_RW, USER_RW] {
-        mapping.path(virt).map_intermediate(&mut frame_allocator, flags).unwrap();
-        assert_eq!(frame_allocator.count(), end_free_frames);
-        mm_helpers::check_intermediate_flags(mapping, virt, flags);
-    }
+    mm_helpers::map_intermediate(Virt::new(0xFFFF_FFFF_FFFF_FFFF).unwrap());
 }
 
 #[test_case]
 fn t03_no_excessive_intermediate_flags() {
-    let _guard = forbid_frame_leaks();
-
-    let mut frame_allocator = FRAME_ALLOCATOR.lock();
-    let start_free_frames = frame_allocator.count();
-
-    let mut address_space = BASE_ADDRESS_SPACE.lock();
-    let mapping = mapping(&mut address_space);
-
-    let virt = Virt::new(0xFFFF_8FFF_FFFF_FFFF).unwrap();
-    let flags = PageTableFlags::all().difference(FULL_ACCESS);
-    mapping.path(virt).map_intermediate(&mut frame_allocator, flags).unwrap();
-
-    let end_free_frames = frame_allocator.count();
-    assert!(start_free_frames > end_free_frames);
-
-    mm_helpers::check_intermediate_flags(mapping, virt, PageTableFlags::PRESENT);
+    mm_helpers::test_no_excessive_intermediate_flags(Virt::new(0xFFFF_8FFF_FFFF_FFFF).unwrap());
 }
 
 #[test_case]

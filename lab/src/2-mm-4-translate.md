@@ -77,9 +77,13 @@ fn Mapping::path(
 
 в файле [`kernel/src/memory/mapping.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/mapping.rs).
 Он принимает на вход виртуальный адрес `virt`, который нужно транслировать.
-И возвращает путь в дереве отображения страниц
+И возвращает максимально длинный отображённый в память префикс пути в дереве отображения страниц
 [`Path`](../../doc/kernel/memory/mapping/struct.Path.html),
 соответствующий входному виртуальному адресу `virt`.
+Элементы
+[`Path::nodes`](../../doc/kernel/memory/mapping/struct.Path.html#structfield.nodes)
+заполняются виртуальными адресами соответствующих
+[`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html).
 
 [`Mapping::path()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.path)
 должен пройти от корневой L3 по физическим фреймам, которые возвращает метод
@@ -201,31 +205,42 @@ fn Mapping::map_intermediate(
 - Цикл, чтобы обойти уровни таблицы. Для уменьшения потенциальных возможностей совершить ошибку, можно было бы сделать таблицы страниц разных уровней не совместимыми в системе типов, [как здесь](https://os.phil-opp.com/page-tables/#some-clever-solution). Тогда компилятор не дал бы их перепутать в коде. Но такой подход, к сожалению, не даст написать обычный цикл по уровням, только рекурсию на обобщённых функциях или копипасту. Поэтому в Nikka выбор сделан в пользу одного и того же типа для узлов всех уровней.
 - Итерирование в обратном порядке: `for i in (5..10).rev()`, или же `for i in (5..=10).rev()` если `10` должно быть включительно.
 
-Теперь должен проходить тест
+Теперь должна проходить первая часть теста
 
 ```console
 $ (cd kernel; cargo test --test 2-mm-4-translate)
 ...
-2_mm_4_translate::translate-----------------------------------
-18:27:12 0 D pte = PageTableEntry(2613347)
-18:27:12 0 D read_ptr = 0xfffff0000027e420; write_ptr = 0x10000201420
-18:27:12 0 D write_value = 0; read_value = 0; variable = 0
-18:27:12 0 D write_value = 1; read_value = 1; variable = 1
-18:27:12 0 D write_value = 2; read_value = 2; variable = 2
-18:27:12 0 D write_value = 3; read_value = 3; variable = 3
-18:27:12 0 D write_value = 4; read_value = 4; variable = 4
-2_mm_4_translate::translate-------------------------- [passed]
+2_mm_4_translate::t1_translate------------------------------
+18:38:25 0 D pte = 638 @ 0p27_E000 0--DA---WPX(0x63)
+18:38:25 0 D read_ptr = 0xfffff0000027e330; write_ptr = 0x10000201330
+18:38:25 0 D write_value = 0; read_value = 0; variable = 0
+18:38:25 0 D write_value = 1; read_value = 1; variable = 1
+18:38:25 0 D write_value = 2; read_value = 2; variable = 2
+18:38:25 0 D write_value = 3; read_value = 3; variable = 3
+18:38:25 0 D write_value = 4; read_value = 4; variable = 4
+2_mm_4_translate::t1_translate--------------------- [passed]
 
-2_mm_4_translate::map_intermediate----------------------------
-18:27:12 0 D page = Page(34359738366 @ 0v7FFFFFFFE000)
-18:27:12 0 D pte = PageTableEntry(0)
-2_mm_4_translate::map_intermediate------------------- [passed]
-18:27:12 0 I exit qemu; exit_code = SUCCESS
+2_mm_4_translate::t2_map_intermediate-----------------------
+18:38:25 0 D pte = <non-present>
+2_mm_4_translate::t2_map_intermediate-------------- [passed]
+
+2_mm_4_translate::t3_no_excessive_intermediate_flags--------
+18:38:25 0 D pte = ()
+2_mm_4_translate::t3_no_excessive_intermediate_flags [passed]
+
+2_mm_4_translate::t4_huge_page------------------------------
+2_mm_4_translate::t4_huge_page--------------------- [passed]
+
+2_mm_4_translate::t5_no_page--------------------------------
+2_mm_4_translate::t5_no_page----------------------- [passed]
+
+2_mm_4_translate::t6_duplicate_drop-------------------------
+panicked at kernel/src/memory/mapping.rs:151:9:
+not implemented
+Backtrace:
+  ...
+--------------------------------------------------- [failed]
 ```
-
-А вот для проверки копирования и удаления виртуальных отображений
-нам понадобится основной аллокатор физических фреймов.
-Поэтому тесты для них придётся отложить.
 
 
 #### Создание полной копии виртуального отображения
@@ -269,10 +284,10 @@ fn Mapping::duplicate_subtree(
 И должен создать копию заданного `src_frame` узла.
 Возвращает он либо эту копию, либо возникшую в процессе работы ошибку.
 Этот метод копирует только страничное отображение, то есть все `PageTable` уровней L3--L0,
-но не пользовательские фреймы, на которые указывает это отображение.
+но не фреймы, на которые указывает это отображение.
 То есть, должно получиться отображение,
 которое переводит те же виртуальные адреса в те же физические адреса.
-Разделяя таким образом пользовательскую часть физической память,
+Разделяя таким образом отображённую часть физической памяти,
 но дублируя физическую память под само страничное отображение (`PageTable` уровней L3--L0).
 Если бы `PageTable` разделяли ту же физическую память, то уже после того как копирование отработало,
 модификации исходного `self` приводили бы к модификации `dst` и наоборот.
@@ -353,6 +368,56 @@ fn Mapping::drop_subtree(
 нужно спуститься в этот фрейм, рекурсивно вызвав `Mapping::drop_subtree()`.
 Пользовательские фреймы нужно освобождать так же как и фреймы, занятые под `PageTable`.
 А вот с записями у которых включён флаг `PageTableFlags::HUGE` делать ничего не нужно --- ни освобождать, ни спускаться в них рекурсивно.
+
+
+### Проверьте себя
+
+Запустите тест, теперь он должен проходить полностью:
+
+```console
+$ (cd kernel; cargo test --test 2-mm-4-translate)
+...
+2_mm_4_translate::t1_translate------------------------------
+18:42:21 0 D pte = 638 @ 0p27_E000 0--DA---WPX(0x63)
+18:42:21 0 D read_ptr = 0xfffff0000027e330; write_ptr = 0x10000201330
+18:42:21 0 D write_value = 0; read_value = 0; variable = 0
+18:42:21 0 D write_value = 1; read_value = 1; variable = 1
+18:42:21 0 D write_value = 2; read_value = 2; variable = 2
+18:42:21 0 D write_value = 3; read_value = 3; variable = 3
+18:42:21 0 D write_value = 4; read_value = 4; variable = 4
+2_mm_4_translate::t1_translate--------------------- [passed]
+
+2_mm_4_translate::t2_map_intermediate-----------------------
+18:42:21 0 D pte = <non-present>
+2_mm_4_translate::t2_map_intermediate-------------- [passed]
+
+2_mm_4_translate::t3_no_excessive_intermediate_flags--------
+18:42:21 0 D pte = ()
+2_mm_4_translate::t3_no_excessive_intermediate_flags [passed]
+
+2_mm_4_translate::t4_huge_page------------------------------
+2_mm_4_translate::t4_huge_page--------------------- [passed]
+
+2_mm_4_translate::t5_no_page--------------------------------
+2_mm_4_translate::t5_no_page----------------------- [passed]
+
+2_mm_4_translate::t6_duplicate_drop-------------------------
+18:42:22 0 I duplicate; address_space = "process" @ 0p7FD_6000
+18:42:22 0 I drop; address_space = "process" @ 0p7FD_6000
+18:42:22 0 I duplicate; address_space = "process" @ 0p7FC_3000
+18:42:22 0 I drop; address_space = "process" @ 0p7FC_3000
+2_mm_4_translate::t6_duplicate_drop---------------- [passed]
+
+2_mm_4_translate::t7_drop_subtree---------------------------
+18:42:23.067 0 D pte = <non-present>
+18:42:23.209 0 D pte = ()
+2_mm_4_translate::t7_drop_subtree------------------ [passed]
+
+2_mm_4_translate::t9_no_frame-------------------------------
+18:42:27.461 0 D real free frame count can be less than free frame count reported by boot frame allocator since it records reference and deallocation counts but does not do that actually; frame_count = 30942; real_frame_count = 30883
+2_mm_4_translate::t9_no_frame---------------------- [passed]
+18:42:27.477 0 I exit qemu; exit_code = ExitCode(SUCCESS)
+```
 
 
 ### Ориентировочный объём работ этой части лабораторки

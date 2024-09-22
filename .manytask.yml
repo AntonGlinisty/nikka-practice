@@ -239,6 +239,12 @@ deadlines:
           check:
             - cd kernel && cargo test --test 2-mm-5-map
 
+        - task: duplicate
+          score: 100
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-2-address-space-2-translate.html
+          check:
+            - cd kernel && cargo test --test 2-mm-6-duplicate-subtree
+
         - task: main-frame-allocator
           score: 150
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-8-main-frame-allocator.html
