@@ -22,6 +22,8 @@ init!(Subsystems::PHYS_MEMORY | Subsystems::VIRT_MEMORY);
 
 #[test_case]
 fn duplicate_and_drop() {
+    let _guard = forbid_frame_leaks();
+
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
@@ -56,8 +58,6 @@ fn duplicate_and_drop() {
         mapped_in_original: bool,
         virt: Virt,
     ) -> usize {
-        let _guard = forbid_frame_leaks();
-
         let mut address_space_copy = duplicate(address_space).unwrap();
         let mapping_copy = mapping(&mut address_space_copy);
         let original_mapping = mapping(address_space);

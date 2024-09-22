@@ -305,6 +305,8 @@ fn shared_memory() {
 
 #[test_case]
 fn garbage_after_map_intermediate() {
+    let _guard = forbid_frame_leaks();
+
     let mut frame_allocator = FRAME_ALLOCATOR.lock();
     let start_free_frames = frame_allocator.count();
 
@@ -406,17 +408,18 @@ fn all_frames_are_freed_on_drop() {
 
 #[test_case]
 fn garbage_in_duplicate() {
+    let _guard = forbid_frame_leaks();
+
     let virt = Virt::new(0x0000_3000_0000_0000).unwrap();
     let page = Page::containing(virt);
 
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+
     unsafe {
-        map_page(&mut BASE_ADDRESS_SPACE.lock(), page, KERNEL_RW).unwrap();
+        map_page(&mut address_space, page, KERNEL_RW).unwrap();
     }
 
-    let _guard = forbid_frame_leaks();
-
-    let mut address_space_copy = duplicate(&BASE_ADDRESS_SPACE.lock()).unwrap();
-    let mut address_space = BASE_ADDRESS_SPACE.lock();
+    let mut address_space_copy = duplicate(&address_space).unwrap();
 
     let ptes = [
         translate(&mut address_space, virt),
@@ -441,10 +444,16 @@ fn garbage_in_duplicate() {
     }
 
     drop(address_space_copy);
+
+    unsafe {
+        unmap_page(&mut address_space, page).unwrap();
+    }
 }
 
 #[test_case]
 fn duplicate_only_kernel() {
+    let _guard = forbid_frame_leaks();
+
     let page = BASE_ADDRESS_SPACE
         .lock()
         .allocate(Page::SIZE)

@@ -28,6 +28,7 @@ use kernel::{
             forbid_frame_leaks,
             map_page,
             mapping,
+            unmap_page,
         },
     },
 };
@@ -38,6 +39,8 @@ init!(Subsystems::PHYS_MEMORY | Subsystems::VIRT_MEMORY);
 
 #[test_case]
 fn map_slice() {
+    let _guard = forbid_frame_leaks();
+
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
@@ -70,6 +73,8 @@ fn map_slice() {
 
 #[test_case]
 fn map_readable() {
+    let _guard = forbid_frame_leaks();
+
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
     let page = Page::containing(Virt::new(0x0000_6000_0000_0000).unwrap());
@@ -79,11 +84,15 @@ fn map_readable() {
 
     unsafe {
         Block::from_element(page).unwrap().try_into_slice::<u8>().unwrap().iter().max();
+
+        unmap_page(&mut address_space, page).unwrap();
     }
 }
 
 #[test_case]
 fn map_writable() {
+    let _guard = forbid_frame_leaks();
+
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
     let page = Page::containing(Virt::new(0x0000_6000_1000_0000).unwrap());
@@ -93,11 +102,15 @@ fn map_writable() {
 
     unsafe {
         Block::from_element(page).unwrap().try_into_mut_slice::<u8>().unwrap().fill(12);
+
+        unmap_page(&mut address_space, page).unwrap();
     }
 }
 
 #[test_case]
 fn map_twice() {
+    let _guard = forbid_frame_leaks();
+
     let virt = Virt::new(0x0000_4000_0000_0000).unwrap();
     let page = Page::containing(virt);
 
@@ -114,8 +127,6 @@ fn map_twice() {
     let pte = translate(virt);
     assert_eq!(KERNEL_R, pte.flags());
 
-    let _guard = forbid_frame_leaks();
-
     unsafe { map_page(&mut BASE_ADDRESS_SPACE.lock(), page, KERNEL_RW).unwrap() };
     let new_frame = translate(page.address()).frame();
 
@@ -127,6 +138,10 @@ fn map_twice() {
 
     debug!(?old_frame, ?new_frame);
     assert_ne!(old_frame, new_frame);
+
+    unsafe {
+        unmap_page(&mut BASE_ADDRESS_SPACE.lock(), page).unwrap();
+    }
 
     fn translate(virt: Virt) -> PageTableEntry {
         let mut address_space = BASE_ADDRESS_SPACE.lock();

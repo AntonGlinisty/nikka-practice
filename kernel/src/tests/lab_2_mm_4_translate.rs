@@ -85,6 +85,8 @@ fn t01_translate() {
 
 #[test_case]
 fn t02_map_intermediate() {
+    let _guard = forbid_frame_leaks();
+
     let mut frame_allocator = FRAME_ALLOCATOR.lock();
     let start_free_frames = frame_allocator.count();
 
@@ -112,6 +114,8 @@ fn t02_map_intermediate() {
 
 #[test_case]
 fn t03_no_excessive_intermediate_flags() {
+    let _guard = forbid_frame_leaks();
+
     let mut frame_allocator = FRAME_ALLOCATOR.lock();
     let start_free_frames = frame_allocator.count();
 
@@ -130,6 +134,8 @@ fn t03_no_excessive_intermediate_flags() {
 
 #[test_case]
 fn t04_huge_page() {
+    let _guard = forbid_frame_leaks();
+
     let mut address_space = BASE_ADDRESS_SPACE.lock();
     let mapping = mapping(&mut address_space);
 
@@ -143,6 +149,8 @@ fn t04_huge_page() {
 
 #[test_case]
 fn t05_no_page() {
+    let _guard = forbid_frame_leaks();
+
     let mut address_space = BASE_ADDRESS_SPACE.lock();
     let mapping = mapping(&mut address_space);
 

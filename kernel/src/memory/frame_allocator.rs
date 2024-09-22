@@ -136,12 +136,20 @@ lazy_static! {
 pub(super) mod test_scaffolding {
     use crate::log::error;
 
-    use super::FRAME_ALLOCATOR;
+    use super::{
+        super::BASE_ADDRESS_SPACE,
+        FRAME_ALLOCATOR,
+    };
 
     #[must_use]
     pub fn forbid_frame_leaks() -> impl Drop {
+        BASE_ADDRESS_SPACE.lock().mapping().unmap_unused_intermediate();
+
         scopeguard::guard(FRAME_ALLOCATOR.lock().count(), |start_free_frames| {
+            BASE_ADDRESS_SPACE.lock().mapping().unmap_unused_intermediate();
+
             let end_free_frames = FRAME_ALLOCATOR.lock().count();
+
             let (message, affected_frames) = if start_free_frames <= end_free_frames {
                 (
                     "freed more memory than allocated",
@@ -150,6 +158,7 @@ pub(super) mod test_scaffolding {
             } else {
                 ("leaked some memory", start_free_frames - end_free_frames)
             };
+
             if affected_frames != 0 {
                 error!(start_free_frames, end_free_frames, affected_frames, message);
                 panic!("{}", message);

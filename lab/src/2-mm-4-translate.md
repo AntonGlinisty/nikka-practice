@@ -336,9 +336,15 @@ fn Mapping::drop_subtree(
     &mut self,
     node: Frame,
     level: u32,
-)
+    drop_used: bool,
+) -> bool
 ```
 в файле [`kernel/src/memory/mapping.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/mapping.rs).
+
+Он удаляет узлы дерева отображения.
+
+- Если `drop_used = true`, удаляются все узлы. Это как раз нужно в [`Mapping::drop()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.drop).
+- Если `drop_used = false`, удаляются только узлы, через которые не отображена ни одна страница. То есть, узлы в которых все элементы равны [`PageTableEntry::default()`](../../doc/ku/memory/mmu/struct.PageTableEntry.html#method.default), либо становятся таковыми после удаления ненужных узлов следующих уровней. Это нужно для очистки не использующейся памяти методом [`Mapping::unmap_unused_intermediate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.unmap_unused_intermediate) и корректной работы функции `forbid_frame_leaks()`, которая следит за отсутствием утечек физических фреймов в тестах. В этом режиме используется возвращаемое значение, которое говорит о том, был ли удалён текущий узел.
 
 Для освобождения фреймов используйте
 [`FrameAllocator::deallocate()`](../../doc/kernel/memory/frame_allocator/enum.FrameAllocator.html#method.deallocate),

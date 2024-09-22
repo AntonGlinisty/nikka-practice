@@ -152,14 +152,32 @@ impl Mapping {
     /// Шаг рекурсии при спуске по дереву отображения страниц.
     /// Выполняет основную работу по освобождению физических фреймов
     /// как отображённых [`Mapping`], так и занятых самим отображением.
-    /// См. [`Mapping::drop()`].
+    /// Возвращает `true`, если поддерево было полностью удалено.
+    ///
+    /// - `node` --- физический фрейм с текущим узлом;
+    /// - `level` --- уровень текущего узла в дереве отображения страниц;
+    /// - `drop_used` --- равен `true`, если нужно удалить все узлы дерева,
+    ///   и `false`, если нужно удалить только узлы, которые фактически не нужны.
+    ///   То есть те, через которые не ведут пути для отображённых страниц.
+    ///
+    /// Используется в [`Mapping::drop()`] и [`Mapping::unmap_unused_intermediate()`].
     fn drop_subtree(
         &mut self,
         node: Frame,
         level: u32,
-    ) {
+        drop_used: bool,
+    ) -> bool {
         // TODO: your code here.
-        unimplemented!();
+        false // TODO: remove before flight.
+    }
+
+    /// Освобождает не использующиеся промежуточные узлы отображения страниц.
+    pub fn unmap_unused_intermediate(&mut self) {
+        if self.is_valid() &&
+            self.drop_subtree(self.page_table_root(), PAGE_TABLE_ROOT_LEVEL, false)
+        {
+            self.page_table_root = Frame::default();
+        }
     }
 
     /// Выбирает в таблице страниц корневого уровня свободную запись,
@@ -260,7 +278,7 @@ impl Drop for Mapping {
         if self.is_valid() {
             assert_ne!(Self::current_page_table_root(), self.page_table_root());
 
-            self.drop_subtree(self.page_table_root(), PAGE_TABLE_ROOT_LEVEL);
+            self.drop_subtree(self.page_table_root(), PAGE_TABLE_ROOT_LEVEL, true);
         }
     }
 }
