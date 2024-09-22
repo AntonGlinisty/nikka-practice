@@ -15,18 +15,9 @@ let new_settings = ...
 Обработчик прерываний устроен так:
 
 ```rust
-extern "x86-interrupt" fn rtc(_context: TrapContext) {
-    rtc::interrupt();
-    generic_pic_interrupt(RTC);
-}
+{{#include ../../kernel/src/trap/pic.rs:rtc}}
 
-
-fn generic_pic_interrupt(number: usize) {
-    TRAP_STATS[number].inc();
-    unsafe {
-        pic8259::end_of_interrupt(number - PIC_BASE);
-    }
-}
+{{#include ../../kernel/src/trap/pic.rs:generic_pic_interrupt}}
 ```
 
 он увеличивает счётчик прерываний от RTC в структуре
@@ -35,11 +26,7 @@ fn generic_pic_interrupt(number: usize) {
 [`kernel::trap::Stats`](../../doc/kernel/trap/struct.Stats.html):
 
 ```rust
-pub struct Stats {
-    count: AtomicUsize,
-    mnemonic: &'static str,
-    name: &'static str,
-}
+{{#include ../../kernel/src/trap/stats.rs:stats}}
 ```
 
 И кроме счётчика прерываний
@@ -55,16 +42,7 @@ pub struct Stats {
 которая определена в файле [`kernel/src/time/rtc.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/time/rtc.rs):
 
 ```rust
-pub(crate) fn interrupt() {
-    if interrupt_status().contains(RegisterC::UPDATE_ENDED_INTERRUPT) {
-        if let Some(timestamp) = timestamp() {
-            let now = CorrelationPoint::now(timestamp * TICKS_PER_SECOND);
-            let rtc = SYSTEM_INFO.rtc();
-            rtc.init_base(now);
-            rtc.store_prev(now);
-        }
-    }
-}
+{{#include ../../kernel/src/time/rtc.rs:interrupt}}
 ```
 
 Вы уже знакомы почти со всеми кусочками, которые использует этот код.
@@ -90,8 +68,7 @@ pub(crate) fn interrupt() {
 на старте записывает в него значение даты и времени из RTC:
 
 ```rust
-let rtc = SYSTEM_INFO.rtc();
-rtc.store_prev(CorrelationPoint::invalid(timestamp() * TICKS_PER_SECOND));
+{{#include ../../kernel/src/time/rtc.rs:first_correlation_point}}
 ```
 
 При этом

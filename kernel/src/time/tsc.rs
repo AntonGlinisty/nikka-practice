@@ -213,6 +213,7 @@ impl TryFrom<TscDuration> for Duration {
     }
 }
 
+// ANCHOR: tsc
 /// Возвращает
 /// [номер текущего такта процессора](https://en.wikipedia.org/wiki/Time_Stamp_Counter)
 /// в некоторый момент времени своего исполнения.
@@ -231,6 +232,7 @@ pub fn tsc() -> i64 {
             .expect("i64 overflow when storing TSC is expected only after tens of years of uptime")
     }
 }
+// ANCHOR_END: tsc
 
 /// Возвращает частоту процессора, вычисленную:
 ///   - С помощью [`Rtc`], если уже прошло два тика [`Rtc`].

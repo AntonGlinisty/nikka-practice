@@ -42,6 +42,7 @@ use crate::{
     },
 };
 
+// ANCHOR: interrupt
 /// Обработчик прерываний
 /// [часов реального времени (Real-time clock, RTC)](https://en.wikipedia.org/wiki/Real-time_clock).
 pub(crate) fn interrupt() {
@@ -64,6 +65,7 @@ pub(crate) fn interrupt() {
         }
     }
 }
+// ANCHOR_END: interrupt
 
 /// Инициализация микросхемы
 /// [часов реального времени (Real-time clock, RTC)](https://en.wikipedia.org/wiki/Real-time_clock).
@@ -79,6 +81,7 @@ pub(super) fn init() {
     let mut new_settings = RegisterB::empty();
     let mut acknowledged_settings = RegisterB::empty();
 
+    // ANCHOR: init_configure
     interrupts::without_interrupts(|| {
         let address = DISABLE_NMI | REGISTER_B;
         defer! {
@@ -100,13 +103,17 @@ pub(super) fn init() {
             RegisterB::from_bits(rtc_read(address)).expect(UNDEFINED_FLAG_FOUND);
         SETTINGS.store(acknowledged_settings.bits(), Ordering::Relaxed);
     });
+    // ANCHOR_END: init_configure
 
+    // ANCHOR: init_read
     if acknowledged_settings == new_settings {
+        // ANCHOR: first_correlation_point
         let rtc = SYSTEM_INFO.rtc();
         let timestamp = timestamp();
         rtc.store_prev(CorrelationPoint::invalid(
             timestamp.unwrap_or(0) * TICKS_PER_SECOND,
         ));
+        // ANCHOR_END: first_correlation_point
 
         if !is_time_valid() {
             error!("RTC reports low battery, its time and date values are incorrect");
@@ -125,6 +132,7 @@ pub(super) fn init() {
             "RTC did not acknowledge new settings",
         );
     }
+    // ANCHOR_END: init_read
 }
 
 /// Значение ошибки предсказания времени для последнего прерывания RTC.
@@ -135,6 +143,7 @@ pub fn error() -> Duration {
     Duration::nanoseconds(ERROR.load(Ordering::Relaxed))
 }
 
+// ANCHOR: enable_next_interrupt
 /// Говорит микросхеме RTC, что процессор обработал
 /// [прерывание](https://en.wikipedia.org/wiki/Interrupt)
 /// от неё.
@@ -145,6 +154,7 @@ pub fn error() -> Duration {
 pub(crate) fn enable_next_interrupt() {
     interrupt_status();
 }
+// ANCHOR_END: enable_next_interrupt
 
 bitflags! {
     /// Регистр статуса RTC.
@@ -223,6 +233,7 @@ bitflags! {
     }
 }
 
+// ANCHOR: date
 /// Структура для хранения даты
 /// (по [григорианскому календарю](https://en.wikipedia.org/wiki/Gregorian_calendar))
 /// и времени, прочитанных из микросхемы
@@ -259,6 +270,7 @@ struct Date {
     /// Секунда.
     second: u8,
 }
+// ANCHOR_END: date
 
 impl Date {
     /// [Пытается несколько раз прочитать данные из микросхемы RTC](https://wiki.osdev.org/CMOS#RTC_Update_In_Progress)
@@ -310,6 +322,7 @@ const ADDRESS_PORT: u16 = 0x0070;
 /// Номер порта для обмена данными с памятью микросхемы RTC.
 const DATA_PORT: u16 = 0x0071;
 
+// ANCHOR: rtc_read
 /// Читает значение, которое находится в байте номер `address` внутренней памяти микросхемы RTC.
 ///
 /// Адрес `address` не имеет отношения к основной памяти компьютера,
@@ -320,7 +333,9 @@ fn rtc_read(address: u8) -> u8 {
         io::inb(DATA_PORT)
     }
 }
+// ANCHOR_END: rtc_read
 
+// ANCHOR: rtc_write
 /// Записывает значение `data`, в байт номер `address` внутренней памяти микросхемы RTC.
 ///
 /// Адрес `address` не имеет отношения к основной памяти компьютера,
@@ -334,6 +349,7 @@ fn rtc_write(
         io::outb(DATA_PORT, data);
     }
 }
+// ANCHOR_END: rtc_write
 
 /// Читает регистр статуса прерывания RTC.
 fn interrupt_status() -> RegisterC {
@@ -348,6 +364,7 @@ fn is_time_valid() -> bool {
     register_d.contains(RegisterD::VALID_RAM_AND_TIME)
 }
 
+// ANCHOR: timestamp
 /// Переводит текущее время RTC в
 /// [секунды с момента начала Unix--эпохи](https://en.wikipedia.org/wiki/Unix_time).
 /// Предполагает, что микросхема RTC хранит
@@ -357,6 +374,7 @@ fn timestamp() -> Option<i64> {
         .and_then(|date| date.try_into().ok())
         .map(|date| DateTime::<Utc>::from_naive_utc_and_offset(date, Utc).timestamp())
 }
+// ANCHOR_END: timestamp
 
 /// Переводит значение `x` из формата RTC `format` в двоичный.
 ///

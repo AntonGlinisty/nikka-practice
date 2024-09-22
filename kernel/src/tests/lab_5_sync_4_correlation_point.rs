@@ -153,6 +153,7 @@ fn correlation_point_writer() {
     }
 }
 
+// ANCHOR: down_the_rabbit_hole
 #[allow(dead_code)]
 // #[test_case] // Uncomment it if you wish.
 fn down_the_rabbit_hole() {
@@ -206,6 +207,7 @@ fn down_the_rabbit_hole() {
         RIP.store(rip, Ordering::Relaxed);
     }
 }
+// ANCHOR_END: down_the_rabbit_hole
 
 fn sample(ticks: &AtomicUsize) -> bool {
     let prev_rtc_ticks = ticks.load(Ordering::Relaxed);

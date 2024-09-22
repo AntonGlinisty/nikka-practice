@@ -54,6 +54,7 @@ const PIC_BASE: usize = Trap::Pit as usize;
 /// Количество исключений и прерываний.
 const COUNT: usize = Trap::Spurious as usize + 1;
 
+// ANCHOR: init
 /// Инициализирует таблицу обработчиков прерываний [`struct@IDT`].
 pub(super) fn init() {
     unsafe {
@@ -68,6 +69,7 @@ pub(super) fn init() {
 
     info!("traps init");
 }
+// ANCHOR_END: init
 
 #[doc(hidden)]
 pub mod test_scaffolding {

@@ -515,47 +515,9 @@ running 2 tests
 >> Теперь вы можете исследовать код, запуская его в пошаговом режиме.
 >> Например:
 >>
->> ```rust
->> #[test_case]
->> fn down_the_rabbit_hole() {
->>     use ku::memory::{Block, Virt};
->>
->>     trap::test_scaffolding::set_debug_handler(collect_statistics);
->>
->>     switch_trap_flag();
->>     debug!("how many instructions does it take to log something?");
->>     switch_trap_flag();
->>
->>     let max_rsp = MAX_RSP.load(Ordering::Relaxed);
->>     let min_rsp = cmp::min(max_rsp, MIN_RSP.load(Ordering::Relaxed));
->>     let rip = RIP.load(Ordering::Relaxed);
->>
->>     debug!(
->>         instruction_count = INSTRUCTION_COUNT.load(Ordering::Relaxed),
->>         used_stack_space = ?Block::<Virt>::from_index(min_rsp, max_rsp),
->>         last_traced_instruction_address = ?Virt::new(rip),
->>     );
->>
->>     static INSTRUCTION_COUNT: AtomicUsize = AtomicUsize::new(0);
->>     static MAX_RSP: AtomicUsize = AtomicUsize::new(usize::MIN);
->>     static MIN_RSP: AtomicUsize = AtomicUsize::new(usize::MAX);
->>     static RIP: AtomicUsize = AtomicUsize::new(0);
->>
->>     extern "x86-interrupt" fn collect_statistics(context: TrapContext) {
->>         let context = context.get().mini_context();
->>         let rip = context.rip().into_usize();
->>         let rsp = context.rsp().into_usize();
->>
->>         let max_rsp = cmp::max(rsp, MAX_RSP.load(Ordering::Relaxed));
->>         let min_rsp = cmp::min(rsp, MIN_RSP.load(Ordering::Relaxed));
->>
->>         INSTRUCTION_COUNT.fetch_add(1, Ordering::Relaxed);
->>         MAX_RSP.store(max_rsp, Ordering::Relaxed);
->>         MIN_RSP.store(min_rsp, Ordering::Relaxed);
->>         RIP.store(rip, Ordering::Relaxed);
->>     }
->> }
->> ```
+```rust
+{{#include ../../kernel/tests/5-sync-4-correlation-point.rs:down_the_rabbit_hole}}
+```
 >>
 >> В отладочной сборке на запись в журнал одной строки ушло 144218 инструкций процессора,
 >> последняя из них располагалась по адресу `0v28_838E`.

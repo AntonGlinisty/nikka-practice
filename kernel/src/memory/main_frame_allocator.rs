@@ -64,6 +64,7 @@ enum FrameInfo {
 /// И передаёт под его управление все фреймы,
 /// которые остались свободны в [`BootFrameAllocator`].
 pub(super) fn init(memory_map: &MemoryMap) -> MainFrameAllocator {
+    // ANCHOR: log_tsc
     let timer = time::timer();
     let frame_allocator = MainFrameAllocator::new(memory_map);
     info!(
@@ -72,6 +73,7 @@ pub(super) fn init(memory_map: &MemoryMap) -> MainFrameAllocator {
         duration = %timer.elapsed(),
         "init",
     );
+    // ANCHOR_END: log_tsc
     frame_allocator
 }
 

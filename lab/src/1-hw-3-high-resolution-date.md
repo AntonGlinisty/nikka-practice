@@ -77,16 +77,9 @@ fn CorrelationInterval::datetime<const PARTS_PER_SECOND: i64>(
 используя этот метод:
 
 ```rust
-pub fn datetime(tsc: Tsc) -> DateTime<Utc> {
-    Rtc::datetime::<NSECS_PER_SEC>(tsc)
-}
+{{#include ../../ku/src/time/mod.rs:datetime}}
 
-pub fn datetime_ms(tsc: Tsc) -> DateTime<Utc> {
-    Rtc::datetime::<MSECS_PER_SEC>(tsc)
-}
-
-const MSECS_PER_SEC: i64 = 1_000;
-const NSECS_PER_SEC: i64 = 1_000_000_000;
+{{#include ../../ku/src/time/mod.rs:scale}}
 ```
 
 Метод

@@ -10,6 +10,7 @@ use ku::process::Trap;
 
 use super::COUNT;
 
+// ANCHOR: stats
 /// Информация о прерывании с некоторым номером.
 pub struct Stats {
     /// Сколько раз сработало это исключение или прерывание.
@@ -21,6 +22,7 @@ pub struct Stats {
     /// Имя исключения или прерывания.
     name: &'static str,
 }
+// ANCHOR_END: stats
 
 impl Stats {
     /// Создаёт информацию об исключении или прерывании

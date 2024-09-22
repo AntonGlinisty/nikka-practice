@@ -56,6 +56,7 @@ use self::{
     correlation_point::AtomicCorrelationPoint,
 };
 
+// ANCHOR: datetime
 /// Переводит значение счётчика тактов процессора в системное время с разрешением в наносекунды.
 pub fn datetime(tsc: Tsc) -> DateTime<Utc> {
     Rtc::datetime::<NSECS_PER_SEC>(tsc)
@@ -65,6 +66,7 @@ pub fn datetime(tsc: Tsc) -> DateTime<Utc> {
 pub fn datetime_ms(tsc: Tsc) -> DateTime<Utc> {
     Rtc::datetime::<MSECS_PER_SEC>(tsc)
 }
+// ANCHOR_END: datetime
 
 /// Сообщает системное время в текущий момент с разрешением в наносекунды.
 pub fn now() -> DateTime<Utc> {
@@ -100,11 +102,13 @@ pub fn delay(duration: Duration) {
     }
 }
 
+// ANCHOR: scale
 /// Количество миллисекунд в одной секунде.
 const MSECS_PER_SEC: i64 = 1_000;
 
 /// Количество наносекунд в одной секунде.
 const NSECS_PER_SEC: i64 = 1_000_000_000;
+// ANCHOR_END: scale
 
 #[doc(hidden)]
 pub mod test_scaffolding {

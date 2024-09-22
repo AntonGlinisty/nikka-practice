@@ -65,12 +65,14 @@ pub(super) extern "x86-interrupt" fn lpt1(_context: TrapContext) {
     generic_pic_interrupt(Trap::Lpt1);
 }
 
+// ANCHOR: rtc
 /// Обработчик прерываний
 /// [часов реального времени (Real-time clock, RTC)](https://en.wikipedia.org/wiki/Real-time_clock).
 pub(super) extern "x86-interrupt" fn rtc(_context: TrapContext) {
     rtc::interrupt();
     generic_pic_interrupt(Trap::Rtc);
 }
+// ANCHOR_END: rtc
 
 /// Обработчик прерывания входа `0x9` каскадной пары
 /// [PIC 8259](https://en.wikipedia.org/wiki/Intel_8259).
@@ -112,6 +114,7 @@ pub(super) extern "x86-interrupt" fn ata1(_context: TrapContext) {
     generic_pic_interrupt(Trap::Ata1);
 }
 
+// ANCHOR: generic_pic_interrupt
 /// Выполняет общую часть обработки для всех прерываний
 /// [PIC 8259](https://en.wikipedia.org/wiki/Intel_8259).
 fn generic_pic_interrupt(trap: Trap) {
@@ -120,3 +123,4 @@ fn generic_pic_interrupt(trap: Trap) {
         pic8259::end_of_interrupt(usize::from(trap) - PIC_BASE);
     }
 }
+// ANCHOR_END: generic_pic_interrupt

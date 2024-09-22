@@ -29,15 +29,9 @@
 > [`i64`](https://doc.rust-lang.org/nightly/core/primitive.i64.html),
 > что удобно, например, для взятия разности при вычислении интервала времени.
 >
-> ```rust
-> #[inline(always)]
-> pub fn tsc() -> i64 {
->     unsafe {
->         x86_64::_mm_lfence();
->         x86_64::_rdtsc().try_into().expect("i64 overflow when storing TSC is expected only after tens of years of uptime")
->     }
-> }
-> ```
+```rust
+{{#include ../../ku/src/time/tsc.rs:tsc}}
+```
 >
 > В статье
 > [How to Benchmark Code Execution Times on Intel® IA-32 and IA-64 Instruction Set Architectures](https://www.intel.com/content/dam/www/public/us/en/documents/white-papers/ia-32-ia-64-benchmark-code-execution-paper.pdf)
@@ -76,14 +70,7 @@
 может быть напечатана. Например,
 
 ```rust
-let timer = time::timer();
-let frame_allocator = MainFrameAllocator::new(memory_map);
-info!(
-    frame_allocator = "main",
-    free_frame_count = frame_allocator.count(),
-    duration = %timer.elapsed(),
-    "init",
-);
+{{#include ../../kernel/src/memory/main_frame_allocator.rs:log_tsc}}
 ```
 
 пишет в журнал `duration = 322.017 Mtsc`:

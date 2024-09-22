@@ -78,24 +78,14 @@
 [`kernel::time::rtc::rtc_read()`](../../doc/kernel/time/rtc/fn.rtc_read.html):
 
 ```rust
-fn rtc_read(address: u8) -> u8 {
-    unsafe {
-        io::outb(ADDRESS_PORT, address);
-        io::inb(DATA_PORT)
-    }
-}
+{{#include ../../kernel/src/time/rtc.rs:rtc_read}}
 ```
 
 И
 [`kernel::time::rtc::rtc_write()`](../../doc/kernel/time/rtc/fn.rtc_read.html):
 
 ```rust
-fn rtc_write(address: u8, data: u8) {
-    unsafe {
-        io::outb(ADDRESS_PORT, address);
-        io::outb(DATA_PORT, data);
-    }
-}
+{{#include ../../kernel/src/time/rtc.rs:rtc_write}}
 ```
 
 Для чтения и записи собственно в порты ввода--вывода они используют однобайтовые инструкции `INB` и `OUTB`,
@@ -153,27 +143,7 @@ fn rtc_write(address: u8, data: u8) {
 выполняет инициализацию микросхемы:
 
 ```rust
-interrupts::without_interrupts(|| {
-    let address = DISABLE_NMI | REGISTER_B;
-    defer! {
-        rtc_read(!DISABLE_NMI);
-    }
-
-    /// Такого не должно происходить, все 8 бит в [`RegisterB`] определены.
-    const UNDEFINED_FLAG_FOUND: &str = "undefined flag found in RTC register B";
-
-    old_settings = RegisterB::from_bits(rtc_read(address)).expect(UNDEFINED_FLAG_FOUND);
-    if old_settings.contains(RegisterB::DAYLIGHT_SAVING) {
-        error!("RTC time is not in UTC (DST is on), expect the system time to be incorrect");
-    }
-
-    new_settings = old_settings | RegisterB::UPDATE_ENDED_INTERRUPT;
-    rtc_write(address, new_settings.bits());
-
-    acknowledged_settings =
-        RegisterB::from_bits(rtc_read(address)).expect(UNDEFINED_FLAG_FOUND);
-    SETTINGS.store(acknowledged_settings.bits(), Ordering::Relaxed);
-});
+{{#include ../../kernel/src/time/rtc.rs:init_configure}}
 ```
 
 То есть, она
@@ -190,25 +160,7 @@ interrupts::without_interrupts(|| {
 - Читает текущие показания времени из микросхемы.
 
 ```rust
-if acknowledged_settings == new_settings {
-    let rtc = SYSTEM_INFO.rtc();
-    let timestamp = timestamp();
-    rtc.store_prev(CorrelationPoint::invalid(
-        timestamp.unwrap_or(0) * TICKS_PER_SECOND,
-    ));
-
-    if !is_time_valid() {
-        error!("RTC reports low battery, its time and date values are incorrect");
-    } else if timestamp.is_none() {
-        error!("failed to read time and date from RTC consistently");
-    } else if timestamp == Some(0) {
-        error!("wrong time and date from RTC");
-    } else {
-        info!(?acknowledged_settings, "RTC init");
-    }
-} else {
-    // ...
-}
+{{#include ../../kernel/src/time/rtc.rs:init_read}}
 ```
 
 Количество тиков в секунду ---
@@ -226,11 +178,7 @@ if acknowledged_settings == new_settings {
 [`kernel::time::rtc::timestamp()`](../../doc/kernel/time/rtc/fn.timestamp.html):
 
 ```rust
-fn timestamp() -> Option<i64> {
-    Date::read()
-        .and_then(|date| date.try_into().ok())
-        .map(|date| DateTime::<Utc>::from_naive_utc_and_offset(date, Utc).timestamp())
-}
+{{#include ../../kernel/src/time/rtc.rs:timestamp}}
 ```
 
 В ней используется внешняя библиотека
@@ -262,30 +210,16 @@ fn timestamp() -> Option<i64> {
 > [`interrupt_status()`](../../doc/kernel/time/rtc/fn.interrupt_status.html), ---
 > это одно и то же действие:
 >
-> ```rust
-> fn enable_next_interrupt() {
->     interrupt_status();
-> }
-> ```
+```rust
+{{#include ../../kernel/src/time/rtc.rs:enable_next_interrupt}}
+```
 >
 > Вызывается эта функция после инициализации и разрешения прерываний в файле
 > [`kernel/src/trap/mod.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/trap/mod.rs):
 >
-> ```rust
-> pub(super) fn init() {
->     unsafe {
->         pic8259::init(PIC_FIRST_INTERRUPT);
->     }
->
->     IDT.load();
->
->     interrupts::enable();
->
->     rtc::enable_next_interrupt();
->
->     info!("traps init");
-> }
-> ```
+```rust
+{{#include ../../kernel/src/trap/mod.rs:init}}
+```
 
 
 ### Задача 1 --- чтение реального времени из микросхемы RTC
@@ -303,24 +237,7 @@ fn Date::read_inconsistent() -> Date
 [структуры](../../doc/kernel/time/rtc/struct.Date.html)
 
 ```rust
-#[derive(Clone, Copy, Default, Display, Eq, PartialEq)]
-#[display(
-    fmt = "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
-    year,
-    month,
-    day,
-    hour,
-    minute,
-    second
-)]
-struct Date {
-    year: u16,
-    month: u8,
-    day: u8,
-    hour: u8,
-    minute: u8,
-    second: u8,
-}
+{{#include ../../kernel/src/time/rtc.rs:date}}
 ```
 
 Метод называется `...inconsistent()`, потому что может вернуть некорректное значение
