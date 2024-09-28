@@ -25,6 +25,11 @@ pub mod memory;
 pub mod syscall;
 
 use core::{
+    fmt::{
+        Error,
+        Result,
+        Write,
+    },
     mem,
     panic::PanicInfo,
     ptr,
@@ -36,6 +41,7 @@ use core::{
 
 use static_assertions::const_assert;
 use tracing_core::{
+    Level,
     dispatch,
     dispatch::Dispatch,
 };
@@ -85,6 +91,18 @@ pub fn set_panic_handler(panic_handler: fn(&PanicInfo)) {
 fn panic(panic_info: &PanicInfo) -> ! {
     sync::start_panicking();
 
+    if LOG_COLLECTOR.is_buzy() {
+        let mut flight_recorder = FlightRecorder;
+        let _ = flight_recorder.write_fmt(format_args!("{}", panic_info.message()));
+        if let Some(location) = panic_info.location() {
+            let _ = syscall::log_value(
+                Level::ERROR,
+                location.file(),
+                location.line().try_into().expect("u32 should fit into usize"),
+            );
+        }
+    }
+
     if let Ok(backtrace) = Backtrace::with_stack(ku::process_info().stack()) {
         error!(message = %panic_info, %backtrace);
     } else {
@@ -101,6 +119,18 @@ fn panic(panic_info: &PanicInfo) -> ! {
     }
 
     syscall::exit(ExitCode::Panic.into());
+}
+
+/// Сборщик записей журнала для паник, потенциально возникших внутри стандартного [`LOG_COLLECTOR`].
+struct FlightRecorder;
+
+impl Write for FlightRecorder {
+    fn write_str(
+        &mut self,
+        text: &str,
+    ) -> Result {
+        syscall::log_value(Level::ERROR, text, 0).map_err(|_| Error)
+    }
 }
 
 /// Задаёт функцию `main()` пользовательского процесса.
