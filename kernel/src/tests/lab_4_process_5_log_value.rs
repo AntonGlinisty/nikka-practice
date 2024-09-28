@@ -2,7 +2,6 @@ use ku::{
     error::Error::{
         InvalidArgument,
         NoPage,
-        Null,
         Overflow,
         PermissionDenied,
     },
@@ -21,7 +20,10 @@ use ku::{
 
 use kernel::{
     Subsystems,
-    memory::test_scaffolding::switch_to,
+    memory::test_scaffolding::{
+        switch_to,
+        user_pages,
+    },
     process::test_scaffolding::{
         log_value,
         set_pid,
@@ -74,18 +76,27 @@ fn log_value_implementation() {
     );
     assert!(result.is_ok(), "expected Ok(_), got {result:?}");
 
-    assert!(log_value(process.lock(), info, 1, 0, 0).is_ok());
+    assert_eq!(
+        log_value(process.lock(), info, 0, 0, 0),
+        Err(PermissionDenied),
+    );
+    assert_eq!(
+        log_value(process.lock(), info, 1, 0, 0),
+        Err(PermissionDenied),
+    );
+    assert_eq!(
+        log_value(process.lock(), info, 1, 1, 0),
+        Err(PermissionDenied),
+    );
 
-    assert_eq!(log_value(process.lock(), info, 1, 1, 0), Err(NoPage));
-
-    let result = log_value(process.lock(), info, 0, 0, 0);
+    let result = log_value(process.lock(), info, user_pages().start(), 1, 0);
     assert!(
         result.is_err(),
-        "expected Err(InvalidArgument) or Err(Null), got Ok",
+        "expected Err(PermissionDenied) or Err(NoPage), got Ok",
     );
     assert!(
-        result == Err(InvalidArgument) || result == Err(Null),
-        "expected Err(InvalidArgument) or Err(Null), got {result:?}",
+        result == Err(PermissionDenied) || result == Err(NoPage),
+        "expected Err(PermissionDenied) or Err(NoPage), got {result:?}",
     );
 
     let invalid_utf8 = b"\xFF";

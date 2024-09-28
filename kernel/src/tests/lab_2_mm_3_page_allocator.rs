@@ -15,9 +15,12 @@ use kernel::{
     log::debug,
     memory::{
         BASE_ADDRESS_SPACE,
+        KERNEL_R,
         Page,
+        USER_R,
         Virt,
         test_scaffolding::{
+            LOWER_HALF_ROOT_LEVEL_ENTRY_COUNT,
             find_unused_block,
             forbid_frame_leaks,
             page_allocator_block,
@@ -56,7 +59,8 @@ fn some_used_entries() {
             }
         }
 
-        let unused_block = find_unused_block(&page_table_root);
+        let unused_block =
+            find_unused_block(&page_table_root, 0 .. LOWER_HALF_ROOT_LEVEL_ENTRY_COUNT);
 
         debug!(?used_entries, ?unused_block);
 
@@ -80,7 +84,7 @@ fn allocate_block() {
 
     for size in (1 ..= 3 * Page::SIZE).filter(|x| (x + 3) % Page::SIZE < 6) {
         let free_page_count = page_allocator_block(&address_space).count();
-        let allocated = address_space.allocate(size).unwrap();
+        let allocated = address_space.allocate(size, USER_R).unwrap();
         let allocated_page_count = free_page_count - page_allocator_block(&address_space).count();
 
         debug!(requested = %Size::new::<Virt>(size), %allocated, allocated_page_count);
@@ -103,7 +107,7 @@ fn allocate_page() {
 
     let page = BASE_ADDRESS_SPACE
         .lock()
-        .allocate(Page::SIZE)
+        .allocate(Page::SIZE, KERNEL_R)
         .unwrap()
         .into_iter()
         .next()
@@ -121,8 +125,18 @@ fn allocate_two_pages() {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
     let pages = [
-        address_space.allocate(Page::SIZE).unwrap().into_iter().next().unwrap(),
-        address_space.allocate(Page::SIZE).unwrap().into_iter().next().unwrap(),
+        address_space
+            .allocate(Page::SIZE, KERNEL_R)
+            .unwrap()
+            .into_iter()
+            .next()
+            .unwrap(),
+        address_space
+            .allocate(Page::SIZE, KERNEL_R)
+            .unwrap()
+            .into_iter()
+            .next()
+            .unwrap(),
     ];
 
     debug!(?pages);

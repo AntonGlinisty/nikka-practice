@@ -42,6 +42,7 @@ mod stack;
 mod tss;
 
 use bootloader::BootInfo;
+use lazy_static::lazy_static;
 use x86_64::registers::model_specific::{
     Efer,
     EferFlags,
@@ -69,6 +70,7 @@ use crate::{
 use boot_frame_allocator::BootFrameAllocator;
 use frame_allocator::FrameAllocator;
 use mapping::Mapping;
+use range::PAGES_PER_ROOT_LEVEL_ENTRY;
 
 pub use addr::{
     Phys,
@@ -102,6 +104,7 @@ pub(crate) use gdt::{
     RealModePseudoDescriptor,
     SmallGdt,
 };
+pub(crate) use range::is_user_block;
 pub(crate) use stack::{
     EXCEPTION_STACKS,
     Stack,
@@ -113,7 +116,11 @@ pub(crate) use tss::{
 
 // Used in docs.
 #[allow(unused)]
-use self::{
+use {
+    crate::{
+        self as kernel,
+        error::Error,
+    },
     main_frame_allocator::MainFrameAllocator,
     page_allocator::PageAllocator,
     stack::ExceptionStacks,
@@ -140,7 +147,13 @@ pub(super) fn init(
 
     if subsystems.contains(Subsystems::VIRT_MEMORY) {
         let page_table_root = Mapping::current_page_table_root();
-        *BASE_ADDRESS_SPACE.lock() = AddressSpace::new(page_table_root, phys2virt);
+        let mut address_space = AddressSpace::new(page_table_root, phys2virt);
+
+        let page_table_root = unsafe { address_space.mapping().page_table_ref(page_table_root) };
+        *KERNEL_PAGE_ALLOCATOR.lock() =
+            PageAllocator::new(page_table_root, range::kernel_root_level_entries());
+
+        *BASE_ADDRESS_SPACE.lock() = address_space;
     }
 
     if subsystems.contains(Subsystems::MAIN_FRAME_ALLOCATOR) {
@@ -161,6 +174,12 @@ pub(super) fn init(
     info!(duration = %timer.elapsed(), "memory init");
 }
 
+lazy_static! {
+    /// Аллокатор виртуальных страниц для ядра.
+    static ref KERNEL_PAGE_ALLOCATOR: Spinlock<PageAllocator> =
+        Spinlock::new(PageAllocator::default());
+}
+
 #[doc(hidden)]
 pub mod test_scaffolding {
     use super::{
@@ -176,6 +195,7 @@ pub mod test_scaffolding {
         mapping::test_scaffolding::*,
         page_allocator::test_scaffolding::*,
         phys2virt::test_scaffolding::*,
+        range::test_scaffolding::*,
     };
 
     pub fn get_boot(frame_allocator: &mut FrameAllocator) -> Option<&mut BootFrameAllocator> {

@@ -149,7 +149,7 @@ fn map_system_info(address_space: &mut AddressSpace) -> Result<*const SystemInfo
         address_space.mapping().translate(Virt::from_ref(&SYSTEM_INFO))?.frame()?;
 
     let system_info_page = address_space
-        .allocate(mem::size_of_val(&SYSTEM_INFO))?
+        .allocate(mem::size_of_val(&SYSTEM_INFO), USER_R)?
         .into_iter()
         .next()
         .ok_or(NoPage)?;

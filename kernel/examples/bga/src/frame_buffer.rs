@@ -140,7 +140,7 @@ impl<Color: Default + PixelColor> FrameBuffer<Color> {
 
         let mut address_space = BASE_ADDRESS_SPACE.lock();
 
-        let front_buffer = address_space.allocate(frame_buffer.size())?;
+        let front_buffer = address_space.allocate(frame_buffer.size(), front_buffer_flags)?;
 
         for (frame, page) in frame_buffer.enclosing().into_iter().zip(front_buffer.into_iter()) {
             unsafe {

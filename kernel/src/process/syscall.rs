@@ -51,6 +51,7 @@ use crate::{
         warn,
     },
     memory::{
+        self,
         Block,
         FRAME_ALLOCATOR,
         Frame,

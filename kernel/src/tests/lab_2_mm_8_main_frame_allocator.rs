@@ -15,6 +15,7 @@ use kernel::{
         KERNEL_RW,
         Page,
         USER_R,
+        USER_RW,
         Virt,
         mmu::{
             self,
@@ -35,6 +36,7 @@ use kernel::{
             phys2virt,
             switch_to,
             unmap_page,
+            user_root_level_entries,
         },
     },
 };
@@ -114,9 +116,9 @@ fn allocated_frames_are_not_used() {
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
     let frame_count = init::frame_count();
 
-    let frames = address_space.map_slice(start_free_frames, KERNEL_RW, Frame::default).unwrap();
+    let frames = address_space.map_slice(start_free_frames, USER_RW, Frame::default).unwrap();
 
-    let page_block = address_space.allocate(Page::SIZE).unwrap();
+    let page_block = address_space.allocate(Page::SIZE, KERNEL_RW).unwrap();
     let page = page_block.into_iter().next().unwrap();
 
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
@@ -263,7 +265,7 @@ fn shared_memory() {
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
-    let mut pages_iterator = address_space.allocate(2 * Page::SIZE).unwrap().into_iter();
+    let mut pages_iterator = address_space.allocate(2 * Page::SIZE, KERNEL_RW).unwrap().into_iter();
 
     let pages = [
         pages_iterator.next().unwrap(),
@@ -394,10 +396,12 @@ fn all_frames_are_freed_on_drop() {
 
     for (i, flags) in (0 ..= FULL_ACCESS.bits())
         .map(PageTableFlags::from_bits_truncate)
-        .filter(|flags| flags.contains(PageTableFlags::PRESENT))
+        .filter(|flags| flags.contains(USER_R))
         .enumerate()
     {
-        let page = Page::from_index(i * PAGES_PER_ROOT_LEVEL_ENTRY).unwrap();
+        let page =
+            Page::from_index((user_root_level_entries().start + i) * PAGES_PER_ROOT_LEVEL_ENTRY)
+                .unwrap();
         unsafe {
             map_page(&mut address_space, page, flags).unwrap();
         }
@@ -410,7 +414,7 @@ fn all_frames_are_freed_on_drop() {
 fn garbage_in_duplicate() {
     let _guard = forbid_frame_leaks();
 
-    let virt = Virt::new(0x0000_3000_0000_0000).unwrap();
+    let virt = Virt::new(0x0000_0300_0000_0000).unwrap();
     let page = Page::containing(virt);
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
@@ -456,7 +460,7 @@ fn duplicate_only_kernel() {
 
     let page = BASE_ADDRESS_SPACE
         .lock()
-        .allocate(Page::SIZE)
+        .allocate(Page::SIZE, USER_R)
         .unwrap()
         .into_iter()
         .next()
@@ -538,7 +542,12 @@ fn tlb_flush() {
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
-    let page = address_space.allocate(Page::SIZE).unwrap().into_iter().next().unwrap();
+    let page = address_space
+        .allocate(Page::SIZE, KERNEL_RW)
+        .unwrap()
+        .into_iter()
+        .next()
+        .unwrap();
 
     unsafe {
         address_space
@@ -586,7 +595,12 @@ fn tlb_flush() {
 
         let mut address_space = BASE_ADDRESS_SPACE.lock();
 
-        let page = address_space.allocate(Page::SIZE).unwrap().into_iter().next().unwrap();
+        let page = address_space
+            .allocate(Page::SIZE, KERNEL_RW)
+            .unwrap()
+            .into_iter()
+            .next()
+            .unwrap();
 
         unsafe {
             address_space

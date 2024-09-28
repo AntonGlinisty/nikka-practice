@@ -1,3 +1,5 @@
+use core::ops::Range;
+
 use itertools::Itertools;
 
 use crate::{
@@ -14,13 +16,10 @@ use crate::{
 };
 
 use super::{
+    PAGES_PER_ROOT_LEVEL_ENTRY,
     block::Block,
     frage::Page,
-    mmu::{
-        PAGE_TABLE_ENTRY_COUNT,
-        PAGE_TABLE_ROOT_LEVEL,
-        PageTable,
-    },
+    mmu::PageTable,
     size::SizeOf,
     stack::Stack,
 };
@@ -40,10 +39,15 @@ impl PageAllocator {
     /// Инициализирует аллокатор [`PageAllocator`]
     /// большим блоком подряд идущих свободных виртуальных страниц
     /// по информации из корневого узла таблицы страниц `page_table_root`.
-    pub(super) fn new(page_table_root: &PageTable) -> Self {
+    /// При этом `allowed_elements` задаёт диапазон записей корневого узла таблицы страниц,
+    /// который можно использовать данному аллокатору.
+    pub(super) fn new(
+        page_table_root: &PageTable,
+        allowed_elements: Range<usize>,
+    ) -> Self {
         let timer = time::timer();
 
-        if let Some(block) = Self::find_unused_block(page_table_root) {
+        if let Some(block) = Self::find_unused_block(page_table_root, allowed_elements) {
             let mut page_allocator = Self { block };
 
             info!(
@@ -91,17 +95,17 @@ impl PageAllocator {
 
     /// Возвращает блок виртуальных страниц,
     /// соответствующий самой длинной последовательности пустых записей в
-    /// корневом узле таблицы страниц `page_table_root`.
+    /// диапазоне `allowed_elements` корневого узла таблицы страниц `page_table_root`.
     ///
     /// Для упрощения не смотрит в другие узлы таблицы страниц,
     /// и резервирует только страницы, соответствующие полностью свободным
     /// записям таблицы страниц корневого уровня.
-    /// Кроме того, возвращает блок страниц, целиком лежащий в одной из
-    /// [канонических половин](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details)
-    /// виртуального адресного пространства.
     ///
     /// Если все записи заняты, возвращает `None`.
-    fn find_unused_block(page_table_root: &PageTable) -> Option<Block<Page>> {
+    fn find_unused_block(
+        page_table_root: &PageTable,
+        allowed_elements: Range<usize>,
+    ) -> Option<Block<Page>> {
         // TODO: your code here.
         unimplemented!();
     }
@@ -109,6 +113,8 @@ impl PageAllocator {
 
 #[doc(hidden)]
 pub(super) mod test_scaffolding {
+    use core::ops::Range;
+
     use super::{
         super::{
             Block,
@@ -122,7 +128,10 @@ pub(super) mod test_scaffolding {
         page_allocator.block
     }
 
-    pub fn find_unused_block(page_table_root: &PageTable) -> Option<Block<Page>> {
-        PageAllocator::find_unused_block(page_table_root)
+    pub fn find_unused_block(
+        page_table_root: &PageTable,
+        allowed_elements: Range<usize>,
+    ) -> Option<Block<Page>> {
+        PageAllocator::find_unused_block(page_table_root, allowed_elements)
     }
 }

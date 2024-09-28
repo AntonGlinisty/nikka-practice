@@ -55,6 +55,52 @@
 [`MainFrameAllocator`](../../doc/kernel/memory/main_frame_allocator/struct.MainFrameAllocator.html).
 
 
+### Граница между страницами для ядра и для пространства пользователя
+
+Удобно провести в виртуальном адресном пространстве чёткую границу
+между адресами, которые выделяются для ядра, и адресами, которые выделяются
+для пространства пользователя.
+Причём удобнее всего,
+если эта граница будет проходить по границе записи корневого уровня таблицы страниц.
+
+В Nikka мы зарезервируем
+[`kernel::memory::range::KERNEL_ROOT_LEVEL_ENTRY_COUNT`](../../doc/kernel/memory/range/constant.KERNEL_ROOT_LEVEL_ENTRY_COUNT.html)
+первых записей корневого уровня таблицы страниц для ядра.
+Остальные записи в нижней половине адресного пространства останутся
+для пространства пользователя.
+А
+[верхнюю половину](2-mm-0-intro-1-types.html#%D0%94%D0%B2%D0%B5-%D0%BF%D0%BE%D0%BB%D0%BE%D0%B2%D0%B8%D0%BD%D1%8B-%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%B3%D0%BE-%D0%B0%D0%B4%D1%80%D0%B5%D1%81%D0%BD%D0%BE%D0%B3%D0%BE-%D0%BF%D1%80%D0%BE%D1%81%D1%82%D1%80%D0%B0%D0%BD%D1%81%D1%82%D0%B2%D0%B0)
+зарезервируем для дополнительных нужд.
+В частности, в ней будет находиться линейное отображение физической памяти --- `phys2virt`.
+
+Это разделение фиксируют функции
+[`kernel::memory::range::kernel_root_level_entries()`](../../doc/kernel/memory/range/fn.kernel_root_level_entries.html)
+и
+[`kernel::memory::range::user_root_level_entries()`](../../doc/kernel/memory/range/fn.user_root_level_entries.html).
+Они возвращают диапазоны ---
+[`core::ops::Range<usize>`](https://doc.rust-lang.org/nightly/core/ops/struct.Range.html) ---
+номеров записей корневого уровня таблицы страниц,
+зарезервированных для ядра и пользовательского пространства соответственно.
+А функции
+[`kernel::memory::range::is_user_page(page: Page)`](../../doc/kernel/memory/range/fn.is_user_page.html)
+и
+[`kernel::memory::range::is_user_block(block: Block<Page>)`](../../doc/kernel/memory/range/fn.is_user_block.html)
+проверяют, что заданная страница или блок страниц целиком лежит в зарезервированной для
+пространства пользователя области.
+
+За выделение страниц в каждой из этих областей, будет отвечать свой экземпляр аллокатора страниц.
+Выделять страницы для ядра будет глобальный
+[`kernel::memory::KERNEL_PAGE_ALLOCATOR`](../../doc/kernel/memory/struct.KERNEL_PAGE_ALLOCATOR.html).
+А страницы для пространства пользователя --- локальный для каждого адресного пространства
+[`kernel::memory::address_space::AddressSpace::user_page_allocator`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#structfield.user_page_allocator).
+Функции, которые выделяют виртуальные адреса,
+должны будут по передаваемым им на вход флагам для отображения страницы,
+выбрать соответствующий аллокатор.
+А функции, принимающие на вход и флаги и уже выделенный адрес страницы,
+и отображающие её в физическую память,
+будут проверять, что страница попадает в область, допустимую для заданных флагов.
+
+
 ### Задача 2 --- [`PageAllocator`](../../doc/kernel/memory/page_allocator/struct.PageAllocator.html)
 
 
@@ -63,15 +109,22 @@
 Реализуйте вспомогательную [функцию](../../doc/kernel/memory/page_allocator/struct.PageAllocator.html#method.find_unused_block)
 
 ```rust
-fn PageAllocator::find_unused_block(page_table_root: &PageTable) -> Option<Block<Page>>
+fn PageAllocator::find_unused_block(
+    page_table_root: &PageTable,
+    allowed_elements: Range<usize>,
+) -> Option<Block<Page>>
 ```
 
 в файле [`kernel/src/memory/page_allocator.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/page_allocator.rs).
 Эта функция принимает на вход таблицу страниц
 [`ku::memory::mmu::PageTable`](../../doc/ku/memory/mmu/type.PageTable.html)
-корневого уровня и должна вернуть блок страниц
+корневого уровня и `allowed_elements` ---
+допустимый диапазон записей этой таблицы страниц,
+которые может использовать инициализируемый аллокатор.
+А вернуть она должна блок страниц
 [`Block<Page>`](../../doc/ku/memory/block/struct.Block.html),
-соответствующий самой длинной последовательности пустых записей в `page_table_root`.
+соответствующий самой длинной последовательности пустых записей в `page_table_root`,
+ограниченной заданным `allowed_elements`.
 Если все записи заняты, верните `None`.
 
 Узел дерева многоуровневой таблицы страниц
@@ -88,24 +141,17 @@ fn PageAllocator::find_unused_block(page_table_root: &PageTable) -> Option<Block
 Он возвращает `true`, если запись используется.
 
 Вам может пригодиться константа
-[`ku::memory::mmu::PAGE_TABLE_ROOT_LEVEL`](../../doc/ku/memory/mmu/constant.PAGE_TABLE_ROOT_LEVEL.html) ---
-номер корневого уровня таблицы страниц, если считать листьевой уровень
-[`ku::memory::mmu::PAGE_TABLE_LEAF_LEVEL`](../../doc/ku/memory/mmu/constant.PAGE_TABLE_LEAF_LEVEL.html)
-с записями про отдельные страницы нулевым.
+[`kernel::memory::range::PAGES_PER_ROOT_LEVEL_ENTRY`](../../doc/kernel/memory/range/constant.PAGES_PER_ROOT_LEVEL_ENTRY.html) ---
+количество виртуальных страниц, за которые отвечает одна запись корневого узла отображения страниц.
 Также могут пригодиться и
 [другие константы](../../doc/ku/memory/mmu/index.html#constants)
 из файла [`ku/src/memory/mmu.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/memory/mmu.rs)
 
-Вспомните про [две половины виртуального адресного пространства](2-mm-0-intro-1-types.html#%D0%94%D0%B2%D0%B5-%D0%BF%D0%BE%D0%BB%D0%BE%D0%B2%D0%B8%D0%BD%D1%8B-%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%B3%D0%BE-%D0%B0%D0%B4%D1%80%D0%B5%D1%81%D0%BD%D0%BE%D0%B3%D0%BE-%D0%BF%D1%80%D0%BE%D1%81%D1%82%D1%80%D0%B0%D0%BD%D1%81%D1%82%D0%B2%D0%B0).
-Используйте только одну из них.
-Учтите, что при выборе половины со старшими адресами --- `0vFFFF_...` --- читать адреса в сообщениях журнала
-может быть менее удобно.
-
 При инициализации ядра
 [`PageAllocator`](../../doc/kernel/memory/page_allocator/struct.PageAllocator.html)
-запишет в журнал примерно такое сообщение:
+запишет в журнал примерно такое сообщение про выделенное для ядра пространство страниц:
 ```console
-15:08:28 0 I page allocator init; free_page_count = 33822867456; block = [2.000 TiB, 128.000 TiB), size 126.000 TiB
+20:44:19 0 I page allocator init; free_page_count = 3758096384; block = [0v180_0000_0000, 0vF80_0000_0000), size 14.000 TiB
 ```
 
 

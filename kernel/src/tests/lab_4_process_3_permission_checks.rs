@@ -6,8 +6,6 @@ use kernel::{
         AddressSpace,
         BASE_ADDRESS_SPACE,
         Block,
-        KERNEL_R,
-        KERNEL_RW,
         Page,
         USER_R,
         USER_RW,
@@ -32,7 +30,7 @@ fn user_rw() {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
     let page_count = 4;
 
-    let pages = address_space.allocate(page_count * Page::SIZE).unwrap();
+    let pages = address_space.allocate(page_count * Page::SIZE, USER_RW).unwrap();
 
     debug!(%pages);
     assert_eq!(pages.count(), page_count);
@@ -65,7 +63,7 @@ fn non_present() {
     let address_filter = |x: &Virt| (x.into_usize() + 2) % (Page::SIZE / 4) <= 4;
     let page_count = 4;
 
-    let pages = address_space.allocate(page_count * Page::SIZE).unwrap();
+    let pages = address_space.allocate(page_count * Page::SIZE, USER_RW).unwrap();
 
     debug!(%pages);
     assert_eq!(pages.count(), page_count);
@@ -101,7 +99,7 @@ fn stress() {
     let address_filter = |x: &Virt| (x.into_usize() + 2) % (Page::SIZE / 4) <= 4;
 
     for page_count in 1 ..= 4 {
-        let pages = address_space.allocate(page_count * Page::SIZE).unwrap();
+        let pages = address_space.allocate(page_count * Page::SIZE, USER_RW).unwrap();
 
         debug!(%pages);
         assert_eq!(pages.count(), page_count);
@@ -127,7 +125,7 @@ fn stress() {
             }
         }
 
-        for hole_flags in [USER_R, KERNEL_R, KERNEL_RW, PageTableFlags::empty()] {
+        for hole_flags in [USER_R, PageTableFlags::empty()] {
             for hole_start in pages {
                 for hole_end in pages.into_iter().filter(|hole_end| hole_start < *hole_end) {
                     let hole = Block::from_index(hole_start.index(), hole_end.index() + 1).unwrap();

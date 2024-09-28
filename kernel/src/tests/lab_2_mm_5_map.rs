@@ -25,10 +25,13 @@ use kernel::{
             PageTableFlags,
         },
         test_scaffolding::{
+            PAGES_PER_ROOT_LEVEL_ENTRY,
             forbid_frame_leaks,
+            kernel_root_level_entries,
             map_page,
             mapping,
             unmap_page,
+            user_root_level_entries,
         },
     },
 };
@@ -77,7 +80,7 @@ fn map_readable() {
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
-    let page = Page::containing(Virt::new(0x0000_6000_0000_0000).unwrap());
+    let page = Page::containing(Virt::new(0x0000_0200_0000_0000).unwrap());
     unsafe { map_page(&mut address_space, page, KERNEL_R).unwrap() };
     let frame = translate(&mut address_space, page);
     debug!(%page, %frame);
@@ -95,7 +98,7 @@ fn map_writable() {
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
-    let page = Page::containing(Virt::new(0x0000_6000_1000_0000).unwrap());
+    let page = Page::containing(Virt::new(0x0000_0200_1000_0000).unwrap());
     unsafe { map_page(&mut address_space, page, PageTableFlags::WRITABLE).unwrap() };
     let frame = translate(&mut address_space, page);
     debug!(%page, %frame);
@@ -111,7 +114,7 @@ fn map_writable() {
 fn map_twice() {
     let _guard = forbid_frame_leaks();
 
-    let virt = Virt::new(0x0000_4000_0000_0000).unwrap();
+    let virt = Virt::new(0x0000_0200_2000_0000).unwrap();
     let page = Page::containing(virt);
 
     unsafe {
@@ -146,6 +149,45 @@ fn map_twice() {
     fn translate(virt: Virt) -> PageTableEntry {
         let mut address_space = BASE_ADDRESS_SPACE.lock();
         *mapping(&mut address_space).translate(virt).unwrap()
+    }
+}
+
+#[test_case]
+fn kernel_and_user_are_separated() {
+    let _guard = forbid_frame_leaks();
+
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+    let checks_per_root_level_entry = 16;
+
+    for i in kernel_root_level_entries() {
+        for j in 0 .. checks_per_root_level_entry {
+            let page = Page::from_index(
+                i * PAGES_PER_ROOT_LEVEL_ENTRY +
+                    j * PAGES_PER_ROOT_LEVEL_ENTRY / checks_per_root_level_entry,
+            )
+            .unwrap();
+
+            assert_eq!(
+                unsafe { map_page(&mut address_space, page, USER_R) },
+                Err(PermissionDenied),
+                "kernel {page:?} is accessible for user space",
+            );
+        }
+    }
+
+    for i in user_root_level_entries() {
+        for j in 0 .. checks_per_root_level_entry {
+            let page = Page::from_index(
+                i * PAGES_PER_ROOT_LEVEL_ENTRY +
+                    j * PAGES_PER_ROOT_LEVEL_ENTRY / checks_per_root_level_entry,
+            )
+            .unwrap();
+
+            assert!(
+                unsafe { map_page(&mut address_space, page, KERNEL_R).is_err() },
+                "user space {page:?} is mappable with kernel flags",
+            );
+        }
     }
 }
 

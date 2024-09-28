@@ -14,9 +14,8 @@ use ku::{
     error::{
         Error::{
             InvalidArgument,
-            NoPage,
-            Null,
             Overflow,
+            PermissionDenied,
         },
         Result,
     },
@@ -26,7 +25,9 @@ use ku::{
     },
     memory::{
         Block,
+        Page,
         Virt,
+        block::Memory,
         size,
     },
     process::{
@@ -75,33 +76,46 @@ fn main() {
         .is_ok()
     );
 
-    let block = Block::from_index(1, 1);
-    my_assert!(block.is_ok(), "the Block::from_index(1, 1) should be ok");
-    my_assert!(log_block(block.unwrap(), 0).is_ok());
-
-    let block = Block::from_index(1, 2);
-    my_assert!(block.is_ok(), "the Block::from_index(1, 2) should be ok");
-
-    let result = log_block(block.unwrap(), 0);
-    my_assert!(result.is_err(), "expected Err(NoPage), got Ok");
-    my_assert!(
-        result == Err(NoPage),
-        "expected Err(NoPage), got another error",
-        ResultCode::from(result).into(),
+    log_kernel_block::<Page>(
+        0,
+        0,
+        "expected Err(PermissionDenied) for logging Block::<Page>::from_index(0, 0), but got",
+    );
+    log_kernel_block::<Page>(
+        0,
+        1,
+        "expected Err(PermissionDenied) for logging Block::<Page>::from_index(0, 1), but got",
+    );
+    log_kernel_block::<Page>(
+        1,
+        1,
+        "expected Err(PermissionDenied) for logging Block::<Page>::from_index(1, 1), but got",
+    );
+    log_kernel_block::<Page>(
+        1,
+        2,
+        "expected Err(PermissionDenied) for logging Block::<Page>::from_index(1, 2), but got",
     );
 
-    let block = Block::from_index(0, 0);
-    my_assert!(block.is_ok(), "the Block::from_index(0, 0) should be ok");
-
-    let result = log_block(block.unwrap(), 0);
-    my_assert!(
-        result.is_err(),
-        "expected Err(InvalidArgument) or Err(Null), got Ok",
+    log_kernel_block::<Virt>(
+        0,
+        0,
+        "expected Err(PermissionDenied) for logging Block::<Virt>::from_index(0, 0), but got",
     );
-    my_assert!(
-        result == Err(InvalidArgument) || result == Err(Null),
-        "expected Err(InvalidArgument) or Err(Null), got another error",
-        ResultCode::from(result).into(),
+    log_kernel_block::<Virt>(
+        0,
+        1,
+        "expected Err(PermissionDenied) for logging Block::<Virt>::from_index(0, 1), but got",
+    );
+    log_kernel_block::<Virt>(
+        1,
+        1,
+        "expected Err(PermissionDenied) for logging Block::<Virt>::from_index(1, 1), but got",
+    );
+    log_kernel_block::<Virt>(
+        1,
+        2,
+        "expected Err(PermissionDenied) for logging Block::<Virt>::from_index(1, 2), but got",
     );
 
     let invalid_utf8 = b"\xFF";
@@ -160,4 +174,22 @@ fn log_something(
     let level = size::from(u32::from(log::level_into_symbol(&Level::INFO)));
 
     syscall::syscall(Syscall::LogValue, level, start, size, value, 0).map(|_| ())
+}
+
+fn log_kernel_block<T: Memory>(
+    start: usize,
+    end: usize,
+    message: &str,
+) where
+    Block<Virt>: From<Block<T>>,
+{
+    let block = Block::<T>::from_index(start, end);
+    my_assert!(block.is_ok(), "the Block::from_index() should be ok");
+
+    let result = log_block(block.unwrap().into(), 0);
+    my_assert!(
+        result == Err(PermissionDenied),
+        message,
+        ResultCode::from(result).into(),
+    );
 }

@@ -65,7 +65,7 @@ unsafe impl BigAllocator for Big<'_> {
             return Err(InvalidAlignment);
         }
 
-        self.address_space.allocate(layout.size())
+        self.address_space.allocate(layout.size(), self.flags)
     }
 
     unsafe fn unreserve(

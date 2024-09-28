@@ -28,6 +28,7 @@ use crate::{
 
 use super::{
     FRAME_ALLOCATOR,
+    KERNEL_PAGE_ALLOCATOR,
     Virt,
     block::Block,
     frage::{
@@ -40,11 +41,15 @@ use super::{
         PageTableFlags,
     },
     page_allocator::PageAllocator,
+    range,
 };
 
 // Used in docs.
 #[allow(unused)]
-use crate::error::Error;
+use crate::{
+    self as kernel,
+    error::Error,
+};
 
 /// Структура для работы с виртуальным адресным пространством.
 #[derive(Debug, Default)]
@@ -59,7 +64,7 @@ pub struct AddressSpace {
     mapping: Mapping,
 
     /// Аллокатор виртуальных страниц.
-    page_allocator: PageAllocator,
+    user_page_allocator: PageAllocator,
 
     /// Процесс, к которому относится данное адресное пространство.
     /// Содержит [`None`], если:
@@ -75,13 +80,15 @@ impl AddressSpace {
         phys2virt: Page,
     ) -> Self {
         let mapping = Mapping::new(page_table_root, phys2virt);
-        let page_allocator =
-            PageAllocator::new(unsafe { mapping.page_table_ref(mapping.page_table_root()) });
+        let user_page_allocator = PageAllocator::new(
+            unsafe { mapping.page_table_ref(mapping.page_table_root()) },
+            range::user_root_level_entries(),
+        );
 
         let address_space = Self {
             kind: Kind::Base,
             mapping,
-            page_allocator,
+            user_page_allocator,
             pid: None,
         };
 
@@ -96,7 +103,7 @@ impl AddressSpace {
         Self {
             kind: Kind::Base,
             mapping: Mapping::new(Frame::zero(), Page::zero()),
-            page_allocator: PageAllocator::zero(),
+            user_page_allocator: PageAllocator::zero(),
             pid: None,
         }
     }
@@ -106,13 +113,15 @@ impl AddressSpace {
     pub(crate) fn duplicate(&self) -> Result<Self> {
         let mapping = self.mapping.duplicate()?;
 
-        let page_allocator =
-            PageAllocator::new(unsafe { mapping.page_table_ref(mapping.page_table_root()) });
+        let user_page_allocator = PageAllocator::new(
+            unsafe { mapping.page_table_ref(mapping.page_table_root()) },
+            range::user_root_level_entries(),
+        );
 
         let address_space = Self {
             kind: Kind::Process,
             mapping,
-            page_allocator,
+            user_page_allocator,
             pid: None,
         };
 
@@ -169,21 +178,31 @@ impl AddressSpace {
     pub fn allocate(
         &mut self,
         size: usize,
+        flags: PageTableFlags,
     ) -> Result<Block<Page>> {
-        self.page_allocator.allocate(size)
+        if flags.contains(PageTableFlags::USER_ACCESSIBLE) {
+            self.user_page_allocator.allocate(size)
+        } else {
+            KERNEL_PAGE_ALLOCATOR.lock().allocate(size)
+        }
     }
 
+    #[allow(rustdoc::private_intra_doc_links)]
     /// Отображает заданную виртуальную страницу `page` на заданный физический фрейм `frame`
     /// с указанными флагами доступа `flags`.
     ///
     /// Если `page` уже была отображена, то старое отображение удаляется,
-    /// если только при этом не произойдёт замена прав доступа к странице с
-    /// "только для ядра" на "доступно в пользовательском пространстве" ---
-    /// [`PageTableFlags::USER_ACCESSIBLE`].
-    /// В случае попытки такой замены отображение не меняется,
-    /// а возвращается ошибка [`Error::PermissionDenied`].
-    /// Если же отображение `page` поменялось, старый физический фрейм освобождается,
-    /// если на него не осталось других ссылок.
+    /// а старый физический фрейм освобождается, если на него не осталось других ссылок.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::PermissionDenied`] --- принадлежность пользователю
+    ///   страницы `page` не соответствует запрошенным флагам.
+    ///   То есть адрес этой страницы лежит в зарезервированной для пользователя области
+    ///   [`kernel::memory::range::user_pages()`], а во `flags` нет доступа пользователю ---
+    ///   флага [`PageTableFlags::USER_ACCESSIBLE`].
+    ///   Либо наоборот, флаг [`PageTableFlags::USER_ACCESSIBLE`] есть, но страница не
+    ///   лежит в области [`kernel::memory::range::user_pages()`].
     ///
     /// # Safety
     ///
@@ -248,6 +267,8 @@ impl AddressSpace {
         pages: Block<Page>,
         flags: PageTableFlags,
     ) -> Result<()> {
+        range::validate_block_flags(pages, flags)?;
+
         for page in pages {
             unsafe {
                 self.map_page(page, flags)?;
@@ -269,6 +290,8 @@ impl AddressSpace {
         pages: Block<Page>,
         flags: PageTableFlags,
     ) -> Result<()> {
+        range::validate_block_flags(pages, flags)?;
+
         for page in pages {
             self.mapping.path(page.address()).set_flags(flags)?;
         }
@@ -288,6 +311,8 @@ impl AddressSpace {
         &mut self,
         pages: Block<Page>,
     ) -> Result<()> {
+        range::validate_block(pages)?;
+
         for page in pages {
             unsafe {
                 self.unmap_page(page)?;
@@ -316,7 +341,7 @@ impl AddressSpace {
             return Err(InvalidAlignment);
         }
 
-        let block = self.page_allocator.allocate(len * mem::size_of::<T>())?;
+        let block = self.allocate(len * mem::size_of::<T>(), flags)?;
 
         unsafe {
             self.map_block(block, flags)?;
@@ -639,7 +664,7 @@ pub(super) mod test_scaffolding {
     }
 
     pub fn page_allocator_block(address_space: &AddressSpace) -> Block<Page> {
-        block(&address_space.page_allocator)
+        block(&address_space.user_page_allocator)
     }
 
     pub fn switch_to(address_space: &AddressSpace) {
