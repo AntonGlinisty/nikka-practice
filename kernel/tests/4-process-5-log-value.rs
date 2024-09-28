@@ -1,3 +1,4 @@
+#![deny(warnings)]
 #![feature(custom_test_frameworks)]
 #![feature(ptr_as_uninit)]
 #![feature(slice_ptr_get)]

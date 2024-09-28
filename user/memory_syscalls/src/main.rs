@@ -2,6 +2,7 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
+#![deny(warnings)]
 #![feature(allocator_api)]
 #![feature(slice_ptr_get)]
 #![feature(strict_provenance)]

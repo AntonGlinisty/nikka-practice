@@ -1,3 +1,4 @@
+#![deny(warnings)]
 #![feature(custom_test_frameworks)]
 #![feature(iterator_try_reduce)]
 #![no_main]

@@ -5,6 +5,7 @@
 //! Обеспечивает работу библиотеки `embedded_graphics` поверх драйвера
 //! [Bochs Graphics Adaptor](https://wiki.osdev.org/Bochs_VBE_Extensions).
 
+#![deny(warnings)]
 #![feature(int_roundings)]
 #![no_std]
 #![warn(clippy::missing_docs_in_private_items)]

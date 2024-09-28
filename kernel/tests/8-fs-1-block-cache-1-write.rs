@@ -1,3 +1,4 @@
+#![deny(warnings)]
 #![feature(custom_test_frameworks)]
 #![feature(int_roundings)]
 #![no_main]

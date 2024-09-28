@@ -1,3 +1,4 @@
+#![deny(warnings)]
 #![feature(abi_x86_interrupt)]
 #![feature(custom_test_frameworks)]
 #![no_main]

@@ -2,6 +2,7 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
+#![deny(warnings)]
 #![no_main]
 #![no_std]
 

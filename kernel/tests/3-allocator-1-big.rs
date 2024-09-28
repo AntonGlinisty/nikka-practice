@@ -1,3 +1,4 @@
+#![deny(warnings)]
 #![feature(allocator_api)]
 #![feature(custom_test_frameworks)]
 #![feature(ptr_as_uninit)]

@@ -1,3 +1,4 @@
+#![deny(warnings)]
 #![feature(custom_test_frameworks)]
 #![no_main]
 #![no_std]
