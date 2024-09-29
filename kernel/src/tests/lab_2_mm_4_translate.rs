@@ -98,9 +98,7 @@ fn t04_huge_page() {
     let mapping = mapping(&mut address_space);
 
     let phys2virt = phys2virt(mapping);
-    let result = mapping
-        .path(phys2virt.address())
-        .map_intermediate(&mut FRAME_ALLOCATOR.lock(), USER);
+    let result = mapping.path(phys2virt.address()).map_intermediate(USER);
 
     assert_eq!(result, Err(Unimplemented));
 }
@@ -123,11 +121,10 @@ fn t99_no_frame() {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
     let mapping = mapping(&mut address_space);
 
-    let mut frame_allocator = FRAME_ALLOCATOR.lock();
-    let frame_count = frame_allocator.count();
+    let frame_count = FRAME_ALLOCATOR.lock().count();
     let mut real_frame_count = 0;
 
-    while frame_allocator.allocate().is_ok() {
+    while FRAME_ALLOCATOR.lock().allocate().is_ok() {
         real_frame_count += 1;
     }
 
@@ -140,8 +137,6 @@ fn t99_no_frame() {
     assert!(real_frame_count <= frame_count);
 
     let virt = Virt::new(0xFFFF_FFFF_FFAF_FFFF).unwrap();
-    let pte = mapping
-        .path(virt)
-        .map_intermediate(&mut frame_allocator, PageTableFlags::empty());
+    let pte = mapping.path(virt).map_intermediate(PageTableFlags::empty());
     assert_eq!(pte, Err(NoFrame));
 }

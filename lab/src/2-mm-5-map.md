@@ -28,6 +28,18 @@ unsafe fn AddressSpace::map_page_to_frame(
 
 в файле [`kernel/src/memory/address_space.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/address_space.rs).
 Он должен отобразить заданную виртуальную страницу `page` на заданный физический фрейм `frame` с указанными флагами доступа `flags`.
+
+Если во `flags` включён флаг
+[`PageTableFlags::USER_ACCESSIBLE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.USER_ACCESSIBLE),
+а `page` не принадлежит
+[пользовательской части виртуального адресного пространства](../../lab/book/2-mm-2-page-allocator.html#%D0%93%D1%80%D0%B0%D0%BD%D0%B8%D1%86%D0%B0-%D0%BC%D0%B5%D0%B6%D0%B4%D1%83-%D1%81%D1%82%D1%80%D0%B0%D0%BD%D0%B8%D1%86%D0%B0%D0%BC%D0%B8-%D0%B4%D0%BB%D1%8F-%D1%8F%D0%B4%D1%80%D0%B0-%D0%B8-%D0%B4%D0%BB%D1%8F-%D0%BF%D1%80%D0%BE%D1%81%D1%82%D1%80%D0%B0%D0%BD%D1%81%D1%82%D0%B2%D0%B0-%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8F),
+возвращается ошибка
+[`Error::PermissionDenied`](../../doc/kernel/error/enum.Error.html#variant.PermissionDenied).
+Если этот флаг выключен, но `page` принадлежит пользовательской части адресного пространства ---
+тоже нужно вернуть ошибку.
+Проверить куда попадает `page` можно функцией
+[`kernel::memory::range::is_user_page()`](../../doc/kernel/memory/range/fn.is_user_page.html).
+
 Используйте
 [`Mapping::path()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.path),
 [`Path::map_intermediate()`](../../doc/kernel/memory/mapping/struct.Path.html#method.map_intermediate)
@@ -49,12 +61,7 @@ unsafe fn AddressSpace::map_page_to_frame(
 ([Memory-mapped I/O](https://en.wikipedia.org/wiki/Memory-mapped_I/O)).
 
 Если `page` уже была отображена, то старое отображение удаляется,
-если только при этом не произойдёт замена прав доступа к странице с
-"только для ядра" на "доступно в пользовательском пространстве" ---
-[`PageTableFlags::USER_ACCESSIBLE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.USER_ACCESSIBLE).
-В случае попытки такой замены отображение не меняется, а возвращается ошибка
-[`Error::PermissionDenied`](../../doc/kernel/error/enum.Error.html#variant.PermissionDenied).
-Если же отображение `page` поменялось, старый физический фрейм освобождается,
+а старый физический фрейм освобождается,
 если на него не осталось других ссылок.
 Удалить старое отображение можно с помощью метода
 [`Path::unmap()`](../../doc/kernel/memory/mapping/struct.Path.html#method.unmap).
@@ -101,7 +108,6 @@ unsafe fn AddressSpace::unmap_page(
 ```rust
 unsafe fn Path::unmap(
     &mut self,
-    frame_allocator: &mut FrameAllocator,
 ) -> Result<()>
 ```
 

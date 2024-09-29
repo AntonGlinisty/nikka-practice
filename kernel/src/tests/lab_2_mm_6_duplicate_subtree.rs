@@ -33,10 +33,7 @@ fn duplicate_and_drop() {
 
     {
         let original_mapping = mapping(&mut address_space);
-        original_mapping
-            .path(a)
-            .map_intermediate(&mut FRAME_ALLOCATOR.lock(), USER)
-            .unwrap();
+        original_mapping.path(a).map_intermediate(USER).unwrap();
         mm_helpers::check_intermediate_flags(original_mapping, a, USER);
     }
 
@@ -63,10 +60,9 @@ fn duplicate_and_drop() {
         let original_mapping = mapping(address_space);
 
         {
-            let mut frame_allocator = FRAME_ALLOCATOR.lock();
-            let start_free_frames = frame_allocator.count();
-            mapping_copy.path(virt).map_intermediate(&mut frame_allocator, USER).unwrap();
-            let end_free_frames = frame_allocator.count();
+            let start_free_frames = FRAME_ALLOCATOR.lock().count();
+            mapping_copy.path(virt).map_intermediate(USER).unwrap();
+            let end_free_frames = FRAME_ALLOCATOR.lock().count();
             assert!(allocate_intermediate || end_free_frames == start_free_frames);
         }
 

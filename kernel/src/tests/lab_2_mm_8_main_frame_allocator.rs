@@ -309,15 +309,14 @@ fn shared_memory() {
 fn garbage_after_map_intermediate() {
     let _guard = forbid_frame_leaks();
 
-    let mut frame_allocator = FRAME_ALLOCATOR.lock();
-    let start_free_frames = frame_allocator.count();
+    let start_free_frames = FRAME_ALLOCATOR.lock().count();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
     let mapping = mapping(&mut address_space);
 
     let virt = Virt::new(0x0000_4000_0000_0000).unwrap();
     let mut path = mapping.path(virt);
-    path.map_intermediate(&mut frame_allocator, PageTableFlags::empty()).unwrap();
+    path.map_intermediate(PageTableFlags::empty()).unwrap();
     let pte = get_pte(&path).unwrap();
 
     let expected_pte = PageTableEntry::default();
@@ -325,7 +324,7 @@ fn garbage_after_map_intermediate() {
     debug!(?pte, ?expected_pte);
     assert_eq!(*pte, expected_pte);
 
-    let end_free_frames = frame_allocator.count();
+    let end_free_frames = FRAME_ALLOCATOR.lock().count();
 
     assert_ne!(start_free_frames, end_free_frames);
 

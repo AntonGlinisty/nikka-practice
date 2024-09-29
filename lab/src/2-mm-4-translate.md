@@ -101,7 +101,6 @@ fn Mapping::path(
 ```rust
 pub fn Path::map_intermediate(
     &mut self,
-    frame_allocator: &mut FrameAllocator,
     flags: PageTableFlags,
 ) -> Result<()> {
 ```
@@ -114,7 +113,8 @@ pub fn Path::map_intermediate(
 [`Path::virt`](../../doc/kernel/memory/mapping/struct.Path.html#structfield.virt) ---
 изменить его флаги, поменять физический адрес.
 
-Недостающие узлы этот метод выделяет с помощью передаваемого ей на вход `frame_allocator`.
+Недостающие узлы этот метод выделяет с помощью глобального
+[`FRAME_ALLOCATOR`](../../doc/kernel/memory/struct.FRAME_ALLOCATOR.html).
 Только что выданную
 [`PageTable`](../../doc/ku/memory/mmu/type.PageTable.html)
 нужно обязательно очистить ---
@@ -186,7 +186,6 @@ pub fn Path::map_intermediate(
 fn Mapping::map_intermediate(
     &mut self,
     pte: &mut PageTableEntry,
-    frame_allocator: &mut FrameAllocator,
 ) -> Result<()>
 ```
 

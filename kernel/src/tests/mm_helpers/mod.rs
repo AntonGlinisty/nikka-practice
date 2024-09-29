@@ -54,41 +54,39 @@ pub(super) fn check_intermediate_flags(
 }
 
 pub(super) fn map_intermediate(virt: Virt) {
-    let mut frame_allocator = FRAME_ALLOCATOR.lock();
-    let start_free_frames = frame_allocator.count();
+    let start_free_frames = FRAME_ALLOCATOR.lock().count();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
     let mapping = mapping(&mut address_space);
 
     let mut path = mapping.path(virt);
-    path.map_intermediate(&mut frame_allocator, PageTableFlags::empty()).unwrap();
+    path.map_intermediate(PageTableFlags::empty()).unwrap();
     let pte = get_pte(&path).unwrap();
 
     debug!(?pte);
 
-    let end_free_frames = frame_allocator.count();
+    let end_free_frames = FRAME_ALLOCATOR.lock().count();
     assert!(start_free_frames > end_free_frames);
 
     check_intermediate_flags(mapping, virt, PageTableFlags::PRESENT);
 
     for flags in [KERNEL_RW, USER_RW] {
-        mapping.path(virt).map_intermediate(&mut frame_allocator, flags).unwrap();
-        assert_eq!(frame_allocator.count(), end_free_frames);
+        mapping.path(virt).map_intermediate(flags).unwrap();
+        assert_eq!(FRAME_ALLOCATOR.lock().count(), end_free_frames);
         check_intermediate_flags(mapping, virt, flags);
     }
 }
 
 pub(super) fn test_no_excessive_intermediate_flags(virt: Virt) {
-    let mut frame_allocator = FRAME_ALLOCATOR.lock();
-    let start_free_frames = frame_allocator.count();
+    let start_free_frames = FRAME_ALLOCATOR.lock().count();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
     let mapping = mapping(&mut address_space);
 
     let flags = PageTableFlags::all().difference(FULL_ACCESS);
-    mapping.path(virt).map_intermediate(&mut frame_allocator, flags).unwrap();
+    mapping.path(virt).map_intermediate(flags).unwrap();
 
-    let end_free_frames = frame_allocator.count();
+    let end_free_frames = FRAME_ALLOCATOR.lock().count();
     assert!(start_free_frames > end_free_frames);
 
     check_intermediate_flags(mapping, virt, PageTableFlags::PRESENT);

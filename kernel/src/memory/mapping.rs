@@ -13,7 +13,6 @@ use crate::{
 
 use super::{
     FRAME_ALLOCATOR,
-    FrameAllocator,
     Virt,
     frage::{
         Frame,
@@ -258,7 +257,7 @@ impl Mapping {
 
     /// Принимает промежуточную запись [`PageTableEntry`],
     /// ссылающуюся на отсутствующий узел дерева отображения.
-    /// Выделяет с помощью `frame_allocator` фрейм и записывает его
+    /// Выделяет с помощью [`static@FRAME_ALLOCATOR`] фрейм и записывает его
     /// в эту [`PageTableEntry`] вместе с флагом [`PageTableFlags::PRESENT`].
     ///
     /// См. [`Path::map_intermediate()`] в котором этот метод
@@ -266,7 +265,6 @@ impl Mapping {
     fn map_intermediate(
         &mut self,
         pte: &mut PageTableEntry,
-        frame_allocator: &mut FrameAllocator,
     ) -> Result<()> {
         // TODO: your code here.
         unimplemented!();
@@ -377,12 +375,11 @@ impl<'a> Path<'a> {
     ///
     /// Возвращает ошибки:
     ///   - [`Error::NoFrame`] если пришлось выделить физический фрейм,
-    ///     но их не осталось во `frame_allocator`.
+    ///     но их не осталось во [`static@FRAME_ALLOCATOR`].
     ///   - [`Error::Unimplemented`] если промежуточный узел таблицы страниц
     ///     имеет флаг [`PageTableFlags::HUGE`].
     pub fn map_intermediate(
         &mut self,
-        frame_allocator: &mut FrameAllocator,
         flags: PageTableFlags,
     ) -> Result<()> {
         // TODO: your code here.
@@ -403,10 +400,7 @@ impl<'a> Path<'a> {
     /// Вызывающий код должен гарантировать, что инварианты управления памятью в Rust'е
     /// не будут нарушены.
     /// В частности, не осталось ссылок, которые ведут в удаляемую страницу.
-    pub(super) unsafe fn unmap(
-        &mut self,
-        frame_allocator: &mut FrameAllocator,
-    ) -> Result<()> {
+    pub(super) unsafe fn unmap(&mut self) -> Result<()> {
         // TODO: your code here.
         unimplemented!();
     }
