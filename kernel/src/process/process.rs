@@ -1,8 +1,15 @@
-use core::fmt;
+use core::{
+    fmt,
+    mem,
+};
 
 use ku::{
     ProcessInfo,
-    ReadBuffer,
+    SystemInfo,
+    ipc::pipe::{
+        self,
+        ReadBuffer,
+    },
     process::{
         Info,
         MiniContext,
@@ -16,9 +23,13 @@ use ku::{
 };
 
 use crate::{
+    SYSTEM_INFO,
     allocator::MemoryAllocator,
     error::{
-        Error::InvalidArgument,
+        Error::{
+            InvalidArgument,
+            NoPage,
+        },
         Result,
     },
     log::{
@@ -30,7 +41,11 @@ use crate::{
     },
     memory::{
         AddressSpace,
+        BASE_ADDRESS_SPACE,
         Block,
+        FRAME_ALLOCATOR,
+        Stack,
+        USER_R,
         USER_RW,
         Virt,
         mmu::PageTableFlags,
@@ -83,14 +98,14 @@ pub struct Process {
 impl Process {
     /// Создаёт новый процесс.
     pub(super) fn new(
-        address_space: AddressSpace,
-        context: MiniContext,
-        info: &'static mut ProcessInfo,
-        log: ReadBuffer,
-    ) -> Self {
-        let info = Block::from_mut(info);
+        mut address_space: AddressSpace,
+        entry: Virt,
+    ) -> Result<Self> {
+        let (info, log, rsp) =
+            Process::init_address_space(&mut address_space, &BASE_ADDRESS_SPACE, Block::default())?;
+        let context = MiniContext::new(entry, rsp);
 
-        Self {
+        Ok(Self {
             address_space: Spinlock::new(address_space),
             info,
             log,
@@ -99,7 +114,7 @@ impl Process {
             registers: Registers::new(context, info.start_address().into_usize()),
             state: State::Runnable,
             trap_handler_context: TrapHandlerContext::default(),
-        }
+        })
     }
 
     /// Дублирует существующий процесс.
@@ -116,16 +131,15 @@ impl Process {
 
         let mut address_space = self.address_space.lock().duplicate()?;
 
-        address_space.switch_to();
-        let (read_buffer, write_buffer) = super::map_log(&mut address_space)?;
-        let info = super::map_process_info(&mut address_space, stack, write_buffer)?;
-        let info = Block::from_mut(info);
-        self.address_space.lock().switch_to();
+        let (info, log, _) =
+            Self::init_address_space(&mut address_space, &self.address_space, stack)?;
+
+        address_space.duplicate_allocator_state(&self.address_space.lock())?;
 
         Ok(Self {
             address_space: Spinlock::new(address_space),
             info,
-            log: read_buffer,
+            log,
             parent: Some(self.pid),
             pid: Pid::Current,
             registers: self.registers.duplicate(rax, rdi, info.start_address().into_usize()),
@@ -335,6 +349,70 @@ impl Process {
         } else {
             warn!(%pid, "log is not mapped properly");
         }
+    }
+
+    /// Инициализирует адресное пространство `address_space` для нового процесса.
+    ///
+    /// Размещает в нём пользовательский стек, буфер для журналирования,
+    /// страницы с общей информацией о системе и с информацией о самом процессе ---
+    /// [`SystemInfo`] и [`ProcessInfo`].
+    ///
+    /// Возвращает:
+    ///   - Блок, в который отображена [`ProcessInfo`].
+    ///   - Буфер сообщений журнала процесса.
+    ///   - Указатель на вершину пользовательского стека
+    ///
+    /// На время работы переключается в `address_space`, а в конце переключается в
+    /// `original_address_space`.
+    fn init_address_space(
+        address_space: &mut AddressSpace,
+        original_address_space: &Spinlock<AddressSpace>,
+        mut stack: Block<Virt>,
+    ) -> Result<(Block<Virt>, ReadBuffer, Virt)> {
+        address_space.switch_to();
+
+        let (read_buffer, write_buffer) = pipe::make(&mut address_space.allocator(USER_RW))?;
+        let recursive_mapping = address_space.mapping().make_recursive_mapping()?;
+        let system_info = Self::map_system_info(address_space)?;
+
+        let process_info = address_space.map_one(USER_RW, || {
+            ProcessInfo::new(write_buffer, recursive_mapping, system_info)
+        })?;
+
+        if stack == Block::default() {
+            stack = Block::from_mut(Stack::new(address_space, USER_RW)?);
+        }
+        process_info.set_stack(stack);
+
+        original_address_space.lock().switch_to();
+
+        Ok((
+            Block::from_mut(process_info),
+            read_buffer,
+            stack.end_address()?,
+        ))
+    }
+
+    /// Создаёт для процесса отображение в его адресное пространство `address_space`
+    /// страницы с общей информацией о системе.
+    /// См. [`SystemInfo`].
+    fn map_system_info(address_space: &mut AddressSpace) -> Result<*const SystemInfo> {
+        let system_info_frame =
+            address_space.mapping().translate(Virt::from_ref(&SYSTEM_INFO))?.frame()?;
+
+        let system_info_page = address_space
+            .allocate(mem::size_of_val(&SYSTEM_INFO), USER_R)?
+            .into_iter()
+            .next()
+            .ok_or(NoPage)?;
+
+        FRAME_ALLOCATOR.lock().reference(system_info_frame);
+
+        unsafe {
+            address_space.map_page_to_frame(system_info_page, system_info_frame, USER_R)?;
+        }
+
+        system_info_page.address().try_into_ptr()
     }
 }
 

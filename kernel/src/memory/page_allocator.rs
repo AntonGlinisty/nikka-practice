@@ -4,7 +4,10 @@ use itertools::Itertools;
 
 use crate::{
     error::{
-        Error::NoPage,
+        Error::{
+            InvalidArgument,
+            NoPage,
+        },
         Result,
     },
     log::{
@@ -33,6 +36,11 @@ use crate::error::Error;
 pub(super) struct PageAllocator {
     /// Блок свободных виртуальных страниц.
     block: Block<Page>,
+
+    /// Первоначальное состояние блока [`PageAllocator::block`], сразу после отведения
+    /// защитной зоны и до первого выделения виртуальных страниц вызывающему коду.
+    /// Используется при дублировании аллокатора в методе [`PageAllocator::duplicate()`].
+    initial_block: Block<Page>,
 }
 
 impl PageAllocator {
@@ -48,7 +56,17 @@ impl PageAllocator {
         let timer = time::timer();
 
         if let Some(block) = Self::find_unused_block(page_table_root, allowed_elements) {
-            let mut page_allocator = Self { block };
+            let mut page_allocator = Self {
+                block,
+                initial_block: Block::default(),
+            };
+
+            // Detect stack overruns that corrupt memory allocated by PageAllocator.
+            page_allocator
+                .allocate(Stack::GUARD_ZONE_SIZE)
+                .expect("failed to create guard zone for PageAllocator");
+
+            page_allocator.initial_block = page_allocator.block;
 
             info!(
                 free_page_count = page_allocator.block.count(),
@@ -56,11 +74,6 @@ impl PageAllocator {
                 duration = %timer.elapsed(),
                 "page allocator init",
             );
-
-            // Detect stack overruns that corrupt memory allocated by PageAllocator.
-            page_allocator
-                .allocate(Stack::GUARD_ZONE_SIZE)
-                .expect("failed to create guard zone for PageAllocator");
 
             page_allocator
         } else {
@@ -76,6 +89,32 @@ impl PageAllocator {
     pub(super) const fn zero() -> Self {
         Self {
             block: Block::zero(),
+            initial_block: Block::zero(),
+        }
+    }
+
+    /// Создаёт копию [`PageAllocator`] на момент его инициализации.
+    pub(super) fn duplicate(&self) -> Self {
+        Self {
+            block: self.initial_block,
+            initial_block: self.initial_block,
+        }
+    }
+
+    /// Устанавливает [`PageAllocator`] в состояние эквивалентное `original`.
+    /// Текущий [`PageAllocator`] должен был быть получен
+    /// из `original` методом [`PageAllocator::duplicate()`].
+    /// И из него не должно было быть выделено больше страниц, чем из `original`.
+    /// Если это не так, возвращается ошибка [`Error::InvalidArgument`].
+    pub(super) fn duplicate_allocator_state(
+        &mut self,
+        original: &Self,
+    ) -> Result<()> {
+        if self.block.contains_block(original.block) {
+            self.block = original.block;
+            Ok(())
+        } else {
+            Err(InvalidArgument)
         }
     }
 

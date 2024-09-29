@@ -113,21 +113,29 @@ impl AddressSpace {
     pub(crate) fn duplicate(&self) -> Result<Self> {
         let mapping = self.mapping.duplicate()?;
 
-        let user_page_allocator = PageAllocator::new(
-            unsafe { mapping.page_table_ref(mapping.page_table_root()) },
-            range::user_root_level_entries(),
-        );
-
         let address_space = Self {
             kind: Kind::Process,
             mapping,
-            user_page_allocator,
+            user_page_allocator: self.user_page_allocator.duplicate(),
             pid: None,
         };
 
         info!(%address_space, "duplicate");
 
         Ok(address_space)
+    }
+
+    /// Устанавливает [`AddressSpace::user_page_allocator`] в состояние эквивалентное `original`.
+    /// Текущий [`AddressSpace`] должен был быть получен
+    /// из `original` методом [`AddressSpace::duplicate()`].
+    /// И из него не должно было быть выделено больше страниц, чем из `original`.
+    /// Если это не так, возвращается ошибка [`Error::InvalidArgument`].
+    pub(crate) fn duplicate_allocator_state(
+        &mut self,
+        original: &AddressSpace,
+    ) -> Result<()> {
+        self.user_page_allocator
+            .duplicate_allocator_state(&original.user_page_allocator)
     }
 
     /// Постраничный аллокатор памяти в этом адресном пространстве.

@@ -56,14 +56,13 @@ impl ProcessInfo {
     pub fn new(
         log: WriteBuffer,
         recursive_mapping: usize,
-        stack: Block<Virt>,
         system_info: *const SystemInfo,
     ) -> Self {
         Self {
             log,
             pid: Pid::Current,
             recursive_mapping,
-            stack,
+            stack: Block::default(),
             system_info,
         }
     }
@@ -96,6 +95,14 @@ impl ProcessInfo {
     /// Область памяти, выделенная текущему процессу под стек режима пользователя.
     pub fn stack(&self) -> Block<Virt> {
         self.stack
+    }
+
+    /// Устанавливает область памяти, выделенную текущему процессу под стек режима пользователя.
+    pub fn set_stack(
+        &mut self,
+        stack: Block<Virt>,
+    ) {
+        self.stack = stack
     }
 
     /// Проверяет, принадлежит ли `address` структурам информации о процессе.
