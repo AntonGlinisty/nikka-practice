@@ -44,7 +44,11 @@ use kernel::{
             PageTableEntry,
             USER_RW,
         },
-        size::MiB,
+        size::{
+            KiB,
+            MiB,
+            Size,
+        },
         test_scaffolding::{
             forbid_frame_leaks,
             mapping,
@@ -320,7 +324,9 @@ fn paged_realloc_is_cheap() {
 
 #[test_case]
 fn stress() {
-    memory_allocator_stress(10_000);
+    let values = 10_000;
+    let max_fragmentation_loss = |values| cmp::max(8 * KiB * values, 16 * MiB);
+    memory_allocator_stress(values, max_fragmentation_loss);
 }
 
 fn check_frames<T>(

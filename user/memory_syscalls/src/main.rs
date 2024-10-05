@@ -22,6 +22,7 @@ use alloc::{
     vec::Vec,
 };
 use core::{
+    cmp,
     mem,
     panic::PanicInfo,
     ptr::NonNull,
@@ -36,7 +37,11 @@ use ku::{
     memory::{
         Page,
         Virt,
-        size::MiB,
+        size::{
+            KiB,
+            MiB,
+            Size,
+        },
     },
 };
 
@@ -60,7 +65,9 @@ fn main() {
     memory_allocator_grow_and_shrink();
 
     info!(test_case = "stress");
-    memory_allocator_stress(10_000);
+    let values = 10_000;
+    let max_fragmentation_loss = |values| cmp::max(8 * KiB * values, 16 * MiB);
+    memory_allocator_stress(values, max_fragmentation_loss);
 }
 
 fn generate_page_fault() -> ! {

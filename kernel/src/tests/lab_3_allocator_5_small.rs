@@ -10,12 +10,18 @@ use alloc::{
     collections::BTreeMap,
     vec::Vec,
 };
-use core::mem;
+use core::{
+    cmp,
+    mem,
+};
 
 use ku::memory::{
     Page,
     Virt,
-    size::MiB,
+    size::{
+        MiB,
+        Size,
+    },
 };
 
 use kernel::{
@@ -46,7 +52,8 @@ fn grow_and_shrink() {
 #[test_case]
 fn stress() {
     let values = 100_000;
-    let pages_for_values = memory_allocator_stress(values);
+    let max_fragmentation_loss = |values| cmp::max(6 * values, 2 * MiB);
+    let pages_for_values = memory_allocator_stress(values, max_fragmentation_loss);
     debug!(values, pages_for_values);
     assert!(pages_for_values < 2 * values / mem::size_of::<usize>());
 }

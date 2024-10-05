@@ -104,7 +104,10 @@ fn memory_allocator_grow_and_shrink() {
     my_assert!(end_info_diff.fragmentation_loss() < MiB);
 }
 
-fn memory_allocator_stress(values: usize) -> usize {
+fn memory_allocator_stress(
+    values: usize,
+    max_fragmentation_loss: fn(usize) -> usize,
+) -> usize {
     let start_info = allocator::info();
     debug!(%start_info);
 
@@ -114,15 +117,20 @@ fn memory_allocator_stress(values: usize) -> usize {
     let mut pages = BTreeMap::<usize, usize>::new();
 
     for a in 0 .. values {
-        if vec.len() % (values / 20) == 0 {
-            debug!(vector_length = vec.len());
-        }
         let b = Box::new(a * a);
         let page_index = Page::containing(Virt::from_ref(b.as_ref())).index();
         pages.entry(page_index).and_modify(|count| *count += 1).or_insert(1);
         vec.push(b);
         my_assert!(vec.len() == a + 1);
         push_sum += a * a;
+
+        let current_info_diff = (allocator::info() - start_info).unwrap();
+        let fragmentation_loss = Size::bytes(current_info_diff.fragmentation_loss());
+        let max_fragmentation_loss = Size::bytes(max_fragmentation_loss(vec.len()));
+        if vec.len() % (values / 20) == 0 || fragmentation_loss > max_fragmentation_loss {
+            debug!(vector_length = vec.len(), %fragmentation_loss, %max_fragmentation_loss);
+        }
+        my_assert!(fragmentation_loss <= max_fragmentation_loss);
     }
 
     let contents_sum = vec.iter().map(|x| **x).sum::<usize>();
@@ -138,12 +146,17 @@ fn memory_allocator_stress(values: usize) -> usize {
 
     while !vec.is_empty() {
         pop_sum += *vec.pop().unwrap();
-        if vec.len() % (values / 20) == 0 {
-            debug!(vector_length = vec.len());
-        }
         if vec.len() <= vec.capacity() / 2 {
             vec.shrink_to_fit();
         }
+
+        let current_info_diff = (allocator::info() - start_info).unwrap();
+        let fragmentation_loss = Size::bytes(current_info_diff.fragmentation_loss());
+        let max_fragmentation_loss = Size::bytes(max_fragmentation_loss(vec.len()));
+        if vec.len() % (values / 20) == 0 || fragmentation_loss > max_fragmentation_loss {
+            debug!(vector_length = vec.len(), %fragmentation_loss, %max_fragmentation_loss);
+        }
+        my_assert!(fragmentation_loss <= max_fragmentation_loss);
     }
 
     debug!(contents_sum, pop_sum);
@@ -154,10 +167,13 @@ fn memory_allocator_stress(values: usize) -> usize {
 
     let end_info = allocator::info();
     let end_info_diff = (end_info - start_info).unwrap();
+    let fragmentation_loss = Size::bytes(end_info_diff.fragmentation_loss());
+    let max_fragmentation_loss = Size::bytes(max_fragmentation_loss(vec.len()));
     debug!(%end_info);
     debug!(%end_info_diff);
+    debug!(vector_length = vec.len(), %fragmentation_loss, %max_fragmentation_loss);
     my_assert!(end_info_diff.allocations().balance() == 0);
-    my_assert!(end_info_diff.fragmentation_loss() < 4 * MiB);
+    my_assert!(fragmentation_loss <= max_fragmentation_loss);
 
     pages_for_values
 }
