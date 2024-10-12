@@ -226,12 +226,19 @@ ku::memory::mmu::page_table_root:
 [`memoffset::offset_of!()`](../../doc/memoffset/macro.offset_of.html).
 А
 [передача констант в параметрах макроса `asm!()`](https://doc.rust-lang.org/unstable-book/language-features/asm-const.html)
-доступна нам за счёт `#![feature(asm_const)]`:
-
+доступна нам за счёт `#![feature(asm_const)]`.
+Используйте конструкции подобные
 ```rust
 asm!(
-    "...",
-    the_answer_to_the_ultimate_question_of_life_the_universe_and_everything = const 42,
+    "
+    ...
+    mov ..., gs:{this_offset}
+    ...
+    mov gs:{this_offset}, ...
+    ...
+    ",
+    this_offset = const offset_of!(Cpu, this),
+    ...
 );
 ```
 
