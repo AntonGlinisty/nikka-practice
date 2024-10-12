@@ -83,7 +83,7 @@ BSP должен подготовить для AP код загрузчика, �
 
 - Загружает основную `GDT` ядра. И переключает сегментные регистры на неё.
 - Инициализирует его local APIC методом [`LocalApic::init()`](../../doc/kernel/smp/local_apic/struct.LocalApic.html#method.init).
-- Инициализирует регистры `FS` и `TSS` методами [`Cpu::set_fs()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.set_fs) и [`Cpu::set_tss()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.set_tss).
+- Инициализирует регистры `GS` и `TSS` методами [`Cpu::set_gs()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.set_gs) и [`Cpu::set_tss()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.set_tss).
 - Инициализирует регистр `IDTR` и включает прерывания.
 
 Все AP запускаются по очереди.
@@ -375,20 +375,20 @@ $ (cd kernel; cargo test --test 5-sync-5-ap-init)
 5_sync_5_ap_init::ap_init------------------------------------
 17:38:45 0 I acpi = Acpi { local_apic_address: Phys(0pFEE00000), bsp_id: 0, ap_ids: [1, 2, 3] }
 17:38:45 0 I Local APIC init; cpu = 0; cpu_count = 4; local_apic_address = 0pFEE0_0000
-17:38:45 0 D set FS register to Cpu structure address; cpu = 0; fs = 0v7FFF_FFE7_B000
+17:38:45 0 D set GS register to Cpu structure address; cpu = 0; gs = 0v7FFF_FFE7_B000
 17:38:45 0 I Bootstrap Processor; cpu = 0
 17:38:45 0 D boot_stack = { efer: 0xD00, cr4: 0x20, cr3: 0x1000, cr0: 0x80010011, gdt: { base: 0p007FD8, limit: 0x0027 }, kernel_code: SegmentSelector { index: 1, rpl: Ring0 }, kernel_data: SegmentSelector { index: 2, rpl: Ring0 }, set_cs_rip_to_64bit: 0p7035, kernel_stack: 0v7FFF_FFED_C000, cpu: 0v7FFF_FFE7_B100, initialized: 0v100_0020_03F7 }
-17:38:45 1 D set FS register to Cpu structure address; cpu = 1; fs = 0v7FFF_FFE7_B100
+17:38:45 1 D set GS register to Cpu structure address; cpu = 1; gs = 0v7FFF_FFE7_B100
 17:38:45 1 I report for duty; cpu = 1
 17:38:45 0 I cpu = 1; duration = 28.831 ms; "boot Application Processor"
 17:38:45 1 I arrived at the barrier; cpu = 1; cpu_count = 4; cpus_waiting = 0; last = false
 17:38:45 0 D boot_stack = { efer: 0xD00, cr4: 0x20, cr3: 0x1000, cr0: 0x80010011, gdt: { base: 0p007FD8, limit: 0x0027 }, kernel_code: SegmentSelector { index: 1, rpl: Ring0 }, kernel_data: SegmentSelector { index: 2, rpl: Ring0 }, set_cs_rip_to_64bit: 0p7035, kernel_stack: 0v7FFF_FFF1_C000, cpu: 0v7FFF_FFE7_B200, initialized: 0v100_0020_03F7 }
-17:38:45 2 D set FS register to Cpu structure address; cpu = 2; fs = 0v7FFF_FFE7_B200
+17:38:45 2 D set GS register to Cpu structure address; cpu = 2; gs = 0v7FFF_FFE7_B200
 17:38:45 0 I cpu = 2; duration = 20.438 ms; "boot Application Processor"
 17:38:45 2 I report for duty; cpu = 2
 17:38:45 2 I arrived at the barrier; cpu = 2; cpu_count = 4; cpus_waiting = 1; last = false
 17:38:45 0 D boot_stack = { efer: 0xD00, cr4: 0x20, cr3: 0x1000, cr0: 0x80010011, gdt: { base: 0p007FD8, limit: 0x0027 }, kernel_code: SegmentSelector { index: 1, rpl: Ring0 }, kernel_data: SegmentSelector { index: 2, rpl: Ring0 }, set_cs_rip_to_64bit: 0p7035, kernel_stack: 0v7FFF_FFF5_C000, cpu: 0v7FFF_FFE7_B300, initialized: 0v100_0020_03F7 }
-17:38:45 3 D set FS register to Cpu structure address; cpu = 3; fs = 0v7FFF_FFE7_B300
+17:38:45 3 D set GS register to Cpu structure address; cpu = 3; gs = 0v7FFF_FFE7_B300
 17:38:45 0 I cpu = 3; duration = 25.497 ms; "boot Application Processor"
 17:38:45 3 I report for duty; cpu = 3
 17:38:45 0 I arrived at the barrier; cpu = 0; cpu_count = 4; cpus_waiting = 2; last = false

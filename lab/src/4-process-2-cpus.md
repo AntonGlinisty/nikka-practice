@@ -21,7 +21,7 @@
   - [`IDTR`](https://wiki.osdev.org/IDT#IDTR) --- Interrupt Descriptor Table Register, содержит адрес [x86_64::structures::idt::InterruptDescriptorTable](../../doc/x86_64/structures/idt/struct.InterruptDescriptorTable.html).
   - [`CR3`](https://wiki.osdev.org/CPU_Registers_x86-64#CR3) --- содержит адрес корневой таблицы страниц [`ku::memory::mmu::PageTable`](../../doc/ku/memory/mmu/type.PageTable.html).
   - [`TR`](https://wiki.osdev.org/CPU_Registers_x86-64#TR) --- Task Register, содержит адрес [x86_64::structures::tss::TaskStateSegment](../../doc/x86_64/structures/tss/struct.TaskStateSegment.html).
-  - [`FS`](https://wiki.osdev.org/CPU_Registers_x86-64#FS.base.2C_GS.base) --- доступен для программных нужд.
+  - [`GS`](https://wiki.osdev.org/CPU_Registers_x86-64#FS.base.2C_GS.base) --- доступен для программных нужд.
 
 
 ### Задача 4 --- вектор структур [`kernel::smp::cpu::Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html)
@@ -57,46 +57,46 @@ fn Cpu::set_tss()
 - [`x86_64::instructions::tables::load_tss`](../../doc/x86_64/instructions/tables/fn.load_tss.html).
 
 
-#### Инициализация регистра `FS`
+#### Инициализация регистра `GS`
 
-Регистр `FS` будем использовать для аналога
+Регистр `GS` будем использовать для аналога
 [thread--local storage](https://en.wikipedia.org/wiki/Thread-local_storage), ---
 CPU--local storage.
 Например, в момент получения системного вызова процессор работает на стеке пользователя.
 Доверять стеку пользователя нельзя, поэтому до использования стека процессор должен переключиться на стек ядра.
-Адрес стека ядра, предназначенного данному CPU, он возьмёт из нашего CPU--local storage, обратившись к нему через свой регистр `FS`.
+Адрес стека ядра, предназначенного данному CPU, он возьмёт из нашего CPU--local storage, обратившись к нему через свой регистр `GS`.
 Как вы уже догадались, сам CPU--local storage в Nikka --- это структура
 [`Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html).
 
-Реализуйте [метод](../../doc/kernel/smp/cpu/struct.Cpu.html#method.set_fs)
+Реализуйте [метод](../../doc/kernel/smp/cpu/struct.Cpu.html#method.set_gs)
 
 ```rust
-fn Cpu::set_fs()
+fn Cpu::set_gs()
 ```
 
 Он должен сохранить адрес структуры
 [`Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html)
-для текущего CPU в его собственном регистре `FS`.
+для текущего CPU в его собственном регистре `GS`.
 Этот же адрес нужно будет записать в поле
 [`Cpu::this`](../../doc/kernel/smp/cpu/struct.Cpu.html#structfield.this).
-Дело в том, что адресовать память относительно регистра `FS` можно,
+Дело в том, что адресовать память относительно регистра `GS` можно,
 но узнать его линейный адрес можно только прочитав его напрямую
 инструкцией [rdmsr](https://www.felixcloutier.com/x86/rdmsr).
 Получить линейный адрес через инструкцию
 [`lea`](https://www.felixcloutier.com/x86/lea)
 не получится.
-А адресовать что-либо через `FS` неудобно --- это можно сделать только в ассемблере.
+А адресовать что-либо через `GS` неудобно --- это можно сделать только в ассемблере.
 Самым удобным представляется такой вариант.
 Прочитать адрес структуры
 [`Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html)
 из поля
 [`Cpu::this`](../../doc/kernel/smp/cpu/struct.Cpu.html#structfield.this),
-обращаясь к самому этому полю относительно регистра `FS`,
+обращаясь к самому этому полю относительно регистра `GS`,
 то есть используя логический адрес `<сегментный_регистр>:<смещение>`.
 Затем, имея линейный адрес структуры
 [`Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html),
 получить её саму.
-И дальше обращаться к её полям и методам без использования `FS`.
+И дальше обращаться к её полям и методам без использования `GS`.
 Что уже можно делать в Rust без помощи ассемблера.
 
 По умолчанию, код пользователя не может менять регистры `FS` и `GS`. Так это и оставим.
@@ -106,8 +106,8 @@ fn Cpu::set_fs()
 [swapgs](https://www.felixcloutier.com/x86/swapgs)
 при переключении между режимами ядра и пользователя.
 
-Для сохранения значения в регистр `FS` вам пригодится метод
-[`x86_64::registers::model_specific::FsBase::write()`](../../doc/x86_64/registers/model_specific/struct.FsBase.html#method.write).
+Для сохранения значения в регистр `GS` вам пригодится метод
+[`x86_64::registers::model_specific::GsBase::write()`](../../doc/x86_64/registers/model_specific/struct.GsBase.html#method.write).
 Он принимает
 [`x86_64::addr::VirtAddr`](../../doc/x86_64/addr/struct.VirtAddr.html),
 а не
@@ -123,7 +123,7 @@ fn Cpu::set_fs()
 [`Virt::from_ref()`](../../doc/kernel/memory/addr/struct.Addr.html#method.from_ref).
 
 
-#### Использование регистра `FS` для получения текущего [`kernel::smp::cpu::Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html)
+#### Использование регистра `GS` для получения текущего [`kernel::smp::cpu::Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html)
 
 Реализуйте [метод](../../doc/kernel/smp/cpu/struct.Cpu.html#method.get)
 
@@ -133,8 +133,8 @@ unsafe fn Cpu::get() -> &'static mut Cpu
 
 `unsafe` означает, что вызывающая сторона должна гарантировать, что вызывает
 [`Cpu::get()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.get)
-только после инициализации `FS` методом
-[`Cpu::set_fs()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.set_fs).
+только после инициализации `GS` методом
+[`Cpu::set_gs()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.set_gs).
 Иначе в лучшем случае будет паника, а в худшем --- обращение к невалидной или занятой другими данными памяти.
 
 Загрузите из инициализированного в предыдущей задаче поля
@@ -144,7 +144,7 @@ unsafe fn Cpu::get() -> &'static mut Cpu
 Однако
 [`Cpu::this`](../../doc/kernel/smp/cpu/struct.Cpu.html#structfield.this) ---
 это поле структуры, адрес которой мы как раз хотим узнать.
-Поэтому нам придётся использовать обращение через инициализированный в предыдущей задаче регистр `FS`.
+Поэтому нам придётся использовать обращение через инициализированный в предыдущей задаче регистр `GS`.
 
 Тут придётся использовать ассемблер, например прибегнуть к макросу
 [`asm!()`](https://doc.rust-lang.org/core/arch/macro.asm.html).

@@ -9,7 +9,7 @@ use x86_64::{
     PrivilegeLevel,
     VirtAddr,
     instructions::tables,
-    registers::model_specific::FsBase,
+    registers::model_specific::GsBase,
     structures::tss::TaskStateSegment,
 };
 
@@ -49,7 +49,7 @@ use super::{
 use crate::process::Registers;
 
 /// Инициализирует вектор структур [`Cpu`] размера `cpu_count` и
-/// регистры [`FS`](https://wiki.osdev.org/CPU_Registers_x86-64#FS.base.2C_GS.base) и
+/// регистры [`GS`](https://wiki.osdev.org/CPU_Registers_x86-64#FS.base.2C_GS.base) и
 /// [`TR`](https://wiki.osdev.org/CPU_Registers_x86-64#TR)
 /// для `current_cpu` (Bootstrap Processor).
 pub(super) fn init(
@@ -59,7 +59,7 @@ pub(super) fn init(
     let mut cpus = init_cpu_vec(cpu_count)?;
 
     let cpu = &mut cpus[usize::from(current_cpu)];
-    cpu.set_fs();
+    cpu.set_gs();
     cpu.set_tss();
 
     Ok(cpus)
@@ -208,9 +208,9 @@ impl Cpu {
     }
 
     /// Инициализация регистра
-    /// [`FS`](https://wiki.osdev.org/CPU_Registers_x86-64#FS.base.2C_GS.base)
+    /// [`GS`](https://wiki.osdev.org/CPU_Registers_x86-64#FS.base.2C_GS.base)
     /// текущего CPU.
-    pub(super) fn set_fs(&mut self) {
+    pub(super) fn set_gs(&mut self) {
         // TODO: your code here.
         unimplemented!();
     }
