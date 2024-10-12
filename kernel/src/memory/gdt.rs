@@ -101,8 +101,8 @@ impl fmt::Debug for RealModePseudoDescriptor {
     ) -> fmt::Result {
         write!(
             formatter,
-            "{{ base: 0p{:06X}, limit: 0x{:04X} }}",
-            { self.base },
+            "{{ base: {}, limit: 0x{:04X} }}",
+            { Phys::new_u32(self.base) },
             { self.limit }
         )
     }

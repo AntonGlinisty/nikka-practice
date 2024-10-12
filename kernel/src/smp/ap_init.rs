@@ -519,14 +519,15 @@ fn real_mode_address(
     address: usize,
     what: &'static str,
 ) -> Phys {
-    let address: u32 = address.try_into().unwrap_or_else(|_| {
+    let address = address.try_into().unwrap_or_else(|_| {
         panic!(
             "{} address {:#X} should fit into 32 bit for Application Processors to be able to \
              boot from it",
             what, address,
         )
     });
-    Phys::new_u64(address.into()).expect("any u32 value should be a valid physical address")
+
+    Phys::new_u32(address)
 }
 
 /// Сигнализирует запускающему процессору Bootstrap Processor,

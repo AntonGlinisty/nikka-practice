@@ -17,7 +17,10 @@ use num_traits::{
     One,
     Zero,
 };
-use static_assertions::const_assert_eq;
+use static_assertions::{
+    const_assert,
+    const_assert_eq,
+};
 use x86_64::addr::VirtAddr;
 
 use crate::error::{
@@ -450,6 +453,16 @@ impl Phys {
         } else {
             Err(InvalidArgument)
         }
+    }
+
+    /// Создаёт физический адрес по его битовому представлению `addr`.
+    ///
+    /// Не может завершиться ошибкой,
+    /// так как любое [`u32`] является корректным для физического адреса.
+    pub fn new_u32(addr: u32) -> Self {
+        const_assert!(u32::BITS <= Phys::BITS);
+
+        Self(size::from(addr), PhantomData)
     }
 
     /// Количество используемых битов в физическом адресе.
