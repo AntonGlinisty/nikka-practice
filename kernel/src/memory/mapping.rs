@@ -231,7 +231,7 @@ impl Mapping {
         unsafe { page_table.try_into_mut().expect("bad phys2virt or frame") }
     }
 
-    /// Возвращает изменяемую ссылку на одну запись узла таблицы страниц,
+    /// Возвращает ссылку на одну запись узла таблицы страниц,
     /// записанного в физическом фрейме `page_table_frame`.
     /// Запись соответствует виртуальному адресу `virt`,
     /// а `level` указывает уровень узла в дереве отображения.
@@ -242,17 +242,24 @@ impl Mapping {
     ///   - Во `frame` находится узел таблицы страниц уровня `level`.
     ///   - Инварианты управления памятью в Rust'е не будут нарушены.
     ///     В частности, нет других ссылок, которые ведут в ту же запись [`PageTableEntry`].
-    unsafe fn pte_mut(
-        &mut self,
+    #[allow(clippy::needless_arbitrary_self_type)]
+    #[allow(unused)]
+    #[duplicate_item(
+        getter page_table_getter reference(x);
+        [pte_ref] [page_table_ref] [&x];
+        [pte_mut] [page_table_mut] [&mut x];
+    )]
+    unsafe fn getter(
+        self: reference([Self]),
         virt: Virt,
         level: u32,
         page_table_frame: Frame,
-    ) -> &mut PageTableEntry {
+    ) -> reference([PageTableEntry]) {
         let index_shift = PAGE_OFFSET_BITS + level * PAGE_TABLE_INDEX_BITS;
         let index = (virt.into_usize() >> index_shift) & PAGE_TABLE_INDEX_MASK;
-        let page_table = unsafe { self.page_table_mut(page_table_frame) };
+        let page_table = unsafe { self.page_table_getter(page_table_frame) };
 
-        &mut page_table[index]
+        reference([page_table[index]])
     }
 
     /// Принимает промежуточную запись [`PageTableEntry`],
