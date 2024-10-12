@@ -44,7 +44,9 @@ allow_list:
   - ku/src/allocator/dispatcher.rs
   - ku/src/allocator/fixed_size.rs
   - ku/src/collections/lru.rs
+  - ku/src/memory/addr.rs
   - ku/src/memory/block.rs
+  - ku/src/memory/mmu.rs
   - ku/src/process/elf.rs
   - ku/src/ipc/pipe.rs
   - ku/src/sync/once_lock.rs
