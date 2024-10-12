@@ -34,16 +34,15 @@ echo -n 1234asdf > key.txt
 
 Чтобы придумать гипотезу, выполните следующие шаги.
 
-1. Установите плагин `peda` к `gdb`.
+1. Установите плагин `gef` к `gdb`.
 
-`Peda` --- это плагин для `gdb`, который наглядно показывает состояния регистров,
+`GEF` --- это плагин для `gdb`, который наглядно показывает состояния регистров,
 кода, стека и т.д. внутри сессии `gdb`.
 
-https://github.com/longld/peda
+https://hugsy.github.io/gef/
 
 ```sh
-git clone https://github.com/longld/peda.git ~/peda
-echo "source ~/peda/peda.py" >> ~/.gdbinit
+bash -c "$(curl -fsSL https://gef.blah.cat/sh)"
 echo "set disassembly-flavor intel" >> ~/.gdbinit
 echo "set print asm-demangle on" >> ~/.gdbinit
 echo "DONE! debug your program with gdb and enjoy"
@@ -91,20 +90,10 @@ gdb binary
 gdb binary.static
 ```
 
-Если выйдет множество ошибок `SyntaxWarning` от `peda`, игнорируйте их.
-
-Если возникнет ошибка `Error occurred in Python: No module named 'six.moves'`,
-[выполните команды](https://github.com/longld/peda/issues/182#issuecomment-2317746602):
+Приглашение корректно запущенного `gdb` с `gef` должен выглядеть так, подсвеченный красным:
 
 ```
-rm ~/peda/lib/six.py
-sudo apt install python3-six
-```
-
-Приглашение корректно запущенного `gdb` с `peda` должен выглядеть так, подсвеченный красным:
-
-```
-gdb-peda$
+gef➤
 ```
 
 3. Поставьте `breakpoint` на функцию `check_key()` и запустите программу.
@@ -121,12 +110,12 @@ b check_key
 run
 ```
 
-Должна вывестись цветная табличка от `peda` с регистрами, кодом и стеком.
+Должна вывестись цветная табличка от `gef` с регистрами, кодом и стеком.
 
 Если `gdb` ломается с ошибкой использования `libthread_db`
 
 ```
-gdb-peda$ run
+gef➤ run
 Starting program: /.../nikka/sem/gdb/binary.static
 [Thread debugging using libthread_db enabled]
 Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
@@ -136,8 +125,8 @@ Cannot find user-level thread for LWP 192000: debugger service failed
 можно изменить путь поиска этой библиотеки, чтобы `gdb` её не нашёл:
 
 ```
-gdb-peda$ set libthread-db-search-path /
-gdb-peda$ run
+gef➤ set libthread-db-search-path /
+gef➤ run
 ```
 
 Также можно попробовать использовать `lldb` вместо `gdb`.
