@@ -12,7 +12,7 @@ mod registers;
 mod scheduler;
 
 /// Реализует системные вызовы.
-mod syscall;
+pub(crate) mod syscall;
 
 /// Таблица процессов.
 mod table;

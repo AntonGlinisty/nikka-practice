@@ -94,7 +94,6 @@ pub(crate) fn init() {
     debug!(%syscall_virt);
 
     // TODO: your code here.
-    unimplemented!();
 }
 
 /// Получает управление при выполнении инструкции

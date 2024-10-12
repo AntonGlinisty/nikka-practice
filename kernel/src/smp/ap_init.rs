@@ -50,7 +50,10 @@ use crate::{
         phys2virt,
         size,
     },
-    process::Scheduler,
+    process::{
+        Scheduler,
+        syscall,
+    },
     time,
     trap::IDT,
 };
@@ -394,6 +397,8 @@ extern "C" fn ap_kernel_main(
 
     IDT.load();
     interrupts::enable();
+
+    syscall::init();
 
     signal_initialized(initialized);
 
