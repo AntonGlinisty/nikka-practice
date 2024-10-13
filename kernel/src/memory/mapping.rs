@@ -1,3 +1,12 @@
+use core::{
+    marker::PhantomData,
+    ops::{
+        Bound,
+        RangeBounds,
+    },
+    ptr::NonNull,
+};
+
 use duplicate::duplicate_item;
 
 use crate::{
@@ -12,12 +21,14 @@ use crate::{
 };
 
 use super::{
+    Block,
     FRAME_ALLOCATOR,
     Virt,
     frage::{
         Frame,
         Page,
     },
+    mapped_block::MappedBlock,
     mmu::{
         self,
         FULL_ACCESS,
@@ -133,6 +144,37 @@ impl Mapping {
     ) -> Path {
         // TODO: your code here.
         unimplemented!();
+    }
+
+    /// Возвращает итератор по листьям дерева отображения страниц.
+    pub fn iter_mut(&mut self) -> MappingIterator {
+        self.range_mut(..)
+    }
+
+    /// Возвращает итератор по листьям дерева отображения страниц,
+    /// попадающим в заданный диапазон `range`.
+    fn range_mut<R: RangeBounds<Page>>(
+        &mut self,
+        range: R,
+    ) -> MappingIterator {
+        let curr = match range.start_bound() {
+            Bound::Included(start) => start.index(),
+            Bound::Excluded(start) => start.advance_index(1),
+            Bound::Unbounded => Page::lower_half_start_index(),
+        };
+
+        let end = match range.end_bound() {
+            Bound::Included(end) => end.index() + 1,
+            Bound::Excluded(end) => end.index(),
+            Bound::Unbounded => Page::higher_half_end_index(),
+        };
+
+        MappingIterator {
+            _marker: PhantomData,
+            curr,
+            end,
+            mapping: self.into(),
+        }
     }
 
     /// Шаг рекурсии при спуске по дереву отображения страниц.
@@ -321,6 +363,22 @@ impl<'a> Path<'a> {
         }
     }
 
+    /// Возвращает отображение блока виртуальных страниц
+    /// на блок физических фреймов, если текущий [`Path`]
+    /// задаёт путь к листу дерева отображения.
+    pub fn block(&self) -> MappedBlock {
+        let (level, pte) = self.deepest_pte();
+
+        let flags = pte.flags();
+        let frame = pte.frame().unwrap_or_default();
+
+        let pages = self.pages(level);
+        let frames = Block::from_index(frame.index(), frame.index() + pages.count())
+            .expect(Self::INVALID_PATH);
+
+        MappedBlock::new(flags, frames, pages)
+    }
+
     /// Устанавливает флаги доступа к странице, в которую ведёт этот [`Path`].
     ///
     /// Если это необходимо, корректирует промежуточные флаги.
@@ -410,6 +468,101 @@ impl<'a> Path<'a> {
     pub(super) unsafe fn unmap(&mut self) -> Result<()> {
         // TODO: your code here.
         unimplemented!();
+    }
+
+    /// Возвращает самую далёкую от корня дерева [`PageTableEntry`]
+    /// в данном [`Path`] вместе с её номером уровня в дереве отображения.
+    fn deepest_pte(&self) -> (u32, &PageTableEntry) {
+        let level = self
+            .nodes
+            .iter()
+            .position(|&node| node != Virt::default())
+            .expect(Self::INVALID_PATH);
+
+        let pte = unsafe { self.nodes[level].try_into_ref().expect(Self::INVALID_PATH) };
+        let level = level.try_into().expect("unreasonable PTE level");
+
+        (level, pte)
+    }
+
+    /// Возвращает блок страниц, который отображает текущий [`Path`].
+    /// Аргумент `level` задаёт уровень самой глубокой PTE,
+    /// его можно получить из `Path::deepest_pte()`.
+    fn pages(
+        &self,
+        level: u32,
+    ) -> Block<Page> {
+        let page_count = PAGE_TABLE_ENTRY_COUNT.pow(level);
+
+        let end = (Page::containing(self.virt).index() + 1).next_multiple_of(page_count);
+        let start = end - page_count;
+
+        Block::from_index(start, end).expect(Self::INVALID_PATH)
+    }
+
+    /// Возвращает `true` если путь идёт через рекурсивную запись корневого уровня.
+    fn is_recursive_entry(&self) -> bool {
+        let root_frame = self.mapping.page_table_root();
+        let root_pte = unsafe {
+            self.nodes[size::from(PAGE_TABLE_ROOT_LEVEL)]
+                .try_into_ref::<PageTableEntry>()
+                .expect(Path::INVALID_PATH)
+        };
+
+        root_pte.frame() == Ok(root_frame)
+    }
+
+    /// Сообщение паники при некорректно сформированном [`Path`].
+    const INVALID_PATH: &'static str = "invalid path";
+}
+
+/// Итератор по листьям дерева отображения страниц.
+pub struct MappingIterator<'a> {
+    /// Маркер, привязывающий время жизни [`MappingIterator`]
+    /// ко времени жизни соответствующего [`Mapping`].
+    _marker: PhantomData<&'a mut Mapping>,
+
+    /// Текущий номер виртуальной страницы, задающий позицию итератора.
+    /// Значение, больше либо равное [`MappingIterator::end`], означает, что достигнут конец.
+    curr: usize,
+
+    /// Номер виртуальной страницы, задающий позицию за концом диапазона, который пробегает итератор.
+    /// Значение, равное [`Page::higher_half_end_index()`], означает, что достигнут конец.
+    /// Значения, больше [`Page::higher_half_end_index()`] не допустимы.
+    end: usize,
+
+    /// Дерево отображения.
+    mapping: NonNull<Mapping>,
+}
+
+impl<'a> Iterator for MappingIterator<'a> {
+    type Item = Path<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        assert!(self.end <= Page::higher_half_end_index());
+
+        loop {
+            if self.curr >= self.end {
+                return None;
+            }
+
+            let mapping = unsafe { &mut (*self.mapping.as_ptr()) };
+            let page = Page::from_index(self.curr)
+                .expect("incorrect initialization or advancement of MappingIterator");
+            let path = mapping.path(page.address());
+
+            if path.is_recursive_entry() {
+                let pages = path.pages(PAGE_TABLE_ROOT_LEVEL);
+                self.curr = pages.start_element().advance_index(pages.count());
+            } else {
+                let (level, _) = path.deepest_pte();
+                let pages = path.pages(level);
+
+                self.curr = pages.start_element().advance_index(pages.count());
+
+                return Some(path);
+            }
+        }
     }
 }
 

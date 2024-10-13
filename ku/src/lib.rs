@@ -13,6 +13,7 @@
 #![feature(const_size_of_val)]
 #![feature(let_chains)]
 #![feature(slice_ptr_get)]
+#![feature(step_trait)]
 #![feature(strict_provenance)]
 #![feature(trait_alias)]
 #![no_std]

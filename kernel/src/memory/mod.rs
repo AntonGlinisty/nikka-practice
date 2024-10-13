@@ -24,6 +24,9 @@ mod frame_allocator;
 /// Основной аллокатор физических фреймов [`MainFrameAllocator`].
 mod main_frame_allocator;
 
+/// Отображённый блок адресного пространства [`MappedBlock`].
+mod mapped_block;
+
 /// Реализация отображения виртуальной памяти в физическую [`Mapping`].
 mod mapping;
 
@@ -122,6 +125,7 @@ use {
         error::Error,
     },
     main_frame_allocator::MainFrameAllocator,
+    mapped_block::MappedBlock,
     page_allocator::PageAllocator,
     stack::ExceptionStacks,
 };

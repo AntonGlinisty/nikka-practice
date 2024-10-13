@@ -1,4 +1,12 @@
-use core::fmt;
+use core::{
+    fmt,
+    iter::Step,
+    ops::{
+        Add,
+        Range,
+        Sub,
+    },
+};
 
 use crate::error::{
     Error::{
@@ -98,6 +106,39 @@ impl<T: Tag> Frage<T> {
     }
 }
 
+impl<T: Tag> Add<usize> for Frage<T> {
+    type Output = Result<Self>;
+
+    fn add(
+        self,
+        rhs: usize,
+    ) -> Self::Output {
+        Self::new((self.0 + rhs * Self::SIZE)?)
+    }
+}
+
+impl<T: Tag> Sub<usize> for Frage<T> {
+    type Output = Result<Self>;
+
+    fn sub(
+        self,
+        rhs: usize,
+    ) -> Self::Output {
+        Self::new((self.0 - rhs * Self::SIZE)?)
+    }
+}
+
+impl<T: Tag> Sub<Self> for Frage<T> {
+    type Output = Result<usize>;
+
+    fn sub(
+        self,
+        rhs: Self,
+    ) -> Self::Output {
+        Ok((self.0 - rhs.0)? / Self::SIZE)
+    }
+}
+
 impl<T: Tag> fmt::Debug for Frage<T> {
     fn fmt(
         &self,
@@ -131,6 +172,128 @@ pub type Frame = Frage<PhysTag>;
 
 /// (Виртуальная) страница памяти.
 pub type Page = Frage<VirtTag>;
+
+impl Page {
+    /// Возвращает индекс виртуальной страницы,
+    /// которая следует через `page_count` страниц после текущей.
+    /// Если такой нет, то возвращает индекс на единицу больше
+    /// чем у последней виртуальной страницы --- [`Page::higher_half_end_index()`].
+    pub fn advance_index(
+        &self,
+        page_count: usize,
+    ) -> usize {
+        Self::forward_checked(*self, page_count)
+            .map(|page| page.index())
+            .unwrap_or_else(Self::higher_half_end_index)
+    }
+
+    /// Возвращает `true` если виртуальная страница относится к
+    /// [верхней половине](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details).
+    pub fn is_higher_half(&self) -> bool {
+        Self::higher_half_start_index() <= self.index()
+    }
+
+    /// Возвращает `true` если виртуальная страница относится к
+    /// [нижней половине](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details).
+    pub fn is_lower_half(&self) -> bool {
+        self.index() < Self::lower_half_end_index()
+    }
+
+    /// Возвращает первую виртуальную страницу
+    /// [верхней половины](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details)
+    /// адресного пространства.
+    pub fn higher_half() -> Self {
+        Self::containing(Virt::higher_half())
+    }
+
+    /// Возвращает первую виртуальную страницу
+    /// [нижней половины](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details)
+    /// адресного пространства.
+    pub fn lower_half() -> Self {
+        Self::containing(Virt::lower_half())
+    }
+
+    /// Возвращает индекс первой виртуальной страницы
+    /// [верхней половины](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details)
+    /// адресного пространства.
+    pub fn higher_half_start_index() -> usize {
+        Self::higher_half().index()
+    }
+
+    /// Возвращает индекс на единицу больше чем у последней виртуальной страницы
+    /// [верхней половины](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details)
+    /// адресного пространства.
+    pub fn higher_half_end_index() -> usize {
+        (usize::MAX / Self::SIZE) + 1
+    }
+
+    /// Возвращает индекс первой виртуальной страницы
+    /// [нижней половины](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details)
+    /// адресного пространства.
+    pub fn lower_half_start_index() -> usize {
+        Self::lower_half().index()
+    }
+
+    /// Возвращает индекс на единицу больше чем у последней виртуальной страницы
+    /// [нижней половины](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details)
+    /// адресного пространства.
+    pub fn lower_half_end_index() -> usize {
+        Self::lower_half_start_index() + Virt::half_size() / Self::SIZE
+    }
+
+    /// Возвращает запрещённый диапазон для номеров виртуальных страниц, находящийся между
+    /// [двумя половинами](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details)
+    /// адресного пространства.
+    fn non_canonical_range() -> Range<usize> {
+        Self::lower_half_end_index() .. Self::higher_half_start_index()
+    }
+}
+
+impl Step for Page {
+    fn steps_between(
+        start: &Self,
+        end: &Self,
+    ) -> Option<usize> {
+        if start <= end {
+            if Self::is_lower_half(start) == Self::is_lower_half(end) {
+                Some(end.index() - start.index())
+            } else {
+                Some(end.index() - start.index() - Self::non_canonical_range().count())
+            }
+        } else {
+            None
+        }
+    }
+
+    fn forward_checked(
+        start: Self,
+        count: usize,
+    ) -> Option<Self> {
+        let mut advanced = start.index().checked_add(count)?;
+
+        if start.index() < Self::lower_half_end_index() && Self::lower_half_end_index() <= advanced
+        {
+            advanced = advanced.checked_add(Self::non_canonical_range().count())?;
+        }
+
+        Self::from_index(advanced).ok()
+    }
+
+    fn backward_checked(
+        start: Self,
+        count: usize,
+    ) -> Option<Self> {
+        let mut advanced = start.index().checked_sub(count)?;
+
+        if advanced < Self::higher_half_start_index() &&
+            Self::higher_half_start_index() <= start.index()
+        {
+            advanced = advanced.checked_sub(Self::non_canonical_range().count())?;
+        }
+
+        Some(Self::from_index(advanced).expect("wrong advancement formula"))
+    }
+}
 
 #[cfg(test)]
 mod test {

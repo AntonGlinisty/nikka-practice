@@ -474,11 +474,39 @@ impl Virt {
         }
     }
 
+    /// Размер в байтах каждой из
+    /// [половин](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details)
+    /// адресного пространства.
+    pub fn half_size() -> usize {
+        1 << (Self::BITS - 1)
+    }
+
+    /// Возвращает первый адрес
+    /// [верхней половины](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details)
+    /// адресного пространства.
+    pub fn higher_half() -> Self {
+        Self::new_impl(!0 << (Self::BITS - 1)).expect("first valid address of the high area")
+    }
+
+    /// Возвращает первый адрес
+    /// [нижней половины](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details)
+    /// адресного пространства.
+    pub fn lower_half() -> Self {
+        Self::default()
+    }
+
     /// Возвращает `true` если виртуальный адрес относится к
     /// [верхней половине](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details)
     /// адресного пространства.
     pub fn is_higher_half(&self) -> bool {
-        self.into_usize() >> Self::BITS != 0
+        !self.is_lower_half()
+    }
+
+    /// Возвращает `true` если виртуальный адрес относится к
+    /// [нижней половине](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details)
+    /// адресного пространства.
+    pub fn is_lower_half(&self) -> bool {
+        self.into_usize() >> Self::BITS == 0
     }
 
     /// Преобразует указатель на `T` в [`Virt`].

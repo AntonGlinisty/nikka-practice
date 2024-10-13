@@ -161,6 +161,16 @@ impl<T: Memory> Block<T> {
         u128::try_from(self.end()).unwrap() * u128::try_from(T::SIZE_OF).unwrap()
     }
 
+    /// Возвращает первый элемент в блоке.
+    pub fn start_element(&self) -> T {
+        T::from_index(self.start).unwrap()
+    }
+
+    /// Возвращает следующий за последним элементом блока.
+    pub fn end_element(&self) -> Result<T> {
+        T::from_index(self.end)
+    }
+
     /// Проверяет, что заданный элемент относится к блоку.
     pub fn contains(
         &self,
@@ -191,6 +201,16 @@ impl<T: Memory> Block<T> {
         self.start <= block.start && block.end <= self.end
     }
 
+    /// Проверяет, что заданный `block` лежит правее и является смежным с текущим.
+    ///
+    /// См. также [`Block::coalesce()`].
+    pub fn is_adjacent(
+        &self,
+        block: Self,
+    ) -> bool {
+        self.end_address() == Ok(block.start_address())
+    }
+
     /// Проверяет, что заданный `block` не пересекается с текущим.
     pub fn is_disjoint(
         &self,
@@ -205,6 +225,24 @@ impl<T: Memory> Block<T> {
     /// Возвращает `true`, если блок пуст.
     pub const fn is_empty(&self) -> bool {
         self.start == self.end
+    }
+
+    /// Сливает вместе два блока, если `block` смежный с текущим и лежит правее.
+    ///
+    /// Возвращает ошибку
+    ///   - [`Error::InvalidArgument`] если блок `block` не смежный с текущим или не лежит правее.
+    ///
+    /// См. также [`Block::is_adjacent()`].
+    pub fn coalesce(
+        &self,
+        block: Self,
+    ) -> Result<Self> {
+        if self.is_adjacent(block) {
+            Ok(Block::from_index(self.start(), block.end())
+                .expect("coalesce of valid blocks should be valid"))
+        } else {
+            Err(InvalidArgument)
+        }
     }
 
     /// Возвращает пересечение блока `block` с текущим.

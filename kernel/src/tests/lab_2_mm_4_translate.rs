@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use kernel::{
     Subsystems,
     error::Error::{
@@ -114,6 +116,33 @@ fn t05_no_page() {
     let pte = mapping.translate(virt);
 
     assert_eq!(pte, Err(NoPage));
+}
+
+#[test_case]
+fn t06_build_map() {
+    let _guard = forbid_frame_leaks();
+
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+    let mapping = mapping(&mut address_space);
+
+    let flag_mask = !(PageTableFlags::ACCESSED | PageTableFlags::DIRTY);
+
+    for ignore_frame_addresses in [false, true] {
+        if ignore_frame_addresses {
+            debug!("virtual address space");
+        } else {
+            debug!("virtual to physical mapping");
+        }
+
+        for block in mapping
+            .iter_mut()
+            .map(|path| path.block())
+            .filter(|block| block.is_present())
+            .coalesce(|a, b| a.coalesce(b, ignore_frame_addresses, flag_mask))
+        {
+            debug!(%block);
+        }
+    }
 }
 
 #[test_case]
