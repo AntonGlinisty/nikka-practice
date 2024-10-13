@@ -33,6 +33,8 @@ pub use frage::{
 pub use mmu::{
     FULL_ACCESS,
     KERNEL_RW,
+    USER,
+    USER_R,
     USER_RW,
 };
 pub use page_fault_info::PageFaultInfo;

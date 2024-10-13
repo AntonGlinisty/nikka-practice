@@ -52,6 +52,18 @@ impl Big<'_> {
 }
 
 unsafe impl BigAllocator for Big<'_> {
+    fn flags(&self) -> PageTableFlags {
+        self.flags
+    }
+
+    fn set_flags(
+        &mut self,
+        flags: PageTableFlags,
+    ) -> Result<()> {
+        self.flags = flags;
+        Ok(())
+    }
+
     fn reserve(
         &mut self,
         layout: Layout,
@@ -90,8 +102,9 @@ unsafe impl BigAllocator for Big<'_> {
     unsafe fn map(
         &mut self,
         block: Block<Page>,
+        flags: PageTableFlags,
     ) -> Result<()> {
-        unsafe { self.address_space.map_block(block, self.flags) }
+        unsafe { self.address_space.map_block(block, flags) }
     }
 
     unsafe fn unmap(
@@ -105,6 +118,7 @@ unsafe impl BigAllocator for Big<'_> {
         &mut self,
         old_block: Block<Page>,
         new_block: Block<Page>,
+        flags: Option<PageTableFlags>,
     ) -> Result<()> {
         // TODO: your code here.
         unimplemented!();

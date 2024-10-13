@@ -1,6 +1,7 @@
 #![deny(warnings)]
 #![feature(allocator_api)]
 #![feature(custom_test_frameworks)]
+#![feature(maybe_uninit_fill, maybe_uninit_slice)]
 #![feature(ptr_as_uninit)]
 #![feature(slice_ptr_get)]
 #![feature(strict_provenance)]

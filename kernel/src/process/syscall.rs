@@ -54,13 +54,15 @@ use crate::{
         self,
         Block,
         FRAME_ALLOCATOR,
-        Frame,
         KERNEL_RW,
         Page,
         USER,
         USER_R,
         Virt,
-        mmu::PageTableFlags,
+        mmu::{
+            PageTableEntry,
+            PageTableFlags,
+        },
     },
     smp::{
         Cpu,
@@ -288,7 +290,11 @@ fn unmap(
 /// Исходный диапазон начинается с виртуального адреса `src_address`,
 /// целевой --- с виртуального адреса `dst_address`.
 /// Размер диапазона --- `dst_size` байт.
-/// В целевом процессе диапазон должен быть отображён с флагами `flags`.
+///
+/// В целевом процессе диапазон должен быть отображён с флагами:
+///   - `flags`, если `flags != 0`.
+///   - такими же, как в исходном диапазоне, если `flags == 0`.
+///
 /// Не допускает целевое отображение с более широким набором флагов, чем исходное.
 /// После выполнения у процессов появляется область
 /// [разделяемой памяти](https://en.wikipedia.org/wiki/Shared_memory).
@@ -314,21 +320,26 @@ fn check_frames<'a>(
     process: &'a SpinlockGuard<Process>,
     block: Block<Page>,
     flags: PageTableFlags,
-) -> Result<Vec<Frame, MemoryAllocator<'a>>> {
+) -> Result<Vec<PageTableEntry, MemoryAllocator<'a>>> {
     // TODO: your code here.
     unimplemented!();
 }
 
-/// Выполняет отображение `src_frames` в `dst_pages` с флагами `flags`
+/// Выполняет отображение `src_ptes` в `dst_pages`
 /// в адресное пространство процесса `process`.
-/// Количества элементов в `src_frames` и `dst_pages` должны совпадать.
+///
+/// В целевом процессе диапазон должен быть отображён с флагами:
+///   - `flags`, если `flags` --- [`Some`].
+///   - такими же, как в исходном диапазоне, если `flags` --- [`None`].
+///
+/// Количества элементов в `src_ptes` и `dst_pages` должны совпадать.
 fn map_pages_to_frames(
     process: &SpinlockGuard<Process>,
-    src_frames: Vec<Frame, MemoryAllocator>,
+    src_ptes: Vec<PageTableEntry, MemoryAllocator>,
     dst_pages: Block<Page>,
-    flags: PageTableFlags,
+    flags: Option<PageTableFlags>,
 ) -> Result<()> {
-    assert_eq!(src_frames.len(), dst_pages.count());
+    assert_eq!(src_ptes.len(), dst_pages.count());
 
     // TODO: your code here.
     unimplemented!();
@@ -384,7 +395,8 @@ fn check_block(
 /// Флаги [`PageTableFlags::COPY_ON_WRITE`] и [`PageTableFlags::WRITABLE`]
 /// при проверке считаются эквивалентными,
 /// а флаг [`PageTableFlags::USER_ACCESSIBLE`] --- обязательно включённым.
-/// Возвращает физический фрейм, в который отображена страница `page`.
+/// Возвращает копию [`PageTableEntry`], с физическим фреймом,
+/// в который она отображена, и флагами исходного отображения.
 ///
 /// Возвращает ошибки:
 ///   - [`Error::NoPage`] если страница `page` не отображена.
@@ -394,16 +406,23 @@ fn check_frame(
     process: &SpinlockGuard<Process>,
     page: Page,
     flags: PageTableFlags,
-) -> Result<Frame> {
+) -> Result<PageTableEntry> {
     // TODO: your code here.
     unimplemented!();
 }
 
-/// Проверяет, что `flags` задаёт валидный набор флагов отображения страниц,
-/// в котором обязательно должен быть включен флаг
-/// разрешения доступа со стороны кода пользователя.
-/// Возвращает входные `flags` в виде [`PageTableFlags`].
-fn check_page_flags(flags: usize) -> Result<PageTableFlags> {
+/// Проверяет, что `flags` задаёт валидный набор флагов отображения страниц пользователя.
+///
+/// Возвращает:
+///   - [`None`], если `flags == 0`.
+///   - Входные `flags` в виде [`PageTableFlags`], если `flags != 0`.
+///
+/// Возвращает ошибки:
+///   - [`Error::InvalidArgument`], если во `flags` установлен бит,
+///     не соответствующий никакому флагу [`PageTableFlags`].
+///   - [`Error::PermissionDenied`], если `flags != 0` и
+///     в них не включён [`PageTableFlags::USER_ACCESSIBLE`].
+fn check_page_flags(flags: usize) -> Result<Option<PageTableFlags>> {
     // TODO: your code here.
     unimplemented!();
 }

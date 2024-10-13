@@ -14,15 +14,21 @@ use nix::sys::mman::{
 
 use ku::{
     allocator::BigAllocator,
-    error::Result,
+    error::{
+        Error::PermissionDenied,
+        Result,
+    },
     memory::{
         Block,
         Page,
+        USER_RW,
         Virt,
+        mmu::PageTableFlags,
     },
 };
 
 pub struct BigForPipe {
+    flags: PageTableFlags,
     reserved: Block<Page>,
     buffer: Block<Page>,
     mirrored_buffer: Block<Page>,
@@ -32,6 +38,7 @@ pub struct BigForPipe {
 impl BigForPipe {
     pub fn new() -> Self {
         Self {
+            flags: USER_RW,
             reserved: Block::default(),
             buffer: Block::default(),
             mirrored_buffer: Block::default(),
@@ -63,6 +70,23 @@ impl BigForPipe {
 }
 
 unsafe impl BigAllocator for BigForPipe {
+    fn flags(&self) -> PageTableFlags {
+        self.flags
+    }
+
+    fn set_flags(
+        &mut self,
+        flags: PageTableFlags,
+    ) -> Result<()> {
+        if flags.contains(PageTableFlags::USER_ACCESSIBLE) {
+            self.flags = flags;
+
+            Ok(())
+        } else {
+            Err(PermissionDenied)
+        }
+    }
+
     fn reserve(
         &mut self,
         layout: Layout,
@@ -106,16 +130,22 @@ unsafe impl BigAllocator for BigForPipe {
     unsafe fn map(
         &mut self,
         block: Block<Page>,
+        flags: PageTableFlags,
     ) -> Result<()> {
         assert_eq!(self.buffer, Block::default());
         assert_eq!(block.size(), self.reserved.size() / 2);
         assert!(self.reserved.contains_block(block));
 
+        let mut prot_flags = ProtFlags::PROT_READ;
+        if flags.contains(PageTableFlags::WRITABLE) {
+            prot_flags |= ProtFlags::PROT_WRITE;
+        }
+
         let ptr = unsafe {
             mman::mmap::<File>(
                 NonZeroUsize::new(block.start_address().into_usize()),
                 NonZeroUsize::new(block.size()).unwrap(),
-                ProtFlags::PROT_READ | ProtFlags::PROT_WRITE,
+                prot_flags,
                 MapFlags::MAP_ANONYMOUS | MapFlags::MAP_SHARED | MapFlags::MAP_FIXED,
                 None,
                 0,
@@ -139,11 +169,13 @@ unsafe impl BigAllocator for BigForPipe {
         &mut self,
         old_block: Block<Page>,
         new_block: Block<Page>,
+        flags: Option<PageTableFlags>,
     ) -> Result<()> {
         assert_ne!(self.buffer, Block::default());
         assert_eq!(self.mirrored_buffer, Block::default());
         assert_eq!(self.buffer, old_block);
         assert_eq!(old_block.size(), new_block.size());
+        assert_eq!(flags, None);
         assert!(self.reserved.contains_block(new_block));
 
         let ptr = unsafe {

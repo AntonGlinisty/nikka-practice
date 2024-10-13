@@ -22,6 +22,7 @@ use ku::{
     memory::{
         Block,
         Page,
+        USER,
         Virt,
         mmu::PageTableFlags,
         size,
@@ -148,24 +149,29 @@ pub fn unmap(
 /// Создаёт копию отображения виртуальной памяти из вызывающего процесса
 /// в процесс, заданный `dst_pid`.
 /// Исходный диапазон задаёт `src_block`, целевой --- `dst_block`.
-/// В целевом процессе диапазон будет отображён с флагами `flags`.
+///
+/// В целевом процессе диапазон должен быть отображён с флагами:
+///   - `flags`, если `flags` --- [`Some`].
+///   - постранично такими же, как в исходном диапазоне, если `flags` --- [`None`].
+///
 /// Не допускает целевое отображение с более широким набором флагов, чем исходное.
+///
 /// После выполнения у процессов появляется область
 /// [разделяемой памяти](https://en.wikipedia.org/wiki/Shared_memory).
 pub fn copy_mapping(
     dst_pid: Pid,
     src_block: Block<Page>,
     dst_block: Block<Page>,
-    flags: PageTableFlags,
+    flags: Option<PageTableFlags>,
 ) -> Result<()> {
-    if src_block.count() == dst_block.count() {
+    if src_block.count() == dst_block.count() && flags.unwrap_or(USER).contains(USER) {
         syscall(
             Syscall::CopyMapping,
             dst_pid.into_usize(),
             src_block.start_address().into_usize(),
             dst_block.start_address().into_usize(),
             dst_block.size(),
-            flags.bits(),
+            flags.map(|x| x.bits()).unwrap_or(0),
         )
         .map(|_| ())
     } else {

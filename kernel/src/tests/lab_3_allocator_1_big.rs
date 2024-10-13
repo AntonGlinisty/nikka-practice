@@ -12,7 +12,10 @@ use alloc::{
 };
 use core::{
     cmp,
-    mem,
+    mem::{
+        self,
+        MaybeUninit,
+    },
 };
 
 use static_assertions::const_assert_eq;
@@ -42,6 +45,8 @@ use kernel::{
         Virt,
         mmu::{
             PageTableEntry,
+            PageTableFlags,
+            USER_R,
             USER_RW,
         },
         size::{
@@ -193,7 +198,7 @@ fn copy_mapping_frame_references() {
     }
 
     unsafe {
-        address_space.allocator(USER_RW).map(old_block).unwrap();
+        address_space.allocator(USER_RW).map(old_block, USER_RW).unwrap();
     }
 
     check_mapped(&mut address_space, old_block, true);
@@ -201,7 +206,10 @@ fn copy_mapping_frame_references() {
     check_reference_count(&mut address_space, old_block, 1);
 
     unsafe {
-        address_space.allocator(USER_RW).copy_mapping(old_block, new_block).unwrap();
+        address_space
+            .allocator(USER_RW)
+            .copy_mapping(old_block, new_block, None)
+            .unwrap();
     }
 
     check_mapped(&mut address_space, old_block, true);
@@ -288,6 +296,44 @@ fn copy_mapping_frame_references() {
 }
 
 #[test_case]
+fn copy_mapping_same_block() {
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+    let layout = Layout::from_size_align(3 * Page::SIZE, Page::SIZE).unwrap();
+
+    let block = address_space.allocator(USER_RW).reserve(layout).unwrap();
+
+    unsafe {
+        address_space.allocator(USER_RW).map(block, USER_RW).unwrap();
+    }
+
+    let value = 42;
+    unsafe {
+        MaybeUninit::fill(
+            block.try_into_mut_slice::<MaybeUninit<usize>>().unwrap(),
+            value,
+        );
+    }
+
+    unsafe {
+        address_space
+            .allocator(USER_RW)
+            .copy_mapping(block, block, Some(USER_R))
+            .unwrap();
+    }
+
+    let pte = translate(&mut address_space, block.into_iter().next().unwrap()).unwrap();
+    assert!(!pte.flags().contains(PageTableFlags::WRITABLE));
+
+    let slice = unsafe {
+        MaybeUninit::slice_assume_init_mut(
+            block.try_into_mut_slice::<MaybeUninit<usize>>().unwrap(),
+        )
+    };
+
+    assert!(slice.iter().all(|&x| x == value));
+}
+
+#[test_case]
 fn grow_and_shrink() {
     memory_allocator_grow_and_shrink();
 }
@@ -337,7 +383,9 @@ fn check_frames<T>(
     let mut frames = Vec::with_capacity(block.count());
     let mut address_space = BASE_ADDRESS_SPACE.lock();
     for page in block {
-        frames.push(translate(&mut address_space, page).unwrap())
+        let mut pte = translate(&mut address_space, page).unwrap();
+        pte.set_flags(pte.flags() & !(PageTableFlags::ACCESSED | PageTableFlags::DIRTY));
+        frames.push(pte)
     }
     debug!(%block, ?frames);
 

@@ -18,6 +18,7 @@ use ku::{
         Error::{
             InvalidAlignment,
             InvalidArgument,
+            PermissionDenied,
         },
         Result,
     },
@@ -25,6 +26,7 @@ use ku::{
         Block,
         Page,
         SizeOf,
+        USER,
         USER_RW,
         mmu::PageTableFlags,
     },
@@ -35,24 +37,44 @@ use crate::syscall;
 
 /// Аллокатор памяти общего назначения в пространстве пользователя, реализованный через
 /// системные вызовы [`syscall::map()`], [`syscall::unmap()`] и [`syscall::copy_mapping()`].
-pub(super) struct MapAllocator;
+pub(super) struct MapAllocator {
+    /// Флаги доступа к выделяемой аллокатором памяти.
+    flags: PageTableFlags,
+}
 
 impl MapAllocator {
     /// Аллокатор памяти общего назначения в пространстве пользователя, реализованный через
     /// системные вызовы [`syscall::map()`], [`syscall::unmap()`] и [`syscall::copy_mapping()`].
     pub(super) const fn new() -> Self {
-        Self
+        Self { flags: USER_RW }
     }
 }
 
 unsafe impl BigAllocator for MapAllocator {
+    fn flags(&self) -> PageTableFlags {
+        self.flags
+    }
+
+    fn set_flags(
+        &mut self,
+        flags: PageTableFlags,
+    ) -> Result<()> {
+        if flags.contains(USER) {
+            self.flags = flags;
+
+            Ok(())
+        } else {
+            Err(PermissionDenied)
+        }
+    }
+
     fn reserve(
         &mut self,
         layout: Layout,
     ) -> Result<Block<Page>> {
         if layout.align() <= Page::SIZE {
             let block = Block::from_index(0, Page::count_up(layout.size()))?;
-            syscall::map(Pid::Current, block, PageTableFlags::USER_ACCESSIBLE)
+            syscall::map(Pid::Current, block, USER)
         } else {
             Err(InvalidAlignment)
         }
@@ -80,8 +102,9 @@ unsafe impl BigAllocator for MapAllocator {
     unsafe fn map(
         &mut self,
         block: Block<Page>,
+        flags: PageTableFlags,
     ) -> Result<()> {
-        syscall::map(Pid::Current, block, USER_RW).map(|_| ())
+        syscall::map(Pid::Current, block, flags).map(|_| ())
     }
 
     unsafe fn unmap(
@@ -99,8 +122,9 @@ unsafe impl BigAllocator for MapAllocator {
         &mut self,
         old_block: Block<Page>,
         new_block: Block<Page>,
+        flags: Option<PageTableFlags>,
     ) -> Result<()> {
-        syscall::copy_mapping(Pid::Current, old_block, new_block, USER_RW)
+        syscall::copy_mapping(Pid::Current, old_block, new_block, flags)
     }
 }
 

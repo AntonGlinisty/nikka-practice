@@ -17,6 +17,7 @@ use crate::{
     log::debug,
     memory::{
         Block,
+        USER_RW,
         Virt,
         size,
     },
@@ -96,6 +97,7 @@ mod test {
             Block,
             Page,
             Virt,
+            mmu::PageTableFlags,
             size,
         },
     };
@@ -132,6 +134,17 @@ mod test {
     struct DummyAllocator;
 
     unsafe impl BigAllocator for DummyAllocator {
+        fn flags(&self) -> PageTableFlags {
+            unimplemented!();
+        }
+
+        fn set_flags(
+            &mut self,
+            _flags: PageTableFlags,
+        ) -> Result<()> {
+            unimplemented!();
+        }
+
         fn reserve(
             &mut self,
             _layout: Layout,
@@ -157,6 +170,7 @@ mod test {
         unsafe fn map(
             &mut self,
             _block: Block<Page>,
+            _flags: PageTableFlags,
         ) -> Result<()> {
             unimplemented!();
         }
@@ -172,6 +186,7 @@ mod test {
             &mut self,
             _old_block: Block<Page>,
             _new_block: Block<Page>,
+            _flags: Option<PageTableFlags>,
         ) -> Result<()> {
             unimplemented!();
         }

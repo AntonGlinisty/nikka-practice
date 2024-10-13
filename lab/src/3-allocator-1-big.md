@@ -32,6 +32,7 @@ unsafe fn copy_mapping(
     &mut self,
     old_block: Block<Page>,
     new_block: Block<Page>,
+    flags: Option<PageTableFlags>,
 ) -> Result<()>;
 ```
 
@@ -41,10 +42,13 @@ unsafe fn copy_mapping(
 Физические фреймы, на которые не осталось других ссылок, освобождаются.
 После работы `copy_mapping()` содержимое памяти, которое ранее было доступно через `old_block`,
 становится доступным ещё и через `new_block`.
-Флаги доступа при этом не меняются.
+Параметр `flags` задаёт флаги доступа к страницам `new_block`:
+- `None` --- использовать те же флаги, что и в `old_block`, индивидуально для каждой страницы.
+- `Some` --- использовать для всех страниц флаги `flags`.
 
-Если `old_block` и `new_block` имеют разный размер или пересекаются, метод `copy_mapping()`
-возвращает ошибку
+Если `old_block` и `new_block` имеют разный размер или пересекаются,
+за исключением случая совпадения при `flags == Some(...)`,
+метод `copy_mapping()` возвращает ошибку
 [`Error::InvalidArgument`](../../doc/ku/error/enum.Error.html#variant.InvalidArgument).
 
 Реализуйте методы типажа
