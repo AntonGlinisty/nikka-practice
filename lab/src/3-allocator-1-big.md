@@ -50,6 +50,9 @@ unsafe fn copy_mapping(
 за исключением случая совпадения при `flags == Some(...)`,
 метод `copy_mapping()` возвращает ошибку
 [`Error::InvalidArgument`](../../doc/ku/error/enum.Error.html#variant.InvalidArgument).
+Когда выходной блок совпадает со входным и `flags == Some(...)`,
+нужно поменять флаги отображения блока, не меняя целевые фреймы отображения.
+Этот случай нам ещё понадобится при загрузке ELF--файла процесса в следующей лабораторной работе.
 
 Реализуйте методы типажа
 [`ku::allocator::dry::DryAllocator`](../../doc/ku/allocator/dry/trait.DryAllocator.html)

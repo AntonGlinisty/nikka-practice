@@ -173,6 +173,12 @@ fn switch_from_real_mode_to_long_mode() -> !
 А значит, адрес возврата просто съел бы место в стеке ядра.
 Для получения абсолютного адреса определённой в том же исходном файле метки, и в том числе функции,
 в ассемблере можно использовать выражение `OFFSET ap_kernel_main`.
+Вне зависимости от того, какой инструкцией совершается переход на функцию
+[`ap_kernel_main()`](../../doc/kernel/smp/ap_init/fn.ap_kernel_main.html) ---
+[`jmp`](https://www.felixcloutier.com/x86/jmp) или
+[`call`](https://www.felixcloutier.com/x86/call), ---
+вызывая её вы должны следовать
+[x86-64 C ABI](https://wiki.osdev.org/System_V_ABI#x86-64).
 
 При желании вы можете отступить от предложенной схемы загрузки AP и реализовать любой другой работающий вариант.
 Также, можно передать через
@@ -185,6 +191,15 @@ fn switch_from_real_mode_to_long_mode() -> !
 Кроме того, эмулятор [позволяет подключиться к ядру отладчиком](../../lab/book/0-intro-5-gdb.html) и выполнять код функции
 [`switch_from_real_mode_to_long_mode()`](../../doc/kernel/smp/ap_init/fn.switch_from_real_mode_to_long_mode.html)
 пошагово.
+
+Вам может пригодиться инструкция
+[`wrmsr`](https://www.felixcloutier.com/x86/wrmsr)
+и константа
+[`x86::msr::IA32_EFER`](../../doc/x86/msr/constant.IA32_EFER.html)
+для номера
+[моделезависимого регистра](https://en.wikipedia.org/wiki/Model-specific_register)
+`efer`
+([Extended Feature Enable Register](https://en.wikipedia.org/wiki/Control_register#EFER)).
 
 
 #### Дизассемблирование с помощью `objdump`

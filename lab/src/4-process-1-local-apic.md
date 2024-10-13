@@ -33,7 +33,7 @@ LAPIC находится на том же кристалле, что и проц
 Это и делает метод
 [`LocalApic::id()`](../../doc/kernel/smp/local_apic/struct.LocalApic.html#method.id).
 
-Физический адрес MMIO для local APIC можно узнать вызвав метод
+Физический адрес MMIO для local APIC можно узнать, вызвав метод
 [`kernel::smp::acpi::Acpi::local_apic_address()`](../../doc/kernel/smp/acpi/struct.Acpi.html#method.local_apic_address).
 А виртуальный адрес можно было бы выбрать произвольно.
 Но ядро должно этот адрес где-то запомнить, чтобы использовать для обращений в дальнейшем.
