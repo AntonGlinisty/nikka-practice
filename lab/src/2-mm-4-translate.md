@@ -180,27 +180,24 @@ pub fn Path::map_intermediate(
 
 Выделение физического фрейма под отсутствующую промежуточную таблицу
 [`PageTable`](../../doc/ku/memory/mmu/type.PageTable.html)
-рекомендуется вынести во вспомогательную [функцию](../../doc/kernel/memory/mapping/struct.Mapping.html#method.map_intermediate)
+и его зануление
+рекомендуется вынести во вспомогательную [функцию](../../doc/kernel/memory/mapping/struct.Mapping.html#method.allocate_node)
 
 ```rust
-fn Mapping::map_intermediate(
+fn allocate_node(
     &mut self,
-    pte: &mut PageTableEntry,
-) -> Result<()>
+) -> Result<Frame>
 ```
 
 в файле [`kernel/src/memory/mapping.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/mapping.rs).
 
-Запись `()` в её результате означает пустой [кортеж](https://doc.rust-lang.ru/book/ch03-02-data-types.html#%D0%9A%D0%BE%D1%80%D1%82%D0%B5%D0%B6%D0%B8), --- это аналог `void` языка C++.
-То есть, функция либо возвращает `Ok(())`, если она отработала успешно, либо ошибку.
-
-При реализации `Mapping::path()`, `Path::map_intermediate()` и `Mapping::map_intermediate()` вам также могут пригодиться:
+При реализации `Mapping::path()`, `Path::map_intermediate()` и `Mapping::allocate_node()` вам также могут пригодиться:
 
 - Поле [`Mapping::page_table_root`](../../doc/kernel/memory/mapping/struct.Mapping.html#structfield.page_table_root), оно содержит адрес фрейма корневой таблицы L3, то есть фактически копию регистра [`CR3`](https://wiki.osdev.org/CPU_Registers_x86#CR3).
 - Константа [`ku::memory::mmu::PAGE_TABLE_ROOT_LEVEL`](../../doc/ku/memory/mmu/constant.PAGE_TABLE_ROOT_LEVEL.html) --- та самая 3 из обозначения L3 для корневой таблицы страниц --- третий уровень считая с нуля.
 - Константа [`ku::memory::mmu::PAGE_TABLE_LEAF_LEVEL`](../../doc/ku/memory/mmu/constant.PAGE_TABLE_LEAF_LEVEL.html) --- та самая 0 из обозначения L0 для листьевой таблицы страниц.
 - Конструкция `unsafe { virt_addr.try_into_mut::<PageTable>()? }`, которая превращает [`Virt`](../../doc/ku/memory/addr/type.Virt.html) в `&mut PageTable`.
-- Метод [`fill()`](https://doc.rust-lang.org/nightly/core/primitive.slice.html#method.fill) срезов.
+- Метод [`core::mem::MaybeUninit::zeroed()`](https://doc.rust-lang.org/nightly/core/mem/union.MaybeUninit.html#method.zeroed) для зануления выделенной памяти под выделяемую таблицу страниц. Нулевое значение подойдёт для [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html), --- с точки зрения компилятора сгодится любое значение оборачиваемого ею типа [`usize`](https://doc.rust-lang.org/nightly/core/primitive.usize.html), а с точки зрения процессора, подойдёт любое значение, если [`PageTableFlags::PRESENT`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.PRESENT) будет сброшен.
 - Цикл, чтобы обойти уровни таблицы. Для уменьшения потенциальных возможностей совершить ошибку, можно было бы сделать таблицы страниц разных уровней не совместимыми в системе типов, [как здесь](https://os.phil-opp.com/page-tables/#some-clever-solution). Тогда компилятор не дал бы их перепутать в коде. Но такой подход, к сожалению, не даст написать обычный цикл по уровням, только рекурсию на обобщённых функциях или копипасту. Поэтому в Nikka выбор сделан в пользу одного и того же типа для узлов всех уровней.
 - Итерирование в обратном порядке: `for i in (5..10).rev()`, или же `for i in (5..=10).rev()` если `10` должно быть включительно.
 

@@ -1,5 +1,6 @@
 use core::{
     marker::PhantomData,
+    mem::MaybeUninit,
     ops::{
         Bound,
         RangeBounds,
@@ -239,24 +240,7 @@ impl Mapping {
         mmu::page_table_root()
     }
 
-    /// Возвращает неизменяемую ссылку на узел таблицы страниц,
-    /// записанный в данном физическом фрейме.
-    ///
-    /// # Safety
-    ///
-    /// Вызывающий код должен гарантировать, что:
-    ///   - Во `frame` находится узел таблицы страниц.
-    ///   - Инварианты управления памятью в Rust'е не будут нарушены.
-    ///     В частности, нет изменяемых ссылок, которые ведут во `frame`.
-    pub(super) unsafe fn page_table_ref(
-        &self,
-        frame: Frame,
-    ) -> &PageTable {
-        let page_table = phys2virt::map(self.phys2virt, frame.address());
-        unsafe { page_table.try_into_ref().expect("bad phys2virt or frame") }
-    }
-
-    /// Возвращает изменяемую ссылку на узел таблицы страниц,
+    /// Возвращает ссылку на узел таблицы страниц,
     /// записанный в данном физическом фрейме.
     ///
     /// # Safety
@@ -265,10 +249,18 @@ impl Mapping {
     ///   - Во `frame` находится узел таблицы страниц.
     ///   - Инварианты управления памятью в Rust'е не будут нарушены.
     ///     В частности, нет других ссылок, которые ведут во `frame`.
-    unsafe fn page_table_mut(
-        &mut self,
+    #[allow(clippy::needless_arbitrary_self_type)]
+    #[allow(unused)]
+    #[duplicate_item(
+        page_table_getter reference(x) return_type;
+        [page_table_ref] [&x] [PageTable];
+        [page_table_mut] [&mut x] [PageTable];
+        [page_table_uninit_mut] [&mut x] [MaybeUninit<PageTable>];
+    )]
+    pub(super) unsafe fn page_table_getter(
+        self: reference([Self]),
         frame: Frame,
-    ) -> &mut PageTable {
+    ) -> reference([return_type]) {
         let page_table = phys2virt::map(self.phys2virt, frame.address());
         unsafe { page_table.try_into_mut().expect("bad phys2virt or frame") }
     }
@@ -304,17 +296,12 @@ impl Mapping {
         reference([page_table[index]])
     }
 
-    /// Принимает промежуточную запись [`PageTableEntry`],
-    /// ссылающуюся на отсутствующий узел дерева отображения.
-    /// Выделяет с помощью [`static@FRAME_ALLOCATOR`] фрейм и записывает его
-    /// в эту [`PageTableEntry`] вместе с флагом [`PageTableFlags::PRESENT`].
+    /// Создаёт новый узел --- [`PageTable`] --- дерева отображения страниц,
+    /// но не провязывает его в дерево.
     ///
-    /// См. [`Path::map_intermediate()`] в котором этот метод
-    /// используется как вспомогательный.
-    fn map_intermediate(
-        &mut self,
-        pte: &mut PageTableEntry,
-    ) -> Result<()> {
+    /// Очищает записи [`PageTableEntry`] в новом узле с помощью [`MaybeUninit::zeroed()`].
+    /// Возвращает фрейм нового узла.
+    fn allocate_node(&mut self) -> Result<Frame> {
         // TODO: your code here.
         unimplemented!();
     }
