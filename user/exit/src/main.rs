@@ -38,8 +38,8 @@ fn exit(code: usize) -> ! {
             syscall
             ",
 
-            in("rdi") usize::from(Syscall::Exit),
-            in("rsi") code,
+            in("rax") usize::from(Syscall::Exit),
+            in("rdi") code,
 
             options(noreturn),
         );

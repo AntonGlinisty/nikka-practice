@@ -220,6 +220,7 @@ pub fn set_trap_handler(
     .map(|_| ())
 }
 
+// ANCHOR: syscall
 /// Системный вызовов номер `number` с аргументами `arg0`--`arg4`.
 // Inline is needed for the correctness of exofork().
 #[inline(always)]
@@ -231,6 +232,7 @@ pub fn syscall(
     arg3: usize,
     arg4: usize,
 ) -> Result<(usize, usize)> {
+    // ANCHOR_END: syscall
     // TODO: your code here.
     unimplemented!();
 }

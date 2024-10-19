@@ -120,6 +120,7 @@ extern "C" fn syscall_trampoline() -> ! {
     }
 }
 
+// ANCHOR: syscall
 /// Выполняет диспетчеризацию системных вызовов по аргументу `number` --- номеру системного вызова.
 ///
 /// Передаёт в функции, реализующие конкретные системные вызовы,
@@ -132,16 +133,19 @@ extern "C" fn syscall(
     // Parameters to functions are passed in the registers
     // rdi, rsi, rdx, rcx, r8, r9,
     // and further values are passed on the stack in reverse order.
-    number: usize, // rdi
-    arg0: usize,   // rsi
-    arg1: usize,   // rdx
-    rip: Virt,     // rcx
-    rsp: Virt,     // r8
-    arg2: usize,   // r9
+    arg0: usize,  // rdi
+    arg1: usize,  // rsi
+    arg2: usize,  // rdx
+    arg3: usize,  // rcx
+    arg4: usize,  // r8
+    _arg5: usize, // r9
     // Stack, push in reverse order.
-    arg3: usize,
-    arg4: usize,
+    number: usize,
+    rip: Virt,
+    rsp: Virt,
 ) -> ! {
+    // ANCHOR_END: syscall
+
     assert!(
         RFlags::read().contains(RFlags::INTERRUPT_FLAG),
         "enable the interrupts during the system calls",
@@ -151,6 +155,7 @@ extern "C" fn syscall(
     unimplemented!();
 }
 
+// ANCHOR: sysret
 /// С помощью инструкции [sysret](https://www.felixcloutier.com/x86/sysret)
 /// возвращает управление в контекст пользователя `context`.
 ///
@@ -160,6 +165,8 @@ fn sysret(
     context: MiniContext,
     result: Result<SyscallResult>,
 ) -> ! {
+    // ANCHOR_END: sysret
+
     // TODO: your code here.
 
     unsafe {

@@ -20,6 +20,41 @@
 - [`sti`](https://www.felixcloutier.com/x86/sti).
 
 
+### Nikka Syscall ABI
+
+Опираться будем на
+[Linux x86-64 syscall ABI](https://refspecs.linuxbase.org/elf/x86_64-abi-0.99.pdf#subsection.A.2.1),
+однако немного модифицируем её.
+В оригинале:
+
+> 1. User-level applications use as integer registers for passing the sequence
+> %rdi, %rsi, %rdx, %rcx, %r8 and %r9. The kernel interface uses %rdi,
+> %rsi, %rdx, %r10, %r8 and %r9.
+> 2. A system-call is done via the syscall instruction. The kernel destroys
+> registers %rcx and %r11.
+> 3. The number of the syscall has to be passed in register %rax.
+> 4. System-calls are limited to six arguments, no argument is passed directly on
+> the stack.
+> 5. Returning from the syscall, register %rax contains the result of the
+> system-call. A value in the range between -4095 and -1 indicates an error,
+> it is -errno.
+> 6. Only values of class INTEGER or class MEMORY are passed to the kernel.
+
+Обратите внимание, что регистры для аргументов системных вызовов немного отличаются от
+регистров для аргументов обычных функций, --- `rcx` заменён на `r10`.
+Это связано с тем, что инструкция `syscall` использует `rcx` для собственных целей.
+
+У нас в момент `syscall` будет так же:
+- `rax` --- номер системного вызова [`ku::process::syscall::Syscall`](../../doc/ku/process/syscall/enum.Syscall.html), который [можно преобразовать](../../doc/ku/process/syscall/enum.Syscall.html#impl-From%3CSyscall%3E-for-usize) в `usize` для записи в регистр и наоборот с помощью [`Syscall::try_from()`](../../doc/ku/process/syscall/enum.Syscall.html#method.try_from).
+- `rdi`, `rsi`, `rdx`, `r10`, `r8` и `r9` --- аргументы системного вызова, преобразованные к `usize`. Нам будет достаточно пяти аргументов, так что `r9` пока зарезервируем.
+
+А вот после возврата через `sysret` будет немного по-другому:
+- `rax` --- код ошибки [`ku::process::syscall::ResultCode`](../../doc/ku/process/syscall/enum.ResultCode.html), который [можно преобразовать](../../doc/ku/process/syscall/enum.ResultCode.html#impl-From%3CResultCode%3E-for-Result%3C(),+Error%3E) как в [`ku::error::Result`](../../doc/ku/error/type.Result.html) и [наоборот](../../doc/ku/process/syscall/enum.ResultCode.html#impl-From%3CResult%3CT,+Error%3E%3E-for-ResultCode), так и [в `usize`](../../doc/ku/process/syscall/enum.ResultCode.html#impl-From%3CResultCode%3E-for-usize) и наоборот с помощью [`ResultCode::try_from()`](../../doc/ku/process/syscall/enum.ResultCode.html#method.try_from).
+- `rdi` --- полезное значение, которое может вернуть системный вызов, приведённое к `usize`. Или `0` для системных вызовов, которые не возвращают значений.
+- `rcx` и `r11` --- содержат мусор, так как используются инструкцией `sysret`.
+- Остальные регистры общего назначения занулены, чтобы через них никакой информации из ядра не утекло в пользовательское пространство.
+
+
 ### Задача 4 --- поддержка системных вызовов
 
 
@@ -53,29 +88,16 @@ extern "C" fn syscall_trampoline() -> !
 в файле [`kernel/src/process/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/syscall.rs).
 
 Она получает управление при выполнении инструкции `syscall`.
-Свои аргументы эта функция принимает от кода пользователя строго через регистры.
-Вы можете сделать ей собственный ABI, или же ориентироваться на существующий.
-Например, на
-[Linux x86-64 syscall ABI](https://refspecs.linuxbase.org/elf/x86_64-abi-0.99.pdf#subsection.A.2.1).
+Свои аргументы эта функция принимает от кода пользователя строго через регистры в соответствии с
+[Nikka Syscall ABI](../../lab/book/4-process-6-syscall.html#nikka-syscall-abi).
+
 Функция
 [`syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html)
 должна передать управление в написанную на Rust
 [функцию](../../doc/kernel/process/syscall/fn.syscall.html)
 
 ```rust
-extern "C" fn kernel::process::syscall::syscall(
-    // https://wiki.osdev.org/System_V_ABI#x86-64:
-    // Parameters to functions are passed in the registers rdi, rsi, rdx, rcx, r8, r9, and further values are passed on the stack in reverse order.
-    number: usize, // rdi
-    arg0: usize,   // rsi
-    arg1: usize,   // rdx
-    rip: Virt,     // rcx
-    rsp: Virt,     // r8
-    arg2: usize,   // r9
-    // Stack, push in reverse order.
-    arg3: usize,
-    arg4: usize,
-) -> !
+{{#include ../../kernel/src/process/syscall.rs:syscall}}
 ```
 
 Указание
@@ -84,6 +106,8 @@ extern "C" fn kernel::process::syscall::syscall(
 [C ABI](https://wiki.osdev.org/System_V_ABI#x86-64) текущей архитектуры.
 Подробно про них можно посмотреть в
 [System V Application Binary Interface AMD64 Architecture Processor Supplement](https://github.com/hjl-tools/x86-psABI/wiki/x86-64-psABI-draft.pdf).
+Обратите внимание, что из-за инструкции `syscall` наборы регистров в соглашении о системном вызове
+и в соглашении о вызове этой функции немного различаются.
 
 Имя функции
 [`syscall()`](../../doc/kernel/process/syscall/fn.syscall.html)
@@ -221,17 +245,14 @@ panicked at 'kernel mode trap #14 - Page Fault, context: { mode: kernel, cs:rip:
 Реализуйте на ассемблере [функцию](../../doc/kernel/process/syscall/fn.sysret.html)
 
 ```rust
-fn kernel::process::syscall::sysret(
-    context: MiniContext,
-    result: Result<SyscallResult>,
-) -> !
+{{#include ../../kernel/src/process/syscall.rs:sysret}}
 ```
 
 в файле [`kernel/src/process/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/syscall.rs).
 
 Она
 
-- Записывает результат системного вызова `result` в регистры общего назначения, например в `RAX`, `RDI`, `RSI`, и т.д. Обратите внимание, что признак и код ошибки, если `result` содержит ошибку, нужно записать в один из регистров --- пользовательскому процессу он тоже важен. Придумайте свой ABI или руководствуйтесь [Linux x86-64 syscall ABI](https://refspecs.linuxbase.org/elf/x86_64-abi-0.99.pdf#subsection.A.2.1). При этом безусловно сохранять какие-либо регистры пользователя представляется лишней работой. Лучше доверить задачу определения сохраняемых регистров компилятору. А в ABI считать, что все регистры модифицированы.
+- Записывает результат системного вызова `result` в регистры `rax` и `rdi` в соответствии с [Nikka Syscall ABI](../../lab/book/4-process-6-syscall.html#nikka-syscall-abi). Обратите внимание, что признак и код ошибки, если `result` содержит ошибку, нужно записать в `rax` --- пользовательскому процессу он тоже важен.
 - Записывает в регистр `R11` состояние регистра флагов, которое должно быть в пространстве пользователя. Как минимум, должен быть установлен [`RFlags::INTERRUPT_FLAG`](../../doc/ku/process/registers/struct.RFlags.html#associatedconstant.INTERRUPT_FLAG), чтобы процесс не мог монополизировать процессор. Но пока что включение прерываний приведёт к нестабильности теста `4_process_6_syscall::syscall_log_value`. Поэтому предлагается отложить включение [`RFlags::INTERRUPT_FLAG`](../../doc/ku/process/registers/struct.RFlags.html#associatedconstant.INTERRUPT_FLAG) до одной из следующих задач. А пока --- выключить все флаги при возврате в режим пользователя, воспользовавшись [`RFlags::default()`](../../doc/ku/process/registers/struct.RFlags.html#method.default).
 - Записывает адрес возврата в код пользователя в регистр `RCX`. Функции [`syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html)/[`syscall()`](../../doc/kernel/process/syscall/fn.syscall.html) получили этот адрес в том же регистре. И должны были передать его вместе с адресом стека пользователя в аргументе `context`.
 - Переключает регистр `RSP` на стек пользователя.
@@ -357,14 +378,7 @@ panicked at 'if the Page Fault was in the kernel mode, probably the `syscall` in
 Реализуйте [функцию](../../doc/lib/syscall/fn.syscall.html)
 
 ```rust
-fn lib::syscall::syscall(
-    number: usize,
-    arg0: usize,
-    arg1: usize,
-    arg2: usize,
-    arg3: usize,
-    arg4: usize,
-) -> Result<(usize, usize)>
+{{#include ../../user/lib/src/syscall.rs:syscall}}
 ```
 
 в файле [`user/lib/src/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/user/lib/src/syscall.rs).
@@ -373,9 +387,7 @@ fn lib::syscall::syscall(
 Её задача:
 
 - Сохранить регистры `RBX` и `RBP` на стеке.
-- Передать свои аргументы через регистры, в которых их ожидают функции
-[`kernel::process::syscall::syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html) и
-[`kernel::process::syscall::syscall()`](../../doc/kernel/process/syscall/fn.syscall.html).
+- Передать свои аргументы в соответствии с [Nikka Syscall ABI](../../lab/book/4-process-6-syscall.html#nikka-syscall-abi) через регистры, в которых их ожидает функция [`kernel::process::syscall::syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html).
 - Запустить инструкцию [`syscall`](https://www.felixcloutier.com/x86/syscall), которая выполнит требуемый системный вызов.
 - Восстановить `RBX` и `RBP`.
 - Вернуть наружу результаты системного вызова из регистров, в которые их сохранила функция [`kernel::process::syscall::sysret()`](../../doc/kernel/process/syscall/fn.sysret.html).
