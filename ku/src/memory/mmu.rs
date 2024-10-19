@@ -16,7 +16,10 @@ use crate::{
 };
 
 use super::{
-    addr::Phys,
+    addr::{
+        Phys,
+        Virt,
+    },
     frage::{
         Frame,
         Page,
@@ -33,7 +36,14 @@ pub struct PageTableEntry(usize);
 impl PageTableEntry {
     /// Флаги доступа к странице, которую описывает эта запись.
     pub fn flags(&self) -> PageTableFlags {
-        PageTableFlags::from_bits(self.0 & !Self::ADDRESS_MASK).unwrap()
+        let flags = self.0 & !Self::ADDRESS_MASK;
+
+        PageTableFlags::from_bits(flags).unwrap_or_else(|| {
+            panic!(
+                "incorrect PageTableFlags {flags:#X} for PTE at {}",
+                Virt::from_ref(self),
+            )
+        })
     }
 
     /// Устанавливает флаги доступа к странице, которую описывает эта запись.

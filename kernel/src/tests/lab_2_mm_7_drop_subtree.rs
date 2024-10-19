@@ -1,8 +1,12 @@
 use kernel::{
     Subsystems,
     memory::{
-        Virt,
-        test_scaffolding::forbid_frame_leaks,
+        BASE_ADDRESS_SPACE,
+        FRAME_ALLOCATOR,
+        test_scaffolding::{
+            forbid_frame_leaks,
+            mapping,
+        },
     },
 };
 
@@ -13,13 +17,39 @@ init!(Subsystems::PHYS_MEMORY | Subsystems::VIRT_MEMORY);
 
 #[test_case]
 fn drop_subtree() {
+    BASE_ADDRESS_SPACE.lock().mapping().unmap_unused_intermediate();
+
     {
-        let _guard = forbid_frame_leaks();
-        mm_helpers::map_intermediate(Virt::new(0xFFFF_F300_0000_0000).unwrap());
+        let start_free_frames = FRAME_ALLOCATOR.lock().count();
+
+        mm_helpers::map_intermediate(mm_helpers::unique_user_virt());
+        assert!(FRAME_ALLOCATOR.lock().count() < start_free_frames);
+
+        let mut address_space = BASE_ADDRESS_SPACE.lock();
+        let mapping = mapping(&mut address_space);
+
+        mapping.unmap_unused_intermediate();
+        let mid_free_frames = FRAME_ALLOCATOR.lock().count();
+
+        mapping.unmap_unused_intermediate();
+        let end_free_frames = FRAME_ALLOCATOR.lock().count();
+        if start_free_frames < end_free_frames {
+            panic!(
+                "some frames are double freed, check that drop_subtree() clears relevant present \
+                 flags",
+            );
+        }
+        assert_eq!(start_free_frames, mid_free_frames);
+        assert_eq!(start_free_frames, end_free_frames);
     }
 
     {
         let _guard = forbid_frame_leaks();
-        mm_helpers::test_no_excessive_intermediate_flags(Virt::new(0xFFFF_F400_0000_0000).unwrap());
+        mm_helpers::map_intermediate(mm_helpers::unique_user_virt());
+    }
+
+    {
+        let _guard = forbid_frame_leaks();
+        mm_helpers::test_no_excessive_intermediate_flags(mm_helpers::unique_user_virt());
     }
 }

@@ -206,34 +206,71 @@ fn allocate_node(
 ```console
 $ (cd kernel; cargo test --test 2-mm-4-translate)
 ...
+2_mm_4_translate::t0_path-----------------------------------
+18:30:23 0 D present_virt = 0v100_0020_0FFC; path = L3: 0vFFFF_F000_0000_1010 -> L2: 0vFFFF_F000_0070_7000 -> L1: 0vFFFF_F000_0070_8008 -> L0: 0vFFFF_F000_0070_F000 => 0p27_DFFC; level = 0; pte = 637 @ 0p27_D000 0--DA---WPX(0x63)
+18:30:23 0 D allocated unique user virtual address; virt = 0v1000_0000_0000
+18:30:23 0 D non_present_virt = 0v1000_0000_0000; path = L3: 0vFFFF_F000_0000_1100 (non-present); level = 3; pte = <non-present>
+18:30:23 0 D huge_virt = 0vFFFF_F000_0000_0000; path = L3: 0vFFFF_F000_0000_1F00 -> L2: 0vFFFF_F000_0071_0000 -> L1: 0vFFFF_F000_0071_1000 (huge); level = 1; pte = 0 @ 0p0 0-H-A---WPX(0xA3)
+2_mm_4_translate::t0_path-------------------------- [passed]
+
 2_mm_4_translate::t1_translate------------------------------
-18:38:25 0 D pte = 638 @ 0p27_E000 0--DA---WPX(0x63)
-18:38:25 0 D read_ptr = 0xfffff0000027e330; write_ptr = 0x10000201330
-18:38:25 0 D write_value = 0; read_value = 0; variable = 0
-18:38:25 0 D write_value = 1; read_value = 1; variable = 1
-18:38:25 0 D write_value = 2; read_value = 2; variable = 2
-18:38:25 0 D write_value = 3; read_value = 3; variable = 3
-18:38:25 0 D write_value = 4; read_value = 4; variable = 4
+18:30:23 0 D pte = 638 @ 0p27_E000 0--DA---WPX(0x63)
+18:30:23 0 D read_ptr = 0xfffff0000027e330; write_ptr = 0x10000201330
+18:30:23 0 D write_value = 0; read_value = 0; variable = 0
+18:30:23 0 D write_value = 1; read_value = 1; variable = 1
+18:30:23 0 D write_value = 2; read_value = 2; variable = 2
+18:30:23 0 D write_value = 3; read_value = 3; variable = 3
+18:30:23 0 D write_value = 4; read_value = 4; variable = 4
 2_mm_4_translate::t1_translate--------------------- [passed]
 
 2_mm_4_translate::t2_map_intermediate-----------------------
-18:38:25 0 D pte = <non-present>
+18:30:23 0 D allocated unique user virtual address; virt = 0v1080_0000_0000
+18:30:23 0 D pte = <non-present>
+18:30:23 0 D allocated unique user virtual address; virt = 0v1100_0000_0000
 2_mm_4_translate::t2_map_intermediate-------------- [passed]
 
 2_mm_4_translate::t3_no_excessive_intermediate_flags--------
-18:38:25 0 D pte = ()
+18:30:23 0 D allocated unique user virtual address; virt = 0v1180_0000_0000
+18:30:23 0 D pte = ()
 2_mm_4_translate::t3_no_excessive_intermediate_flags [passed]
 
 2_mm_4_translate::t4_huge_page------------------------------
 2_mm_4_translate::t4_huge_page--------------------- [passed]
 
 2_mm_4_translate::t5_no_page--------------------------------
+18:30:23 0 D allocated unique user virtual address; virt = 0v1200_0000_0000
 2_mm_4_translate::t5_no_page----------------------- [passed]
 
-2_mm_4_translate::t6_duplicate_drop-------------------------
-panicked at kernel/src/memory/mapping.rs:151:9:
+2_mm_4_translate::t6_build_map------------------------------
+18:30:23 0 D virtual to physical mapping
+18:30:23 0 D block = [0v1000, 0v1_6000), size 84.000 KiB -> [0p1000, 0p1_6000), size 84.000 KiB, 0-------WPX(0x3)
+18:30:23 0 D block = [0vA_0000, 0vC_0000), size 128.000 KiB -> [0pA_0000, 0pC_0000), size 128.000 KiB, 0-------WPX(0x3)
+18:30:23 0 D block = [0v20_0000, 0v21_7000), size 92.000 KiB -> [0p40_0000, 0p41_7000), size 92.000 KiB, 0--------P-(0x8000000000000001)
+18:30:23 0 D block = [0v21_7000, 0v32_9000), size 1.070 MiB -> [0p41_6000, 0p52_8000), size 1.070 MiB, 0--------PX(0x1)
+18:30:23 0 D block = [0v32_9000, 0v34_3000), size 104.000 KiB -> [0p52_7000, 0p54_1000), size 104.000 KiB, 0-------WP-(0x8000000000000003)
+18:30:23 0 D block = [0v34_3000, 0v34_4000), size 4.000 KiB -> [0p1_7000, 0p1_8000), size 4.000 KiB, 0-------WP-(0x8000000000000003)
+18:30:23 0 D block = [0v34_4000, 0v44_7000), size 1.012 MiB -> [0p54_1000, 0p64_4000), size 1.012 MiB, 0-------WP-(0x8000000000000003)
+18:30:23 0 D block = [0v44_7000, 0v44_D000), size 24.000 KiB -> [0p1_8000, 0p1_E000), size 24.000 KiB, 0-------WP-(0x8000000000000003)
+18:30:23 0 D block = [0v100_0000_0000, 0v100_0000_1000), size 4.000 KiB -> [0p1_6000, 0p1_7000), size 4.000 KiB, 0-------WPX(0x3)
+18:30:23 0 D block = [0v100_0000_2000, 0v100_0008_3000), size 516.000 KiB -> [0p1_E000, 0p9_F000), size 516.000 KiB, 0-------WPX(0x3)
+18:30:24 0 D block = [0v100_0008_3000, 0v100_0020_2000), size 1.496 MiB -> [0p10_0000, 0p27_F000), size 1.496 MiB, 0-------WPX(0x3)
+18:30:24 0 D block = [0vFFFF_F000_0000_0000, 0vFFFF_F001_0020_0000), size 4.002 GiB -> [0p0, 0p1_0020_0000), size 4.002 GiB, 0-H-----WPX(0x83)
+18:30:24 0 D virtual address space
+18:30:24 0 D block = [0v1000, 0v1_6000), size 84.000 KiB, 0-------WPX(0x3)
+18:30:24 0 D block = [0vA_0000, 0vC_0000), size 128.000 KiB, 0-------WPX(0x3)
+18:30:24 0 D block = [0v20_0000, 0v21_7000), size 92.000 KiB, 0--------P-(0x8000000000000001)
+18:30:24 0 D block = [0v21_7000, 0v32_9000), size 1.070 MiB, 0--------PX(0x1)
+18:30:24 0 D block = [0v32_9000, 0v44_D000), size 1.141 MiB, 0-------WP-(0x8000000000000003)
+18:30:24 0 D block = [0v100_0000_0000, 0v100_0000_1000), size 4.000 KiB, 0-------WPX(0x3)
+18:30:24 0 D block = [0v100_0000_2000, 0v100_0020_2000), size 2.000 MiB, 0-------WPX(0x3)
+18:30:25.195 0 D block = [0vFFFF_F000_0000_0000, 0vFFFF_F001_0020_0000), size 4.002 GiB, 0-H-----WPX(0x83)
+2_mm_4_translate::t6_build_map--------------------- [passed]
+
+2_mm_4_translate::t7_duplicate_drop-------------------------
+18:30:25.213 0 D allocated unique user virtual address; virt = 0v1280_0000_0000
+18:30:25.219 0 D allocated unique user virtual address; virt = 0v1300_0000_0000
+panicked at kernel/src/memory/mapping.rs:207:9:
 not implemented
-Backtrace:
   ...
 --------------------------------------------------- [failed]
 ```

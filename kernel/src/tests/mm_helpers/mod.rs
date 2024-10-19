@@ -1,13 +1,23 @@
 #![allow(dead_code)]
 
+use core::sync::atomic::{
+    AtomicUsize,
+    Ordering,
+};
+
 use ku::{
     log::debug,
     memory::{
         FULL_ACCESS,
+        KERNEL_R,
         KERNEL_RW,
+        Page,
+        USER_R,
         USER_RW,
         Virt,
         mmu::{
+            PAGE_OFFSET_BITS,
+            PAGE_TABLE_ENTRY_COUNT,
             PAGE_TABLE_ROOT_LEVEL,
             PageTableEntry,
             PageTableFlags,
@@ -24,6 +34,7 @@ use kernel::memory::{
         get_pte,
         mapping,
         nodes,
+        user_pages,
     },
 };
 
@@ -90,4 +101,35 @@ pub(super) fn test_no_excessive_intermediate_flags(virt: Virt) {
     assert!(start_free_frames > end_free_frames);
 
     check_intermediate_flags(mapping, virt, PageTableFlags::PRESENT);
+}
+
+pub(super) fn unique_kernel_virt() -> Virt {
+    unique_virt(KERNEL_R)
+}
+
+pub(super) fn unique_user_virt() -> Virt {
+    unique_virt(USER_R)
+}
+
+pub(super) fn unique_virt(flags: PageTableFlags) -> Virt {
+    const ROOT_LEVEL_ENTRY_SIZE: usize =
+        PAGE_TABLE_ENTRY_COUNT.pow(PAGE_TABLE_ROOT_LEVEL) * Page::SIZE;
+
+    static UNIQUE_ROOT_LEVEL_ENTRY: AtomicUsize = AtomicUsize::new(1);
+
+    let is_user = flags.contains(PageTableFlags::USER_ACCESSIBLE);
+    let start = user_pages().start_address();
+    let entry = UNIQUE_ROOT_LEVEL_ENTRY.fetch_add(1, Ordering::Relaxed);
+    let misalignment = 1 << (entry % (size::from(PAGE_OFFSET_BITS) + 1));
+    let offset = entry * ROOT_LEVEL_ENTRY_SIZE + misalignment;
+    let virt = (if is_user {
+        start + offset
+    } else {
+        start - offset
+    })
+    .unwrap();
+
+    debug!(%virt, is_user, "allocated unique virtual address");
+
+    virt
 }

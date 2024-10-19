@@ -32,6 +32,7 @@ pub use frage::{
 };
 pub use mmu::{
     FULL_ACCESS,
+    KERNEL_R,
     KERNEL_RW,
     USER,
     USER_R,

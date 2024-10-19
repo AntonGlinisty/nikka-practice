@@ -28,8 +28,8 @@ fn duplicate_and_drop() {
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
-    let a = Virt::new(0xFFFF_9FFF_FFFF_FFFF).unwrap();
-    let b = Virt::new(0xFFFF_AFFF_FFFF_FFFF).unwrap();
+    let a = mm_helpers::unique_user_virt();
+    let b = mm_helpers::unique_user_virt();
 
     {
         let original_mapping = mapping(&mut address_space);

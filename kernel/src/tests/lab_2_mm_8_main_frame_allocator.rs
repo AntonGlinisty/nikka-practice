@@ -32,7 +32,7 @@ use kernel::{
             map_page,
             mapping,
             new_address_space,
-            page_table_root,
+            page_table_root_mut,
             phys2virt,
             switch_to,
             unmap_page,
@@ -391,7 +391,7 @@ fn all_frames_are_freed_on_drop() {
     let phys2virt = phys2virt(mapping(&mut BASE_ADDRESS_SPACE.lock()));
     let mut address_space = new_address_space(page_table_root_frame, phys2virt);
 
-    page_table_root(mapping(&mut address_space)).fill(PageTableEntry::default());
+    page_table_root_mut(mapping(&mut address_space)).fill(PageTableEntry::default());
 
     for (i, flags) in (0 ..= FULL_ACCESS.bits())
         .map(PageTableFlags::from_bits_truncate)

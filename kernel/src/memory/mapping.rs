@@ -1,4 +1,5 @@
 use core::{
+    fmt,
     marker::PhantomData,
     mem::MaybeUninit,
     ops::{
@@ -56,7 +57,7 @@ use crate::error::Error;
 /// Многоуровневая таблица страниц.
 ///
 /// Фактически дерево большой арности, если игнорировать рекурсивные записи.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Eq, PartialEq)]
 pub struct Mapping {
     /// Фрейм с корневым узлом таблицы страниц.
     page_table_root: Frame,
@@ -318,6 +319,7 @@ impl Drop for Mapping {
 }
 
 /// Путь в дереве отображения заданного виртуального адреса.
+#[derive(Debug, Eq, PartialEq)]
 pub struct Path<'a> {
     /// Дерево отображения.
     mapping: &'a mut Mapping,
@@ -338,16 +340,31 @@ pub struct Path<'a> {
 
 impl<'a> Path<'a> {
     /// Создаёт путь в дереве отображения заданного виртуального адреса.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если:
+    /// - На корневом уровне [`PAGE_TABLE_ROOT_LEVEL`] нет [`PageTableEntry`].
+    /// - Выше [`Path::deepest_pte()`] есть [`PageTableEntry`] для которой
+    ///   [`PageTableEntry::is_present()`] возвращает `false`.
+    /// - Глубже [`Path::deepest_pte()`] есть существующие [`PageTableEntry`].
+    /// - Если самая глубокая [`PageTableEntry`] расположена выше [`PAGE_TABLE_LEAF_LEVEL`]
+    ///   и при этом для неё [`PageTableEntry::is_present()`] и [`PageTableEntry::is_huge()`]
+    ///   возвращают разные значения.
     fn new(
         mapping: &'a mut Mapping,
         nodes: [Virt; PAGE_TABLE_LEVEL_COUNT],
         virt: Virt,
     ) -> Self {
-        Self {
+        let path = Self {
             mapping,
             nodes,
             virt,
-        }
+        };
+
+        path.validate();
+
+        path
     }
 
     /// Возвращает отображение блока виртуальных страниц
@@ -404,19 +421,26 @@ impl<'a> Path<'a> {
     #[allow(rustdoc::private_intra_doc_links)]
     /// Возвращает листьевую [`PageTableEntry`], которая отвечает за отображение адреса [`Path::virt`].
     ///
-    /// Если промежуточного или нужного листьевого узла таблицы страниц нет,
-    /// возвращает ошибку [`Error::NoPage`].
+    /// # Errors
+    ///
+    /// - [`Error::NoPage`] --- промежуточного или нужного листьевого узла таблицы страниц нет.
+    /// - [`Error::Unimplemented`] --- промежуточный узел таблицы страниц
+    ///   имеет флаг [`PageTableFlags::HUGE`].
     #[allow(clippy::needless_arbitrary_self_type)]
     #[duplicate_item(
-        getter self_type return_type converter;
-        [get] [&Self] [&'a PageTableEntry] [try_into_ref];
-        [get_mut] [&mut Self] [&'a mut PageTableEntry] [try_into_mut];
+        getter self_type return_type deepest_pte_getter;
+        [get] [&Self] [&'a PageTableEntry] [deepest_pte];
+        [get_mut] [&mut Self] [&'a mut PageTableEntry] [deepest_pte_mut];
     )]
     pub(super) fn getter(self: self_type) -> Result<return_type> {
-        unsafe {
-            self.nodes[size::from(PAGE_TABLE_LEAF_LEVEL)]
-                .converter::<PageTableEntry>()
-                .map_err(|_| NoPage)
+        let (level, pte) = self.deepest_pte_getter();
+
+        if level == PAGE_TABLE_LEAF_LEVEL {
+            Ok(pte)
+        } else if pte.flags().contains(PageTableFlags::HUGE) {
+            Err(Unimplemented)
+        } else {
+            Err(NoPage)
         }
     }
 
@@ -435,7 +459,10 @@ impl<'a> Path<'a> {
         flags: PageTableFlags,
     ) -> Result<()> {
         // TODO: your code here.
-        unimplemented!();
+
+        self.validate();
+
+        Ok(())
     }
 
     /// Удаляет отображение страницы по текущему пути.
@@ -454,19 +481,33 @@ impl<'a> Path<'a> {
     /// В частности, не осталось ссылок, которые ведут в удаляемую страницу.
     pub(super) unsafe fn unmap(&mut self) -> Result<()> {
         // TODO: your code here.
-        unimplemented!();
+
+        self.validate();
+
+        Ok(())
     }
 
     /// Возвращает самую далёкую от корня дерева [`PageTableEntry`]
     /// в данном [`Path`] вместе с её номером уровня в дереве отображения.
-    fn deepest_pte(&self) -> (u32, &PageTableEntry) {
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если:
+    /// - На корневом уровне [`PAGE_TABLE_ROOT_LEVEL`] нет [`PageTableEntry`].
+    #[allow(clippy::needless_arbitrary_self_type)]
+    #[duplicate_item(
+        deepest_pte_getter self_type return_type converter;
+        [deepest_pte] [&Self] [&'a PageTableEntry] [try_into_ref];
+        [deepest_pte_mut] [&mut Self] [&'a mut PageTableEntry] [try_into_mut];
+    )]
+    fn deepest_pte_getter(self: self_type) -> (u32, return_type) {
         let level = self
             .nodes
             .iter()
             .position(|&node| node != Virt::default())
             .expect(Self::INVALID_PATH);
 
-        let pte = unsafe { self.nodes[level].try_into_ref().expect(Self::INVALID_PATH) };
+        let pte = unsafe { self.nodes[level].converter().expect(Self::INVALID_PATH) };
         let level = level.try_into().expect("unreasonable PTE level");
 
         (level, pte)
@@ -499,8 +540,75 @@ impl<'a> Path<'a> {
         root_pte.frame() == Ok(root_frame)
     }
 
+    /// Проверяет инварианты [`Path`].
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если:
+    /// - На корневом уровне [`PAGE_TABLE_ROOT_LEVEL`] нет [`PageTableEntry`].
+    /// - Выше [`Path::deepest_pte()`] есть [`PageTableEntry`] для которой
+    ///   [`PageTableEntry::is_present()`] возвращает `false`.
+    /// - Глубже [`Path::deepest_pte()`] есть существующие [`PageTableEntry`].
+    /// - Если самая глубокая [`PageTableEntry`] расположена выше [`PAGE_TABLE_LEAF_LEVEL`]
+    ///   и при этом для неё [`PageTableEntry::is_present()`] и [`PageTableEntry::is_huge()`]
+    ///   возвращают разные значения.
+    fn validate(&self) {
+        let (level, pte) = self.deepest_pte();
+        let level = size::from(level);
+
+        assert!(self.nodes[level + 1 ..].iter().all(|pte| unsafe {
+            pte.try_into_ref::<PageTableEntry>().expect(Self::INVALID_PATH).is_present()
+        }));
+
+        if level > size::from(PAGE_TABLE_LEAF_LEVEL) {
+            assert!(self.nodes[.. level].iter().all(|&pte| pte == Virt::default()));
+            assert_eq!(pte.is_present(), pte.flags().contains(PageTableFlags::HUGE));
+        }
+    }
+
     /// Сообщение паники при некорректно сформированном [`Path`].
     const INVALID_PATH: &'static str = "invalid path";
+}
+
+impl<'a> fmt::Display for Path<'a> {
+    fn fmt(
+        &self,
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
+        let mut frame = self.mapping.page_table_root();
+        let mut level = PAGE_TABLE_ROOT_LEVEL;
+
+        for pte in self.nodes.iter().rev().filter(|&&pte| pte != Virt::default()) {
+            write!(formatter, "L{level}: {} / {frame}", pte)?;
+
+            let pte = unsafe { pte.try_into_ref::<PageTableEntry>().expect(Self::INVALID_PATH) };
+
+            if let Ok(next_frame) = pte.frame() {
+                frame = next_frame;
+
+                if pte.flags().contains(PageTableFlags::HUGE) || level == PAGE_TABLE_LEAF_LEVEL {
+                    if pte.flags().contains(PageTableFlags::HUGE) {
+                        write!(formatter, " (huge page)")?;
+                    }
+
+                    let offset_mask = (1 << (level * PAGE_TABLE_INDEX_BITS + PAGE_OFFSET_BITS)) - 1;
+                    let offset = self.virt.into_usize() & offset_mask;
+                    let phys =
+                        (frame.address() + offset).expect("offset inside a frame is always valid");
+
+                    write!(formatter, " => {phys}")?;
+                } else {
+                    write!(formatter, " -> ")?;
+
+                    level -= 1;
+                }
+            } else {
+                write!(formatter, " (non-present)")?;
+            }
+        }
+
+        Ok(())
+    }
 }
 
 /// Итератор по листьям дерева отображения страниц.
@@ -555,6 +663,8 @@ impl<'a> Iterator for MappingIterator<'a> {
 
 #[doc(hidden)]
 pub(super) mod test_scaffolding {
+    use duplicate::duplicate_item;
+
     use ku::error::Result;
 
     use super::super::{
@@ -572,6 +682,10 @@ pub(super) mod test_scaffolding {
         Path,
     };
 
+    pub fn deepest_pte<'a>(path: &'a Path<'a>) -> (u32, &'a PageTableEntry) {
+        path.deepest_pte()
+    }
+
     pub fn get_pte<'a>(path: &'a Path<'a>) -> Result<&'a PageTableEntry> {
         path.get()
     }
@@ -580,8 +694,13 @@ pub(super) mod test_scaffolding {
         path.nodes
     }
 
-    pub fn page_table_root(mapping: &mut Mapping) -> &mut PageTable {
-        unsafe { mapping.page_table_mut(mapping.page_table_root()) }
+    #[duplicate_item(
+        page_table_root_getter page_table_getter reference(x);
+        [page_table_root] [page_table_ref] [&x];
+        [page_table_root_mut] [page_table_mut] [&mut x];
+    )]
+    pub fn page_table_root_getter(mapping: reference([Mapping])) -> reference([PageTable]) {
+        unsafe { mapping.page_table_getter(mapping.page_table_root()) }
     }
 
     pub fn phys2virt(mapping: &Mapping) -> Page {
