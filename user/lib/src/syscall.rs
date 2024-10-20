@@ -16,8 +16,6 @@ use ku::{
         Error::InvalidArgument,
         Result,
     },
-    info,
-    info::ProcessInfo,
     log,
     memory::{
         Block,
@@ -92,12 +90,9 @@ pub fn sched_yield() {
 // Inline is needed for the correctness of exofork().
 #[inline(always)]
 pub fn exofork() -> Result<Pid> {
-    let (child_pid, process_info) = syscall(Syscall::Exofork, 0, 0, 0, 0, 0)?;
-    let child_pid = Pid::from_usize(child_pid)?;
-    if child_pid == Pid::Current {
-        info::set_process_info(unsafe { Virt::new(process_info)?.try_into_mut::<ProcessInfo>()? });
-    }
-    Ok(child_pid)
+    let child_pid = syscall(Syscall::Exofork, 0, 0, 0, 0, 0)?;
+
+    Pid::from_usize(child_pid)
 }
 
 /// Системный вызов [`syscall::map()`].
@@ -111,7 +106,7 @@ pub fn map(
     dst_block: Block<Page>,
     flags: PageTableFlags,
 ) -> Result<Block<Page>> {
-    let (address, _) = syscall(
+    let address = syscall(
         Syscall::Map,
         dst_pid.into_usize(),
         dst_block.start_address().into_usize(),
@@ -231,7 +226,7 @@ pub fn syscall(
     arg2: usize,
     arg3: usize,
     arg4: usize,
-) -> Result<(usize, usize)> {
+) -> Result<usize> {
     // ANCHOR_END: syscall
     // TODO: your code here.
     unimplemented!();

@@ -295,7 +295,7 @@ fn kernel::process::syscall::log_value(
     str_start: usize,
     str_end: usize,
     value: usize,
-) -> Result<SyscallResult>
+) -> Result<usize>
 ```
 
 в файле [`kernel/src/process/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/syscall.rs).

@@ -129,7 +129,7 @@ fn map(
     dst_address: usize,
     dst_size: usize,
     flags: usize,
-) -> Result<SyscallResult>
+) -> Result<usize>
 ```
 
 Отображает в памяти процесса, заданного `dst_pid`, блок страниц размера `dst_size` байт начиная с виртуального адреса `dst_address` с флагами доступа `flags`.
@@ -178,7 +178,7 @@ fn unmap(
     dst_pid: usize,
     dst_address: usize,
     dst_size: usize,
-) -> Result<SyscallResult>
+) -> Result<usize>
 ```
 
 Выполняет противоположную
@@ -196,7 +196,7 @@ fn copy_mapping(
     dst_address: usize,
     dst_size: usize,
     flags: usize,
-) -> Result<SyscallResult>
+) -> Result<usize>
 ```
 
 Создаёт копию отображения виртуальной памяти из вызывающего процесса в процесс, заданный `dst_pid`.

@@ -13,6 +13,7 @@ use ku::{
     process::{
         Info,
         MiniContext,
+        ResultCode,
         State,
         TrapInfo,
     },
@@ -103,15 +104,21 @@ impl Process {
     ) -> Result<Self> {
         let (info, log, rsp) =
             Process::init_address_space(&mut address_space, &BASE_ADDRESS_SPACE, Block::default())?;
-        let context = MiniContext::new(entry, rsp);
+        let pid = Pid::Current;
+        let registers = Registers::new(
+            MiniContext::new(entry, rsp),
+            ResultCode::Ok.into(),
+            pid.into_usize(),
+            info.start_address().into_usize(),
+        );
 
         Ok(Self {
             address_space: Spinlock::new(address_space),
             info,
             log,
             parent: None,
-            pid: Pid::Current,
-            registers: Registers::new(context, info.start_address().into_usize()),
+            pid,
+            registers,
             state: State::Runnable,
             trap_handler_context: TrapHandlerContext::default(),
         })

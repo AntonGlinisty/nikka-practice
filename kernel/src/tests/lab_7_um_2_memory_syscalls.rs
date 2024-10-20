@@ -21,10 +21,7 @@ use ku::{
             USER_RW,
         },
     },
-    process::{
-        Pid,
-        SyscallResult,
-    },
+    process::Pid,
     sync::spinlock::Spinlock,
 };
 
@@ -128,7 +125,7 @@ fn map_syscall_group() {
 
             assert_eq!(
                 map(process.lock(), pid, user_address, size, flags.bits()),
-                Ok(SyscallResult(user_address)),
+                Ok(user_address),
             );
 
             validate_flags(&process, Virt::new(user_address).unwrap(), flags);
@@ -304,7 +301,7 @@ fn copy_mapping_of_intersecting_blocks() {
 
             assert_eq!(
                 map(process.lock(), pid, old_address, size, flags,),
-                Ok(SyscallResult(old_address)),
+                Ok(old_address),
             );
 
             if let Some(hole) = hole {

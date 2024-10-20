@@ -59,7 +59,7 @@ fn t1_exofork_syscall() {
 
     switch_to(parent.address_space());
 
-    let child_pid = Pid::from_usize(exofork(parent).expect("exofork() failed").0)
+    let child_pid = Pid::from_usize(exofork(parent).expect("exofork() failed"))
         .expect("wrong child pid from exofork()");
 
     debug!(%child_pid);

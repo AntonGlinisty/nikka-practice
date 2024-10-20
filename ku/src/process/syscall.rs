@@ -54,10 +54,6 @@ pub enum Syscall {
     SetTrapHandler = 8,
 }
 
-/// Данные, возвращаемые из системных вызовов.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct SyscallResult(pub usize);
-
 /// Код ошибки, возвращаемый из системных вызовов.
 #[derive(Clone, Copy, Debug, Eq, IntoPrimitive, PartialEq, TryFromPrimitive)]
 #[repr(usize)]

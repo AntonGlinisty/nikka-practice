@@ -43,23 +43,20 @@ pub(crate) struct Registers {
 }
 
 impl Registers {
-    /// Создаёт регистры процесса с заданным начальным минимальным `context` и передаёт ему `arg0`
-    /// как регистре, отведённом под первый аргумент функции в
-    /// [System V ABI](https://wiki.osdev.org/System_V_ABI#x86-64).
+    /// Создаёт регистры процесса с заданным начальным минимальным `context` и передаёт ему
+    /// аргументы `rax`, `rdi` и `rsi` в соответствующих регистрах.
     /// Остальные регистры заполняет нулями.
     pub(super) fn new(
         context: MiniContext,
+        rax: usize,
         rdi: usize,
+        rsi: usize,
     ) -> Self {
         Self {
-            // https://wiki.osdev.org/System_V_ABI#x86-64:
-            // Parameters to functions are passed in the registers
-            // rdi, rsi, rdx, rcx, r8, r9,
-            // and further values are passed on the stack in reverse order.
-            rax: 0,
+            rax,
             gpr1: [0; 3],
             rdi,
-            rsi: 0,
+            rsi,
             gpr2: [0; 9],
             user_context: ModeContext::user_context(context),
         }

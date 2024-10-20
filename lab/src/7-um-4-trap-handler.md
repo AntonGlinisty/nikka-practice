@@ -134,7 +134,7 @@ fn kernel::process::syscall::set_trap_handler(
     rip: usize,
     stack_address: usize,
     stack_size: usize,
-) -> Result<SyscallResult>
+) -> Result<usize>
 ```
 
 в файле

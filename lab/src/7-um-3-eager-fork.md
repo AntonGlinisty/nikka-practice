@@ -33,7 +33,7 @@ Nikka воплощает некоторые идеи [экзоядра](https://
 fn exofork(
     process: SpinlockGuard<Process>,
     context: MiniContext,
-) -> Result<SyscallResult>
+) -> Result<usize>
 ```
 
 в файле [`kernel/src/process/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/syscall.rs).
@@ -77,35 +77,15 @@ fn exofork(
 в файле [`user/lib/src/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/user/lib/src/syscall.rs).
 Она предполагает, что ваша реализация функции
 [`lib::syscall::syscall()`](../../doc/lib/syscall/fn.syscall.html)
-возвращает два поля в кортеже --- `child_pid` и `process_info`:
+возвращает `child_pid`:
 ```rust
-let (child_pid, process_info) = syscall(Syscall::Exofork.bits(), 0, 0, 0, 0, 0)?;
+let child_pid = syscall(Syscall::Exofork, 0, 0, 0, 0, 0)?;
 ```
 В поле `child_pid` должен быть
 [`Pid::Id`](../../doc/ku/process/pid/enum.Pid.html#variant.Id)
 с идентификатором потомка в процессе родителя или
 [`Pid::Current`](../../doc/ku/process/pid/enum.Pid.html#variant.Current)
 в процессе потомка.
-А в `process_info` --- ссылка на системную информацию о текущем процессе
-[`ku::info::ProcessInfo`](../../doc/ku/info/struct.ProcessInfo.html).
-Это поле имеет смысл только для потомка.
-Соглашение такое: ядро при запуске нового процесса и через метод
-[`kernel::process::Process::new()`](../../doc/kernel/process/struct.Process.html#method.new)
-и через метод
-[`kernel::process::Process::duplicate()`](../../doc/kernel/process/struct.Process.html#method.duplicate)
-передаёт в одном из регистров ссылку на
-[`ku::info::ProcessInfo`](../../doc/ku/info/struct.ProcessInfo.html).
-Метод
-[`kernel::process::Process::new()`](../../doc/kernel/process/struct.Process.html#method.new)
-использует регистр `rdi`.
-А метод
-[`kernel::process::Process::duplicate()`](../../doc/kernel/process/struct.Process.html#method.duplicate) ---
-`rsi`, предполагая что ошибка из системного вызова передаётся через `rax`, а `pid` --- через `rdi`.
-Вы можете поменять эти соглашения.
-Но в любом случае проверьте, что в
-[`lib::syscall::exofork()`](../../doc/lib/syscall/fn.exofork.html)
-приходит правильные и `pid` и ссылка на
-[`ku::info::ProcessInfo`](../../doc/ku/info/struct.ProcessInfo.html).
 
 
 ### Системный вызов [`kernel::process::syscall::set_state()`](../../doc/kernel/process/syscall/fn.set_state.html)
@@ -117,7 +97,7 @@ fn set_state(
     process: SpinlockGuard<Process>,
     dst_pid: usize,
     state: usize,
-) -> Result<SyscallResult>
+) -> Result<usize>
 ```
 
 в файле [`kernel/src/process/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/syscall.rs).

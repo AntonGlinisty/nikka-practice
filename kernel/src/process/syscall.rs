@@ -25,7 +25,6 @@ use ku::{
         ResultCode,
         State,
         Syscall,
-        SyscallResult,
     },
     sync::spinlock::SpinlockGuard,
 };
@@ -159,11 +158,11 @@ extern "C" fn syscall(
 /// С помощью инструкции [sysret](https://www.felixcloutier.com/x86/sysret)
 /// возвращает управление в контекст пользователя `context`.
 ///
-/// Передаёт пользователю результат системного вызова в виде кода успеха или ошибки `result` и
-/// полезной нагрузки `res`.
+/// Передаёт пользователю результат системного вызова в виде кода успеха или ошибки и
+/// полезной нагрузки из `result`.
 fn sysret(
     context: MiniContext,
-    result: Result<SyscallResult>,
+    result: Result<usize>,
 ) -> ! {
     // ANCHOR_END: sysret
 
@@ -209,7 +208,7 @@ fn log_value(
     start: usize,
     len: usize,
     value: usize,
-) -> Result<SyscallResult> {
+) -> Result<usize> {
     // TODO: your code here.
     unimplemented!();
 }
@@ -245,7 +244,7 @@ fn sched_yield(
 fn exofork(
     mut process: SpinlockGuard<Process>,
     context: MiniContext,
-) -> Result<SyscallResult> {
+) -> Result<usize> {
     // TODO: your code here.
     unimplemented!();
 }
@@ -269,7 +268,7 @@ fn map(
     dst_address: usize,
     dst_size: usize,
     flags: usize,
-) -> Result<SyscallResult> {
+) -> Result<usize> {
     // TODO: your code here.
     unimplemented!();
 }
@@ -284,7 +283,7 @@ fn unmap(
     dst_pid: usize,
     dst_address: usize,
     dst_size: usize,
-) -> Result<SyscallResult> {
+) -> Result<usize> {
     // TODO: your code here.
     unimplemented!();
 }
@@ -314,7 +313,7 @@ fn copy_mapping(
     dst_address: usize,
     dst_size: usize,
     flags: usize,
-) -> Result<SyscallResult> {
+) -> Result<usize> {
     // TODO: your code here.
     unimplemented!();
 }
@@ -361,7 +360,7 @@ fn set_state(
     process: SpinlockGuard<Process>,
     dst_pid: usize,
     state: usize,
-) -> Result<SyscallResult> {
+) -> Result<usize> {
     // TODO: your code here.
     unimplemented!();
 }
@@ -379,7 +378,7 @@ fn set_trap_handler(
     rip: usize,
     stack_address: usize,
     stack_size: usize,
-) -> Result<SyscallResult> {
+) -> Result<usize> {
     // TODO: your code here.
     unimplemented!();
 }
@@ -614,10 +613,7 @@ mod lock_set {
 #[doc(hidden)]
 pub mod test_scaffolding {
     use ku::{
-        process::{
-            MiniContext,
-            SyscallResult,
-        },
+        process::MiniContext,
         sync::spinlock::SpinlockGuard,
     };
 
@@ -631,11 +627,11 @@ pub mod test_scaffolding {
         start: usize,
         len: usize,
         value: usize,
-    ) -> Result<SyscallResult> {
+    ) -> Result<usize> {
         super::log_value(process, level, start, len, value)
     }
 
-    pub fn exofork(process: SpinlockGuard<Process>) -> Result<SyscallResult> {
+    pub fn exofork(process: SpinlockGuard<Process>) -> Result<usize> {
         super::exofork(process, MiniContext::default())
     }
 
@@ -645,7 +641,7 @@ pub mod test_scaffolding {
         dst_address: usize,
         dst_size: usize,
         flags: usize,
-    ) -> Result<SyscallResult> {
+    ) -> Result<usize> {
         super::map(process, dst_pid, dst_address, dst_size, flags)
     }
 
@@ -654,7 +650,7 @@ pub mod test_scaffolding {
         dst_pid: usize,
         dst_address: usize,
         dst_size: usize,
-    ) -> Result<SyscallResult> {
+    ) -> Result<usize> {
         super::unmap(process, dst_pid, dst_address, dst_size)
     }
 
@@ -665,7 +661,7 @@ pub mod test_scaffolding {
         dst_address: usize,
         dst_size: usize,
         flags: usize,
-    ) -> Result<SyscallResult> {
+    ) -> Result<usize> {
         super::copy_mapping(process, dst_pid, src_address, dst_address, dst_size, flags)
     }
 
@@ -673,7 +669,7 @@ pub mod test_scaffolding {
         process: SpinlockGuard<Process>,
         dst_pid: usize,
         state: usize,
-    ) -> Result<SyscallResult> {
+    ) -> Result<usize> {
         super::set_state(process, dst_pid, state)
     }
 }

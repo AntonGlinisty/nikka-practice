@@ -59,9 +59,12 @@ use ku::{
 };
 
 /// Точка входа в процесс пользователя.
-/// Получает от ядра ссылку `process_info` на информацию о текущем процессе.
+/// Получает от ядра pid процесса и ссылку `process_info` на информацию о текущем процессе.
 #[unsafe(no_mangle)]
-pub extern "C" fn _start(process_info: &'static mut ProcessInfo) -> ! {
+pub extern "C" fn _start(
+    _pid: usize,
+    process_info: &'static mut ProcessInfo,
+) -> ! {
     info::set_process_info(process_info);
 
     LOG_COLLECTOR.set_flush(syscall::sched_yield);
