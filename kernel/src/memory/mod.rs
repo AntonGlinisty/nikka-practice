@@ -21,6 +21,9 @@ mod boot_frame_allocator;
 /// хранящий и оборачивающий либо [`BootFrameAllocator`], либо [`MainFrameAllocator`].
 mod frame_allocator;
 
+/// RAII для операции выделения одного [`Frame`].
+mod frame_guard;
+
 /// Основной аллокатор физических фреймов [`MainFrameAllocator`].
 mod main_frame_allocator;
 
