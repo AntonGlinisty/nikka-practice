@@ -80,11 +80,18 @@ unsafe impl BigAllocator for Big<'_> {
         self.address_space.allocate(layout.size(), self.flags)
     }
 
+    fn reserve_fixed(
+        &mut self,
+        block: Block<Page>,
+    ) -> Result<()> {
+        self.address_space.reserve(block, self.flags)
+    }
+
     unsafe fn unreserve(
         &mut self,
-        _block: Block<Page>,
+        block: Block<Page>,
     ) -> Result<()> {
-        Ok(())
+        self.address_space.deallocate(block)
     }
 
     unsafe fn rereserve(
@@ -93,6 +100,22 @@ unsafe impl BigAllocator for Big<'_> {
         sub_block: Block<Page>,
     ) -> Result<()> {
         if old_block.contains_block(sub_block) {
+            let message = "subblock of a valid block should be valid";
+            let left = Block::from_index(old_block.start(), sub_block.start()).expect(message);
+            let right = Block::from_index(sub_block.end(), old_block.end()).expect(message);
+
+            if !left.is_empty() {
+                unsafe {
+                    self.unreserve(left)?;
+                }
+            }
+
+            if !right.is_empty() {
+                unsafe {
+                    self.unreserve(right)?;
+                }
+            }
+
             Ok(())
         } else {
             Err(InvalidArgument)

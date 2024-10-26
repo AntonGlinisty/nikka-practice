@@ -110,7 +110,10 @@ pub(crate) use gdt::{
     RealModePseudoDescriptor,
     SmallGdt,
 };
-pub(crate) use range::is_user_block;
+pub(crate) use range::{
+    is_kernel_block,
+    is_user_block,
+};
 pub(crate) use stack::{
     EXCEPTION_STACKS,
     Stack,

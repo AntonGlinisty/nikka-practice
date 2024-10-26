@@ -13,6 +13,7 @@ use crate::{
     error::{
         Error::{
             InvalidAlignment,
+            InvalidArgument,
             NoPage,
             PermissionDenied,
         },
@@ -192,6 +193,59 @@ impl AddressSpace {
             self.user_page_allocator.allocate(size)
         } else {
             KERNEL_PAGE_ALLOCATOR.lock().allocate(size)
+        }
+    }
+
+    /// Обратный метод к [`AddressSpace::allocate()`].
+    /// Освобождает блок виртуальных страниц `block`.
+    /// Ни освобождения физической памяти, ни модификации отображения станиц, не происходит.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::InvalidArgument`] --- заданный блок не является целиком выделенным.
+    /// - [`Error::PermissionDenied`] --- в блоке есть как страницы,
+    ///   которые лежат в зарезервированной для пользователя области,
+    ///   так и страницы, которые лежат в зарезервированной для ядра области.
+    pub fn deallocate(
+        &mut self,
+        block: Block<Page>,
+    ) -> Result<()> {
+        if super::is_kernel_block(block) {
+            KERNEL_PAGE_ALLOCATOR.lock().deallocate(block)
+        } else if super::is_user_block(block) {
+            self.user_page_allocator.deallocate(block)
+        } else {
+            Err(InvalidArgument)
+        }
+    }
+
+    #[allow(rustdoc::private_intra_doc_links)]
+    /// Отмечает заданный блок виртуальных страниц как используемый.
+    /// Ни выделения физической памяти, ни создания отображения станиц, не происходит.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::NoPage`] --- заданный блок не является целиком свободным.
+    /// - [`Error::PermissionDenied`] --- принадлежность пользователю
+    ///   какой-нибудь страницы блока не соответствует запрошенным флагам.
+    ///   То есть, адрес этой страницы лежит в зарезервированной для пользователя области
+    ///   [`kernel::memory::range::user_pages()`], а во `flags` нет доступа пользователю ---
+    ///   флага [`PageTableFlags::USER_ACCESSIBLE`].
+    ///   Либо наоборот, флаг [`PageTableFlags::USER_ACCESSIBLE`] есть, но страница не
+    ///   лежит в области [`kernel::memory::range::user_pages()`].
+    pub fn reserve(
+        &mut self,
+        pages: Block<Page>,
+        flags: PageTableFlags,
+    ) -> Result<()> {
+        range::validate_block_flags(pages, flags)?;
+
+        if super::is_kernel_block(pages) {
+            KERNEL_PAGE_ALLOCATOR.lock().reserve(pages)
+        } else if super::is_user_block(pages) {
+            self.user_page_allocator.reserve(pages)
+        } else {
+            Err(PermissionDenied)
         }
     }
 

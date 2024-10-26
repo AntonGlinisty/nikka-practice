@@ -152,6 +152,13 @@ mod test {
             unimplemented!();
         }
 
+        fn reserve_fixed(
+            &mut self,
+            block: Block<Page>,
+        ) -> Result<()> {
+            unimplemented!();
+        }
+
         unsafe fn unreserve(
             &mut self,
             _block: Block<Page>,

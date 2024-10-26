@@ -132,6 +132,46 @@ impl PageAllocator {
         unimplemented!();
     }
 
+    /// Обратный метод к [`PageAllocator::allocate()`].
+    /// Освобождает блок виртуальных страниц `block`.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::InvalidArgument`] --- заданный блок не является целиком выделенным.
+    pub(super) fn deallocate(
+        &mut self,
+        pages: Block<Page>,
+    ) -> Result<()> {
+        if self.initial_block.contains_block(pages) && self.block.is_disjoint(pages) {
+            Ok(())
+        } else {
+            Err(InvalidArgument)
+        }
+    }
+
+    /// Отмечает заданный блок виртуальных страниц как используемый.
+    /// Ни выделения физической памяти, ни создания отображения станиц, не происходит.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::NoPage`] --- заданный блок не является целиком свободным.
+    pub(super) fn reserve(
+        &mut self,
+        pages: Block<Page>,
+    ) -> Result<()> {
+        if self.block.contains_block(pages) {
+            self.block = if pages.start() - self.block.start() < self.block.end() - pages.end() {
+                Block::from_index(pages.end(), self.block.end())
+            } else {
+                Block::from_index(self.block.start(), pages.start())
+            }?;
+
+            Ok(())
+        } else {
+            Err(NoPage)
+        }
+    }
+
     /// Возвращает блок виртуальных страниц,
     /// соответствующий самой длинной последовательности пустых записей в
     /// диапазоне `allowed_elements` корневого узла таблицы страниц `page_table_root`.

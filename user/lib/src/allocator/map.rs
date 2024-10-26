@@ -80,6 +80,13 @@ unsafe impl BigAllocator for MapAllocator {
         }
     }
 
+    fn reserve_fixed(
+        &mut self,
+        block: Block<Page>,
+    ) -> Result<()> {
+        syscall::map(Pid::Current, block, USER).map(|_| ())
+    }
+
     unsafe fn unreserve(
         &mut self,
         _block: Block<Page>,

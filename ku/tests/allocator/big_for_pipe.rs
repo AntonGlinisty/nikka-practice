@@ -112,6 +112,13 @@ unsafe impl BigAllocator for BigForPipe {
         Ok(self.reserved)
     }
 
+    fn reserve_fixed(
+        &mut self,
+        _block: Block<Page>,
+    ) -> Result<()> {
+        unimplemented!();
+    }
+
     unsafe fn unreserve(
         &mut self,
         _block: Block<Page>,
