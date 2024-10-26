@@ -12,6 +12,7 @@
 #![feature(cell_update)]
 #![feature(const_size_of_val)]
 #![feature(let_chains)]
+#![feature(maybe_uninit_fill, maybe_uninit_slice)]
 #![feature(slice_ptr_get)]
 #![feature(step_trait)]
 #![feature(strict_provenance)]

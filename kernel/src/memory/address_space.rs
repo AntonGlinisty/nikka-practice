@@ -1,8 +1,10 @@
 use core::{
     any,
     fmt,
-    mem,
-    mem::MaybeUninit,
+    mem::{
+        self,
+        MaybeUninit,
+    },
     ptr,
 };
 
@@ -433,12 +435,7 @@ impl AddressSpace {
         default: F,
     ) -> Result<&'static mut [T]> {
         let slice = self.map_slice_uninit(len, flags)?;
-
-        for element in slice.iter_mut() {
-            element.write(default());
-        }
-
-        Ok(unsafe { MaybeUninit::slice_assume_init_mut(slice) })
+        Ok(MaybeUninit::fill_with(slice, default))
     }
 
     /// Выделяет нужное количество физических фреймов

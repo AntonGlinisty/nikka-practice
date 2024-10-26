@@ -1,6 +1,7 @@
 use core::{
     alloc::Layout,
     cmp,
+    mem::MaybeUninit,
     ptr::NonNull,
 };
 

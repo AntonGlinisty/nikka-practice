@@ -13,7 +13,7 @@
 #![feature(const_refs_to_cell)]
 #![feature(custom_test_frameworks)]
 #![feature(let_chains)]
-#![feature(maybe_uninit_slice)]
+#![feature(maybe_uninit_fill, maybe_uninit_slice)]
 #![feature(naked_functions)]
 #![feature(slice_ptr_get)]
 #![feature(strict_provenance)]
