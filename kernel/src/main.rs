@@ -31,6 +31,10 @@ use ku::{
         rtc::Rtc,
     },
 };
+
+#[cfg(not(feature = "conservative-backtraces"))]
+use sentinel_frame::with_sentinel_frame;
+
 use text::{
     Attribute,
     println,
@@ -50,6 +54,7 @@ use kernel::{
 
 entry_point!(kernel_main);
 
+#[cfg_attr(not(feature = "conservative-backtraces"), with_sentinel_frame)]
 #[cold]
 #[inline(never)]
 fn kernel_main(boot_info: &'static BootInfo) -> ! {

@@ -12,6 +12,10 @@ macro_rules! init {
     ($subsystems:expr) => {
         bootloader::entry_point!(test_entry);
 
+        #[cfg_attr(
+            not(feature = "conservative-backtraces"),
+            sentinel_frame::with_sentinel_frame
+        )]
         fn test_entry(boot_info: &'static bootloader::BootInfo) -> ! {
             kernel::init_subsystems(&boot_info, $subsystems);
             init::set_frame_count(&boot_info.memory_map);

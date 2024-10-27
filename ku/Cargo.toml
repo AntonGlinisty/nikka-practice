@@ -32,8 +32,14 @@ tracing-core = { git = "https://github.com/tokio-rs/tracing", version = "*", def
 x86_64 = "*"
 xmas-elf = "*"
 
+sentinel_frame = { path = "../sentinel_frame" }
+
 [dev-dependencies]
 nix = { version = "0.27.*", features = ["mman"] }
 rand = { version = "*", default-features = false, features = ["small_rng"] }
 rstest = "*"
 tracing-subscriber = { git = "https://github.com/tokio-rs/tracing", features = ["env-filter"] }
+
+[features]
+# Отключает sentinel frame
+conservative-backtraces = []
