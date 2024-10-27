@@ -8,6 +8,8 @@ use core::{
     ptr,
 };
 
+use itertools::Itertools;
+
 use ku::sync::spinlock::Spinlock;
 
 use crate::{
@@ -22,6 +24,7 @@ use crate::{
         Result,
     },
     log::{
+        debug,
         info,
         trace,
         warn,
@@ -600,6 +603,24 @@ impl AddressSpace {
         // TODO: your code here.
 
         Ok(())
+    }
+
+    /// Выводит в журнал карту виртуального адресного пространства.
+    pub(crate) fn dump(&mut self) {
+        debug!("address space:");
+
+        let flag_mask = !(PageTableFlags::ACCESSED | PageTableFlags::DIRTY);
+        let ignore_frame_addresses = true;
+
+        for block in self
+            .mapping()
+            .iter_mut()
+            .map(|path| path.block())
+            .filter(|block| block.is_present())
+            .coalesce(|a, b| a.coalesce(b, ignore_frame_addresses, flag_mask))
+        {
+            debug!("    {}", block);
+        }
     }
 }
 

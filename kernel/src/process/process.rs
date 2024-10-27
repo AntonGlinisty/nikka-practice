@@ -112,6 +112,8 @@ impl Process {
             info.start_address().into_usize(),
         );
 
+        address_space.dump();
+
         Ok(Self {
             address_space: Spinlock::new(address_space),
             info,
@@ -142,6 +144,7 @@ impl Process {
             Self::init_address_space(&mut address_space, &self.address_space, stack)?;
 
         address_space.duplicate_allocator_state(&self.address_space.lock())?;
+        address_space.dump();
 
         Ok(Self {
             address_space: Spinlock::new(address_space),
