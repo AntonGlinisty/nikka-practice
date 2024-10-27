@@ -10,7 +10,7 @@ rustflags = [
 target = "kernel.json"
 
 [target.'cfg(target_os = "none")']
-runner = "bootimage runner"
+runner = "./scripts/run_kernel.sh"
 
 [unstable]
 build-std = ["alloc", "compiler_builtins", "core"]
