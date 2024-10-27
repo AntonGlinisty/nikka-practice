@@ -100,6 +100,22 @@ impl Registers {
         self.user_context = context;
     }
 
+    /// Сохраняет значение в регистр `rax`.
+    pub(super) fn set_rax(
+        &mut self,
+        rax: usize,
+    ) {
+        self.rax = rax;
+    }
+
+    /// Сохраняет значение в регистр `rdi`.
+    pub(super) fn set_rdi(
+        &mut self,
+        rdi: usize,
+    ) {
+        self.rdi = rdi;
+    }
+
     /// Переключается в процесс, заданный регистрами `Registers`.
     ///
     /// Сохраняет контекст ядра и переключается в контекст пользователя.

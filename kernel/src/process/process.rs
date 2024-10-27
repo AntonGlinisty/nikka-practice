@@ -255,6 +255,21 @@ impl Process {
         self.state = state
     }
 
+    /// Сохраняет результат системного вызова `result` в регистры `rax` и `rdi`
+    /// в соответствии с Nikka Syscall ABI.
+    pub(super) fn set_syscall_result(
+        &mut self,
+        result: Result<usize>,
+    ) {
+        let (result, value) = match &result {
+            Ok(value) => (ResultCode::Ok, *value),
+            Err(_) => (result.into(), 0),
+        };
+
+        self.registers.set_rax(result.into());
+        self.registers.set_rdi(value);
+    }
+
     /// Возвращает контекст пользователя, в который передаются исключения и прерывания,
     /// относящиеся к данному процессу.
     /// Например, Page Fault при некорректном доступе к памяти в коде пользователя.
