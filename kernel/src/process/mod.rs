@@ -26,7 +26,7 @@ use crate::{
     memory::{
         BASE_ADDRESS_SPACE,
         Size,
-        USER_RW,
+        USER_R,
     },
 };
 
@@ -76,7 +76,7 @@ fn create_process(elf_file: &[u8]) -> Result<Process> {
 
     address_space.switch_to();
 
-    let entry = elf::load(&mut address_space.allocator(USER_RW), elf_file)?;
+    let entry = elf::load(&mut address_space.allocator(USER_R), elf_file)?;
 
     BASE_ADDRESS_SPACE.lock().switch_to();
 

@@ -1,5 +1,5 @@
-/// Загружает [ELF--файлы](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format)
-/// пользовательских процессов и их адресные пространства.
+/// Загружает [ELF--файл](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format)
+/// пользовательского процесса в его адресное пространство.
 pub mod elf;
 
 /// Минимальная информация о контексте исполнения.

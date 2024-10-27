@@ -1,5 +1,9 @@
 use core::{
-    cmp,
+    cmp::{
+        self,
+        Ordering,
+        PartialOrd,
+    },
     fmt,
     iter::IntoIterator,
     marker::PhantomData,
@@ -556,6 +560,23 @@ impl<T: Memory> IntoIterator for Block<T> {
     }
 }
 
+impl<T: Memory> PartialOrd for Block<T> {
+    fn partial_cmp(
+        &self,
+        other: &Self,
+    ) -> Option<Ordering> {
+        if self.end <= other.start {
+            Some(Ordering::Less)
+        } else if other.end <= self.start {
+            Some(Ordering::Greater)
+        } else if self.eq(other) {
+            Some(Ordering::Equal)
+        } else {
+            None
+        }
+    }
+}
+
 /// Итератор по блоку.
 ///
 /// В качестве итератора нельзя использовать сам [`Block`], так как он реализует типаж [`Copy`].
@@ -572,7 +593,7 @@ impl<T: Memory> Iterator for IntoIter<T> {
 }
 
 /// Описывает базовые типы для [`Block`] и их операции.
-pub trait Memory: Clone + Copy + SizeOf {
+pub trait Memory: Clone + Copy + Eq + PartialEq + SizeOf {
     /// Заменяет префикс `0x` при печати на:
     ///   - `0p` (**p**hysical) для физических адресов;
     ///   - `0v` (**v**irtual) для виртуальных адресов.
@@ -697,6 +718,31 @@ mod test {
         assert!(Block::<Phys>::from_index(0, 1).is_ok());
         assert!(Block::<Phys>::from_index(1, 1).is_ok());
         assert_eq!(Block::<Phys>::from_index(1, 0), Err(InvalidArgument));
+    }
+
+    #[test]
+    fn compare() {
+        let a = Block::from_index(0, 1).unwrap();
+        let b = Block::from_index(1, 2).unwrap();
+        let c = Block::from_index(1, 2).unwrap();
+        let d = Block::from_index(2, 3).unwrap();
+
+        let e = Block::<Virt>::from_index(0, 3).unwrap();
+
+        assert_ne!(a, b);
+        assert!(a < b);
+        assert!(a <= b);
+        assert!(b <= c);
+        assert_eq!(b, c);
+        assert!(c <= d);
+        assert!(c < d);
+        assert_ne!(c, d);
+
+        for block in [a, b, c, d] {
+            assert_ne!(block, e);
+            assert_eq!(block.partial_cmp(&e), None);
+            assert_eq!(e.partial_cmp(&block), None);
+        }
     }
 
     #[test]
