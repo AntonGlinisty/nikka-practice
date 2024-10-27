@@ -7,7 +7,10 @@ use ku::memory::size::MiB;
 
 use kernel::{
     Subsystems,
-    error::Error::PermissionDenied,
+    error::Error::{
+        NoPage,
+        PermissionDenied,
+    },
     log::debug,
     memory::{
         AddressSpace,
@@ -149,6 +152,25 @@ fn map_twice() {
     fn translate(virt: Virt) -> PageTableEntry {
         let mut address_space = BASE_ADDRESS_SPACE.lock();
         *mapping(&mut address_space).translate(virt).unwrap()
+    }
+}
+
+#[test_case]
+fn unmap_nonmapped_page() {
+    let _guard = forbid_frame_leaks();
+
+    let virt = Virt::new(0x0000_0200_2000_0000).unwrap();
+    let page = Page::containing(virt);
+
+    let address_space = &mut BASE_ADDRESS_SPACE.lock();
+
+    unsafe {
+        assert_eq!(unmap_page(address_space, page), Err(NoPage));
+
+        map_page(address_space, page, PageTableFlags::empty()).unwrap();
+
+        assert_eq!(unmap_page(address_space, page), Ok(()));
+        assert_eq!(unmap_page(address_space, page), Err(NoPage));
     }
 }
 
