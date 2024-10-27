@@ -70,7 +70,7 @@ extern "x86-interrupt" fn timer(mut context: TrapContext)
 нужно предоставить правильный контекст пользователя, в который нужно будет переключиться.
 Это ровно тот контекст пользователя, который есть у
 [`kernel::process::syscall::sched_yield()`](../../doc/kernel/process/syscall/fn.sched_yield.html).
-И который она обычно передаёт в
+И который системные вызовы обычно передают в
 [`kernel::process::syscall::sysret()`](../../doc/kernel/process/syscall/fn.sysret.html).
 А в
 [`kernel::process::syscall::sched_yield()`](../../doc/kernel/process/syscall/fn.sched_yield.html)
@@ -80,6 +80,31 @@ extern "x86-interrupt" fn timer(mut context: TrapContext)
 Флаги должен сохранить пользовательский код, если они ему нужны.
 Так как это syscall, то есть пользователь готов к тому что регистры, и в том числе флаги, будут изменены.
 А сегментные регистры не меняются на протяжении жизни процесса.
+
+Результат системного вызова
+[`kernel::process::syscall::sched_yield()`](../../doc/kernel/process/syscall/fn.sched_yield.html)
+не может вернуть так, как это делают другие системные вызовы, --- через функцию
+[`kernel::process::syscall::sysret()`](../../doc/kernel/process/syscall/fn.sysret.html).
+Но может сохранить в контексте процесса --- в
+[`kernel::process::registers::Registers`](../../doc/kernel/process/registers/struct.Registers.html).
+Либо вы можете не возвращать из этого системного вызова никакого осмысленного результата,
+так как ошибок возникнуть не может.
+Но тогда учтите, что возвращаемый этим системным вызовом результат нужно проигнорировать
+на стороне пользователя.
+
+Обратите внимание, что придётся вызвать функцию
+[`kernel::process::process::Process::sched_yield() -> !`](../../doc/kernel/process/process/struct.Process.html#method.sched_yield),
+которая никогда не возвращается.
+Это видно по возвращаемому
+[типу *никогда*](https://doc.rust-lang.ru/book/ch19-04-advanced-types.html#%D0%A2%D0%B8%D0%BF-never-%D0%BA%D0%BE%D1%82%D0%BE%D1%80%D1%8B%D0%B9-%D0%BD%D0%B8%D0%BA%D0%BE%D0%B3%D0%B4%D0%B0-%D0%BD%D0%B5-%D0%B2%D0%BE%D0%B7%D0%B2%D1%80%D0%B0%D1%89%D0%B0%D0%B5%D1%82%D1%81%D1%8F) ---
+`!` --- в её сигнатуре.
+Учтите, что механизм
+["получение ресурса есть инициализация"](https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization)
+(Resource Acquisition Is Initialization, RAII)
+не совместим с вызовом таких функций.
+Так как в вызывающую функцию управление не вернётся, её область видимости не закончится,
+и деструкторы вызваны не будут.
+Поэтому вам придётся явно отпустить блокировку.
 
 
 ### Проверьте себя
@@ -220,7 +245,7 @@ $ (cd kernel; cargo test --test 4-process-9-scheduler)
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/process/scheduler.rs | 26 +++++++++++++++++++++-----
- kernel/src/process/syscall.rs   | 16 +++++++++++++---
+ kernel/src/process/scheduler.rs | 25 ++++++++++++++++++++-----
+ kernel/src/process/syscall.rs   | 17 ++++++++++++++---
  2 files changed, 34 insertions(+), 8 deletions(-)
 ```

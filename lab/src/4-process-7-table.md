@@ -8,14 +8,7 @@
 В файле [`ku/src/process/pid.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/process/pid.rs) описана структура
 
 ```rust
-#[derive(Clone, Copy, Eq, PartialEq)]
-pub enum Pid {
-    Current,
-    Id {
-        slot: u16,
-        epoch: u32,
-    },
-}
+{{#include ../../ku/src/process/pid.rs:pid}}
 ```
 
 Она позволяет отдельно указывать либо
@@ -210,7 +203,7 @@ unsafe fn forge_static_lifetime<T>(x: &T) -> &'static T
 Получается, что она в начале захватывает низкогранулярную блокировку на всю таблицу
 [`TABLE`](../../doc/kernel/process/table/struct.TABLE.html),
 а потом улучшает гранулярность этой блокировки до блокировки одного слота таблицы.
-И вызывающая функции в дальнейшем работает уже с высокогранулярной блокировкой.
+И вызывающая функция в дальнейшем работает уже с высокогранулярной блокировкой.
 
 
 #### Освобождение слота с уничтожением процесса
@@ -319,6 +312,6 @@ $ (cd kernel; cargo test --test 4-process-7-table)
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/process/table.rs | 120 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 112 insertions(+), 8 deletions(-)
+ kernel/src/process/table.rs | 131 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 122 insertions(+), 9 deletions(-)
 ```

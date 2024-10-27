@@ -35,7 +35,9 @@ fn AddressSpace::check_permission_common(
 ) -> Result<()>
 ```
 
-Он должен пройтись по всем страницам заданного `block`, проверяя что они отображены в адресное пространство `self`
+Он должен:
+- Проверить, что `block` целиком лежит в пользовательской части адресного пространства.
+- Пройтись по всем страницам заданного `block`, проверяя что они отображены в адресное пространство `self`
 с флагами `PageTableFlags::PRESENT`, `PageTableFlags::USER_ACCESSIBLE` и заданными на вход `flags` одновременно.
 
 
@@ -46,6 +48,7 @@ fn AddressSpace::check_permission_common(
 Вам могут пригодиться
 
 - Метод [`fn Block::<Virt>::enclosing() -> Block<Page>`](../../doc/ku/memory/block/struct.Block.html#method.enclosing), который для заданного блока виртуальных адресов возвращает минимальный содержащий его блок страниц виртуальной памяти.
+- Функция [`kernel::memory::is_user_block()`](../../doc/kernel/memory/range/fn.is_user_block.html).
 - Метод [`Mapping::translate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.translate).
 - Метод [`PageTableFlags::contains()`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#method.contains).
 - [Итерирование](../../doc/ku/memory/block/struct.Block.html#impl-IntoIterator-for-Block%3CT%3E) по страницам блока с помощью вызова [`Block::<Page>::into_iter()`](../../doc/ku/memory/block/struct.Block.html#method.into_iter).
@@ -80,6 +83,6 @@ $ (cd kernel; cargo test --test 4-process-4-permission-checks)
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/memory/address_space.rs | 30 ++++++++++++++++++++++++------
- 1 file changed, 24 insertions(+), 6 deletions(-)
+ kernel/src/memory/address_space.rs | 40 ++++++++++++++++++++++++++++++++++------
+ 1 file changed, 34 insertions(+), 6 deletions(-)
 ```

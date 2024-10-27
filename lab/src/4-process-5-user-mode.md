@@ -54,7 +54,7 @@ pub(crate) struct ModeContext {
 - Поле [`ModeContext::rip`](../../doc/kernel/process/registers/struct.ModeContext.html#structfield.rip) будет содержать точку входа в программу пользователя, которую возвращает функция [`ku::process::elf::load()`](../../doc/ku/process/elf/fn.load.html).
 - Поле [`ModeContext::cs`](../../doc/kernel/process/registers/struct.ModeContext.html#structfield.cs) --- селектор кода пользователя, который возвращает метод [`kernel::memory::gdt::Gdt::user_code()`](../../doc/kernel/memory/gdt/struct.SmpGdt.html#method.user_code).
 - Поле [`ModeContext::rflags`](../../doc/kernel/process/registers/struct.ModeContext.html#structfield.rflags) будет содержать единственный включённый флаг --- [`RFlags::INTERRUPT_FLAG`](../../doc/ku/process/registers/struct.RFlags.html#associatedconstant.INTERRUPT_FLAG). Это требуется чтобы по прерыванию, например, от таймера, процессор вернулся в ядро. И пользовательский код не смог его монополизировать.
-- Поле [`ModeContext::rsp`](../../doc/kernel/process/registers/struct.ModeContext.html#structfield.rsp) будет содержать адрес конца стека пользователя --- в [x86-64](https://en.wikipedia.org/wiki/X86-64) стек растёт от старших адресов к младшим. Стек для пользовательского процесса выделяет функция [`kernel::process::create()`](../../doc/kernel/process/fn.create.html) с помощью метода [`kernel::memory::stack::Stack::new()`](../../doc/kernel/memory/stack/struct.Stack.html#method.new). Метод [`Stack::new()`](../../doc/kernel/memory/stack/struct.Stack.html#method.new) выделяет [`kernel::memory::stack::Stack::STACK_SIZE`](../../doc/kernel/memory/stack/struct.Stack.html#associatedconstant.STACK_SIZE) байт памяти и запрещает доступ к младшим [`kernel::memory::stack::Stack::GUARD_ZONE_SIZE`](../../doc/kernel/memory/stack/struct.Stack.html#associatedconstant.GUARD_ZONE_SIZE) байтам из них, чтобы отлавливать переполнение стека. Начальное значение указателя стека возвращает метод [`Stack::pointer()`](../../doc/kernel/memory/stack/struct.Stack.html#method.pointer).
+- Поле [`ModeContext::rsp`](../../doc/kernel/process/registers/struct.ModeContext.html#structfield.rsp) будет содержать адрес конца стека пользователя --- в [x86-64](https://en.wikipedia.org/wiki/X86-64) стек растёт от старших адресов к младшим. Стек для пользовательского процесса выделяет метод [`Process::init_address_space()`](file:///.../nikka/doc/kernel/process/process/struct.Process.html#method.init_address_space) с помощью метода [`kernel::memory::stack::Stack::new()`](../../doc/kernel/memory/stack/struct.Stack.html#method.new). Метод [`Stack::new()`](../../doc/kernel/memory/stack/struct.Stack.html#method.new) выделяет [`kernel::memory::stack::Stack::STACK_SIZE`](../../doc/kernel/memory/stack/struct.Stack.html#associatedconstant.STACK_SIZE) байт памяти и запрещает доступ к младшим [`kernel::memory::stack::Stack::GUARD_ZONE_SIZE`](../../doc/kernel/memory/stack/struct.Stack.html#associatedconstant.GUARD_ZONE_SIZE) байтам из них, чтобы отлавливать переполнение стека. Начальное значение указателя стека возвращает метод [`Stack::pointer()`](../../doc/kernel/memory/stack/struct.Stack.html#method.pointer).
 - Поле [`ModeContext::ss`](../../doc/kernel/process/registers/struct.ModeContext.html#structfield.ss) будет содержать селектор данных пользователя, который возвращает метод [`kernel::memory::gdt::Gdt::user_data()`](../../doc/kernel/memory/gdt/struct.SmpGdt.html#method.user_data).
 
 Конкретные значения остальных полей структуры
@@ -102,7 +102,7 @@ asm!(
 Единственное что, он не согласится на порчу регистров `RBX` и `RBP`.
 Эти регистры мы должны будем сохранить на стеке ядра и восстановить вручную.
 
-Таким образом для переключения в режим пользователя метод
+Таким образом, для переключения в режим пользователя метод
 [`Registers::switch_to()`](../../doc/kernel/process/registers/struct.Registers.html#method.switch_to)
 должен:
 
@@ -185,6 +185,8 @@ asm!(
 > Вместо запрета прерываний на время манипуляций со стеком ядра можно было бы
 > выделить для всех прерываний отдельный стек.
 > Такой стек должен был бы быть собственным у каждого процессора.
+> И при этом не возможно было бы обрабатывать вложенные прерывания,
+> возникшие в одном и том же кольце защиты.
 
 
 ### Журналирование в режиме пользователя
@@ -277,6 +279,6 @@ ModeContext { rip: Virt(0v76FF50), cs: 8, rflags: RFlags(514), rsp: Virt(0v0), s
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/process/registers.rs | 103 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 99 insertions(+), 4 deletions(-)
+ kernel/src/process/registers.rs | 102 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 98 insertions(+), 4 deletions(-)
 ```

@@ -183,6 +183,7 @@ fn sysret(
     }
 }
 
+// ANCHOR: exit
 /// Выполняет системный вызов
 /// [`lib::syscall::exit(code)`](https://sergey-v-galtsev.gitlab.io/labs-description/doc/lib/syscall/fn.exit.html).
 ///
@@ -192,10 +193,12 @@ fn exit(
     process: SpinlockGuard<Process>,
     code: usize,
 ) -> ! {
+    // ANCHOR_END: exit
     // TODO: your code here.
     unimplemented!();
 }
 
+// ANCHOR: log_value
 /// Выполняет системный вызов
 /// [`lib::syscall::log_value(message, value)`](https://sergey-v-galtsev.gitlab.io/labs-description/doc/lib/syscall/fn.log_value.html).
 ///
@@ -209,6 +212,7 @@ fn log_value(
     len: usize,
     value: usize,
 ) -> Result<usize> {
+    // ANCHOR_END: log_value
     // TODO: your code here.
     unimplemented!();
 }

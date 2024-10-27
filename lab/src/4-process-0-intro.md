@@ -34,13 +34,13 @@
 ### Ориентировочный объём работ этой лабораторки
 
 ```console
- kernel/src/memory/address_space.rs |  30 +++++++++++---
- kernel/src/process/process.rs      |  23 +++++++++--
- kernel/src/process/registers.rs    | 103 +++++++++++++++++++++++++++++++++++++++++++++--
- kernel/src/process/scheduler.rs    |  26 +++++++++---
- kernel/src/process/syscall.rs      | 167 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--------
- kernel/src/process/table.rs        | 120 ++++++++++++++++++++++++++++++++++++++++++++++++++----
- ku/src/process/elf.rs              |  75 ++++++++++++++++++++++++++++++----
- user/lib/src/syscall.rs            |  57 +++++++++++++++++++++++++-
- 8 files changed, 548 insertions(+), 53 deletions(-)
+ kernel/src/memory/address_space.rs |  40 +++++++++++++---
+ kernel/src/process/process.rs      |  23 +++++++--
+ kernel/src/process/registers.rs    | 102 +++++++++++++++++++++++++++++++++++++--
+ kernel/src/process/scheduler.rs    |  25 ++++++++--
+ kernel/src/process/syscall.rs      | 188 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++------
+ kernel/src/process/table.rs        | 131 ++++++++++++++++++++++++++++++++++++++++++++++----
+ ku/src/process/elf.rs              | 197 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-------
+ user/lib/src/syscall.rs            |  61 +++++++++++++++++++++++-
+ 8 files changed, 707 insertions(+), 60 deletions(-)
 ```

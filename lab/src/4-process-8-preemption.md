@@ -88,6 +88,39 @@ fn Process::enter_user_mode(mut process: SpinlockGuard<Process>) -> bool
 И запишите пользовательский контекст в неё.
 Верните из этого метода `true`, если процесс был вытеснен.
 
+Обратите внимание, что сохранения
+[`ku::process::mini_context::MiniContext`](../../doc/ku/process/mini_context/struct.MiniContext.html)
+тут не достаточно, так как потеряются значения регистра флагов.
+Нужно сохранять именно
+[`kernel::process::registers::ModeContext`](../../doc/kernel/process/registers/struct.ModeContext.html),
+в котором есть соответствующее поле
+[`ModeContext::rflags`](../../doc/kernel/process/registers/struct.ModeContext.html#structfield.rflags).
+Для этого вам пригодится метод
+[`Registers::set_mode_context()`](../../doc/kernel/process/registers/struct.Registers.html#method.set_mode_context).
+
+В итоге сохранение полного контекста вытесняемого процесса устроено так.
+Метод
+[`Process::preempt()`](../../doc/kernel/process/process/struct.Process.html#method.preempt)
+должен переключить сохранённый при прерывании контекст
+[`kernel::trap::TrapContext`](../../doc/kernel/trap/struct.TrapContext.html)
+на
+[`Cpu::kernel_context()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.kernel_context),
+которая выставляет в `rip` адрес возврата на метод
+[`Registers::switch_from()`](../../doc/kernel/process/registers/struct.Registers.html#method.switch_from).
+А он, в свою очередь, передаёт управление на метку `store_user_mode_context` внутри метода
+[`Registers::switch_to()`](../../doc/kernel/process/registers/struct.Registers.html#method.switch_to).
+После выхода из прерывания управление должно быть передано туда.
+То есть, на код, который сохраняет пользовательский контекст регистров общего назначения.
+Но он не сохраняет ни регистр флагов `rflags`, ни регистры `rip` и `rsp`.
+Регистр флагов `rflags` и регистры `rip` и `rsp` должны сохранятся по цепочке
+[`Cpu::set_user_context()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.set_user_context) ->
+[`Cpu::take_user_context()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.take_user_context) ->
+[`Registers::set_mode_context()`](../../doc/kernel/process/registers/struct.Registers.html#method.set_mode_context),
+вызываемых из методов
+[`Process::preempt`](../../doc/kernel/process/process/struct.Process.html#method.preempt)
+и
+[`Process::enter_user_mode()`](../../doc/kernel/process/process/struct.Process.html#method.enter_user_mode).
+
 Вам пригодятся
 
 - [`TrapContext::is_user_mode()`](../../doc/kernel/trap/struct.TrapContext.html#method.is_user_mode),

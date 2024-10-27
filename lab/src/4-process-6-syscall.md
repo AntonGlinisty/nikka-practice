@@ -74,7 +74,7 @@ fn kernel::process::syscall::init()
 - Включает бит [`x86_64::registers::model_specific::EferFlags::SYSTEM_CALL_EXTENSIONS`](../../doc/x86_64/registers/model_specific/struct.EferFlags.html#associatedconstant.SYSTEM_CALL_EXTENSIONS) в регистре [`x86_64::registers::model_specific::Efer`](../../doc/x86_64/registers/model_specific/struct.Efer.html). А остальные биты оставляет в исходном состоянии.
 - Записывает в регистр [`x86_64::registers::model_specific::Star`](../../doc/x86_64/registers/model_specific/struct.Star.html) методом [`Star::write()`](../../doc/x86_64/registers/model_specific/struct.Star.html#method.write) селекторы кода и данных для режимов пользователя и ядра --- [`kernel::memory::gdt::Gdt::user_code()`](../../doc/kernel/memory/gdt/struct.SmpGdt.html#method.user_code), [`kernel::memory::gdt::Gdt::user_data()`](../../doc/kernel/memory/gdt/struct.SmpGdt.html#method.user_data), [`kernel::memory::gdt::Gdt::kernel_code()`](../../doc/kernel/memory/gdt/struct.SmpGdt.html#method.kernel_code), [`kernel::memory::gdt::Gdt::kernel_data()`](../../doc/kernel/memory/gdt/struct.SmpGdt.html#method.kernel_data).
 - Записывает в регистр [`x86_64::registers::model_specific::LStar`](../../doc/x86_64/registers/model_specific/struct.LStar.html) виртуальный адрес функции [`kernel::process::syscall::syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html). Получить виртуальный адрес функции можно с помощью конструкции `Virt::from_ptr(syscall_trampoline as *const ())`.
-- Записывает в регистр [`x86_64::registers::model_specific::SFMask`](../../doc/x86_64/registers/model_specific/struct.SFMask.html) маску для регистра флагов `RFLAGS`, которая определяет какие флаги в `RFLAGS` будут сброшены при входе в системный вызов. Нужно сбросить флаг прерываний. Так как если прерывание возникнет сразу после переключения в ядро и до того как ядро переключится в собственный стек, процессор сохранит контекст прерывания на пользовательский стек. А ему, как мы помним, доверять нельзя. Также предлагается сбросить все остальные флаги, просто для определённости состояния `RFLAGS` в момент системного вызова.
+- Записывает в регистр [`x86_64::registers::model_specific::SFMask`](../../doc/x86_64/registers/model_specific/struct.SFMask.html) маску для регистра флагов `rflags`, которая определяет, какие флаги в `rflags` будут сброшены при входе в системный вызов. Нужно сбросить флаг прерываний. Иначе, если прерывание возникнет сразу после переключения в ядро и до того как ядро переключится в собственный стек, процессор сохранит контекст прерывания на пользовательский стек. А ему, как мы помним, доверять нельзя. Также предлагается сбросить все остальные флаги, просто для определённости состояния `rflags` в момент системного вызова.
 
 
 #### Диспетчеризация системных вызовов
@@ -133,22 +133,24 @@ asm!(
 ```
 
 На момент входа в [`syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html)
-регистр `RSP` указывает на стек пользователя.
+регистр `rsp` указывает на стек пользователя.
 Мы не можем ему доверять, --- код режима пользователя мог его переполнить, неправильно выровнять, поместить на недоступный для пользователя адрес, например внутрь данных или кода ядра.
 Поэтому прежде чем пользоваться стеком,
 [`syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html)
 переключается в стек ядра.
-Адрес пользовательского стека --- старое значение `RSP` --- она должна передать в функцию
+Адрес пользовательского стека --- старое значение `rsp` --- она должна передать в функцию
 [`syscall()`](../../doc/kernel/process/syscall/fn.syscall.html)
-в соответствующем [x86-64 C ABI](https://wiki.osdev.org/System_V_ABI#x86-64) регистре.
+в соответствующем
+[x86-64 C ABI](https://wiki.osdev.org/System_V_ABI#x86-64)
+месте.
 
 Помните, что благодаря маске в регистре
 [`x86_64::registers::model_specific::SFMask`](../../doc/x86_64/registers/model_specific/struct.SFMask.html),
 процессор выключил прерывания в момент выполнения инструкции
-[`SYSCALL`](https://www.felixcloutier.com/x86/syscall)?
+[`syscall`](https://www.felixcloutier.com/x86/syscall)?
 Nikka сама по себе не сломается от получения прерывания в момент выполнения системного вызова,
 и мы уже на стеке ядра --- самое время включить прерывания с помощью инструкции
-[`STI`](https://www.felixcloutier.com/x86/sti).
+[`sti`](https://www.felixcloutier.com/x86/sti).
 Если же не включить прерывания, можно например пропустить очередной тик RTC, пока будет выполняться системный вызов.
 И тогда в журнале может быть неверное время.
 Например, тут последовательные записи журнала выглядят как будто между ними прошло 15-16 секунд:
@@ -166,7 +168,7 @@ Nikka сама по себе не сломается от получения п�
 И только в 10:48:40 было получено второе прерывание.
 А все промежуточные пропали из-за того, что во время исполнения системных вызовов прерывания были отключены.
 
-То что прерывания запрещены до переключения стека, проверяется в тесте `4-process-6-syscall` из файла
+То что прерывания запрещены до переключения стека, проверяется в тесте `4-process-6-syscall` в файле
 [`kernel/tests/4-process-6-syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/4-process-6-syscall.rs)
 следующим образом.
 Код пользователя из файла
@@ -181,12 +183,12 @@ Nikka сама по себе не сломается от получения п�
 time::delay(Duration::milliseconds(100));
 ```
 А значит, появился сигнал о прерывании.
-После этого код пользователя записывает `0` в `RSP` и делает системный вызов.
+После этого код пользователя записывает `0` в `rsp` и делает системный вызов.
 Начинает исполняться код ядра.
 И как только он разрешит прерывания, то сразу же получит прерывание от
 [PIT](https://en.wikipedia.org/wiki/Programmable_interval_timer).
 
-Если стек ещё не был переключён, это приведёт к Page Fault из-за того что код пользователя испортил `RSP`:
+Если стек ещё не был переключён, это приведёт к Page Fault из-за того что код пользователя испортил `rsp`:
 
 ```console
 $ (cd kernel; cargo test --test 4-process-6-syscall)
@@ -216,7 +218,7 @@ panicked at 'kernel mode trap #14 - Page Fault, context: { mode: kernel, cs:rip:
 [`jmp`](https://www.felixcloutier.com/x86/jmp).
 Но если вы предпочли вариант с
 [`jmp`](https://www.felixcloutier.com/x86/jmp),
-то скорректируйте значение регистра `RSP`.
+то скорректируйте значение регистра `rsp`.
 Так как вызываемая функция при поиске аргументов, передаваемых через стек,
 пропускает в нём место с адресом возврата.
 То есть, считает что адрес возврата был сохранён инструкцией
@@ -253,11 +255,11 @@ panicked at 'kernel mode trap #14 - Page Fault, context: { mode: kernel, cs:rip:
 Она
 
 - Записывает результат системного вызова `result` в регистры `rax` и `rdi` в соответствии с [Nikka Syscall ABI](../../lab/book/4-process-6-syscall.html#nikka-syscall-abi). Обратите внимание, что признак и код ошибки, если `result` содержит ошибку, нужно записать в `rax` --- пользовательскому процессу он тоже важен.
-- Записывает в регистр `R11` состояние регистра флагов, которое должно быть в пространстве пользователя. Как минимум, должен быть установлен [`RFlags::INTERRUPT_FLAG`](../../doc/ku/process/registers/struct.RFlags.html#associatedconstant.INTERRUPT_FLAG), чтобы процесс не мог монополизировать процессор. Но пока что включение прерываний приведёт к нестабильности теста `4_process_6_syscall::syscall_log_value`. Поэтому предлагается отложить включение [`RFlags::INTERRUPT_FLAG`](../../doc/ku/process/registers/struct.RFlags.html#associatedconstant.INTERRUPT_FLAG) до одной из следующих задач. А пока --- выключить все флаги при возврате в режим пользователя, воспользовавшись [`RFlags::default()`](../../doc/ku/process/registers/struct.RFlags.html#method.default).
-- Записывает адрес возврата в код пользователя в регистр `RCX`. Функции [`syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html)/[`syscall()`](../../doc/kernel/process/syscall/fn.syscall.html) получили этот адрес в том же регистре. И должны были передать его вместе с адресом стека пользователя в аргументе `context`.
-- Переключает регистр `RSP` на стек пользователя.
+- Записывает в регистр `r11` состояние регистра флагов, которое должно быть в пространстве пользователя. Как минимум, должен быть установлен [`RFlags::INTERRUPT_FLAG`](../../doc/ku/process/registers/struct.RFlags.html#associatedconstant.INTERRUPT_FLAG), чтобы процесс не мог монополизировать процессор. Но пока что включение прерываний приведёт к нестабильности теста `4_process_6_syscall::syscall_log_value`. Поэтому предлагается отложить включение [`RFlags::INTERRUPT_FLAG`](../../doc/ku/process/registers/struct.RFlags.html#associatedconstant.INTERRUPT_FLAG) до одной из следующих задач. А пока --- выключить все флаги при возврате в режим пользователя, воспользовавшись [`RFlags::default()`](../../doc/ku/process/registers/struct.RFlags.html#method.default).
+- Записывает адрес возврата в код пользователя в регистр `rcx`. Функция [`syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html) получила этот адрес в том же регистре. И его нужно передать вместе с адресом стека пользователя в аргументе `context`.
+- Переключает регистр `rsp` на стек пользователя.
 - Зануляет все не использованные выше регистры общего назначения, чтобы предотвратить утечку информации из режима ядра в режим пользователя.
-- Выполняет инструкцию [`sysretq`](https://www.felixcloutier.com/x86/sysret), которая передаёт управление в код пользователя в соответствии с настройками в регистрах `Star`, `R11` и `RCX`. Обратите внимание на суффикс `q` у [`sysretq`](https://www.felixcloutier.com/x86/sysret). Если его не указать, ассемблер сгенерирует машинный код для другого режима работы процессора. И до некоторого момента это будет не заметно, так как делать он будет почти то же самое. А потом в неожиданный момент всё сломается и найти такую ошибку будет тяжело.
+- Выполняет инструкцию [`sysretq`](https://www.felixcloutier.com/x86/sysret), которая передаёт управление в код пользователя в соответствии с настройками в регистрах `Star`, `r11` и `rcx`. Обратите внимание на суффикс `q` у [`sysretq`](https://www.felixcloutier.com/x86/sysret). Если его не указать, ассемблер сгенерирует машинный код для другого режима работы процессора. И до некоторого момента это будет не заметно, так как делать он будет почти то же самое. А потом в неожиданный момент всё сломается и найти такую ошибку будет тяжело.
 
 
 #### Системный вызов `exit`
@@ -265,10 +267,7 @@ panicked at 'kernel mode trap #14 - Page Fault, context: { mode: kernel, cs:rip:
 Реализуйте [функцию](../../doc/kernel/process/syscall/fn.exit.html)
 
 ```rust
-fn kernel::process::syscall::exit(
-    process: SpinlockGuard<Process>,
-    code: usize,
-) -> !
+{{#include ../../kernel/src/process/syscall.rs:exit}}
 ```
 
 в файле [`kernel/src/process/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/syscall.rs).
@@ -284,29 +283,31 @@ fn kernel::process::syscall::exit(
 который не возвращают управление, как и сама функция
 [`kernel::process::syscall::exit()`](../../doc/kernel/process/syscall/fn.exit.html).
 
+Учтите, что некорректно держать гард на спин-блокировку и одновременно удалять спин-блокировку, ---
+в гарде на спин-блокировку есть ссылка и она станет невалидной.
+Вам придётся явно отпустить спин-блокировку перед его удалением.
+
 
 #### Системный вызов `log_value`
 
 Реализуйте [функцию](../../doc/kernel/process/syscall/fn.log_value.html)
 
 ```rust
-fn kernel::process::syscall::log_value(
-    process: SpinlockGuard<Process>,
-    str_start: usize,
-    str_end: usize,
-    value: usize,
-) -> Result<usize>
+{{#include ../../kernel/src/process/syscall.rs:log_value}}
 ```
 
 в файле [`kernel/src/process/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/syscall.rs).
 
-Это системный вызов, который принимает три аргумента.
-В аргументах `str_start` и `str_end` передаётся начало и конец строки типа [`&str`](https://doc.rust-lang.org/nightly/core/primitive.str.html), а в `value` --- произвольное число.
+Это системный вызов, который принимает четыре аргумента.
+В аргументе `level` передаётся уровень журналирования в виде символа, см. функции [`ku::log::level_into_symbol()`](../../doc/ku/log/fn.level_into_symbol.html) и [`ku::log::level_try_from_symbol()`](../../doc/ku/log/fn.level_try_from_symbol.html).
+А в аргументах `start` и `len` передаётся начало и длина строки типа [`&str`](https://doc.rust-lang.org/nightly/core/primitive.str.html), а в `value` --- произвольное число.
 
-Для проверки корректности пары `str_start` и `str_end` вам пригодятся функции
-[`ku::memory::block::Block::<Virt>::from_index()`](../../doc/ku/memory/block/struct.Block.html#method.from_index),
-[`kernel::memory::address_space::AddressSpace::check_permission()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.check_permission) и
-[`core::str::from_utf8()`](https://doc.rust-lang.org/nightly/core/str/fn.from_utf8.html).
+Для проверки корректности пары `start` и `len` вам пригодятся:
+- Арифметические операции с проверкой переполнения, такие как [`checked_add()`](https://doc.rust-lang.org/nightly/core/primitive.usize.html#method.checked_add).
+- Метод создания блока [`ku::memory::block::Block::<Virt>::from_index()`](../../doc/ku/memory/block/struct.Block.html#method.from_index).
+- Реализованная ранее проверка доступа к памяти [`kernel::memory::address_space::AddressSpace::check_permission()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.check_permission).
+- Метод для создание строки из последовательности байт в формате [UTF-8](https://ru.wikipedia.org/wiki/UTF-8) с проверкой на корректность этого кодирования --- [`core::str::from_utf8()`](https://doc.rust-lang.org/nightly/core/str/fn.from_utf8.html).
+
 Если хотя бы одна из них вернула ошибку, прокиньте её оператором `?` в функцию
 [`syscall()`](../../doc/kernel/process/syscall/fn.syscall.html),
 чтобы она через функцию
@@ -315,6 +316,8 @@ fn kernel::process::syscall::log_value(
 Ошибку [`core::str::Utf8Error`](https://doc.rust-lang.org/nightly/core/str/struct.Utf8Error.html)
 можно преобразовать, например, в
 [`ku::error::Error::InvalidArgument`](../../doc/ku/error/enum.Error.html#variant.InvalidArgument).
+А переполнения --- в
+[`ku::error::Error::Overflow`](../../doc/ku/error/enum.Error.html#variant.Overflow).
 
 Далее системный вызов
 [`log_value()`](../../doc/kernel/process/syscall/fn.log_value.html)
@@ -352,7 +355,9 @@ $ (cd kernel; cargo test --test 4-process-6-syscall)
 ...
 ```
 
-Если в первой лабораторке вы попытались воспользоваться
+Если в
+[задаче про `AtomicCorrelationPoint`](../../lab/book/5-sync-4-correlation-point.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-5--%D1%80%D0%B5%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-atomiccorrelationpoint)
+вы попытались воспользоваться
 [приёмом "read-dont-modify-write"](https://web.archive.org/web/20230318132751/https://web.archive.org/web/20230318132751/https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf),
 то в режиме пользователя и вызов `time::delay()` из
 [`user/exit/src/main.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/user/exit/src/main.rs)
@@ -386,10 +391,10 @@ panicked at 'if the Page Fault was in the kernel mode, probably the `syscall` in
 Она работает в режиме пользователя.
 Её задача:
 
-- Сохранить регистры `RBX` и `RBP` на стеке.
+- Сохранить регистры `rbx` и `rbp` на стеке.
 - Передать свои аргументы в соответствии с [Nikka Syscall ABI](../../lab/book/4-process-6-syscall.html#nikka-syscall-abi) через регистры, в которых их ожидает функция [`kernel::process::syscall::syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html).
 - Запустить инструкцию [`syscall`](https://www.felixcloutier.com/x86/syscall), которая выполнит требуемый системный вызов.
-- Восстановить `RBX` и `RBP`.
+- Восстановить `rbx` и `rbp`.
 - Вернуть наружу результаты системного вызова из регистров, в которые их сохранила функция [`kernel::process::syscall::sysret()`](../../doc/kernel/process/syscall/fn.sysret.html).
 - Неиспользованные регистры общего назначения она должна пометить как испорченные уже знакомой конструкцией `lateout(...) _,`.
 
@@ -487,7 +492,7 @@ $ (cd kernel; cargo test --test 4-process-6-syscall --test 4-process-4-log-value
 ```
 
 Если вы увидите в тесте `4_process_6_syscall::syscall_log_value`
-Page Fault на чтении `0v1` в режиме пользователя (не ядра),
+Page Fault на чтении `0v1` в режиме пользователя (не ядра), ---
 это просто замена `panic!()` в коде пользователя в тесте.
 В журнале выше этого Page Fault должно быть написано, что ему не нравится,
 если конечно `log_value()` хоть немного работает.
@@ -510,7 +515,7 @@ panicked at 'the user mode code has detected an error in syscall::log_value() im
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/process/syscall.rs | 151 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--------
- user/lib/src/syscall.rs       |  57 +++++++++++++++++++++++++++++--
- 2 files changed, 192 insertions(+), 16 deletions(-)
+ kernel/src/process/syscall.rs | 171 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++------
+ user/lib/src/syscall.rs       |  61 ++++++++++++++++++++++++++++-
+ 2 files changed, 218 insertions(+), 14 deletions(-)
 ```
