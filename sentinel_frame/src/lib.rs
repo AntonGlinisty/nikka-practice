@@ -3,6 +3,7 @@
 #![allow(unused_variables)]
 
 #![deny(warnings)]
+#![feature(let_chains)]
 
 extern crate proc_macro;
 
@@ -16,10 +17,12 @@ use quote::{
     quote_spanned,
 };
 use syn::{
+    Abi,
     Error,
     FnArg,
     Ident,
     ItemFn,
+    LitStr,
     Pat,
     PatIdent,
     PatType,
@@ -28,6 +31,7 @@ use syn::{
     TypePath,
     parse_macro_input,
     spanned::Spanned,
+    token::Extern,
 };
 
 enum MethodReturnType {
@@ -66,6 +70,8 @@ pub fn with_sentinel_frame(
     let original_fn_name = &sig.ident;
     let fn_block = input_fn.block;
 
+    let mut errors = Vec::new();
+
     let inner_f_name = Ident::new(
         &format!("{original_fn_name}_inner"),
         original_fn_name.span(),
@@ -73,6 +79,21 @@ pub fn with_sentinel_frame(
 
     let mut inner_sig = sig.clone();
     inner_sig.ident = inner_f_name.clone();
+
+    if let Some(abi) = inner_sig.abi.take() &&
+        abi.name.as_ref().map(LitStr::value).as_deref() != Some("C")
+    {
+        errors.push(Error::new_spanned(
+            abi,
+            "Only default and C calling conventions are supported",
+        ));
+    }
+    inner_sig.abi = Some(Abi {
+        extern_token: Extern {
+            span: original_fn_name.span(),
+        },
+        name: Some(LitStr::new("C", original_fn_name.span())),
+    });
 
     let mut asm_args = Vec::new();
     const ARG_REGISTERS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
@@ -82,8 +103,6 @@ pub fn with_sentinel_frame(
         Ok(ret) => ret,
         Err(e) => return e.to_compile_error().into(),
     };
-
-    let mut errors = Vec::new();
 
     if inputs.len() > ARG_REGISTERS.len() {
         errors.push(Error::new_spanned(
@@ -168,7 +187,7 @@ pub fn with_sentinel_frame(
         #(#attrs)*
         #vis #sig {
             // Inner function
-            extern "C" #inner_sig {
+            #inner_sig {
                 #fn_block
             }
 

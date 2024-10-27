@@ -26,6 +26,9 @@ use x86_64::{
     structures::gdt::SegmentSelector,
 };
 
+#[cfg(not(feature = "conservative-backtraces"))]
+use sentinel_frame::with_sentinel_frame;
+
 use crate::{
     error::{
         Error::Timeout,
@@ -382,6 +385,7 @@ extern "C" fn switch_from_real_mode_to_long_mode() -> ! {
 /// Аргумент `cpu` задаёт структуру [`Cpu`] для запускаемого Application Processor.
 /// Через `initialized` запускаемый Application Processor сигнализирует
 /// запускающему Bootstrap Processor, что инициализация AP завершена.
+#[cfg_attr(not(feature = "conservative-backtraces"), with_sentinel_frame)]
 #[cold]
 #[inline(never)]
 extern "C" fn ap_kernel_main(

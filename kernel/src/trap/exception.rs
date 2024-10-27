@@ -3,6 +3,8 @@ use core::{
     mem,
 };
 
+use sentinel_frame::with_sentinel_frame;
+
 use ku::{
     backtrace::Backtrace,
     memory::Virt,
@@ -115,6 +117,7 @@ pub(super) use exception_without_error_code;
 ///
 /// Если фатальное исключение вызвал процесс, то он будет остановлен и удалён.
 /// Если фатальное исключение вызвало ядро, оно запаникует.
+#[cfg_attr(not(feature = "conservative-backtraces"), with_sentinel_frame)]
 extern "C" fn generic_trap(
     number: usize,             // rdi
     error_code: usize,         // rsi

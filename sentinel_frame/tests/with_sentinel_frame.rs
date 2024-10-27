@@ -80,6 +80,23 @@ fn arguments_are_passed_properly() {
     assert_eq!(v6, TARGET);
 }
 
+#[with_sentinel_frame]
+extern "C" fn add(
+    a: i32,
+    b: i32,
+) -> i32 {
+    a + b
+}
+
+#[test]
+fn c_abi() {
+    for i in 0 .. 5 {
+        for j in 0 .. 5 {
+            assert_eq!(add(i, j), i + j);
+        }
+    }
+}
+
 #[test]
 fn with_sentinel_frame_codegen() {
     const BASE_DIR: &str = "tests/with_sentinel_frame";
