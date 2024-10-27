@@ -187,10 +187,11 @@ impl Process {
     /// Возвращает ссылку на структуру [`ProcessInfo`],
     /// через которую ядро предоставляет процессу информацию о нём.
     unsafe fn info(&mut self) -> Result<&mut ProcessInfo> {
+        let flags = USER_RW | PageTableFlags::NO_EXECUTE;
         let info = self
             .address_space
             .get_mut()
-            .check_permission_mut::<ProcessInfo>(self.info, USER_RW)?;
+            .check_permission_mut::<ProcessInfo>(self.info, flags)?;
 
         if info.len() == 1 {
             Ok(&mut info[0])
@@ -201,9 +202,10 @@ impl Process {
 
     /// Возвращает буфер, в который код пользователя записывает свои сообщения журнала.
     fn log(&mut self) -> Result<&mut ReadBuffer> {
+        let flags = USER_RW | PageTableFlags::NO_EXECUTE;
         self.address_space
             .get_mut()
-            .check_permission_mut::<u8>(self.log.block().into(), USER_RW)?;
+            .check_permission_mut::<u8>(self.log.block().into(), flags)?;
         Ok(&mut self.log)
     }
 
@@ -378,16 +380,18 @@ impl Process {
     ) -> Result<(Block<Virt>, ReadBuffer, Virt)> {
         address_space.switch_to();
 
-        let (read_buffer, write_buffer) = pipe::make(&mut address_space.allocator(USER_RW))?;
+        let flags = USER_RW | PageTableFlags::NO_EXECUTE;
+
+        let (read_buffer, write_buffer) = pipe::make(&mut address_space.allocator(flags))?;
         let recursive_mapping = address_space.mapping().make_recursive_mapping()?;
         let system_info = Self::map_system_info(address_space)?;
 
-        let process_info = address_space.map_one(USER_RW, || {
+        let process_info = address_space.map_one(flags, || {
             ProcessInfo::new(write_buffer, recursive_mapping, system_info)
         })?;
 
         if stack == Block::default() {
-            stack = Block::from_mut(Stack::new(address_space, USER_RW)?);
+            stack = Block::from_mut(Stack::new(address_space, flags)?);
         }
         process_info.set_stack(stack);
 
@@ -404,11 +408,13 @@ impl Process {
     /// страницы с общей информацией о системе.
     /// См. [`SystemInfo`].
     fn map_system_info(address_space: &mut AddressSpace) -> Result<*const SystemInfo> {
+        let flags = USER_R | PageTableFlags::NO_EXECUTE;
+
         let system_info_frame =
             address_space.mapping().translate(Virt::from_ref(&SYSTEM_INFO))?.frame()?;
 
         let system_info_page = address_space
-            .allocate(mem::size_of_val(&SYSTEM_INFO), USER_R)?
+            .allocate(mem::size_of_val(&SYSTEM_INFO), flags)?
             .into_iter()
             .next()
             .ok_or(NoPage)?;
@@ -416,7 +422,7 @@ impl Process {
         FRAME_ALLOCATOR.lock().reference(system_info_frame);
 
         unsafe {
-            address_space.map_page_to_frame(system_info_page, system_info_frame, USER_R)?;
+            address_space.map_page_to_frame(system_info_page, system_info_frame, flags)?;
         }
 
         system_info_page.address().try_into_ptr()
