@@ -21,6 +21,8 @@ init!(Subsystems::MEMORY | Subsystems::LOCAL_APIC);
 fn mapped_properly() {
     let local_apic = local_apic();
     let expected_local_apic_address = Phys::new(0xFEE00000).unwrap();
+    let expected_flags =
+        PageTableFlags::NO_CACHE | PageTableFlags::WRITE_THROUGH | PageTableFlags::WRITABLE;
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
     let mapping = mapping(&mut address_space);
@@ -38,7 +40,7 @@ fn mapped_properly() {
         "wrong physical address for the Local APIC",
     );
     assert!(
-        flags.contains(PageTableFlags::NO_CACHE | PageTableFlags::WRITE_THROUGH),
+        flags.contains(expected_flags),
         "wrong flags for the Local APIC virtual page",
     );
 
