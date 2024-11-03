@@ -503,6 +503,17 @@ impl Block<Virt> {
 
         Self::new(Virt::from_ptr(range.start), Virt::from_ptr(range.end)).unwrap()
     }
+
+    /// Преобразует срез элементов типа `T` в [`Block<Virt>`].
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если срез не корректен.
+    pub fn from_slice_mut<T>(x: &mut [T]) -> Self {
+        let range = x.as_ptr_range();
+
+        Self::new(Virt::from_ptr(range.start), Virt::from_ptr(range.end)).unwrap()
+    }
 }
 
 impl<T: Tag> From<Block<Frage<T>>> for Block<Addr<T>> {

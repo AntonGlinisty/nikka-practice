@@ -35,6 +35,7 @@ xmas-elf = "*"
 sentinel_frame = { path = "../sentinel_frame" }
 
 [dev-dependencies]
+duplicate = "*"
 nix = { version = "0.27.*", features = ["mman"] }
 rand = { version = "*", default-features = false, features = ["small_rng"] }
 rstest = "*"

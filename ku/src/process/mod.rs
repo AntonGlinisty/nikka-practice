@@ -50,3 +50,8 @@ pub enum State {
     /// Процесс выполняется в данный момент.
     Running = 2,
 }
+
+#[doc(hidden)]
+pub mod test_scaffolding {
+    pub use super::elf::test_scaffolding::*;
+}

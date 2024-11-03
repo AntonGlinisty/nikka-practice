@@ -33,6 +33,7 @@ use crate::{
     },
     log::{
         debug,
+        trace,
         warn,
     },
     memory::{
@@ -400,5 +401,203 @@ fn validate_order(
         Err(InvalidArgument)
     } else {
         Ok(())
+    }
+}
+
+#[doc(hidden)]
+pub(super) mod test_scaffolding {
+    use core::ops::Range;
+
+    use derive_more::Display;
+    use xmas_elf::program::{
+        ProgramHeader,
+        ProgramHeader64,
+    };
+
+    use crate::{
+        allocator::BigAllocator,
+        error::Result,
+        memory::{
+            Block,
+            Page,
+            Virt,
+            mmu::PageTableFlags,
+        },
+    };
+
+    pub struct Loader<'a, T: BigAllocator>(super::Loader<'a, T>);
+
+    impl<'a, T: BigAllocator> Loader<'a, T> {
+        pub fn new(
+            allocator: &'a mut T,
+            file: &'a [u8],
+        ) -> Self {
+            Self(super::Loader::new(allocator, file))
+        }
+
+        pub fn load_program_header(
+            &mut self,
+            curr: Option<ElfRange>,
+            next: ElfRange,
+        ) -> Result<ElfRange> {
+            let curr = curr.map(|x| x.into());
+            let next = next.into();
+            self.0.load_program_header(curr, next).map(|x| x.into())
+        }
+
+        pub fn extend_mapping(
+            &mut self,
+            curr: &Option<ElfRange>,
+            next: &ElfRange,
+        ) -> Result<()> {
+            let curr = curr.clone().map(|x| x.into());
+            let next = next.clone().into();
+            self.0.extend_mapping(&curr, &next)
+        }
+
+        pub fn finalize_mapping(
+            &mut self,
+            page_range: PageRange,
+        ) -> Result<()> {
+            self.0.finalize_mapping(page_range.into())
+        }
+
+        pub fn initial_flags(&self) -> PageTableFlags {
+            self.0.initial_flags()
+        }
+    }
+
+    #[derive(Clone, Debug, Default, Display, Eq, PartialEq)]
+    #[display(
+        "{{ memory: {}, flags: {}, file_range: {:#X?} }}",
+        memory,
+        flags,
+        file_range
+    )]
+    pub struct ElfRange {
+        pub file_range: Range<usize>,
+        pub flags: PageTableFlags,
+        pub memory: Block<Virt>,
+    }
+
+    impl ElfRange {
+        pub fn new(
+            memory: Block<Virt>,
+            flags: PageTableFlags,
+            file_range: Range<usize>,
+        ) -> Self {
+            Self {
+                file_range,
+                flags,
+                memory,
+            }
+        }
+
+        pub fn start_address(&self) -> Virt {
+            self.memory.start_address()
+        }
+
+        pub fn end_address(&self) -> Result<Virt> {
+            self.memory.end_address()
+        }
+
+        pub fn copy_to_memory(
+            &self,
+            file: &[u8],
+        ) -> Result<()> {
+            super::ElfRange::from(self.clone()).copy_to_memory(file)
+        }
+    }
+
+    impl From<ElfRange> for super::ElfRange {
+        fn from(elf_range: ElfRange) -> Self {
+            Self {
+                file_range: elf_range.file_range,
+                flags: elf_range.flags,
+                memory: elf_range.memory,
+            }
+        }
+    }
+
+    impl From<super::ElfRange> for ElfRange {
+        fn from(elf_range: super::ElfRange) -> Self {
+            Self {
+                file_range: elf_range.file_range,
+                flags: elf_range.flags,
+                memory: elf_range.memory,
+            }
+        }
+    }
+
+    #[derive(Clone, Copy, Debug, Default, Display, Eq, PartialEq)]
+    #[display("{{ memory: {}, flags: {} }}", memory, flags)]
+    pub struct PageRange {
+        pub flags: PageTableFlags,
+        pub memory: Block<Page>,
+    }
+
+    impl PageRange {
+        pub fn new(
+            memory: Block<Page>,
+            flags: PageTableFlags,
+        ) -> Self {
+            Self { flags, memory }
+        }
+
+        pub fn start_address(&self) -> Virt {
+            self.memory.start_address()
+        }
+
+        pub fn end_address(&self) -> Result<Virt> {
+            self.memory.end_address()
+        }
+    }
+
+    impl From<PageRange> for super::PageRange {
+        fn from(page_range: PageRange) -> Self {
+            Self {
+                flags: page_range.flags,
+                memory: page_range.memory,
+            }
+        }
+    }
+
+    impl From<super::PageRange> for PageRange {
+        fn from(page_range: super::PageRange) -> Self {
+            Self {
+                flags: page_range.flags,
+                memory: page_range.memory,
+            }
+        }
+    }
+
+    impl From<ElfRange> for PageRange {
+        fn from(elf_range: ElfRange) -> Self {
+            super::PageRange::from(super::ElfRange::from(elf_range)).into()
+        }
+    }
+
+    pub fn program_header_to_elf_range(program_header: &ProgramHeader64) -> Result<ElfRange> {
+        Ok(super::ElfRange::try_from(ProgramHeader::Ph64(program_header))?.into())
+    }
+
+    pub fn combine(
+        curr: ElfRange,
+        next: ElfRange,
+    ) -> Result<(Option<PageRange>, Option<PageRange>, ElfRange)> {
+        let (curr_minus_next, boundary, updated_next) = super::combine(curr.into(), next.into())?;
+
+        Ok((
+            curr_minus_next.map(|x| x.into()),
+            boundary.map(|x| x.into()),
+            updated_next.into(),
+        ))
+    }
+
+    pub fn combine_flags(
+        curr_flags: PageTableFlags,
+        next_flags: PageTableFlags,
+    ) -> PageTableFlags {
+        super::combine_flags(curr_flags, next_flags)
     }
 }

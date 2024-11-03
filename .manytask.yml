@@ -345,9 +345,10 @@ deadlines:
       enabled: true
       tasks:
         - task: elf
-          score: 100
+          score: 200
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-3-elf.html
           check:
+            - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --test 4-process-3-elf -- --test-threads=1
             - cd kernel && cargo test --test 2-mm-* --test 3-smp-[134]-*
             - cd kernel && cargo test --test 4-process-3-elf
 
@@ -433,6 +434,7 @@ deadlines:
             - cd kernel && cargo test --test 6-um-4-trap-handler
 
         - task: cow-fork
+          is_bonus: true
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/6-um-5-cow-fork.html
           check:

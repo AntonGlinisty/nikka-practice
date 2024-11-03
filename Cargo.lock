@@ -502,6 +502,7 @@ dependencies = [
  "bitflags 2.6.0",
  "chrono",
  "derive_more",
+ "duplicate",
  "heapless 0.8.0",
  "itertools 0.13.0",
  "memoffset",
