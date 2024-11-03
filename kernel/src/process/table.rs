@@ -80,15 +80,27 @@ impl Table {
     /// Эти пустые слоты провязывает в односвязный список с головой в поле [`Table::free`].
     pub(super) fn new(len: usize) -> Self {
         // TODO: your code here.
-        unimplemented!();
+        let table: Vec<_> = alloc::vec![Slot::Free { pid: Pid::new(0), next: None }]; // TODO: remove before flight.
+
+        Self {
+            free: Some(Pid::new(0)),
+            process_count: 0,
+            table,
+        }
     }
 
     /// Выделяет процессу `process` свободный слот таблицы и возвращает соответствующий [`Pid`].
     /// Если свободного слота нет, возвращает ошибку [`Error::NoProcessSlot`].
     #[allow(unused_mut)] // TODO: remove before flight.
     pub(super) fn allocate(mut process: Process) -> Result<Pid> {
+        let mut table = TABLE.lock();
+
+        let pid = table.free.ok_or(NoProcessSlot)?;
+
         // TODO: your code here.
-        unimplemented!();
+        assert_eq!(table.process_count, 0); process.set_pid(pid); table.process_count = 1; table.table[pid.slot()] = Slot::Used { process: Spinlock::new(process) }; // TODO: remove before flight.
+
+        Ok(pid)
     }
 
     /// Удаляет процесс с заданным `pid`.
@@ -97,7 +109,10 @@ impl Table {
     ///   - Вставляет слот в голову списка свободных слотов [`Table::free`].
     #[allow(unused_mut)] // TODO: remove before flight.
     pub fn free(mut pid: Pid) -> Result<()> {
+        let mut table = TABLE.lock();
+
         // TODO: your code here.
+        assert_eq!(pid.slot(), 0); assert_eq!(table.process_count, 1); table.free = Some(Pid::new(0)); table.process_count = 0; table.table[0] = Slot::Free { pid: Pid::new(0), next: None }; // TODO: remove before flight.
 
         Ok(())
     }
@@ -107,8 +122,10 @@ impl Table {
     /// Если процесса по указанному `pid` нет или тот же слот занят уже другим процессом,
     /// возвращает ошибку [`Error::NoProcess`].
     pub fn get(pid: Pid) -> Result<SpinlockGuard<'static, Process>> {
+        let table = TABLE.lock();
+
         // TODO: your code here.
-        test_scaffolding::process() // TODO: remove before flight.
+        assert_eq!(pid.slot(), 0); assert_eq!(table.process_count, 1); if let Slot::Used { process } = &table.table[0] { Ok(unsafe { forge_static_lifetime(process).lock() }) } else { unreachable!() } // TODO: remove before flight.
     }
 }
 
@@ -137,44 +154,22 @@ lazy_static! {
 
 #[doc(hidden)]
 pub mod test_scaffolding {
-    use lazy_static::lazy_static;
-
-    use ku::sync::spinlock::{
-        Spinlock,
-        SpinlockGuard,
-    };
-
-    use crate::error::{
-        Error::NoProcess,
-        Result,
-    };
+    use crate::error::Result;
 
     use super::{
         Pid,
         Process,
         TABLE,
-        forge_static_lifetime,
+        Table,
     };
 
-    pub(super) fn process() -> Result<SpinlockGuard<'static, Process>> {
-        assert!(TABLE.lock().table.is_empty());
-
-        DUMMY_TABLE
-            .lock()
-            .as_ref()
-            .map(|process| unsafe { forge_static_lifetime(process).lock() })
-            .ok_or(NoProcess)
+    pub fn init() {
+        if TABLE.lock().table.is_empty() {
+            *TABLE.lock() = Table::new(1);
+        }
     }
 
-    pub fn set_process(mut process: Process) {
-        assert!(TABLE.lock().table.is_empty());
-
-        process.set_pid(Pid::new(0));
-        *DUMMY_TABLE.lock() = Some(Spinlock::new(process));
-    }
-
-    lazy_static! {
-        pub(super) static ref DUMMY_TABLE: Spinlock<Option<Spinlock<Process>>> =
-            Spinlock::new(None);
+    pub fn allocate(process: Process) -> Result<Pid> {
+        Table::allocate(process)
     }
 }

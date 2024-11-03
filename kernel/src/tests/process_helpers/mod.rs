@@ -39,12 +39,14 @@ pub(super) fn make(file: &[u8]) -> Process {
 }
 
 pub(super) fn dummy_allocate(file: &[u8]) -> SpinlockGuard<'static, Process> {
-    test_scaffolding::set_process(
-        test_scaffolding::create_process(file).expect("failed to create the test process"),
-    );
+    test_scaffolding::init();
 
-    let mut process =
-        Table::get(Pid::Current).expect("failed to find the new process in the process table");
+    let pid = test_scaffolding::allocate(
+        test_scaffolding::create_process(file).expect("failed to create the test process"),
+    )
+    .unwrap();
+
+    let mut process = Table::get(pid).expect("failed to find the new process in the process table");
 
     check(file, &mut process);
 
