@@ -49,6 +49,7 @@ use crate::{
 #[allow(unused)]
 use crate::error::Error;
 
+// ANCHOR: load
 /// Загружает [ELF--файл](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format) `file`.
 /// Выделяет для него память с помощью `allocator`.
 ///
@@ -66,10 +67,12 @@ pub fn load<T: BigAllocator>(
     allocator: &mut T,
     file: &[u8],
 ) -> Result<Virt> {
+    // ANCHOR_END: load
     // TODO: your code here.
     unimplemented!();
 }
 
+// ANCHOR: loader
 /// Состояние загрузчика ELF--файлов.
 struct Loader<'a, T: BigAllocator> {
     /// Страничный аллокатор памяти.
@@ -81,6 +84,7 @@ struct Loader<'a, T: BigAllocator> {
     /// Содержимое [ELF--файла](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format).
     file: &'a [u8],
 }
+// ANCHOR_END: loader
 
 impl<'a, T: BigAllocator> Loader<'a, T> {
     /// Инициализирует состояние загрузчика ELF--файлов.
@@ -91,6 +95,7 @@ impl<'a, T: BigAllocator> Loader<'a, T> {
         Self { allocator, file }
     }
 
+    // ANCHOR: load_program_header
     /// Загружает диапазон [`next`][ElfRange] со следующим сегментом
     /// [ELF--файла](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format).
     ///
@@ -107,10 +112,12 @@ impl<'a, T: BigAllocator> Loader<'a, T> {
         curr: Option<ElfRange>,
         next: ElfRange,
     ) -> Result<ElfRange> {
+        // ANCHOR_END: load_program_header
         // TODO: your code here.
         unimplemented!();
     }
 
+    // ANCHOR: extend_mapping
     /// Расширяет отображение текущего адресного пространства,
     /// чтобы гарантировать что блок, который описывает `next`, отображён в память.
     ///
@@ -134,10 +141,12 @@ impl<'a, T: BigAllocator> Loader<'a, T> {
         curr: &Option<ElfRange>,
         next: &ElfRange,
     ) -> Result<()> {
+        // ANCHOR_END: extend_mapping
         // TODO: your code here.
         unimplemented!();
     }
 
+    // ANCHOR: process_boundary
     /// Обрабатывает очередную границу между диапазонами памяти `curr` и `next`.
     ///
     /// - С помощью функции [`combine()`] разбивает диапазоны памяти `curr` и `next`
@@ -153,10 +162,12 @@ impl<'a, T: BigAllocator> Loader<'a, T> {
         curr: ElfRange,
         next: ElfRange,
     ) -> Result<ElfRange> {
+        // ANCHOR_END: process_boundary
         // TODO: your code here.
         unimplemented!();
     }
 
+    // ANCHOR: finalize_mapping
     /// Исправляет флаги отображения диапазона [`page_range`][PageRange].
     ///
     /// Флаги требуется исправить только если они отличаются от
@@ -171,6 +182,7 @@ impl<'a, T: BigAllocator> Loader<'a, T> {
         &mut self,
         page_range: PageRange,
     ) -> Result<()> {
+        // ANCHOR_END: finalize_mapping
         // TODO: your code here.
         unimplemented!();
     }
@@ -188,6 +200,7 @@ impl<'a, T: BigAllocator> Loader<'a, T> {
     );
 }
 
+// ANCHOR: elf_range
 /// Не выровненный по границам страниц диапазон памяти,
 /// который нужно скопировать из ELF--файла в адресное пространство процесса.
 ///
@@ -230,14 +243,17 @@ struct ElfRange {
     /// который нужно отобразить в адресное пространство процесса.
     memory: Block<Virt>,
 }
+// ANCHOR_END: elf_range
 
 impl ElfRange {
+    // ANCHOR: copy_to_memory
     /// Копирует из ELF--файла `file` в адресное пространство процесса
     /// диапазон памяти [`self`][ElfRange].
     fn copy_to_memory(
         &self,
         file: &[u8],
     ) -> Result<()> {
+        // ANCHOR_END: copy_to_memory
         // TODO: your code here.
         unimplemented!();
     }
@@ -270,6 +286,7 @@ impl TryFrom<ProgramHeader<'_>> for ElfRange {
     }
 }
 
+// ANCHOR: page_range
 /// Выровненный по границам страниц диапазон памяти,
 /// который нужно отобразить в адресное пространство процесса.
 #[derive(Debug, Display, Eq, PartialEq)]
@@ -282,6 +299,7 @@ struct PageRange {
     /// который нужно отобразить в адресное пространство процесса.
     memory: Block<Page>,
 }
+// ANCHOR_END: page_range
 
 impl From<ElfRange> for PageRange {
     /// Возвращает выровненный по границам страниц диапазон памяти [`PageRange`],
@@ -294,6 +312,7 @@ impl From<ElfRange> for PageRange {
     }
 }
 
+// ANCHOR: combine
 /// Объединяет не выровненные по границам страниц
 /// текущий обрабатываемый диапазон [`curr`][ElfRange] и
 /// следующий за ним диапазон [`next`][ElfRange].
@@ -332,6 +351,7 @@ fn combine(
     curr: ElfRange,
     next: ElfRange,
 ) -> Result<(Option<PageRange>, Option<PageRange>, ElfRange)> {
+    // ANCHOR_END: combine
     // TODO: your code here.
     unimplemented!();
 }
