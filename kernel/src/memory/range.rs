@@ -14,7 +14,12 @@ use crate::{
         Error::PermissionDenied,
         Result,
     },
-    log::info,
+    log::{
+        debug,
+        error,
+        info,
+        warn,
+    },
 };
 
 use super::{
@@ -44,29 +49,54 @@ use crate::{
 /// В этот блок могут не попадать некоторые зарезервированные диапазоны фреймов.
 /// Поэтому он может быть немного меньше установленной в системе физической памяти.
 pub(super) fn physical(memory_map: &MemoryMap) -> Block<Frame> {
+    let mut prev_physical_region = Block::default();
+
     let mut total_frame_count = 0;
     let mut usable_total_frame_count = 0;
 
+    let message = "invalid memory map from bootloader";
+
+    debug!("physical memory:");
     for region in memory_map.iter() {
         let usable = region.region_type == MemoryRegionType::Usable;
         let start = region.range.start_frame_number;
         let end = region.range.end_frame_number;
+        let physical_region = Block::<Frame>::from_index_u64(start, end).expect(message);
+        let isolated = !prev_physical_region.is_adjacent(physical_region);
 
-        if usable {
+        debug!(
+            "    {}; type = {:?}; usable = {}; isolated = {}",
+            physical_region, region.region_type, usable, isolated,
+        );
+
+        if usable || !isolated {
             usable_total_frame_count += end - start;
             total_frame_count = cmp::max(total_frame_count, end);
         }
+
+        if !prev_physical_region.is_disjoint(physical_region) {
+            error!(%prev_physical_region, %physical_region, "memory map has intersecting regions");
+        }
+        if prev_physical_region > physical_region {
+            warn!(%prev_physical_region, %physical_region, "unsorted memory map");
+        }
+        if usable && isolated {
+            warn!(%physical_region, "discontinuous physical memory or unsorted memory map");
+        }
+        prev_physical_region = physical_region;
     }
 
+    let physical_memory = Block::from_index_u64(0, total_frame_count).expect(message);
+
     info!(
+        %physical_memory,
         total = %Size::new_u64::<Frame>(total_frame_count),
         usable = %Size::new_u64::<Frame>(usable_total_frame_count),
         total_frame_count,
         usable_total_frame_count,
-        "available memory",
     );
 
-    Block::from_index_u64(0, total_frame_count).expect("invalid memory map from bootloader")
+    physical_memory
 }
 
 /// Возвращает `true`, если весь блок `pages` зарезервирован для ядра.
