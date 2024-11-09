@@ -187,10 +187,17 @@ const_assert!(
 pub mod test_scaffolding {
     use core::ops::Range;
 
+    use bootloader::bootinfo::MemoryMap;
+
     use super::super::{
         Block,
+        Frame,
         Page,
     };
+
+    pub fn physical(memory_map: &MemoryMap) -> Block<Frame> {
+        super::physical(memory_map)
+    }
 
     pub const fn kernel_root_level_entries() -> Range<usize> {
         super::kernel_root_level_entries()

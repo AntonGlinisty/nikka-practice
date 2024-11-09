@@ -37,7 +37,10 @@ pub(super) fn frame_count() -> usize {
 }
 
 pub(super) fn set_frame_count(memory_map: &MemoryMap) {
-    FRAME_COUNT.store(test_scaffolding::frame_count(memory_map), Ordering::Relaxed);
+    FRAME_COUNT.store(
+        test_scaffolding::physical(memory_map).end(),
+        Ordering::Relaxed,
+    );
 }
 
 static FRAME_COUNT: AtomicUsize = AtomicUsize::new(0);

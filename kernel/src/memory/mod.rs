@@ -150,6 +150,8 @@ pub(super) fn init(
     let phys2virt = phys2virt::phys2virt(boot_info);
     info!(?phys2virt);
 
+    let physical_memory = range::physical(&boot_info.memory_map);
+
     if subsystems.contains(Subsystems::PHYS_MEMORY) {
         *FRAME_ALLOCATOR.lock() =
             FrameAllocator::Boot(BootFrameAllocator::new(&boot_info.memory_map));
@@ -171,8 +173,10 @@ pub(super) fn init(
             assert!(boot_frame_allocator.is_consistent());
         }
 
-        *FRAME_ALLOCATOR.lock() =
-            FrameAllocator::Main(main_frame_allocator::init(&boot_info.memory_map));
+        *FRAME_ALLOCATOR.lock() = FrameAllocator::Main(main_frame_allocator::init(
+            physical_memory,
+            &boot_info.memory_map,
+        ));
     }
 
     if subsystems.contains(Subsystems::VIRT_MEMORY | Subsystems::MAIN_FRAME_ALLOCATOR) &&
@@ -201,7 +205,6 @@ pub mod test_scaffolding {
         address_space::test_scaffolding::*,
         boot_frame_allocator::test_scaffolding::*,
         frame_allocator::test_scaffolding::*,
-        main_frame_allocator::test_scaffolding::*,
         mapping::test_scaffolding::*,
         page_allocator::test_scaffolding::*,
         phys2virt::test_scaffolding::*,

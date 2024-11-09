@@ -23,12 +23,12 @@ use crate::{
 
 use super::{
     BASE_ADDRESS_SPACE,
+    Block,
     BootFrameAllocator,
     FRAME_ALLOCATOR,
     FrameAllocator,
     KERNEL_RW,
     frage::Frame,
-    range,
     size,
 };
 
@@ -63,10 +63,13 @@ enum FrameInfo {
 /// Инициализирует аллокатор [`MainFrameAllocator`] по информации из `memory_map`.
 /// И передаёт под его управление все фреймы,
 /// которые остались свободны в [`BootFrameAllocator`].
-pub(super) fn init(memory_map: &MemoryMap) -> MainFrameAllocator {
+pub(super) fn init(
+    physical_memory: Block<Frame>,
+    memory_map: &MemoryMap,
+) -> MainFrameAllocator {
     // ANCHOR: log_tsc
     let timer = time::timer();
-    let frame_allocator = MainFrameAllocator::new(memory_map);
+    let frame_allocator = MainFrameAllocator::new(physical_memory, memory_map);
     info!(
         frame_allocator = "main",
         free_frame_count = frame_allocator.count(),
@@ -93,10 +96,13 @@ impl MainFrameAllocator {
     /// Инициализирует аллокатор [`MainFrameAllocator`] по информации из `memory_map`.
     /// И передаёт под его управление все фреймы,
     /// которые остались свободны в [`BootFrameAllocator`].
-    fn new(memory_map: &MemoryMap) -> Self {
+    fn new(
+        physical_memory: Block<Frame>,
+        memory_map: &MemoryMap,
+    ) -> Self {
         let mut timer = time::timer();
 
-        let frame_count = range::physical(memory_map).count();
+        let frame_count = physical_memory.count();
         let frame_info = BASE_ADDRESS_SPACE
             .lock()
             .map_slice(frame_count, KERNEL_RW, || FrameInfo::Absent)
@@ -219,16 +225,5 @@ impl MainFrameAllocator {
 impl Drop for MainFrameAllocator {
     fn drop(&mut self) {
         panic!("can not drop MainFrameAllocator");
-    }
-}
-
-#[doc(hidden)]
-pub(super) mod test_scaffolding {
-    use bootloader::bootinfo::MemoryMap;
-
-    use super::range;
-
-    pub fn frame_count(memory_map: &MemoryMap) -> usize {
-        range::physical(memory_map).count()
     }
 }
