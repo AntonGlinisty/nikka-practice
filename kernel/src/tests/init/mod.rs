@@ -5,6 +5,8 @@ use core::sync::atomic::{
 
 use bootloader::bootinfo::MemoryMap;
 
+use ku::memory::mmu::PAGE_TABLE_ENTRY_COUNT;
+
 use kernel::memory::test_scaffolding;
 
 #[macro_export]
@@ -19,6 +21,7 @@ macro_rules! init {
         fn test_entry(boot_info: &'static bootloader::BootInfo) -> ! {
             kernel::init_subsystems(&boot_info, $subsystems);
             init::set_frame_count(&boot_info.memory_map);
+            init::set_recursive_mapping(ku::memory::size::from(boot_info.recursive_index()));
             test_main();
             panic!("should not return to test_entry()")
         }
@@ -43,4 +46,19 @@ pub(super) fn set_frame_count(memory_map: &MemoryMap) {
     );
 }
 
+#[allow(unused)]
+pub(super) fn recursive_mapping() -> Option<usize> {
+    let recursive_mapping = RECURSIVE_MAPPING.load(Ordering::Relaxed);
+    if recursive_mapping < PAGE_TABLE_ENTRY_COUNT {
+        Some(recursive_mapping)
+    } else {
+        None
+    }
+}
+
+pub(super) fn set_recursive_mapping(recursive_mapping: usize) {
+    RECURSIVE_MAPPING.store(recursive_mapping, Ordering::Relaxed);
+}
+
 static FRAME_COUNT: AtomicUsize = AtomicUsize::new(0);
+static RECURSIVE_MAPPING: AtomicUsize = AtomicUsize::new(usize::MAX);

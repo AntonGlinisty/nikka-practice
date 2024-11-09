@@ -12,8 +12,12 @@ use kernel::{
     Subsystems,
     log::info,
     memory::{
-        Page,
+        BASE_ADDRESS_SPACE,
         Virt,
+        test_scaffolding::{
+            mapping,
+            phys2virt,
+        },
     },
     process::test_scaffolding::set_handler,
     smp::test_scaffolding::{
@@ -30,7 +34,7 @@ init!(Subsystems::MEMORY);
 fn ap_init() {
     set_handler(ap_loop);
 
-    let phys2virt = Page::new(Virt::new(0xFFFFF00000000000).unwrap()).unwrap();
+    let phys2virt = phys2virt(mapping(&mut BASE_ADDRESS_SPACE.lock()));
     init_smp(phys2virt, Subsystems::SMP).unwrap();
 
     let cpu_count = 4;

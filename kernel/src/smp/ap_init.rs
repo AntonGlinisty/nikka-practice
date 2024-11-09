@@ -47,10 +47,10 @@ use crate::{
         KERNEL_RW,
         Page,
         Phys,
+        Phys2Virt,
         RealModePseudoDescriptor,
         SmallGdt,
         Virt,
-        phys2virt,
         size,
     },
     process::{
@@ -71,13 +71,13 @@ use super::{
 use crate::error::Error;
 
 /// Запуск Application Processor с Bootstrap Processor.
-/// Аргумент `phys2virt` --- виртуальная страница, с которой начинается линейное отображение
-/// всей физической памяти в виртуальную, см. [`phys2virt::map()`].
+/// Аргумент [`phys2virt`][Phys2Virt] описывает линейное отображение
+/// физической памяти в виртуальную внутри этого страничного отображения.
 /// Аргумент `cpu` задаёт структуру [`Cpu`] для запускаемого Application Processor.
 ///
 /// MultiProcessor Specification 4.1 part B.4 "Application Processor Startup"
 pub(super) fn boot_ap(
-    phys2virt: Page,
+    phys2virt: Phys2Virt,
     cpu: &mut Cpu,
 ) -> Result<()> {
     let cpu_id = cpu.id();
@@ -109,13 +109,13 @@ pub(super) fn boot_ap(
 /// Подготовка кода и стека начальной инициализации Application Processor.
 /// Возвращает физический адрес, куда сохранён код и стек инициализации.
 /// А также гард, который при своём удалении восстановит исходное содержимое этой памяти.
-/// Аргумент `phys2virt` --- виртуальная страница, с которой начинается линейное отображение
-/// всей физической памяти в виртуальную, см. [`phys2virt::map()`].
+/// Аргумент [`phys2virt`][Phys2Virt] описывает линейное отображение
+/// физической памяти в виртуальную внутри этого страничного отображения.
 /// Аргумент `cpu` задаёт структуру [`Cpu`] для запускаемого Application Processor.
 /// Через `initialized` запускаемый Application Processor сигнализирует
 /// запускающему Bootstrap Processor, что инициализация AP завершена.
 fn prepare_boot_code(
-    phys2virt: Page,
+    phys2virt: Phys2Virt,
     cpu: &mut Cpu,
     initialized: &AtomicBool,
 ) -> Result<BootMemory> {
@@ -129,7 +129,8 @@ fn prepare_boot_code(
     debug!(?boot_stack);
 
     unsafe {
-        phys2virt::map(phys2virt, boot_stack_phys)
+        phys2virt
+            .map(boot_stack_phys)?
             .try_into_mut_ptr::<BootStack>()
             .expect("BOOT_STACK address is not suitable for BootStack type")
             .write_volatile(boot_stack);
@@ -431,13 +432,13 @@ impl BootMemory {
     /// Возвращает гард [`BootMemory`], который:
     ///   - При создании запоминает данные, записанные в блоке [`BootMemory::data`].
     ///   - При своём удалении восстановит исходное содержимое в этом блоке памяти.
-    fn new(phys2virt: Page) -> Result<Self> {
+    fn new(phys2virt: Phys2Virt) -> Result<Self> {
         let message = "invalid boot code_pages block";
 
         let code_frame = Frame::new(real_mode_address(BOOT_CODE, "boot code_pages"))
             .expect("boot code should be aligned on frame boundary");
         let data = unsafe {
-            Self::code_block(phys2virt::map(phys2virt, code_frame.address()))
+            Self::code_block(phys2virt.map(code_frame.address())?)
                 .expect(message)
                 .try_into_mut_slice()?
         };

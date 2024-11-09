@@ -21,6 +21,6 @@ digraph diagram {
         Virt
     }
 
-    Phys -> Virt [label = "phys2virt::map()"]
+    Phys -> Virt [label = "Phys2Virt::map()"]
     Virt -> Phys [constraint = false; label = "Mapping::translate()"]
 }

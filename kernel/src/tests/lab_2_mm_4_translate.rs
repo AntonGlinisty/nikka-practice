@@ -38,7 +38,6 @@ use kernel::{
             nodes,
             page_table_root,
             phys2virt,
-            phys2virt_map,
         },
     },
 };
@@ -87,7 +86,7 @@ fn t00_path() {
     assert_eq!(get_pte(&non_present_path), Err(NoPage));
     check_path(mapping, non_present_virt);
 
-    let huge_virt = phys2virt_map(phys2virt(mapping), Phys::new(7 * MiB).unwrap());
+    let huge_virt = phys2virt(mapping).map(Phys::new(7 * MiB).unwrap()).unwrap();
     let huge_path = mapping.path(huge_virt);
     let (level, pte) = deepest_pte(&huge_path);
     debug!("huge:");
@@ -134,7 +133,7 @@ fn t01_translate() {
 
     let page_offset_mask = (1 << PAGE_OFFSET_BITS) - 1;
     let page_offset = virt.into_usize() & page_offset_mask;
-    let page_virt = phys2virt_map(phys2virt, frame.address());
+    let page_virt = phys2virt.map(frame.address()).unwrap();
     let alternative_virt = (page_virt + page_offset).unwrap();
     let read_ptr: *const u64 = alternative_virt.try_into_ptr().unwrap();
 
@@ -203,8 +202,9 @@ fn t04_huge_page() {
     let mapping = mapping(&mut address_space);
 
     let phys2virt = phys2virt(mapping);
+    let phys2virt_start = phys2virt.map(Phys::default()).unwrap();
 
-    let mut path = mapping.path(phys2virt.address());
+    let mut path = mapping.path(phys2virt_start);
     let result = get_pte(&path);
     assert_eq!(result, Err(Unimplemented));
 
@@ -303,7 +303,9 @@ fn check_path(
     for (&child, &parent) in nodes(&path).iter().zip(nodes(&path)[1 ..].iter()) {
         if child != Virt::default() {
             let child_page = Page::containing(child);
-            let child_frame_index = (child_page - phys2virt(mapping)).unwrap();
+            let phys2virt_start_page =
+                Page::containing(phys2virt(mapping).map(Phys::default()).unwrap());
+            let child_frame_index = (child_page - phys2virt_start_page).unwrap();
             let parent_points_to =
                 unsafe { parent.try_into_ref::<PageTableEntry>().unwrap().frame().unwrap() };
             assert_eq!(child_frame_index, parent_points_to.index());

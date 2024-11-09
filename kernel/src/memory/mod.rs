@@ -7,10 +7,6 @@ pub mod mmu;
 /// ([Global Descriptor Table](https://en.wikipedia.org/wiki/Global_Descriptor_Table), GDT).
 pub(crate) mod gdt;
 
-/// Для простоты работы с физической памятью,
-/// она целиком замаплена в некоторую область виртуальной.
-pub(crate) mod phys2virt;
-
 /// Абстракция адресного пространства [`AddressSpace`].
 mod address_space;
 
@@ -39,6 +35,11 @@ mod page_allocator;
 /// Диапазоны памяти в системе.
 mod range;
 
+/// Для простоты работы с физической памятью,
+/// она целиком отображена в некоторую область виртуальной.
+/// [`Phys2Virt`] описывает это отображение.
+mod phys2virt;
+
 /// Работа со стеками [`Stack`] и
 /// выделенные стеки для непредвиденных исключений [`ExceptionStacks`].
 mod stack;
@@ -66,6 +67,7 @@ pub use ku::{
 
 use crate::{
     Subsystems,
+    error::Result,
     log::{
         error,
         info,
@@ -110,6 +112,7 @@ pub(crate) use gdt::{
     RealModePseudoDescriptor,
     SmallGdt,
 };
+pub(crate) use phys2virt::Phys2Virt;
 pub(crate) use range::{
     is_kernel_block,
     is_user_block,
@@ -140,15 +143,12 @@ use {
 pub(super) fn init(
     boot_info: &'static BootInfo,
     subsystems: Subsystems,
-) {
+) -> Result<Phys2Virt> {
     let timer = time::timer();
 
     unsafe {
         Efer::write(EferFlags::NO_EXECUTE_ENABLE | Efer::read());
     }
-
-    let phys2virt = phys2virt::phys2virt(boot_info);
-    info!(?phys2virt);
 
     let physical_memory = range::physical(&boot_info.memory_map);
 
@@ -156,6 +156,14 @@ pub(super) fn init(
         *FRAME_ALLOCATOR.lock() =
             FrameAllocator::Boot(BootFrameAllocator::new(&boot_info.memory_map));
     }
+
+    let phys2virt = if cfg!(feature = "bootloader-phys2virt") {
+        Phys2Virt::new(physical_memory, phys2virt::phys2virt(boot_info))
+    } else {
+        Phys2Virt::make(physical_memory, size::from(boot_info.recursive_index()))
+    }?;
+
+    info!(%phys2virt);
 
     if subsystems.contains(Subsystems::VIRT_MEMORY) {
         let page_table_root = Mapping::current_page_table_root();
@@ -186,6 +194,8 @@ pub(super) fn init(
     }
 
     info!(duration = %timer.elapsed(), "memory init");
+
+    Ok(phys2virt)
 }
 
 lazy_static! {

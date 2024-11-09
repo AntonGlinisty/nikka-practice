@@ -25,23 +25,9 @@
 
 Последний вариант достаточно прост в использовании, а адресное пространство в x86-64 достаточно большое для его реализации.
 Поэтому воспользуемся этим вариантом.
-В коде виртуальный адрес начала этого линейного отображения называется `phys2virt`, имеет тип
-[`Page`](../../doc/ku/memory/frage/type.Page.html)
-и содержит адрес виртуальной страницы, в которую отображён нулевой фрейм.
-А для собственно преобразования заданного физического адреса `address` служит функция
-[`kernel::memory::phys2virt::map()`](../../doc/kernel/memory/phys2virt/fn.map.html):
-```rust
-fn phys2virt::map(phys2virt: Page, address: Phys) -> Virt
-```
-
-Обеспечивает отображение всей физической памяти в виртуальную память библиотека
-[`bootloader`](../../doc/bootloader/index.html),
-которая грузит ядро в память при старте компьютера.
-Об этом мы попросили её, задав опцию `map_physical_memory` в файле `kernel/Cargo.toml`:
-```toml
-    bootloader = { ..., features = ["map_physical_memory"] }
-```
-Она же сообщает нам о выбранном ею для этого виртуальном адресе в поле
-[`BootInfo::physical_memory_offset`](../../doc/bootloader/bootinfo/struct.BootInfo.html#structfield.physical_memory_offset)
-структуры
-[`bootloader::bootinfo::BootInfo`](../../doc/bootloader/bootinfo/struct.BootInfo.html).
+В коде это линейное отображение называется
+[`kernel::memory::phys2virt::Phys2Virt`](../../doc/kernel/memory/phys2virt/struct.Phys2Virt.html).
+Создаётся оно в методе
+[`Phys2Virt::make()`](../../doc/kernel/memory/phys2virt/struct.Phys2Virt.html#method.make).
+А для собственно преобразования заданного физического адреса `phys` служит метод
+[`Phys2Virt::map(&self, phys: Phys) -> Result<Virt>`](../../doc/kernel/memory/phys2virt/struct.Phys2Virt.html#method.map).

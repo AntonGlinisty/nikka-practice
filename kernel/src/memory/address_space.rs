@@ -35,6 +35,7 @@ use crate::{
 use super::{
     FRAME_ALLOCATOR,
     KERNEL_PAGE_ALLOCATOR,
+    Phys2Virt,
     Virt,
     block::Block,
     frage::{
@@ -80,12 +81,17 @@ pub struct AddressSpace {
 }
 
 impl AddressSpace {
-    /// Инициализирует виртуальное адресное пространство текущим страничным отображением.
+    /// Инициализирует виртуальное адресное пространство страничным отображением,
+    /// корневой узел которого задаёт `page_table_root`.
+    /// Аргумент [`phys2virt`][Phys2Virt] описывает линейное отображение
+    /// физической памяти в виртуальную внутри этого страничного отображения.
     pub(super) fn new(
         page_table_root: Frame,
-        phys2virt: Page,
+        phys2virt: Phys2Virt,
     ) -> Self {
-        let mapping = Mapping::new(page_table_root, phys2virt);
+        let mut mapping = Mapping::new(page_table_root, phys2virt);
+        mapping.remove_recursive_mappings();
+
         let user_page_allocator = PageAllocator::new(
             unsafe { mapping.page_table_ref(mapping.page_table_root()) },
             range::user_root_level_entries(),
@@ -108,7 +114,7 @@ impl AddressSpace {
     pub(crate) const fn zero() -> Self {
         Self {
             kind: Kind::Base,
-            mapping: Mapping::new(Frame::zero(), Page::zero()),
+            mapping: Mapping::zero(),
             user_page_allocator: PageAllocator::zero(),
             pid: None,
         }
@@ -687,7 +693,6 @@ pub(super) mod test_scaffolding {
     use super::{
         super::{
             Block,
-            Frame,
             Page,
             Virt,
             mmu::PageTableFlags,
@@ -696,13 +701,6 @@ pub(super) mod test_scaffolding {
         AddressSpace,
         Mapping,
     };
-
-    pub fn new_address_space(
-        page_table_root: Frame,
-        phys2virt: Page,
-    ) -> AddressSpace {
-        AddressSpace::new(page_table_root, phys2virt)
-    }
 
     pub unsafe fn map_page(
         address_space: &mut AddressSpace,

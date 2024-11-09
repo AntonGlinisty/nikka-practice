@@ -29,9 +29,8 @@ use crate::{
         warn,
     },
     memory::{
-        Page,
         Phys,
-        phys2virt,
+        Phys2Virt,
     },
 };
 
@@ -63,9 +62,9 @@ pub(super) struct Acpi {
 
 impl Acpi {
     /// Заполняет структуру [`Acpi`] по таблицам ACPI, которые BIOS сохранил в памяти.
-    /// Аргумент `phys2virt` --- виртуальная страница, с которой начинается линейное отображение
-    /// всей физической памяти в виртуальную, см. [`phys2virt::map()`].
-    pub(super) fn new(phys2virt: Page) -> Result<Self> {
+    /// Аргумент [`phys2virt`][Phys2Virt] описывает линейное отображение
+    /// физической памяти в виртуальную внутри этого страничного отображения.
+    pub(super) fn new(phys2virt: Phys2Virt) -> Result<Self> {
         let acpi_mapper = AcpiMapper { phys2virt };
 
         let acpi_tables = match unsafe { AcpiTables::search_for_rsdp_bios(acpi_mapper) } {
@@ -148,9 +147,10 @@ fn usable_aps(cpus: &ProcessorInfo<'_, Global>) -> Vec<CpuId> {
 /// Структура для отображения физической памяти в виртуальную, которая нужна библиотеке [`acpi`].
 #[derive(Clone, Copy)]
 struct AcpiMapper {
-    /// Виртуальная страница, с которой начинается линейное отображение
-    /// всей физической памяти в виртуальную, см. [`phys2virt::map()`].
-    phys2virt: Page,
+    /// Для простоты работы с физической памятью,
+    /// она целиком линейно отображена в некоторую область виртуальной.
+    /// [`AcpiMapper::phys2virt`] описывает это отображение.
+    phys2virt: Phys2Virt,
 }
 
 impl AcpiHandler for AcpiMapper {
@@ -162,12 +162,20 @@ impl AcpiHandler for AcpiMapper {
         let address = Phys::new(physical_address)
             .expect("AcpiMapper::map_physical_region() is called with an invalid physical address");
 
-        let pointer = phys2virt::map(self.phys2virt, address).try_into_mut_ptr().expect(
-            "AcpiMapper::map_physical_region<T>() is called with an unsuitable address for the \
-             requested type T",
-        );
+        let pointer = self
+            .phys2virt
+            .map(address)
+            .expect(
+                "AcpiMapper::map_physical_region<T>() is called with an address beyond the \
+                 physical memory",
+            )
+            .try_into_mut_ptr()
+            .expect(
+                "AcpiMapper::map_physical_region<T>() is called with an unsuitable address for \
+                 the requested type T",
+            );
         let pointer =
-            NonNull::new(pointer).expect("phys2virt::map() should not return a null pointer");
+            NonNull::new(pointer).expect("Phys2Virt::map() should not return a null pointer");
 
         unsafe { PhysicalMapping::new(physical_address, pointer, size, size, *self) }
     }

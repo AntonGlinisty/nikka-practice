@@ -194,6 +194,9 @@ unsafe fn page_table(address: Virt, level: u32) -> &'static PageTable
 можно функцией
 [`ku::info::process_info()`](../../doc/ku/info/fn.process_info.html).
 
+Вам может пригодиться метод
+[`Virt::canonize()`](../../doc/ku/memory/addr/type.Virt.html#method.canonize).
+
 
 ### Основной код пользовательского процесса `eager_fork`
 

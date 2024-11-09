@@ -72,6 +72,7 @@ use ku::{
     self,
     SystemInfo,
     backtrace::Backtrace,
+    error::Error::NoPage,
 };
 use text::println;
 
@@ -168,12 +169,16 @@ pub fn init_subsystems(
     gdt::init();
     trap::init();
 
-    if subsystems.intersects(Subsystems::MEMORY) {
-        memory::init(boot_info, subsystems);
-    }
+    let phys2virt = if subsystems.intersects(Subsystems::MEMORY) {
+        memory::init(boot_info, subsystems)
+    } else {
+        Err(NoPage)
+    };
 
-    if subsystems.intersects(Subsystems::SMP) {
-        smp::init(boot_info, subsystems);
+    if subsystems.intersects(Subsystems::SMP) &&
+        let Ok(phys2virt) = phys2virt
+    {
+        smp::init(phys2virt, subsystems);
     }
 
     if subsystems.intersects(Subsystems::PROCESS) {

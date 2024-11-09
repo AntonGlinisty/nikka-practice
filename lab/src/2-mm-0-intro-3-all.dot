@@ -60,5 +60,5 @@ digraph diagram {
     Phys -> u64 [label = "Phys::into_u64()"]
 
     Virt -> Phys [label = "Mapping::translate()"]
-    Phys -> Virt [label = "phys2virt::map()"]
+    Phys -> Virt [label = "Phys2Virt::map()"]
 }

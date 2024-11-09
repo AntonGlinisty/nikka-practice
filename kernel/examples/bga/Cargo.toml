@@ -12,7 +12,7 @@ version = "0.4.0"
 
 [dependencies]
 bitflags = "*"
-bootloader = { version = "0.9.*", features = ["map_physical_memory"] }
+bootloader = { version = "0.9.*", features = ["recursive_page_table"] }
 chrono = { version = "*", default-features = false }
 derive_more = { version = "*", default-features = false, features = ["full"] }
 embedded-graphics = "=0.7.1"
@@ -26,6 +26,11 @@ kernel = { path = "../../../kernel" }
 ku = { path = "../../../ku" }
 pic8259 = { path = "../../../pic8259" }
 text = { path = "../../../text" }
+
+[features]
+bootloader-phys2virt = ["bootloader/map_physical_memory"]
+
+default = ["bootloader-phys2virt"]
 
 [package.metadata.bootimage]
 # Отвечает за `cargo run`.

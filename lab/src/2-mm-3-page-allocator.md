@@ -71,7 +71,8 @@
 А
 [верхнюю половину](2-mm-0-intro-1-types.html#%D0%94%D0%B2%D0%B5-%D0%BF%D0%BE%D0%BB%D0%BE%D0%B2%D0%B8%D0%BD%D1%8B-%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%B3%D0%BE-%D0%B0%D0%B4%D1%80%D0%B5%D1%81%D0%BD%D0%BE%D0%B3%D0%BE-%D0%BF%D1%80%D0%BE%D1%81%D1%82%D1%80%D0%B0%D0%BD%D1%81%D1%82%D0%B2%D0%B0)
 зарезервируем для дополнительных нужд.
-В частности, в ней будет находиться линейное отображение физической памяти --- `phys2virt`.
+В частности, в ней будет находиться линейное отображение физической памяти ---
+[`kernel::memory::phys2virt::Phys2Virt`](../../doc/kernel/memory/phys2virt/struct.Phys2Virt.html).
 
 Это разделение фиксируют функции
 [`kernel::memory::range::kernel_root_level_entries()`](../../doc/kernel/memory/range/fn.kernel_root_level_entries.html)

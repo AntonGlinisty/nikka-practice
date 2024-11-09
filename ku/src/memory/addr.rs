@@ -485,6 +485,18 @@ impl Virt {
         }
     }
 
+    /// Создаёт виртуальный адрес по его битовому представлению `addr`.
+    ///
+    /// Если битовое представление `addr` не является корректным для виртуального адреса,
+    /// [канонизирует](https://en.wikipedia.org/wiki/X86-64#Canonical_form_addresses)
+    /// его.
+    pub fn canonize(mut addr: usize) -> Self {
+        if addr > !Self::NEGATIVE_SIGN_EXTEND / 2 {
+            addr |= Self::NEGATIVE_SIGN_EXTEND;
+        }
+        Self(addr, PhantomData)
+    }
+
     /// Размер в байтах каждой из
     /// [половин](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details)
     /// адресного пространства.
@@ -683,13 +695,13 @@ impl Virt {
         }
     }
 
+    /// Количество используемых битов в физическом адресе.
+    const BITS: u32 = PAGE_TABLE_INDEX_BITS * (PAGE_TABLE_ROOT_LEVEL + 1) + PAGE_OFFSET_BITS;
+
     /// Маска для
     /// [знакового расширения](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details)
     /// битового представления виртуального адреса.
-    pub const NEGATIVE_SIGN_EXTEND: usize = !0 << Self::BITS;
-
-    /// Количество используемых битов в физическом адресе.
-    const BITS: u32 = PAGE_TABLE_INDEX_BITS * (PAGE_TABLE_ROOT_LEVEL + 1) + PAGE_OFFSET_BITS;
+    const NEGATIVE_SIGN_EXTEND: usize = !0 << Self::BITS;
 
     /// Количество неиспользуемых битов в физическом адресе.
     const UNUSED_BITS: u32 = usize::BITS - Self::BITS;

@@ -19,12 +19,16 @@ use crate::{
         },
         Result,
     },
-    log::trace,
+    log::{
+        debug,
+        trace,
+    },
 };
 
 use super::{
     Block,
     FRAME_ALLOCATOR,
+    Phys2Virt,
     Virt,
     frage::{
         Frame,
@@ -46,7 +50,6 @@ use super::{
         PageTableFlags,
         USER_R,
     },
-    phys2virt,
     size,
 };
 
@@ -62,12 +65,10 @@ pub struct Mapping {
     /// Фрейм с корневым узлом таблицы страниц.
     page_table_root: Frame,
 
-    /// Первая страница отображённой полностью физической памяти.
-    ///
-    /// Через область, которая с неё начинается, можно работать с любым участком
-    /// физической памяти, не отображая его предварительно в виртуальное адресное пространство.
-    /// См. [`phys2virt::map()`].
-    phys2virt: Page,
+    /// Для простоты работы с физической памятью,
+    /// она целиком линейно отображена в некоторую область виртуальной.
+    /// [`Mapping::phys2virt`] описывает это отображение.
+    phys2virt: Phys2Virt,
 
     /// Номер рекурсивной записи в таблице страниц корневого уровня.
     /// Либо [`usize::MAX`], если рекурсивное отображение страниц не настроено.
@@ -75,15 +76,26 @@ pub struct Mapping {
 }
 
 impl Mapping {
-    /// Запоминает корневой узел таблицы страниц `page_table_root`.
-    /// И начало "окна", в которое отображена вся физическая память, --- `phys2virt`.
-    pub(super) const fn new(
+    /// Инициализирует страничное отображение по корневому узлу `page_table_root`.
+    /// Аргумент [`phys2virt`][Phys2Virt] описывает линейное отображение
+    /// физической памяти в виртуальную внутри этого страничного отображения.
+    pub(super) fn new(
         page_table_root: Frame,
-        phys2virt: Page,
+        phys2virt: Phys2Virt,
     ) -> Self {
         Self {
             page_table_root,
             phys2virt,
+            recursive_mapping: usize::MAX,
+        }
+    }
+
+    /// Возвращает пустое отображение [`Mapping`].
+    /// В отличие от [`Mapping::default()`] доступна в константном контексте.
+    pub(super) const fn zero() -> Self {
+        Self {
+            page_table_root: Frame::zero(),
+            phys2virt: Phys2Virt::zero(),
             recursive_mapping: usize::MAX,
         }
     }
@@ -109,6 +121,11 @@ impl Mapping {
     /// Возвращает корневой узел таблицы страниц отображения.
     pub(super) fn page_table_root(&self) -> Frame {
         self.page_table_root
+    }
+
+    /// Возвращает линейное отображение физической памяти в виртуальную, см. [`Phys2Virt`].
+    pub(super) fn phys2virt(&self) -> Phys2Virt {
+        self.phys2virt
     }
 
     /// Принимает на вход виртуальный адрес `virt`, который нужно транслировать.
@@ -235,6 +252,18 @@ impl Mapping {
         Ok(self.recursive_mapping) // TODO: remove before flight.
     }
 
+    /// Удаляет все рекурсивные записи.
+    pub(super) fn remove_recursive_mappings(&mut self) {
+        let root_frame = self.page_table_root();
+        let page_table_root = unsafe { self.page_table_mut(root_frame) };
+        for pte in page_table_root.iter_mut() {
+            if pte.frame() == Ok(root_frame) {
+                debug!(?pte, "remove recursive mapping");
+                pte.clear();
+            }
+        }
+    }
+
     /// Возвращает физический фрейм корневого узла текущего отображения
     /// виртуальной памяти в физическую.
     pub(super) fn current_page_table_root() -> Frame {
@@ -262,7 +291,7 @@ impl Mapping {
         self: reference([Self]),
         frame: Frame,
     ) -> reference([return_type]) {
-        let page_table = phys2virt::map(self.phys2virt, frame.address());
+        let page_table = self.phys2virt().map(frame.address()).expect("bad frame");
         unsafe { page_table.try_into_mut().expect("bad phys2virt or frame") }
     }
 
@@ -663,12 +692,10 @@ impl<'a> Iterator for MappingIterator<'a> {
 
 #[doc(hidden)]
 pub(super) mod test_scaffolding {
-    use duplicate::duplicate_item;
-
     use ku::error::Result;
 
     use super::super::{
-        Page,
+        Phys2Virt,
         Virt,
         mmu::{
             PAGE_TABLE_LEVEL_COUNT,
@@ -694,16 +721,11 @@ pub(super) mod test_scaffolding {
         path.nodes
     }
 
-    #[duplicate_item(
-        page_table_root_getter page_table_getter reference(x);
-        [page_table_root] [page_table_ref] [&x];
-        [page_table_root_mut] [page_table_mut] [&mut x];
-    )]
-    pub fn page_table_root_getter(mapping: reference([Mapping])) -> reference([PageTable]) {
-        unsafe { mapping.page_table_getter(mapping.page_table_root()) }
+    pub fn page_table_root(mapping: &Mapping) -> &PageTable {
+        unsafe { mapping.page_table_ref(mapping.page_table_root()) }
     }
 
-    pub fn phys2virt(mapping: &Mapping) -> Page {
-        mapping.phys2virt
+    pub fn phys2virt(mapping: &Mapping) -> Phys2Virt {
+        mapping.phys2virt()
     }
 }

@@ -8,13 +8,11 @@
 [`Mapping`](../../doc/kernel/memory/mapping/struct.Mapping.html) содержит уже немного знакомые нам поля:
 
 - [`Mapping::page_table_root`](../../doc/kernel/memory/mapping/struct.Mapping.html#structfield.page_table_root) типа [`Frame`](../../doc/ku/memory/frage/type.Frame.html) --- физический фрейм с таблицей страниц самого верхнего уровня, корневой в дереве.
-- [`Mapping::phys2virt`](../../doc/kernel/memory/mapping/struct.Mapping.html#structfield.phys2virt) типа [`Page`](../../doc/ku/memory/frage/type.Page.html) --- начало "окна", в которое отображена вся физическая память.
+- [`Mapping::phys2virt`](../../doc/kernel/memory/mapping/struct.Mapping.html#structfield.phys2virt) --- "окно", в которое отображена вся физическая память.
 
 [`Mapping::phys2virt`](../../doc/kernel/memory/mapping/struct.Mapping.html#structfield.phys2virt)
 нужен, чтобы с помощью функции
-```rust
-fn phys2virt::map(phys2virt: Page, address: Phys) -> Virt
-```
+[`Phys2Virt::map(&self, phys: Phys) -> Result<Virt>`](../../doc/kernel/memory/phys2virt/struct.Phys2Virt.html#method.map).
 по заданному физическому адресу, найти куда он отображён в "окне".
 Это потребуется когда нам нужно будет записать в какую-нибудь
 [`PageTable`](../../doc/ku/memory/mmu/type.PageTable.html).

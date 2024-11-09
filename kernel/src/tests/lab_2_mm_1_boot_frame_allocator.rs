@@ -56,8 +56,8 @@ fn t1_sanity_check() {
 
     debug!(managed, used);
 
-    assert_eq!(managed, free_frames);
-    assert_eq!(used, 0);
+    assert_eq!(managed, free_frames + used);
+    assert!(used <= 1);
 }
 
 #[test_case]

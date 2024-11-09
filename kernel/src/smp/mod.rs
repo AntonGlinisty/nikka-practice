@@ -16,7 +16,6 @@ mod local_apic;
 use alloc::vec::Vec;
 use core::cmp;
 
-use bootloader::BootInfo;
 use lazy_static::lazy_static;
 
 use ku::sync::spinlock::Spinlock;
@@ -31,10 +30,7 @@ use crate::{
         info,
         warn,
     },
-    memory::{
-        Page,
-        phys2virt,
-    },
+    memory::Phys2Virt,
     time,
 };
 
@@ -52,11 +48,10 @@ pub(crate) use local_apic::{
 /// Инициализация симметричной многопроцессорности
 /// ([Symmetric multiprocessing](https://en.wikipedia.org/wiki/Symmetric_multiprocessing), SMP).
 pub(super) fn init(
-    boot_info: &'static BootInfo,
+    phys2virt: Phys2Virt,
     subsystems: Subsystems,
 ) {
     let timer = time::timer();
-    let phys2virt = phys2virt::phys2virt(boot_info);
 
     if let Err(error) = init_smp(phys2virt, subsystems) {
         warn!(?error, duration = %timer.elapsed(), "SMP init");
@@ -69,7 +64,7 @@ pub(super) fn init(
 /// ([Symmetric multiprocessing](https://en.wikipedia.org/wiki/Symmetric_multiprocessing), SMP).
 /// Внутренняя функция, которая выполняет всю работу.
 fn init_smp(
-    phys2virt: Page,
+    phys2virt: Phys2Virt,
     subsystems: Subsystems,
 ) -> Result<()> {
     if !subsystems.contains(Subsystems::LOCAL_APIC) {
@@ -132,7 +127,7 @@ pub mod test_scaffolding {
         error::Result,
         memory::{
             Block,
-            Page,
+            Phys2Virt,
             Virt,
         },
     };
@@ -149,7 +144,7 @@ pub mod test_scaffolding {
     }
 
     pub fn init_smp(
-        phys2virt: Page,
+        phys2virt: Phys2Virt,
         subsystems: Subsystems,
     ) -> Result<()> {
         super::init_smp(phys2virt, subsystems)

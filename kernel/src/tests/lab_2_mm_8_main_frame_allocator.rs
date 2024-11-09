@@ -31,9 +31,6 @@ use kernel::{
             get_pte,
             map_page,
             mapping,
-            new_address_space,
-            page_table_root_mut,
-            phys2virt,
             switch_to,
             unmap_page,
             user_root_level_entries,
@@ -387,11 +384,7 @@ fn all_frames_are_freed_on_drop() {
 
     let _guard = forbid_frame_leaks();
 
-    let page_table_root_frame = FRAME_ALLOCATOR.lock().allocate().unwrap();
-    let phys2virt = phys2virt(mapping(&mut BASE_ADDRESS_SPACE.lock()));
-    let mut address_space = new_address_space(page_table_root_frame, phys2virt);
-
-    page_table_root_mut(mapping(&mut address_space)).fill(PageTableEntry::default());
+    let mut address_space = duplicate(&BASE_ADDRESS_SPACE.lock()).unwrap();
 
     for (i, flags) in (0 ..= FULL_ACCESS.bits())
         .map(PageTableFlags::from_bits_truncate)
