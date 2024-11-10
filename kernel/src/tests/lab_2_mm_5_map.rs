@@ -40,6 +40,7 @@ use kernel::{
 };
 
 mod init;
+mod mm_helpers;
 
 init!(Subsystems::PHYS_MEMORY | Subsystems::VIRT_MEMORY);
 
@@ -83,7 +84,7 @@ fn map_readable() {
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
-    let page = Page::containing(Virt::new(0x0000_0200_0000_0000).unwrap());
+    let page = Page::containing(mm_helpers::unique_kernel_virt());
     unsafe { map_page(&mut address_space, page, KERNEL_R).unwrap() };
     let frame = translate(&mut address_space, page);
     debug!(%page, %frame);
@@ -95,14 +96,33 @@ fn map_readable() {
     }
 }
 
-#[test_case]
-fn map_writable() {
+fn check_map_writable(
+    virt: Virt,
+    remap: bool,
+    map_neighbour: bool,
+) {
     let _guard = forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
-    let page = Page::containing(Virt::new(0x0000_0200_1000_0000).unwrap());
-    unsafe { map_page(&mut address_space, page, PageTableFlags::WRITABLE).unwrap() };
+    let page = Page::containing(virt);
+
+    if map_neighbour {
+        let neighbour_page = (page + 1).unwrap();
+
+        unsafe {
+            map_page(&mut address_space, neighbour_page, KERNEL_R).unwrap();
+            unmap_page(&mut address_space, neighbour_page).unwrap();
+        }
+    }
+
+    if remap {
+        unsafe {
+            map_page(&mut address_space, page, KERNEL_R).unwrap();
+        }
+    }
+
+    unsafe { map_page(&mut address_space, page, KERNEL_RW).unwrap() };
     let frame = translate(&mut address_space, page);
     debug!(%page, %frame);
 
@@ -114,20 +134,23 @@ fn map_writable() {
 }
 
 #[test_case]
+fn map_writable() {
+    for remap in [false, true] {
+        for map_neighbour in [false, true] {
+            let virt = mm_helpers::unique_kernel_virt();
+            check_map_writable(virt, remap, map_neighbour);
+        }
+    }
+}
+
+#[test_case]
 fn map_twice() {
     let _guard = forbid_frame_leaks();
 
-    let virt = Virt::new(0x0000_0200_2000_0000).unwrap();
+    let virt = mm_helpers::unique_kernel_virt();
     let page = Page::containing(virt);
 
-    unsafe {
-        map_page(
-            &mut BASE_ADDRESS_SPACE.lock(),
-            page,
-            PageTableFlags::empty(),
-        )
-        .unwrap()
-    };
+    unsafe { map_page(&mut BASE_ADDRESS_SPACE.lock(), page, KERNEL_R).unwrap() };
     let old_frame = translate(page.address()).frame();
 
     let pte = translate(virt);
@@ -159,7 +182,7 @@ fn map_twice() {
 fn unmap_nonmapped_page() {
     let _guard = forbid_frame_leaks();
 
-    let virt = Virt::new(0x0000_0200_2000_0000).unwrap();
+    let virt = mm_helpers::unique_kernel_virt();
     let page = Page::containing(virt);
 
     let address_space = &mut BASE_ADDRESS_SPACE.lock();
