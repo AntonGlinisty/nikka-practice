@@ -89,15 +89,19 @@ fn eager_fork() -> Result<bool> {
     unimplemented!();
 }
 
+// ANCHOR: copy_address_space
 fn copy_address_space(child: Pid) -> Result<()> {
     copy_page_table(child, PAGE_TABLE_ROOT_LEVEL, Virt::default())
 }
+// ANCHOR_END: copy_address_space
 
+// ANCHOR: copy_page_table
 fn copy_page_table(
     child: Pid,
     level: u32,
     start: Virt,
 ) -> Result<()> {
+    // ANCHOR_END: copy_page_table
     // TODO: your code here.
     unimplemented!();
 }

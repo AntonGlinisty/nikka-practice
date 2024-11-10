@@ -1,16 +1,19 @@
 ## Разделяемая память
 
-Для общения между разными процессами и между кодом ядра и кодом режима пользователя внутри одного процесса необходим тот или иной метод
+Для общения между разными процессами и между кодом ядра и
+кодом пользователя внутри одного процесса необходим тот или иной метод
 [межпроцессного взаимодействия](https://en.wikipedia.org/wiki/Inter-process_communication).
 В Nikka используется [разделяемая память](https://en.wikipedia.org/wiki/Shared_memory),
 организованная в виде [циклического буфера](https://en.wikipedia.org/wiki/Circular_buffer).
-Для удобства в нём сделаны две доработки.
+Фактически мы будем реализовывать классическую ограниченную
+Single-Producer Single-Consumer (SPSC) очередь без ожидания (wait-free) на циклическом буфере.
+Для удобства в ней сделаны две доработки.
 
 
 ### Непрерывный циклический буфер
 
 Обычный циклический буфер оборачивается вокруг своего конца, но адресовать память нужно линейно.
-Поэтому если блок данных пересекает границу буфера, его нужно адресовать двумя частями ---
+Поэтому, если блок данных пересекает границу буфера, его нужно адресовать двумя частями ---
 от начала блока данных до конца буфера и от начала буфера до конца блока данных.
 Это иногда неудобно, и некоторые циклические буферы предоставляют метод для сдвига данных внутри буфера,
 чтобы данные лежали последовательно.
@@ -58,6 +61,50 @@
 Другой вариант --- скопировать данные из буфера в собственную, не разделяемую, память.
 А валидировать и использовать их уже там.
 
+По тем же соображениям, в своей реализации циклического буфера,
+вы не должны доверять содержимому разделяемой памяти.
+И тому, что противоположная сторона не пытается целенаправленно сломать ваш код,
+меняя это содержимое произвольным образом.
+
+
+### Чуть подробнее про инварианты
+
+1. У нас очередь на циклическом буфере.
+2. Данные в очередь помещаются в конец (`tail`) и извлекаются из начала (`head`) --- как в очереди на кассу в магазине.
+3. `head` и `tail` мы храним так, что они монотонно возрастают --- это значения до взятия по модулю размера очереди. Поэтому `head <= tail`.
+4. Полуинтервал `[head, tail)` содержит активные данные --- их обрабатывают в текущий момент. Всё что находится логически до `head` --- обработано и более не будет обрабатываться повторно.
+5. Данные у нас переменной длины.
+6. Они хранятся в записях (record) с заголовком и полезной нагрузкой. Одна запись (record) --- один заголовок.
+7. У каждого из концов собственные представления о том, где находятся `head` и `tail`. Передают они друг другу актуальную информацию о `head`/`tail` только через заголовки record. Поэтому их информация о `head`/`tail` может немного устаревать, --- это нормальная ситуация.
+8. У нас есть транзакции для того чтобы можно было их атомарно фиксировать или отменять. Каждая зафиксированная транзакция является одной record, у неё есть ровно один заголовок.
+9. Внутри актуальных `[head, tail)` находятся только зафиксированные `write_tx`--транзакции. Логически до актуального `head` находятся только зафиксированные `read_tx`--транзакции. Логически где-то после `tail` может быть record незафиксированной `write_tx`--транзакции или дополнительная record для пометки что место свободно --- [`Header::Clear`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Clear).
+10. Внутри транзакции мы хотим несколько раз сделать `write()` или `read()`, в зависимости от типа транзакции.
+11. При этом пишется или читается очередная порция данных.
+12. Порцию при `write()` определяет вызывающий код. Он передаёт во `write()` срез соответствующего размера.
+13. Порцию при чтении определяет структура уже записанных данных.
+14. Мы не можем вернуть читателю в качестве данных байты заголовков. Для него они --- мусор. Поэтому мы возвращаем не больше чем одну record, точнее её полезную нагрузку.
+15. Возвращать при `read()` часть полезной нагрузки одной record потенциально можно было бы. Но непонятно зачем так делать. И это было бы неудобно читателю, если мы при этом порежем единый сериализованный объект на несколько частей.
+16. Поэтому самый естественный вариант --- возвращать в `read()` ровно одну record.
+17. Вызовы писателя --- это последовательность `write_tx()`, `write()`, ..., `write()`, `commit/drop()`. Как обычно (можно сравнить с записью в файл), каждый `write()` пишет сразу после следующего, было бы странно если бы они перезаписывали данные. Если нужно выкинуть старые данные и перезаписать поверх, писатель делает `drop()` и открывает новую транзакцию через `write_tx()`.
+18. Вызовы читателя --- это последовательность `read_tx()`, `read()`, ..., `read()`, `commit/drop()`. Как обычно (можно сравнить с чтением файла), каждый `read()` читает следующую порцию данных. Если бы читатель хотел перечитать уже прочитанную порцию, он бы сделал `drop()` и открыл бы новую транзакцию через `read_tx()`.
+19. Откатиться при отмене можно только на начало текущей транзакции. Работать с предыдущей уже не получится, так как для неё уже сделан `commit()`. Так как писатель мог уже записать новые данные поверх предыдущей зафиксированной `read_tx`. А читатель уже может читать данные зафиксированной предыдущей `write_tx`.
+
+Из пп. 7, 17 и 18 следует, что каждый из концов до окончания транзакции может обновлять только часть собственных данных. Потому что противоположный конец этого не узнает, пока транзакция не зафиксирована. В частности, читающий конец может продвигать только собственный `head`, чтобы понимать откуда делать следующий `read()`. А пишущий --- может продвигать собственный `tail`, чтобы знать куда сделать следующий `write()`. Но эти продвижения должны быть внутри `RingBufferTx`, но не в `RingBuffer`, так как транзакцию могут потом `drop()`нуть. В `RingBuffer` и в противоположный конец обновления попадают только в конце транзакции при `commit()`. Обновления `tail` в читателе и `head` в писателе зависят от появления новых фиксаций противоположной стороны. Можно их отслеживать, но это не требуется.
+
+Из п. 4 следует, что между `head` и `tail` в транзакции лежат данные, стоящие в очереди. `read_tx` разгребает эти данные, и никак не управляет тем сколько туда попало record. Их может быть несколько. Для `write_tx` значения `head` и `tail` такие же. Но для `write_tx` это данные, которые уже обработаны. `write_tx` нужно только знать где они лежат, чтобы не записать что-то поверх них. А пишет `write_tx` в противоположное место буфера, после `tail`. И ей вообще не важно сколько record попало в `[head, tail)`, для неё они в прошлом.
+
+Из пп. 16--19 следует, что каждый `read()` внутри одной `read_tx` возвращает последовательно идущие record. Один `read()` --- один record. Читать из одного места можно, но нужно сделать `drop()` транзакции и запустить новую `read_tx`. Тогда она начнёт читать с того же места, с которого читала `drop()`нутая. Но повторно читать данные, для которых уже сделан `commit()` нельзя.
+
+В `commit()` для `read_tx` можно было бы пройти по всем прочитанным записям и проставить в их заголовки [`Header::Read`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Read).
+Но это не соответствует тому, что попросил вызывающий код. Из п. 8 следует, что фиксация одной транзакции порождает одну record, у неё один заголовок. Вызывающий код попросил зафиксировать все прочитанные им в транзакции данные, мы делаем одну большую record фиксируемой `read_tx` поверх всех прочитанных record'ов транзакций типа `write_tx`.
+
+Разделяемое состояние у читателя и писателя только в блоке памяти, который описывается в
+[`RingBuffer::block`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#structfield.block).
+Память читателя: `[rb = RingBuffer, rtx = RingBufferTx ( -> rb), b = rb.block]`.
+Память писателя: `[wb = RingBuffer, wtx = RingBufferTx ( -> wb), b = rb.block]`.
+Ссылка из транзакции ведёт в собственную копию
+[`RingBuffer`](../../doc/ku/ipc/pipe/struct.RingBuffer.html).
+
 
 ### Структура циклического буфера
 
@@ -68,45 +115,19 @@
 [`RingBuffer`](../../doc/ku/ipc/pipe/struct.RingBuffer.html).
 
 ```rust
-pub struct RingBuffer {
-    block: Block<Page>,
-    closed: bool,
-    head: usize,
-    tail: usize,
-    stats: RingBufferStats,
-}
+{{#include ../../ku/src/ipc/pipe.rs:ring_buffer}}
 ```
 
 ёмкости
 [`RingBuffer::REAL_SIZE`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#associatedconstant.REAL_SIZE).
-Его поля:
-
-- [`RingBuffer::block`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#structfield.block) --- блок памяти с данными, которые хранятся в буфере.
-- [`RingBuffer::closed`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#structfield.closed) --- закрыт ли буфер.
-- [`RingBuffer::head`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#structfield.head) --- количество байт, прочитанных из буфера за всё время. То есть, эта величина потенциально больше размера буфера. Вариант хранить в `RingBuffer` это значение по модулю размера буфера, чреват ошибками.
-- [`RingBuffer::tail`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#structfield.tail) --- количество байт, записанных в буфер за всё время.
 
 Поле
 [`RingBuffer::stats`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#structfield.stats)
 поддерживает статистики чтения или записи в буфер:
 
 ```rust
-pub struct RingBufferStats {
-    committed: usize,
-    commits: usize,
-    dropped: usize,
-    drops: usize,
-    errors: usize,
-    txs: usize,
-}
+{{#include ../../ku/src/ipc/pipe.rs:ring_buffer_stats}}
 ```
-
-- [`RingBufferStats::txs`](../../doc/ku/ipc/pipe/struct.RingBufferStats.html#structfield.txs) --- количество транзакций чтения либо записи соответственно.
-- [`RingBufferStats::commits`](../../doc/ku/ipc/pipe/struct.RingBufferStats.html#structfield.commits) --- количество зафиксированных транзакций соответствующего типа.
-- [`RingBufferStats::drops`](../../doc/ku/ipc/pipe/struct.RingBufferStats.html#structfield.drops) --- количество отменённых транзакций соответствующего типа.
-- [`RingBufferStats::committed`](../../doc/ku/ipc/pipe/struct.RingBufferStats.html#structfield.committed) --- количество байт, прочитанных или записанных в зафиксированных транзакциях.
-- [`RingBufferStats::dropped`](../../doc/ku/ipc/pipe/struct.RingBufferStats.html#structfield.dropped) --- количество байт, прочитанных или записанных в оборванных транзакциях.
-- [`RingBufferStats::errors`](../../doc/ku/ipc/pipe/struct.RingBufferStats.html#structfield.errors) --- количество ошибок в транзакциях.
 
 Для того чтобы при использовании буфера
 [`RingBuffer`](../../doc/ku/ipc/pipe/struct.RingBuffer.html)
@@ -120,17 +141,7 @@ pub struct RingBufferStats {
 [`RingBuffer`](../../doc/ku/ipc/pipe/struct.RingBuffer.html),
 который сделан приватным.
 
-Метод
-[`RingBuffer::tx()`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#method.tx)
-создаёт транзакции:
-
-```rust
-fn RingBuffer::tx<T: Tag>(
-    &mut self,
-) -> Option<RingBufferTx<'_, T>>
-```
-
-Он обёрнут в публичные методы
+Следующие методы создают транзакции:
 
 - [`ReadBuffer::read_tx()`](../../doc/ku/ipc/pipe/type.ReadBuffer.html#method.read_tx) для читающего конца.
 - [`WriteBuffer::write_tx()`](../../doc/ku/ipc/pipe/type.WriteBuffer.html#method.write_tx) --- для пишущего.
@@ -140,31 +151,8 @@ fn RingBuffer::tx<T: Tag>(
 устроены так:
 
 ```rust
-pub struct RingBufferTx<'a, T: Tag> {
-    ring_buffer: &'a mut RingBuffer,
-    header: usize,
-    head: usize,
-    tail: usize,
-    bytes: usize,
-    _tag: PhantomData<T>,
-}
+{{#include ../../ku/src/ipc/pipe.rs:ring_buffer_tx}}
 ```
-
-Они хранят:
-
-- Ссылку [`RingBufferTx::ring_buffer`](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#structfield.ring_buffer) на исходный [`RingBuffer`](../../doc/ku/ipc/pipe/struct.RingBuffer.html).
-- [`RingBufferTx::header`](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#structfield.header) --- позиция в [`RingBuffer`](../../doc/ku/ipc/pipe/struct.RingBuffer.html), по которому записан заголовок транзакции. Как и для остальных позиций в буфере, хранится до взятия по модулю.
-- [`RingBufferTx::head`](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#structfield.head) и [`RingBufferTx::tail`](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#structfield.tail) --- актуальные в рамках транзакции значения, инициализирующиеся из полей [`RingBuffer::head`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#structfield.head) и [`RingBuffer::tail`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#structfield.tail) в момент старта транзакции.
-- [`RingBufferTx::bytes`](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#structfield.bytes) --- количество байт, прочитанных или записанных на текущий момент в данной транзакции.
-- Тег [`RingBufferTx::_tag`](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#structfield._tag), отличающий пишущие транзакции от читающих.
-
-<!-- Типаж
-[`ku::ipc::pipe::Tag`](../../doc/ku/ipc/pipe/trait.Tag.html)
-служит для того чтобы отличать читающие транзакции от пишущих:
-
-- [`ku::ipc::pipe::ReadTag`](../../doc/ku/ipc/pipe/struct.ReadTag.html) помечает читащие,
-- [`ku::ipc::pipe::WriteTag`](../../doc/ku/ipc/pipe/struct.WriteTag.html) --- пишущие.
--->
 
 
 ### Разделяемые и не разделяемые данные
@@ -200,16 +188,13 @@ pub struct RingBufferTx<'a, T: Tag> {
 [`RingBuffer::header_size()`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#method.header_size).
 
 В десериализованном виде заголовок описывает перечисление
-[`ku::ipc::pipe::Header`](../../doc/ku/ipc/pipe/enum.Header.html).
-Оно имеет такие варианты:
+[`ku::ipc::pipe::Header`](../../doc/ku/ipc/pipe/enum.Header.html):
 
-- [`Header::Clear`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Clear) --- транзакция свободна, то есть в неё ещё ничего не записывалось. Размер такой транзакции ещё не определён, то есть транзакция может простираться до конца свободного места в буфере.
-- [`Header::Closed`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Closed) --- буфер закрыт, больше никаких данных через него передаваться не будет.
-- [`Header::Locked`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Locked) --- транзакция захвачена писателем, но ещё не зафиксирована или же отменена. Её размер на данный момент не известен.
-- [`Header::Written { size }`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Written) --- транзакция зафиксирована писателем, размер полезной нагрузки в транзакции равен `size`. При этом читатель возможно уже начал обрабатывать транзакцию, но ещё не фиксировал её.
-- [`Header::Read { size }`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Read) --- транзакция зафиксирована читателем, размер полезной нагрузки в транзакции равен `size`.
+```rust
+{{#include ../../ku/src/ipc/pipe.rs:header}}
+```
 
-Этим вариантам соответствуют константы с
+Вариантам этого перечисления соответствуют константы с
 [`Header::CLEAR`](../../doc/ku/ipc/pipe/enum.Header.html#associatedconstant.CLEAR)
 по
 [`Header::READ`](../../doc/ku/ipc/pipe/enum.Header.html#associatedconstant.READ),
@@ -247,6 +232,42 @@ fn RingBuffer::close(
 Для себя нужно отдельно отметить факт закрытия буфера в не разделяемой памяти ---
 поле
 [`RingBuffer::closed`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#structfield.closed).
+
+
+### Жизненный цикл заголовка записи
+
+Заголовок
+[`Header::Clear`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Clear)
+всегда пишется по логической позиции, которая впереди всего.
+Поэтому он не может затереть остальные заголовки по модулю цикличности буфера.
+Но так как буфер циклический, то он может быть записан поверх чего-то уже обработанного ---
+пользовательских байтов или старого полностью обработанного заголовка.
+Но не может быть записан поверх ещё актуальных данных или заголовка
+кроме [`Header::Read`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Read).
+Это должно контролироваться за счёт учёта
+[`RingBufferWriteTx::capacity()`](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#method.capacity)
+при записи.
+Если
+[метод `RingBufferWriteTx::write()`](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#method.write)
+понимает, что этот инвариант будет сейчас нарушен, он ничего не пишет и возвращает ошибку
+[`Error::Overflow`](../../doc/ku/ipc/pipe/enum.Error.html#variant.Overflow).
+
+Благодаря этому,
+[`Header::Clear`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Clear)
+всегда пишется только поверх мусора, который уже не нужен.
+Любой другой заголовок всегда пишется только поверх валидного заголовка:
+- Заголовок [`Header::Clear`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Clear) может быть переведён в [`Header::Written`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Written) или [`Header::Closed`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Closed).
+- Заголовок [`Header::Written`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Written) может быть переведён в [`Header::Read`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Read) или [`Header::Closed`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Closed).
+- Заголовок [`Header::Read`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Read) после прочтения пишущей стороной превращается в мусор.
+- Заголовок [`Header::Closed`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Closed) навсегда остаётся [`Header::Closed`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Closed), поверх него уже ничего не пишется.
+
+[`Header::Closed`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Closed),
+как и другой заголовок может быть записан только поверх ранее записанного заголовка.
+Когда мы пишем любой другой заголовок
+(кроме [`Header::Clear`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Clear)),
+нужно быть готовым к тому, что в это место уже записан
+[`Header::Closed`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Closed).
+Тогда новый заголовок мы не пишем.
 
 
 ### Задача 1 --- реализация циклического буфера
@@ -323,31 +344,38 @@ fn RingBuffer::close(
 #### Получение актуальных головы и хвоста
 
 Реализуйте
-[метод](../../doc/ku/ipc/pipe/struct.RingBuffer.html#method.head_tail)
+[метод](../../doc/ku/ipc/pipe/type.WriteBuffer.html#method.advance_head)
 
 ```rust
-fn RingBuffer::head_tail(
-    &mut self,
-) -> Option<(usize, usize)>
+{{#include ../../ku/src/ipc/pipe.rs:advance_head}}
 ```
 
-Он должен обновить поля
-[`RingBuffer::head`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#structfield.head)
-и
-[`RingBuffer::tail`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#structfield.tail).
-Для этого, отталкиваясь от их текущих значений, он читает заголовки последующих записей методом
+Он должен обновить поле
+[`WriteBuffer::head`](../../doc/ku/ipc/pipe/type.WriteBuffer.html#structfield.head).
+
+И симметричный
+[метод](../../doc/ku/ipc/pipe/type.ReadBuffer.html#method.advance_tail)
+
+```rust
+{{#include ../../ku/src/ipc/pipe.rs:advance_tail}}
+```
+
+Он должен обновить поле
+[`ReadBuffer::tail`](../../doc/ku/ipc/pipe/type.ReadBuffer.html#structfield.tail).
+
+Для этого, отталкиваясь от их текущих значений, они читает заголовки последующих записей методом
 [`RingBuffer::read_header()`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#method.read_header).
-И продвигает
-[`RingBuffer::head`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#structfield.head)
+И продвигают
+[`WriteBuffer::head`](../../doc/ku/ipc/pipe/type.WriteBuffer.html#structfield.head)
 и
-[`RingBuffer::tail`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#structfield.tail)
+[`ReadBuffer::tail`](../../doc/ku/ipc/pipe/type.ReadBuffer.html#structfield.tail)
 в соответствии с состояниями записей в прочитанных заголовках.
 Если в голове находится запись в состоянии
 [`Header::Closed`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Closed),
-это означает что буфер закрыт и метод возвращает `None`.
+это означает что буфер закрыт и методы возвращают `None`.
 Кроме того, при обнаружении любых несогласованностей или нарушений инвариантов во время чтения заголовков,
 буфер также считается закрытым.
-Если всё хорошо, возвращается пара из новых значений `head` и `tail`.
+Если всё хорошо, возвращается новое значение `head` или `tail` соответственно.
 
 
 #### Читающая транзакция
@@ -379,6 +407,11 @@ fn RingBufferTx<'_, ReadTag>::commit(
 и статистики
 [`RingBuffer::stats`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#structfield.stats).
 
+В разделяемый циклический буфер при этом запишите один заголовок, покрывающий все прочитанные данные.
+То есть, мы не пытаемся сохранить положения и количество заголовков:
+- Это ни для чего не нужно и является лишней работой.
+- Заметно усложняет код.
+
 
 #### Пишущая транзакция
 
@@ -403,20 +436,8 @@ fn RingBufferTx<'_, WriteTag>::write(
 [`Error::Overflow`](../../doc/ku/ipc/pipe/enum.Error.html#variant.Overflow):
 
 ```rust
-pub enum Error {
-    Overflow {
-        capacity: usize,
-        len: usize,
-        exceeding_object_len: usize,
-    },
-}
+{{#include ../../ku/src/ipc/pipe.rs:error}}
 ```
-
-С информацией
-
-- Об остававшемся в буфере месте на момент старта транзакции. То есть, полной доступной для транзакции ёмкости, --- [`Error::Overflow::capacity`](../../doc/ku/ipc/pipe/enum.Error.html#variant.Overflow.field.capacity).
-- Об уже записанном ранее в рамках той же транзакции объёме --- [`Error::Overflow::len`](../../doc/ku/ipc/pipe/enum.Error.html#variant.Overflow.field.len).
-- О размере объекта, который не влез --- [`Error::Overflow::exceeding_object_len`](../../doc/ku/ipc/pipe/enum.Error.html#variant.Overflow.field.exceeding_object_len).
 
 Вам может пригодиться метод
 [`copy_from_slice()`](https://doc.rust-lang.org/nightly/core/primitive.slice.html#method.copy_from_slice)
@@ -456,6 +477,10 @@ fn RingBufferTx::drop(
 [`RingBuffer::stats`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#structfield.stats),
 если в транзакции был прочитан или записан хотя бы один байт.
 
+Метод
+[RingBufferTx::drop()](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#method.drop)
+фактически отменит транзакцию, если её явно не зафиксировать методом
+[RingBufferTx::commit()](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#method.commit)
 
 #### Отображение буфера в память
 
@@ -735,7 +760,7 @@ test concurrent ... 2023-11-12T20:08:42.276650Z : read_thread read commit
 ```
 
 
-> ### Классическая ограниченная Multi-Producer Multi-Consumer очередь
+> ### Классическая ограниченная Single-Producer Single-Consumer очередь
 >
 > Наш циклический буфер похож на классическую ограниченную SPSC очередь на циклическом буфере.
 > [Хорошая иллюстрация работы ограниченных SPSC и MPMC очереди](https://doc.dpdk.org/guides-19.05/prog_guide/ring_lib.html).
@@ -773,18 +798,18 @@ test concurrent ... 2023-11-12T20:08:42.276650Z : read_thread read commit
 >
 > Ещё один полезный цикл статей про SPSC, SPMC и MPMC lock free очереди:
 >
-> - [A Fast Lock-Free Queue for C++](https://moodycamel.com/blog/2013/a-fast-lock-free-queue-for-c++.htm)
-> - [A Fast General Purpose Lock-Free Queue for C++](https://moodycamel.com/blog/2014/a-fast-general-purpose-lock-free-queue-for-c++.htm)
-> - [Detailed Design of a Lock-Free Queue](https://moodycamel.com/blog/2014/detailed-design-of-a-lock-free-queue.htm)
+> - [A Fast Lock-Free Queue for C++](https://moodycamel.com/blog/2013/a-fast-lock-free-queue-for-c++.htm).
+> - [A Fast General Purpose Lock-Free Queue for C++](https://moodycamel.com/blog/2014/a-fast-general-purpose-lock-free-queue-for-c++.htm).
+> - [Detailed Design of a Lock-Free Queue](https://moodycamel.com/blog/2014/detailed-design-of-a-lock-free-queue.htm).
 >
 > Классический алгоритм неограниченной MPMC на односвязном списке:
 >
-> - [Simple, Fast, and Practical Non-Blocking and Blocking Concurrent Queue Algorithms, Maged M. Michael and Michael L. Scott](https://cs.rochester.edu/u/scott/papers/1996_PODC_queues.pdf)
+> - [Simple, Fast, and Practical Non-Blocking and Blocking Concurrent Queue Algorithms, Maged M. Michael and Michael L. Scott](https://cs.rochester.edu/u/scott/papers/1996_PODC_queues.pdf).
 >
 > Используется и гибридный подход, объединяющий в односвязный список массивы или циклические буферы. Например:
 >
-> - [Jiffy: A Fast, Memory Efficient, Wait-Free Multi-Producers Single-Consumer Queue](https://arxiv.org/pdf/2010.14189.pdf)
-> - [Fast Concurrent Queues for x86 Processors](https://www.cs.tau.ac.il/~mad/publications/ppopp2013-x86queues.pdf)
+> - [Jiffy: A Fast, Memory Efficient, Wait-Free Multi-Producers Single-Consumer Queue](https://arxiv.org/pdf/2010.14189.pdf).
+> - [Fast Concurrent Queues for x86 Processors](https://www.cs.tau.ac.il/~mad/publications/ppopp2013-x86queues.pdf).
 
 
 ### Ориентировочный объём работ этой части лабораторки

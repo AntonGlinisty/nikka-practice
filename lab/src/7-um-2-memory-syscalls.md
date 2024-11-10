@@ -71,11 +71,7 @@ fn check_frame(
 #### [`kernel::process::syscall::lock_set::LockSet::new()`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#method.new)
 
 ```rust
-fn new(
-    src: SpinlockGuard<Process>,
-    dst_pid: usize,
-    process_set: ProcessSet,
-) -> Result<LockSet<'_>>
+{{#include ../../kernel/src/process/syscall.rs:lock_set}}
 ```
 
 Проверяет, что процесс `src` имеет право модифицировать целевой процесс, заданный своим идентификатором `dst_pid`.
@@ -123,30 +119,13 @@ fn new(
 #### [`kernel::process::syscall::map()`](../../doc/kernel/process/syscall/fn.map.html)
 
 ```rust
-fn map(
-    process: SpinlockGuard<Process>,
-    dst_pid: usize,
-    dst_address: usize,
-    dst_size: usize,
-    flags: usize,
-) -> Result<usize>
+{{#include ../../kernel/src/process/syscall.rs:map}}
 ```
 
 Отображает в памяти процесса, заданного `dst_pid`, блок страниц размера `dst_size` байт начиная с виртуального адреса `dst_address` с флагами доступа `flags`.
 Если `dst_address` равен нулю, ядро само выбирает свободный участок адресного пространства размера `dst_size`.
 Выбранный виртуальный адрес возвращается как результирующее значение системного вызова.
 Размер при этом не возвращается, так как он должен быть равен аргументу `dst_address`.
-
-Обратите внимание, что выбранный ядром виртуальный адрес должен быть корректно доставлен в
-функцию пользователя, которая вызвала
-[`lib::syscall::map()`](../../doc/lib/syscall/fn.map.html).
-Референсная реализация этой функции в файле
-[`user/lib/src/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/user/lib/src/syscall.rs)
-предполагает, что ваша реализация функции
-[`lib::syscall::syscall()`](../../doc/lib/syscall/fn.syscall.html)
-помещает этот адрес в первый элемент возвращаемого кортежа.
-Вы можете изменить это соглашение, но тогда поправьте и реализацию
-[`lib::syscall::map()`](../../doc/lib/syscall/fn.map.html).
 
 Также системный вызов
 [`kernel::process::syscall::map()`](../../doc/kernel/process/syscall/fn.map.html)
@@ -173,12 +152,7 @@ fn map(
 ### [`kernel::process::syscall::unmap()`](../../doc/kernel/process/syscall/fn.unmap.html)
 
 ```rust
-fn unmap(
-    process: SpinlockGuard<Process>,
-    dst_pid: usize,
-    dst_address: usize,
-    dst_size: usize,
-) -> Result<usize>
+{{#include ../../kernel/src/process/syscall.rs:unmap}}
 ```
 
 Выполняет противоположную
@@ -189,14 +163,7 @@ fn unmap(
 ### [`kernel::process::syscall::copy_mapping()`](../../doc/kernel/process/syscall/fn.copy_mapping.html)
 
 ```rust
-fn copy_mapping(
-    process: SpinlockGuard<Process>,
-    dst_pid: usize,
-    src_address: usize,
-    dst_address: usize,
-    dst_size: usize,
-    flags: usize,
-) -> Result<usize>
+{{#include ../../kernel/src/process/syscall.rs:copy_mapping}}
 ```
 
 Создаёт копию отображения виртуальной памяти из вызывающего процесса в процесс, заданный `dst_pid`.
@@ -211,6 +178,12 @@ fn copy_mapping(
 [`PageTableFlags::COPY_ON_WRITE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.COPY_ON_WRITE)
 с точки зрения ядра имеют одинаковые логические привилегии, --- доступность страницы на запись.
 
+Как и в
+[`BigAllocator::copy_mapping()`](../../doc/ku/allocator/big/trait.BigAllocator.html#tymethod.copy_mapping)
+нужно поддержать случай когда выходной блок совпадает со входным, ---
+нужно поменять его флаги отображения, не меняя целевые фреймы отображения.
+Этот случай нам ещё понадобится при реализации copy-on-write `fork()` в одной из следующих задач.
+
 После его выполнения у процессов появляется область
 [разделяемой памяти](https://en.wikipedia.org/wiki/Shared_memory).
 
@@ -222,8 +195,9 @@ fn copy_mapping(
 > Либо вызов вернёт ошибку, не скопировав ни одно из отображений.
 > Такая реализация сложнее чем наивная, которая может скопировать часть отображений страниц,
 > а после этого вернуть ошибку.
-> И для неё придётся очень аккуратно работать с двумя блокировками на процессы и корректностью кода
-> с точки зрения семантики владения.
+> И для неё придётся очень аккуратно работать с двумя блокировками на процессы ---
+> [`LockSet`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#method.new)
+> и корректностью кода с точки зрения семантики владения.
 >
 > Чтобы реализовать транзакционность, придётся пожертвовать либо значительным дополнительным временем,
 > либо дополнительным временем и значительной дополнительной памятью.

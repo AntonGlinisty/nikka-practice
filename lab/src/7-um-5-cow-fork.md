@@ -11,18 +11,13 @@
 #### Ленивое копирование адресного пространства
 
 ```rust
-fn copy_page_table(
-    child: Pid,
-    level: u32,
-    trap_handler_stack: Block<Page>,
-    start: Virt,
-) -> Result<()>
+{{#include ../../user/cow_fork/src/main.rs:copy_page_table}}
 ```
 
 Выполняется аналогично [соответствующей процедуре](../../lab/book/6-um-3-eager-fork.html#copy_page_table) `eager_fork`.
 Отличается от которой в паре моментов:
 
-- К игнорируемым страницам добавляется `trap_handler_stack`, его копировать не нужно. У потомка изначально будет полностью отдельный стек для обработки исключений.
+- К игнорируемым страницам добавляется `trap_handler_stack`, его копировать не нужно. У потомка изначально будет полностью отдельный стек для обработки исключений. Адреса этих стеков предлагается сделать одинаковыми в родителе и потомке --- классический [`fork()`](https://pubs.opengroup.org/onlinepubs/9699919799/functions/fork.html) порождает одинаковые адресные пространства. А отличия в адресных пространствах могут привести к неприятным ошибкам.
 - Вместо копирования страниц функцией [`lib::memory::copy_page()`](../../doc/lib/memory/fn.copy_page.html) создаёт в потомке отображение. Оно ссылается на тот же физический фрейм, на который ссылается соответствующая виртуальная страница в родителе. При этом для страниц, которые отображены с одним из флагов [`PageTableFlags::WRITABLE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.WRITABLE) или [`PageTableFlags::COPY_ON_WRITE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.COPY_ON_WRITE), в обоих адресных пространствах меняет флаги отображения страницы так, чтобы [`PageTableFlags::COPY_ON_WRITE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.COPY_ON_WRITE) был включён, а [`PageTableFlags::WRITABLE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.WRITABLE) --- выключен. Копирование содержимого страницы функцией [`lib::memory::copy_page()`](../../doc/lib/memory/fn.copy_page.html) таким образом лениво откладывается до возникновения Page Fault.
 
 
@@ -75,7 +70,7 @@ fn trap_handler(info: &TrapInfo)
 - Проверяет, что прерывание --- это действительно `PageFault` и он вызван записью. Иначе обработчик прекращает исполнение программы, вызвав [`lib::syscall::exit()`](../../doc/lib/syscall/fn.exit.html) с кодом ошибки.
 - С помощью [реализованной ранее](../../lab/book/6-um-3-eager-fork.html#temp_page) функции [`lib::memory::temp_page()`](../../doc/lib/memory/fn.temp_page.html) находит временную страницу.
 - Копирует содержимое страницы, обращение к которой привело к Page Fault, во временную, с помощью [реализованной вами ранее](../../lab/book/6-um-3-eager-fork.html#copy_page) функции [`lib::memory::copy_page()`](../../doc/lib/memory/fn.copy_page.html).
-- С помощью системного вызова [`lib::syscall::copy_mapping()`](../../doc/lib/syscall/fn.copy_mapping.html) заменяет физический фрейм под скопированной страницей на фрейм временной страницы, одновременно меняя флаг [`PageTableFlags::COPY_ON_WRITE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.COPY_ON_WRITE) на [`PageTableFlags::WRITABLE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.WRITABLE) в её отображении.
+- С помощью системного вызова [`lib::syscall::copy_mapping()`](../../doc/lib/syscall/fn.copy_mapping.html) заменяет физический фрейм под скопированной страницей на фрейм временной страницы, одновременно меняя флаг [`PageTableFlags::COPY_ON_WRITE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.COPY_ON_WRITE) на [`PageTableFlags::WRITABLE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.WRITABLE) в её отображении. Для этого вам понадобится, чтобы системный вызов [`kernel::process::syscall::copy_mapping()`](../../doc/kernel/process/syscall/fn.copy_mapping.html) умел менять флаги страниц, когда вызывается для двух совпадающих блоков. Если это пока не так, его придётся доработать.
 - С помощью системного вызова [`lib::syscall::unmap()`](../../doc/lib/syscall/fn.unmap.html) удаляет из адресного пространства не нужную более временную страницу.
 
 

@@ -1,16 +1,25 @@
 ## Обработка исключений в режиме пользователя
 
+В этой задаче мы реализуем механизм, который очень похож на
+[POSIX--сигналы](https://en.wikipedia.org/wiki/Signal_(IPC)).
+Аналогично
+[`fork()`](https://pubs.opengroup.org/onlinepubs/9699919799/functions/fork.html),
+это тоже пример очень неудачной концепции.
+Что хорошо видно, например, по самому существованию понятия
+[async-signal-safe функций](https://www.man7.org/linux/man-pages/man7/signal-safety.7.html).
+[POSIX--сигналы](https://en.wikipedia.org/wiki/Signal_(IPC))
+явно скопированы с механизма обработки прерываний процессора,
+но перенесены на более прикладной уровень.
+То есть, перенесены вместе со всеми проблемами обработчиков прерываний в среду,
+где нет фундаментальных причин для возникновения подобных проблем.
+
 
 ### Пользовательская часть системного вызова `set_trap_handler`
 
 Посмотрите на [функцию](../../doc/lib/syscall/fn.set_trap_handler.html)
 
 ```rust
-fn lib::syscall::set_trap_handler(
-    dst_pid: Pid,
-    trap_handler: fn(&TrapInfo),
-    trap_handler_stack: Block<Page>,
-) -> Result<()>
+{{#include ../../user/lib/src/syscall.rs:set_trap_handler}}
 ```
 
 в файле
@@ -18,7 +27,7 @@ fn lib::syscall::set_trap_handler(
 
 Она делает не совсем то, чего можно было бы ожидать.
 А именно, она не передаёт адрес функции `trap_handler` в системный вызов.
-Вместо этого она устанавливает в качестве обработчика прерываний функцию
+Вместо этого, она устанавливает в качестве обработчика прерываний функцию
 [`lib::syscall::trap_handler_trampoline()`](../../doc/lib/syscall/fn.trap_handler_trampoline.html),
 а `trap_handler` просто сохраняет в статическую переменную
 [`static TRAP_HANDLER: AtomicPtr<()>`](../../doc/lib/syscall/static.TRAP_HANDLER.html).
@@ -59,9 +68,7 @@ extern "C" fn trap_handler_trampoline() -> !
 
 После сохранения регистров нужно вызвать [функцию](../../doc/lib/syscall/fn.trap_handler_invoker.html)
 ```rust
-extern "C" fn lib::syscall::trap_handler_invoker(
-    info: &mut TrapInfo, // rdi
-)
+{{#include ../../user/lib/src/syscall.rs:trap_handler_invoker}}
 ```
 Передайте ей в регистре `RDI` адрес
 [`ku::process::trap_info::TrapInfo`](../../doc/ku/process/trap_info/struct.TrapInfo.html),
@@ -100,14 +107,7 @@ extern "C" fn lib::syscall::trap_handler_invoker(
 структуры
 
 ```rust
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct TrapInfo {
-    number: usize,
-    info: Info,
-    context: MiniContext,
-    return_address_placeholder: [u8; Self::PLACEHOLDER_SIZE],
-}
+{{#include ../../ku/src/process/trap_info.rs:trap_info}}
 ```
 
 И к нему можно обратиться по
@@ -128,13 +128,7 @@ pub const RSP_OFFSET_IN_TRAP_INFO: usize = offset_of!(TrapInfo, context) + RSP_O
 [системный вызов](../../doc/kernel/process/syscall/fn.set_trap_handler.html)
 
 ```rust
-fn kernel::process::syscall::set_trap_handler(
-    process: SpinlockGuard<Process>,
-    dst_pid: usize,
-    rip: usize,
-    stack_address: usize,
-    stack_size: usize,
-) -> Result<usize>
+{{#include ../../kernel/src/process/syscall.rs:set_trap_handler}}
 ```
 
 в файле
@@ -163,11 +157,7 @@ fn kernel::process::syscall::set_trap_handler(
 [`Process::trap()`](../../doc/kernel/process/process/struct.Process.html#method.trap):
 
 ```rust
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub(crate) struct TrapHandlerContext {
-    mini_context: MiniContext,
-    stack: Block<Virt>,
-}
+{{#include ../../kernel/src/process/process.rs:trap_handler_context}}
 ```
 
 
@@ -177,12 +167,7 @@ pub(crate) struct TrapHandlerContext {
 [метод](../../doc/kernel/process/process/struct.Process.html#method.trap):
 
 ```rust
-fn Process::trap(
-    &mut self,
-    context: &mut TrapContext,
-    number: usize,
-    info: Info,
-) -> bool
+{{#include ../../kernel/src/process/process.rs:trap}}
 ```
 
 в файле

@@ -44,6 +44,7 @@ pub fn make<T: BigAllocator>(allocator: &mut T) -> error::Result<(ReadBuffer, Wr
     Ok((ReadBuffer::default(), WriteBuffer::default())) // TODO: remove before flight.
 }
 
+// ANCHOR: ring_buffer
 /// [Непрерывный циклический буфер](https://fgiesen.wordpress.com/2012/07/21/the-magic-ring-buffer/).
 #[derive(Debug, Default)]
 pub struct RingBuffer<T: Tag> {
@@ -81,6 +82,7 @@ pub struct RingBuffer<T: Tag> {
     /// Тег, отличающий писателя от читателя.
     _tag: PhantomData<T>,
 }
+// ANCHOR_END: ring_buffer
 
 impl<T: Tag> RingBuffer<T> {
     /// Инициализирует буфер над блоком памяти `buf`.
@@ -272,12 +274,14 @@ impl ReadBuffer {
         &self.stats
     }
 
+    // ANCHOR: advance_tail
     /// Обновляет [`RingBuffer::tail`] и возвращает его.
     ///
     /// Если буфер закрыт, возвращает [`None`].
     /// Если замечает нарушение инвариантов буфера,
     /// считает что противоположная сторона испортила буфер и расценивает его как закрытый.
     fn advance_tail(&mut self) -> Option<usize> {
+        // ANCHOR_END: advance_tail
         // TODO: your code here.
         None // TODO: remove before flight.
     }
@@ -312,17 +316,20 @@ impl WriteBuffer {
         &self.stats
     }
 
+    // ANCHOR: advance_head
     /// Обновляет [`RingBuffer::head`] и возвращает его.
     ///
     /// Если буфер закрыт, возвращает [`None`].
     /// Если замечает нарушение инвариантов буфера,
     /// считает что противоположная сторона испортила буфер и расценивает его как закрытый.
     fn advance_head(&mut self) -> Option<usize> {
+        // ANCHOR_END: advance_head
         // TODO: your code here.
         None // TODO: remove before flight.
     }
 }
 
+// ANCHOR: header
 /// Заголовок одной записи [`RingBuffer`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
@@ -348,6 +355,7 @@ enum Header {
         size: usize,
     } = Self::READ,
 }
+// ANCHOR_END: header
 
 impl Header {
     /// Значение флага для свободной записи.
@@ -367,6 +375,7 @@ impl Header {
     const READ: u8 = 3;
 }
 
+// ANCHOR: ring_buffer_tx
 /// Читающая или пишущая транзакция.
 #[derive(Debug)]
 pub struct RingBufferTx<'a, T: Tag> {
@@ -392,6 +401,7 @@ pub struct RingBufferTx<'a, T: Tag> {
     /// Тег, отличающий пишущие транзакции от читающих.
     _tag: PhantomData<T>,
 }
+// ANCHOR_END: ring_buffer_tx
 
 impl RingBufferTx<'_, ReadTag> {
     /// Возвращает в виде среза полезную нагрузку очередной записи из буфера.
@@ -497,6 +507,7 @@ impl Tag for WriteTag {
     const READ: bool = false;
 }
 
+// ANCHOR: ring_buffer_stats
 /// Статистики чтения или записи в буфер.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct RingBufferStats {
@@ -518,7 +529,9 @@ pub struct RingBufferStats {
     /// Количество транзакций чтения либо записи соответственно.
     txs: usize,
 }
+// ANCHOR_END: ring_buffer_stats
 
+// ANCHOR: error
 /// Ошибки, которые могут возникать при работе с [`RingBuffer`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Error {
@@ -536,6 +549,7 @@ pub enum Error {
         exceeding_object_len: usize,
     },
 }
+// ANCHOR_END: error
 
 /// Тип возвращаемого результата `T` или ошибки [`Error`] ---
 /// мономорфизация [`result::Result`] по типу ошибки.

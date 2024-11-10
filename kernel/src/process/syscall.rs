@@ -235,6 +235,7 @@ fn sched_yield(
     unimplemented!();
 }
 
+// ANCHOR: exofork
 /// Выполняет системный вызов
 /// [`lib::syscall::exofork()`](https://sergey-v-galtsev.gitlab.io/labs-description/doc/lib/syscall/fn.exofork.html).
 ///
@@ -249,10 +250,12 @@ fn exofork(
     mut process: SpinlockGuard<Process>,
     context: MiniContext,
 ) -> Result<usize> {
+    // ANCHOR_END: exofork
     // TODO: your code here.
     unimplemented!();
 }
 
+// ANCHOR: map
 /// Выполняет системный вызов
 /// [`lib::syscall::map(dst_pid, dst_block, flags)`](https://sergey-v-galtsev.gitlab.io/labs-description/doc/lib/syscall/fn.map.html).
 ///
@@ -273,10 +276,12 @@ fn map(
     dst_size: usize,
     flags: usize,
 ) -> Result<usize> {
+    // ANCHOR_END: map
     // TODO: your code here.
     unimplemented!();
 }
 
+// ANCHOR: unmap
 /// Выполняет системный вызов
 /// [`lib::syscall::unmap(dst_pid, dst_block)`](https://sergey-v-galtsev.gitlab.io/labs-description/doc/lib/syscall/fn.unmap.html).
 ///
@@ -288,10 +293,12 @@ fn unmap(
     dst_address: usize,
     dst_size: usize,
 ) -> Result<usize> {
+    // ANCHOR_END: unmap
     // TODO: your code here.
     unimplemented!();
 }
 
+// ANCHOR: copy_mapping
 /// Выполняет системный вызов
 /// [`lib::syscall::copy_mapping(dst_pid, src_block, dst_block, flags)`](https://sergey-v-galtsev.gitlab.io/labs-description/doc/lib/syscall/fn.copy_mapping.html).
 ///
@@ -318,6 +325,7 @@ fn copy_mapping(
     dst_size: usize,
     flags: usize,
 ) -> Result<usize> {
+    // ANCHOR_END: copy_mapping
     // TODO: your code here.
     unimplemented!();
 }
@@ -355,6 +363,7 @@ fn map_pages_to_frames(
     unimplemented!();
 }
 
+// ANCHOR: set_state
 /// Выполняет системный вызов
 /// [`lib::syscall::set_state(dst_pid, state)`](https://sergey-v-galtsev.gitlab.io/labs-description/doc/lib/syscall/fn.set_state.html).
 ///
@@ -365,10 +374,12 @@ fn set_state(
     dst_pid: usize,
     state: usize,
 ) -> Result<usize> {
+    // ANCHOR_END: set_state
     // TODO: your code here.
     unimplemented!();
 }
 
+// ANCHOR: set_trap_handler
 /// Выполняет системный вызов
 /// [`lib::syscall::set_trap_handler(dst_pid, trap_handler, trap_stack)`](https://sergey-v-galtsev.gitlab.io/labs-description/doc/lib/syscall/fn.set_trap_handler.html).
 ///
@@ -383,6 +394,7 @@ fn set_trap_handler(
     stack_address: usize,
     stack_size: usize,
 ) -> Result<usize> {
+    // ANCHOR_END: set_trap_handler
     // TODO: your code here.
     unimplemented!();
 }
@@ -523,6 +535,7 @@ mod lock_set {
     }
 
     impl<'a> LockSet<'a> {
+        // ANCHOR: lock_set
         /// Проверяет, что процесс `src` имеет право модифицировать целевой процесс,
         /// заданный своим идентификатором `dst_pid`.
         /// Целевой процесс может совпадать с `src`.
@@ -543,6 +556,7 @@ mod lock_set {
             dst_pid: usize,
             process_set: ProcessSet,
         ) -> Result<LockSet<'_>> {
+            // ANCHOR_END: lock_set
             // TODO: your code here.
             unimplemented!();
         }

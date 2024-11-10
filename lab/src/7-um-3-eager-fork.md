@@ -16,7 +16,7 @@ Nikka воплощает некоторые идеи [экзоядра](https://
 [`fork()`](https://pubs.opengroup.org/onlinepubs/9699919799/functions/fork.html)
 будем в пространстве пользователя.
 Естественно, от ядра потребуется небольшая помощь.
-Тем более то, что реализует ядро, пригодится и для других целей.
+Причём то, что реализует ядро, пригодится и для других целей.
 Например, можно будет реализовать аналог современного системного вызова для порождения процессов ---
 [`posix_spawn()`](https://pubs.opengroup.org/onlinepubs/9699919799/functions/posix_spawn.html).
 Естественно, также в пространстве пользователя.
@@ -30,10 +30,7 @@ Nikka воплощает некоторые идеи [экзоядра](https://
 Реализуйте [системный вызов](../../doc/kernel/process/syscall/fn.exofork.html)
 
 ```rust
-fn exofork(
-    process: SpinlockGuard<Process>,
-    context: MiniContext,
-) -> Result<usize>
+{{#include ../../kernel/src/process/syscall.rs:exofork}}
 ```
 
 в файле [`kernel/src/process/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/syscall.rs).
@@ -93,11 +90,7 @@ let child_pid = syscall(Syscall::Exofork, 0, 0, 0, 0, 0)?;
 Реализуйте [системный вызов](../../doc/kernel/process/syscall/fn.set_state.html)
 
 ```rust
-fn set_state(
-    process: SpinlockGuard<Process>,
-    dst_pid: usize,
-    state: usize,
-) -> Result<usize>
+{{#include ../../kernel/src/process/syscall.rs:set_state}}
 ```
 
 в файле [`kernel/src/process/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/syscall.rs).
@@ -109,6 +102,44 @@ fn set_state(
 проверить права доступа
 процесса `process` к процессу `dst_pid` с помощью реализованного вами ранее
 [`kernel::process::syscall::lock_set::LockSet`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html).
+
+Если целевой процесс уже запущен,
+[`set_state()`](../../doc/kernel/process/syscall/fn.set_state.html)
+возвращает
+[`Error::PermissionDenied`](../../doc/kernel/error/enum.Error.html#variant.PermissionDenied).
+Выбор кода ошибки --- это в какой-то мере произвол,
+который логически можно только мотивировать, но не обосновать.
+В данном случае мотивация такая.
+
+Ситуация не зависит от того, что процесс находится или не находится в очереди планировщика.
+Даже если процесс заснул в ожидании чего-то, и не находится в очереди планировщика,
+другой процесс не должен иметь возможность поставить его в очередь.
+Иначе, это означало бы, что спящий процесс обманут и сломана его дальнейшая логика,
+основывающаяся на том, что ожидаемое событие произошло.
+Ломать другой процесс --- нарушение защиты, поэтому логично вернуть
+[`Error::PermissionDenied`](../../doc/kernel/error/enum.Error.html#variant.PermissionDenied).
+
+Это чем-то похоже на то, что передача случайного виртуального адреса в
+[`unmap()`](../../doc/kernel/process/syscall/fn.unmap.html)
+иногда будет приводить к
+[`Error::InvalidArgument`](../../doc/kernel/error/enum.Error.html#variant.InvalidArgument),
+если к конкретному адресу процесс теоретически может обращаться.
+А иногда --- к
+[`Error::PermissionDenied`](../../doc/kernel/error/enum.Error.html#variant.PermissionDenied),
+если это случайно адрес ядра.
+
+В случае с процессами, они могут быть в состоянии `Exofork` или в каком-то другом состоянии.
+Действия над другими процессами, например
+[`map()`](../../doc/kernel/process/syscall/fn.map.html)
+и
+[`set_state()`](../../doc/kernel/process/syscall/fn.set_state.html),
+разрешены только если целевой процесс находится в состоянии `Exofork`.
+При этом
+[`Error::InvalidArgument`](../../doc/kernel/error/enum.Error.html#variant.InvalidArgument)
+обычно возвращается в случае более низкоуровневых ошибок.
+Чаще всего, если с аргументом на битовом уровне что-то не так.
+Или когда не выполняются простые инварианты --- два блока разного размера,
+не смежны, когда это требуется, и т.п.
 
 
 ### Рекурсивное отображение памяти
@@ -206,11 +237,7 @@ unsafe fn page_table(address: Virt, level: u32) -> &'static PageTable
 #### `copy_page_table()`
 
 ```rust
-fn copy_page_table(
-    child: Pid,
-    level: u32,
-    start: Virt,
-) -> Result<()>
+{{#include ../../user/eager_fork/src/main.rs:copy_page_table}}
 ```
 
 Копирует таблицу страниц уровня `level` для виртуального адреса `start`
@@ -219,9 +246,7 @@ fn copy_page_table(
 Корень рекурсии запускает функция
 
 ```rust
-fn copy_address_space(child: Pid) -> Result<()> {
-    copy_page_table(child, PAGE_TABLE_ROOT_LEVEL, Virt::default())
-}
+{{#include ../../user/eager_fork/src/main.rs:copy_address_space}}
 ```
 
 Проходится по таблице страниц, получая ссылку на неё с помощью
