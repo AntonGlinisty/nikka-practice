@@ -48,8 +48,8 @@ allow_list:
   - ku/src/memory/block.rs
   - ku/src/memory/mmu.rs
   - ku/src/process/elf.rs
-  - ku/src/ipc/pipe.rs
   - ku/src/sync/once_lock.rs
+  - ku/src/ipc/pipe.rs
   - ku/src/sync/sequence_lock.rs
   - ku/src/sync/spinlock.rs
   - ku/src/time/correlation_interval.rs

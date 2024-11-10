@@ -23,6 +23,16 @@ use ku::{
         Error,
         Result,
     },
+    ipc::pipe::{
+        self,
+        Error::Overflow,
+        MAX_CAPACITY,
+        ReadBuffer,
+        RingBuffer,
+        RingBufferWriteTx,
+        Tag,
+        WriteBuffer,
+    },
     log::{
         debug,
         trace,
@@ -33,16 +43,6 @@ use ku::{
             MiB,
             Size,
         },
-    },
-    pipe::{
-        self,
-        Error::Overflow,
-        MAX_CAPACITY,
-        ReadBuffer,
-        RingBuffer,
-        RingBufferWriteTx,
-        Tag,
-        WriteBuffer,
     },
 };
 

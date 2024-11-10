@@ -276,7 +276,7 @@ fn RingBuffer::write_header(
 ```
 
 в файле
-[`ku/src/ipc/pipe.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/ipc/pipe.rs).
+[`ku/src/ipc/pipe.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/ipc/pipe.rs)
 Они должен десериализовать и сериализовать заголовок `header` в циклическом буфере по позиции `position`.
 Подумайте над последовательностью операций в них и необходимыми
 [`Ordering`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html).
@@ -790,6 +790,6 @@ test concurrent ... 2023-11-12T20:08:42.276650Z : read_thread read commit
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- ku/src/ipc/pipe.rs    | 234 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--------
+ ku/src/ipc/pipe.rs  | 234 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--------
  1 file changed, 214 insertions(+), 20 deletions(-)
 ```
