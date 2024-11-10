@@ -187,10 +187,12 @@ pub(super) fn init(
         ));
     }
 
-    if subsystems.contains(Subsystems::VIRT_MEMORY | Subsystems::MAIN_FRAME_ALLOCATOR) &&
-        let Err(error) = EXCEPTION_STACKS.lock().make_guard_zones()
-    {
-        error!(?error, "failed to make guard zones for the trap stacks");
+    if subsystems.contains(Subsystems::VIRT_MEMORY | Subsystems::MAIN_FRAME_ALLOCATOR) {
+        if let Err(error) = EXCEPTION_STACKS.lock().make_guard_zones() {
+            error!(?error, "failed to make guard zones for the trap stacks");
+        }
+
+        BASE_ADDRESS_SPACE.lock().remove_excessive_phys2virt()?;
     }
 
     info!(duration = %timer.elapsed(), "memory init");

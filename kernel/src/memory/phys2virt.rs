@@ -88,6 +88,16 @@ impl Phys2Virt {
         }
     }
 
+    /// Возвращает индекс первой страницы за концом [`Phys2Virt`]
+    /// или [`None`] для пустого [`Phys2Virt`].
+    pub(super) fn last_page_index(&self) -> Option<usize> {
+        if self.mapping.is_empty() {
+            None
+        } else {
+            self.mapping.end().checked_sub(1)
+        }
+    }
+
     /// Для заданного физического адреса `phys` возвращает виртуальный адрес
     /// внутри специальной области [`Phys2Virt`],
     /// в которую линейно отображена вся физическая память.

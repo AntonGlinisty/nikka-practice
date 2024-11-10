@@ -628,6 +628,12 @@ impl AddressSpace {
             debug!("    {}", block);
         }
     }
+
+    /// Удаляет ненужную часть --- находящуюся за пределами [`Phys2Virt`] ---
+    /// линейного отображения физической памяти, которое сделал [`bootloader`].
+    pub(super) fn remove_excessive_phys2virt(&mut self) -> Result<()> {
+        self.mapping.remove_excessive_phys2virt()
+    }
 }
 
 impl Drop for AddressSpace {

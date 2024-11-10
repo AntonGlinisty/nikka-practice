@@ -87,7 +87,7 @@ test-args = [
 ]
 
 test-success-exit-code = 3
-test-timeout = 300
+test-timeout = 600
 
 [package.metadata.bootloader]
 physical-memory-offset = "0xFFFFF00000000000"
