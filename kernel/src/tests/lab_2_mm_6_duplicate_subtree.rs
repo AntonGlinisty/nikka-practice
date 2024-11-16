@@ -11,6 +11,7 @@ use kernel::{
             duplicate,
             forbid_frame_leaks,
             mapping,
+            switch_to,
         },
     },
 };
@@ -75,4 +76,24 @@ fn duplicate_and_drop() {
 
         free_frames
     }
+}
+
+#[test_case]
+fn duplicate_path() {
+    let _guard = forbid_frame_leaks();
+
+    let mut address_space_copy = duplicate(&BASE_ADDRESS_SPACE.lock()).unwrap();
+    switch_to(&address_space_copy);
+
+    mm_helpers::test_path(&mut address_space_copy);
+}
+
+#[test_case]
+fn duplicate_translate() {
+    let _guard = forbid_frame_leaks();
+
+    let mut address_space_copy = duplicate(&BASE_ADDRESS_SPACE.lock()).unwrap();
+    switch_to(&address_space_copy);
+
+    mm_helpers::test_translate(&mut address_space_copy);
 }
