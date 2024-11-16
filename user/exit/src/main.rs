@@ -20,7 +20,7 @@ use lib::entry;
 entry!(main);
 
 fn main() {
-    exit(3141592653589793238);
+    exit(7);
 }
 
 fn exit(code: usize) -> ! {
