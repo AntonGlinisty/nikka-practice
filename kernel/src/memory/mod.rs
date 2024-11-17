@@ -209,9 +209,14 @@ lazy_static! {
 #[doc(hidden)]
 pub mod test_scaffolding {
     use super::{
+        BASE_ADDRESS_SPACE,
+        Block,
         BootFrameAllocator,
+        Frame,
         FrameAllocator,
     };
+
+    use super::phys2virt::test_scaffolding as phys2virt;
 
     pub use super::{
         address_space::test_scaffolding::*,
@@ -228,5 +233,9 @@ pub mod test_scaffolding {
             FrameAllocator::Boot(boot_allocator) => Some(boot_allocator),
             FrameAllocator::Main(..) | FrameAllocator::Void => None,
         }
+    }
+
+    pub fn physical_memory() -> Block<Frame> {
+        phys2virt::physical_memory(&BASE_ADDRESS_SPACE.lock().mapping().phys2virt())
     }
 }

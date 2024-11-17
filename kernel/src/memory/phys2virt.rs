@@ -343,4 +343,8 @@ pub(super) mod test_scaffolding {
     ) -> Virt {
         super::map(phys2virt, address)
     }
+
+    pub(in super::super) fn physical_memory(phys2virt: &Phys2Virt) -> Block<Frame> {
+        phys2virt.physical_memory
+    }
 }

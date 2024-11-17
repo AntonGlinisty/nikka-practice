@@ -25,12 +25,14 @@ use kernel::{
             PageTableEntry,
             PageTableFlags,
         },
+        size::TiB,
         test_scaffolding::{
             duplicate,
             forbid_frame_leaks,
             get_pte,
             map_page,
             mapping,
+            physical_memory,
             switch_to,
             unmap_page,
             user_root_level_entries,
@@ -100,6 +102,11 @@ fn basic_frame_allocator_functions() {
     assert_eq!(frame_allocator.count(), start_free_frames - 1);
 
     frame_allocator.deallocate(frames[0]);
+
+    let unmanaged_frame =
+        Frame::containing((physical_memory().end_address().unwrap() + TiB).unwrap());
+    frame_allocator.reference(unmanaged_frame);
+    frame_allocator.deallocate(unmanaged_frame);
 }
 
 #[test_case]
