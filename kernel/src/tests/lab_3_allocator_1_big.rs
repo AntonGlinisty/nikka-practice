@@ -30,6 +30,7 @@ use ku::{
         Error::NoPage,
         Result,
     },
+    memory::block::Memory,
 };
 
 use kernel::{
@@ -77,16 +78,23 @@ fn alignment() {
 
 #[test_case]
 fn grow_and_shrink_unmap_old_block() {
+    for initialize in [Initialize::Garbage, Initialize::Zero] {
+        grow_and_shrink_unmap_old_block_and_initialize_memory(initialize);
+    }
+}
+
+fn grow_and_shrink_unmap_old_block_and_initialize_memory(initialize: Initialize) {
     let _guard = forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
+    debug!(?initialize);
+
     let small_layout = Layout::from_size_align(4 * Page::SIZE, Page::SIZE).unwrap();
-    let small_allocation = address_space
-        .allocator(USER_RW)
-        .dry_allocate(small_layout, Initialize::Garbage)
-        .unwrap();
+    let small_allocation =
+        address_space.allocator(USER_RW).dry_allocate(small_layout, initialize).unwrap();
     let small_block = Block::from_slice(unsafe { small_allocation.as_uninit_slice() }).enclosing();
+    validate_initialization(small_block, initialize);
 
     let big_layout = Layout::from_size_align(8 * Page::SIZE, Page::SIZE).unwrap();
     let big_allocation = unsafe {
@@ -96,11 +104,12 @@ fn grow_and_shrink_unmap_old_block() {
                 small_allocation.as_non_null_ptr(),
                 small_layout,
                 big_layout,
-                Initialize::Garbage,
+                initialize,
             )
             .unwrap()
     };
     let big_block = Block::from_slice(unsafe { big_allocation.as_uninit_slice() }).enclosing();
+    validate_initialization(big_block, initialize);
 
     debug!(%small_block, %big_block);
 
@@ -117,6 +126,7 @@ fn grow_and_shrink_unmap_old_block() {
     };
     let medium_block =
         Block::from_slice(unsafe { medium_allocation.as_uninit_slice() }).enclosing();
+    validate_initialization(medium_block, initialize);
 
     debug!(%big_block, %medium_block);
 
@@ -155,14 +165,21 @@ fn grow_and_shrink_unmap_old_block() {
 
 #[test_case]
 fn shrink_is_not_a_noop() {
+    for initialize in [Initialize::Garbage, Initialize::Zero] {
+        shrink_is_not_a_noop_and_initializes_memory(initialize);
+    }
+}
+
+fn shrink_is_not_a_noop_and_initializes_memory(initialize: Initialize) {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
+    debug!(?initialize);
+
     let old_layout = Layout::from_size_align(4 * Page::SIZE, Page::SIZE).unwrap();
-    let old_allocation = address_space
-        .allocator(USER_RW)
-        .dry_allocate(old_layout, Initialize::Garbage)
-        .unwrap();
+    let old_allocation =
+        address_space.allocator(USER_RW).dry_allocate(old_layout, initialize).unwrap();
     let old_block = Block::from_slice(unsafe { old_allocation.as_uninit_slice() });
+    validate_initialization(old_block, initialize);
 
     let new_layout = Layout::from_size_align(3 * Page::SIZE, Page::SIZE).unwrap();
     let new_allocation = unsafe {
@@ -172,6 +189,7 @@ fn shrink_is_not_a_noop() {
             .unwrap()
     };
     let new_block = Block::from_slice(unsafe { new_allocation.as_uninit_slice() });
+    validate_initialization(new_block, initialize);
 
     assert_ne!(old_block.count(), new_block.count());
 
@@ -413,6 +431,18 @@ fn translate(
     page: Page,
 ) -> Result<PageTableEntry> {
     mapping(address_space).translate(page.address()).map(|pte| *pte)
+}
+
+fn validate_initialization<T: Memory<Address = Virt>>(
+    block: Block<T>,
+    initialize: Initialize,
+) {
+    if initialize == Initialize::Zero {
+        let slice = unsafe {
+            MaybeUninit::slice_assume_init_ref(block.try_into_slice::<MaybeUninit<u8>>().unwrap())
+        };
+        assert!(slice.iter().all(|&x| x == 0));
+    }
 }
 
 macro_rules! my_assert {
