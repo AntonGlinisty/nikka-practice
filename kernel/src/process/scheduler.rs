@@ -100,8 +100,17 @@ pub mod test_scaffolding {
     use static_assertions::const_assert;
     use x86_64::instructions;
 
+    use super::{
+        Pid,
+        SCHEDULER,
+    };
+
     pub fn scheduler_enable() {
         ENABLED.store(true, Ordering::Release);
+    }
+
+    pub fn scheduler_has_pid(pid: Pid) -> bool {
+        SCHEDULER.lock().queue.contains(&pid)
     }
 
     pub fn set_handler(handler: fn()) {

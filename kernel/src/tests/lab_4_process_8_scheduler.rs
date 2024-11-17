@@ -34,23 +34,28 @@ fn syscall_sched_yield() {
 
     let start_page_faults = TRAP_STATS[Trap::PageFault].count();
 
-    Process::enter_user_mode(process);
+    for _ in 0 .. 3 {
+        Process::enter_user_mode(process);
 
-    assert_eq!(
-        TRAP_STATS[Trap::PageFault].count(),
-        start_page_faults,
-        "maybe the read-dont-modify-write construction was used for reading the RTC time from the \
-         user space",
-    );
-
-    for _ in 0 .. 2 {
-        let process = Table::get(pid).expect("failed to find the new process in the process table");
+        process = Table::get(pid).expect("failed to find the process in the process table");
 
         let user_registers = test_scaffolding::registers(&process);
+
         debug!(?user_registers, "returned from the user space");
 
-        Process::enter_user_mode(process);
+        assert!(
+            test_scaffolding::scheduler_has_pid(pid),
+            "the process was not enqueued back to the scheduler",
+        );
+        assert_eq!(
+            TRAP_STATS[Trap::PageFault].count(),
+            start_page_faults,
+            "maybe the read-dont-modify-write construction was used for reading the RTC time from \
+             the user space",
+        );
     }
+
+    drop(process);
 
     process_helpers::free(pid);
 }
