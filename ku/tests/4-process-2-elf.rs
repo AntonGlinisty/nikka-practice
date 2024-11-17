@@ -467,11 +467,13 @@ fn t08_finalize_mapping() {
         let min_block_pages = 1;
         let max_block_pages = 4;
         let max_gap_pages = 4;
+        let file_size = max_block_pages * Page::SIZE;
 
         let mut allocator = DummyAllocator::new(page_count, allocator_flags);
+        let offset = allocator.offset();
         let offset_page = allocator.offset_page();
 
-        let file = [];
+        let file: Vec<_> = (&mut rng).sample_iter(Alphanumeric).take(file_size).collect();
 
         let initial_flags = Loader::new(&mut allocator, &file).initial_flags();
 
@@ -513,12 +515,16 @@ fn t08_finalize_mapping() {
                 prev_end += 1;
             }
 
-            let value = 42;
+            let size = page_range.memory.size();
 
             allocator.reserve_fixed(page_range.memory).unwrap();
             unsafe {
                 allocator.map(page_range.memory, initial_flags).unwrap();
-                page_range.memory.try_into_mut_slice::<u8>().unwrap().fill(value);
+                page_range
+                    .memory
+                    .try_into_mut_slice::<u8>()
+                    .unwrap()
+                    .copy_from_slice(&file[.. size]);
             }
 
             debug!(%page_range);
@@ -527,7 +533,12 @@ fn t08_finalize_mapping() {
             loader.finalize_mapping(page_range).unwrap();
 
             let actual_memory = unsafe { page_range.memory.try_into_mut_slice::<u8>().unwrap() };
-            assert!(!actual_memory.iter().any(|&x| x != value));
+            validate_memory(
+                actual_memory,
+                &file[.. size],
+                &format!("actual_memory[..{size}] (at offset {offset})"),
+                &format!("file[..{size}]"),
+            );
         }
 
         assert_eq!(allocator.pages, expected);
@@ -634,6 +645,7 @@ fn t10_load_program_header() {
 
                 let mut curr_end = 0;
                 let mut expected_pages = Vec::new();
+                let mut expected_memory = vec![0_u8; end];
                 let mut curr = None;
 
                 while curr_end < page_count * Page::SIZE {
@@ -668,6 +680,9 @@ fn t10_load_program_header() {
                         file_start .. file_end,
                     );
 
+                    expected_memory[next_start .. next_start + file_size]
+                        .copy_from_slice(&file[file_start .. file_end]);
+
                     if curr_end.div_ceil(Page::SIZE) > next_start.div_floor(Page::SIZE) {
                         let boundary = expected_pages.len() - 1;
                         expected_pages[boundary].flags =
@@ -686,7 +701,12 @@ fn t10_load_program_header() {
                     let updated_next = loader.load_program_header(curr, next).unwrap();
 
                     let actual_memory = unsafe { memory.try_into_slice::<u8>().unwrap() };
-                    assert_eq!(actual_memory[.. file_size], file[file_start .. file_end]);
+                    validate_memory(
+                        &actual_memory[.. file_size],
+                        &file[file_start .. file_end],
+                        &format!("actual_memory[{next_start}..{next_end}] (at offset {offset})"),
+                        &format!("file[{file_start}..{file_end}]"),
+                    );
                     assert!(actual_memory[file_size ..].iter().all(|&x| x == 0));
 
                     curr_end = next_end;
@@ -698,11 +718,39 @@ fn t10_load_program_header() {
                 }
 
                 assert_eq!(allocator.pages, expected_pages);
-
+                allocator.validate_allocated_memory_state(&expected_memory);
                 allocator.validate_no_garbage();
                 allocator.validate_no_unused_pages();
             }
         }
+    }
+}
+
+fn validate_memory(
+    actual: &[u8],
+    expected: &[u8],
+    actual_name: &str,
+    expected_name: &str,
+) {
+    const STEP: usize = 8;
+
+    assert_eq!(
+        actual.len(),
+        expected.len(),
+        "lengths do not match (actual {actual_name}, expected {expected_name})",
+    );
+
+    let len = actual.len();
+
+    for start in (0 .. len).step_by(STEP) {
+        let end = (start + STEP).min(len);
+
+        assert_eq!(
+            actual[start .. end],
+            expected[start .. end],
+            "contents at [{start}, {end}) do not match (actual {actual_name}, expected \
+             {expected_name})",
+        );
     }
 }
 
@@ -896,6 +944,32 @@ impl DummyAllocator {
                     "page {page} is reserved but is not unused",
                 );
             }
+        }
+    }
+
+    fn validate_allocated_memory_state(
+        &self,
+        expected: &[u8],
+    ) {
+        for page in 0 .. self.pages.len() {
+            if !self.pages[page].reserved {
+                continue;
+            }
+
+            let page_start = page * Page::SIZE;
+            let page_end = (page + 1) * Page::SIZE;
+
+            validate_memory(
+                self.get(page_start .. page_end),
+                &expected[page_start .. page_end],
+                &format!("actual_memory[{page_start}..{page_end}]"),
+                &format!(
+                    "expected_memory[{}..{}] (at offset {})",
+                    page_start,
+                    page_end,
+                    self.offset(),
+                ),
+            );
         }
     }
 
