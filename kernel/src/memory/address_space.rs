@@ -443,6 +443,7 @@ impl AddressSpace {
         flags: PageTableFlags,
         default: F,
     ) -> Result<&'static mut [T]> {
+        assert!(flags.contains(PageTableFlags::WRITABLE));
         let slice = self.map_slice_uninit(len, flags)?;
         Ok(MaybeUninit::fill_with(slice, default))
     }
@@ -462,6 +463,8 @@ impl AddressSpace {
         len: usize,
         flags: PageTableFlags,
     ) -> Result<&'static mut [T]> {
+        assert!(flags.contains(PageTableFlags::WRITABLE));
+
         let slice = self.map_slice_uninit(len, flags)?;
 
         for element in slice.iter_mut() {
@@ -519,6 +522,7 @@ impl AddressSpace {
         flags: PageTableFlags,
         default: F,
     ) -> Result<&'static mut T> {
+        assert!(flags.contains(PageTableFlags::WRITABLE));
         let slice = self.map_slice_uninit(1, flags)?;
         slice[0].write(default());
         Ok(unsafe { MaybeUninit::assume_init_mut(&mut slice[0]) })
