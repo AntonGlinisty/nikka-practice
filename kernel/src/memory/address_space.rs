@@ -699,6 +699,7 @@ pub(super) mod test_scaffolding {
     use super::{
         super::{
             Block,
+            Frame,
             Page,
             Virt,
             mmu::PageTableFlags,
@@ -714,6 +715,15 @@ pub(super) mod test_scaffolding {
         flags: PageTableFlags,
     ) -> Result<()> {
         unsafe { address_space.map_page(page, flags) }
+    }
+
+    pub unsafe fn map_page_to_frame(
+        address_space: &mut AddressSpace,
+        page: Page,
+        frame: Frame,
+        flags: PageTableFlags,
+    ) -> Result<()> {
+        unsafe { address_space.map_page_to_frame(page, frame, flags) }
     }
 
     pub unsafe fn unmap_page(

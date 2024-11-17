@@ -7,9 +7,12 @@ use ku::memory::size::MiB;
 
 use kernel::{
     Subsystems,
-    error::Error::{
-        NoPage,
-        PermissionDenied,
+    error::{
+        Error::{
+            NoPage,
+            PermissionDenied,
+        },
+        Result,
     },
     log::debug,
     memory::{
@@ -32,6 +35,7 @@ use kernel::{
             forbid_frame_leaks,
             kernel_root_level_entries,
             map_page,
+            map_page_to_frame,
             mapping,
             unmap_page,
             user_root_level_entries,
@@ -201,7 +205,7 @@ fn unmap_nonmapped_page() {
 fn kernel_and_user_are_separated() {
     let _guard = forbid_frame_leaks();
 
-    let mut address_space = BASE_ADDRESS_SPACE.lock();
+    let frame = FRAME_ALLOCATOR.lock().allocate().unwrap();
     let checks_per_root_level_entry = 16;
 
     for i in kernel_root_level_entries() {
@@ -212,11 +216,13 @@ fn kernel_and_user_are_separated() {
             )
             .unwrap();
 
-            assert_eq!(
-                unsafe { map_page(&mut address_space, page, USER_R) },
-                Err(PermissionDenied),
-                "kernel {page:?} is accessible for user space",
-            );
+            for map_function in [map_page_function, map_page_to_frame_function] {
+                assert_eq!(
+                    map_function(page, frame, USER_R),
+                    Err(PermissionDenied),
+                    "kernel {page:?} is accessible for user space",
+                );
+            }
         }
     }
 
@@ -228,11 +234,31 @@ fn kernel_and_user_are_separated() {
             )
             .unwrap();
 
-            assert!(
-                unsafe { map_page(&mut address_space, page, KERNEL_R).is_err() },
-                "user space {page:?} is mappable with kernel flags",
-            );
+            for map_function in [map_page_function, map_page_to_frame_function] {
+                assert!(
+                    map_function(page, frame, KERNEL_R).is_err(),
+                    "user space {page:?} is mappable with kernel flags",
+                );
+            }
         }
+    }
+
+    FRAME_ALLOCATOR.lock().deallocate(frame);
+
+    fn map_page_function(
+        page: Page,
+        _frame: Frame,
+        flags: PageTableFlags,
+    ) -> Result<()> {
+        unsafe { map_page(&mut BASE_ADDRESS_SPACE.lock(), page, flags).map(|_| ()) }
+    }
+
+    fn map_page_to_frame_function(
+        page: Page,
+        frame: Frame,
+        flags: PageTableFlags,
+    ) -> Result<()> {
+        unsafe { map_page_to_frame(&mut BASE_ADDRESS_SPACE.lock(), page, frame, flags) }
     }
 }
 
