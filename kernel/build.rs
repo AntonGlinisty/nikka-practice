@@ -19,6 +19,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "exit",
         "log_value",
         "loop",
+        "check_context",
         "memory_syscalls",
         "page_fault",
         "sched_yield",

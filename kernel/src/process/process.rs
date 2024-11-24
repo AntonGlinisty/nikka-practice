@@ -541,6 +541,7 @@ pub(super) mod test_scaffolding {
         super::registers::test_scaffolding,
         Pid,
         Process,
+        State,
     };
 
     pub fn disable_interrupts(process: &mut Process) {
@@ -571,6 +572,10 @@ pub(super) mod test_scaffolding {
                 (pid_callback)(process);
             }
         }
+    }
+
+    pub fn state(process: &Process) -> State {
+        process.state()
     }
 
     static PID_CALLBACK: AtomicPtr<()> = AtomicPtr::new(ptr::null_mut());
