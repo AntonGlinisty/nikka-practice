@@ -14,19 +14,13 @@
 Структура `Inode` выглядит так:
 
 ```rust
-enum Kind {
-    File = 0,
-    Directory = 1,
-}
+{{#include ../../kernel/src/fs/inode.rs:inode}}
 
-struct Inode {
-    kind: Kind,
-    modify_time: DateTime<Utc>,
-    size: usize,
-    root_blocks: [usize; MAX_HEIGHT],
-}
+{{#include ../../kernel/src/fs/inode.rs:kind}}
 
-const MAX_HEIGHT: usize = 4;
+{{#include ../../kernel/src/fs/inode.rs:forest}}
+
+{{#include ../../kernel/src/fs/inode.rs:max_height}}
 ```
 
 
@@ -60,11 +54,7 @@ const MAX_HEIGHT: usize = 4;
 Вспомогательный [метод](../../doc/kernel/fs/inode/struct.Inode.html#method.block_entry)
 
 ```rust
-fn Inode::block_entry(
-    &mut self,
-    inode_block_number: usize,
-    bitmap: Option<&mut Bitmap>,
-) -> Result<&mut usize>
+{{#include ../../kernel/src/fs/inode.rs:block_entry}}
 ```
 
 по номеру блока `inode_block_number` внутри данных
@@ -82,7 +72,7 @@ fn Inode::block_entry(
 Либо в одном из листьевых косвенных блоков леса
 [`Inode::root_blocks`](../../doc/kernel/fs/inode/struct.Inode.html#structfield.root_blocks).
 
-- Если при обходе леса встречается не выделенный косвенный блок, то его нужно выделить из `bitmap`. Не выделенные блоки имеют зарезервированный номер [`kernel::fs::inode::NO_BLOCK`](../../doc/kernel/fs/inode/constant.NO_BLOCK.html). Если при этом `bitmap` равен `None`, верните ошибку [`Error::NoDisk`](../../doc/kernel/error/enum.Error.html#variant.NoDisk).
+- Если на пути к листу встречается не выделенный косвенный блок, то его нужно выделить из `bitmap`. Не выделенные блоки имеют зарезервированный номер [`kernel::fs::inode::NO_BLOCK`](../../doc/kernel/fs/inode/constant.NO_BLOCK.html). Если при этом `bitmap` равен `None`, верните ошибку [`Error::NoDisk`](../../doc/kernel/error/enum.Error.html#variant.NoDisk).
 - А вот выделять блок для данных, на который указывает результирующая запись, не нужно.
 
 Этот метод похож на
@@ -92,29 +82,16 @@ fn Inode::block_entry(
 [`Inode`](../../doc/kernel/fs/inode/struct.Inode.html)
 для блоков не одно дерево фиксированной высоты, а последовательность деревьев возрастающей высоты.
 
-Вы можете использовать вспомогательные методы работы с лесом
+Вы можете использовать вспомогательные методы работы с лесом:
 
 ```rust
-fn find_leaf(
-    leaf_in_forest: usize,
-) -> Result<LeafCoordinates>;
+{{#include ../../kernel/src/fs/inode.rs:find_leaf}}
 
-fn remove_tree(
-    node: &mut usize,
-    height: usize,
-    block_bitmap: &mut Bitmap,
-) -> Result<()>;
+{{#include ../../kernel/src/fs/inode.rs:remove_tree}}
 
-fn traverse<'a>(
-    forest: &'a mut Forest,
-    leaf_coordinates: LeafCoordinates,
-    mut block_bitmap: Option<&mut Bitmap>,
-) -> Result<&'a mut usize>;
+{{#include ../../kernel/src/fs/inode.rs:traverse}}
 
-fn next_level<'a>(
-    node: &'a mut usize,
-    block_bitmap: &mut Option<&mut Bitmap>,
-) -> Result<&'a mut [usize]>;
+{{#include ../../kernel/src/fs/inode.rs:next_level}}
 ```
 
 Или же структурировать код по-своему.
@@ -122,7 +99,7 @@ fn next_level<'a>(
 Дополнительный [метод](../../doc/kernel/fs/inode/struct.Inode.html#method.block)
 
 ```rust
-fn Inode::block(&mut self, inode_block_number: usize) -> Result<Block<Virt>>
+{{#include ../../kernel/src/fs/inode.rs:block}}
 ```
 
 оборачивает реализованный вами
@@ -136,11 +113,7 @@ fn Inode::block(&mut self, inode_block_number: usize) -> Result<Block<Virt>>
 [Метод](../../doc/kernel/fs/inode/struct.Inode.html#method.set_size)
 
 ```rust
-fn Inode::set_size(
-    &mut self,
-    size: usize,
-    bitmap: &mut Bitmap,
-) -> Result<()>
+{{#include ../../kernel/src/fs/inode.rs:set_size}}
 ```
 
 изменяет размер данных
@@ -174,11 +147,7 @@ fn Inode::set_size(
 [Метод](../../doc/kernel/fs/inode/struct.Inode.html#method.read)
 
 ```rust
-fn Inode::read(
-    &mut self,
-    offset: usize,
-    buffer: &mut [u8],
-) -> Result<usize>
+{{#include ../../kernel/src/fs/inode.rs:read}}
 ```
 
 читает из данных
@@ -206,12 +175,7 @@ fn Inode::read(
 [Метод](../../doc/kernel/fs/inode/struct.Inode.html#method.read)
 
 ```rust
-pub(super) fn write(
-    &mut self,
-    offset: usize,
-    buffer: &[u8],
-    bitmap: &mut Bitmap,
-) -> Result<usize>
+{{#include ../../kernel/src/fs/inode.rs:write}}
 ```
 
 записывает в данные

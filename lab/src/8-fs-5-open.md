@@ -6,10 +6,7 @@
 Реализуйте [метод](../../doc/kernel/fs/file_system/struct.FileSystem.html#method.open)
 
 ```rust
-fn FileSystem::open(
-    &mut self,
-    path: &str,
-) -> Result<File>
+{{#include ../../kernel/src/fs/file_system.rs:open}}
 ```
 
 в файле

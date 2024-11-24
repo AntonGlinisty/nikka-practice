@@ -46,6 +46,7 @@ use super::{
 #[allow(unused)]
 use ku::error::Error;
 
+// ANCHOR: kind
 /// Тип объекта с данными --- [inode](https://en.wikipedia.org/wiki/Inode).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[repr(usize)]
@@ -57,7 +58,9 @@ pub enum Kind {
     /// Директория.
     Directory = 1,
 }
+// ANCHOR_END: kind
 
+// ANCHOR: inode
 /// Метаинформация об объекте с данными --- [inode](https://en.wikipedia.org/wiki/Inode).
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
@@ -75,6 +78,7 @@ pub(super) struct Inode {
     /// в номера блоков файловой системы.
     root_blocks: Forest,
 }
+// ANCHOR_END: inode
 
 impl Inode {
     /// Инициализирует [`Inode`] заданным типом `kind`.
@@ -109,6 +113,7 @@ impl Inode {
         self.size
     }
 
+    // ANCHOR: set_size
     /// Устанавливает размер данных в байтах.
     ///
     /// Если файл расширяется, то новые блоки с данными содержат нули.
@@ -122,6 +127,7 @@ impl Inode {
         size: usize,
         block_bitmap: &mut Bitmap,
     ) -> Result<()> {
+        // ANCHOR_END: set_size
         // TODO: your code here.
         unimplemented!();
     }
@@ -154,6 +160,7 @@ impl Inode {
         })
     }
 
+    // ANCHOR: insert
     /// Вставляет в директорию запись с именем `name` и возвращает ссылку на неё.
     /// Обновляет время модификации директории.
     ///
@@ -163,6 +170,7 @@ impl Inode {
         name: &str,
         block_bitmap: &mut Bitmap,
     ) -> Result<&mut DirectoryEntry> {
+        // ANCHOR_END: insert
         // TODO: your code here.
         unimplemented!();
     }
@@ -172,6 +180,7 @@ impl Inode {
         Ok(List(self.iter()?.filter(|entry| !entry.is_free())))
     }
 
+    // ANCHOR: read
     /// Читает из файла по смещению `offset` в буфер `buffer` столько байт,
     /// сколько остаётся до конца файла или до конца буфера.
     ///
@@ -187,10 +196,12 @@ impl Inode {
         offset: usize,
         buffer: &mut [u8],
     ) -> Result<usize> {
+        // ANCHOR_END: read
         // TODO: your code here.
         unimplemented!();
     }
 
+    // ANCHOR: write
     /// Записывает в файл по смещению `offset` байты из буфера `buffer`.
     /// При необходимости расширяет размер файла.
     /// Обновляет время модификации файла.
@@ -205,10 +216,12 @@ impl Inode {
         buffer: &[u8],
         block_bitmap: &mut Bitmap,
     ) -> Result<usize> {
+        // ANCHOR_END: write
         // TODO: your code here.
         unimplemented!();
     }
 
+    // ANCHOR: find_entry
     /// Находит занятую запись с именем `name` в директории.
     ///
     /// Если такой записи нет, возвращает свободную запись --- [`DirectoryEntry::is_free()`].
@@ -220,6 +233,7 @@ impl Inode {
         name: &str,
         block_bitmap: Option<&mut Bitmap>,
     ) -> Result<&mut DirectoryEntry> {
+        // ANCHOR_END: find_entry
         // TODO: your code here.
         unimplemented!();
     }
@@ -240,6 +254,7 @@ impl Inode {
         }
     }
 
+    // ANCHOR: block_entry
     /// По номеру блока `inode_block_number` внутри данных [`Inode`]
     /// возвращает ссылку на запись из метаданных этого [`Inode`].
     ///
@@ -258,16 +273,19 @@ impl Inode {
         inode_block_number: usize,
         block_bitmap: Option<&mut Bitmap>,
     ) -> Result<&mut usize> {
+        // ANCHOR_END: block_entry
         // TODO: your code here.
         unimplemented!();
     }
 
+    // ANCHOR: block
     /// Возвращает блок в памяти блочного кэша,
     /// где хранится блок `inode_block_number` внутри данных [`Inode`].
     fn block(
         &mut self,
         inode_block_number: usize,
     ) -> Result<Block<Virt>> {
+        // ANCHOR_END: block
         assert!(inode_block_number < self.size.div_ceil(BLOCK_SIZE));
         BlockCache::block(*self.block_entry(inode_block_number, None)?)
     }
@@ -297,6 +315,7 @@ impl fmt::Display for Inode {
     }
 }
 
+// ANCHOR: iter
 /// Итератор по всем записям директории, --- и занятым, и свободным.
 pub(super) struct Iter<'a> {
     /// Блок в памяти блочного кэша, внутри которого находится текущая позиция итератора.
@@ -311,6 +330,7 @@ pub(super) struct Iter<'a> {
     /// [`Inode`] самой директории.
     inode: &'a mut Inode,
 }
+// ANCHOR_END: iter
 
 impl<'a> Iterator for Iter<'a> {
     type Item = &'a mut DirectoryEntry;
@@ -332,15 +352,19 @@ impl<'a> Iterator for List<'a> {
     }
 }
 
+// ANCHOR: forest
 /// Лес, отвечающий за отображение блоков [`Inode`]
 /// в номера блоков файловой системы.
 type Forest = [usize; MAX_HEIGHT];
+// ANCHOR_END: forest
 
+// ANCHOR: find_leaf
 /// Вспомогательная функция для обхода леса отображения блоков [`Inode`].
 /// По заданному количеству `tree_count` деревьев в лесу и номеру блока с данными `leaf_number`
 /// выдает кортеж с номером нужного дерева, количеством листьев в этом дереве и номером листа
 /// в этом дереве, который соответствует листу `leaf_number` леса.
 fn find_leaf(leaf_in_forest: usize) -> Result<LeafCoordinates> {
+    // ANCHOR_END: find_leaf
     // TODO: your code here.
     unimplemented!();
 }
@@ -359,6 +383,7 @@ fn leaf_count_in_tree(tree_height: usize) -> usize {
     INDIRECT_BLOCK_ARITY.pow(tree_height.try_into().expect("the tree height is off the chart"))
 }
 
+// ANCHOR: remove_tree
 /// Удаляет из леса отображения блоков [`Inode`] дерево или поддерево,
 /// на которое указывает запись `node`.
 /// Высота поддерева передаётся в `height`.
@@ -368,10 +393,12 @@ fn remove_tree(
     height: usize,
     block_bitmap: &mut Bitmap,
 ) -> Result<()> {
+    // ANCHOR_END: remove_tree
     // TODO: your code here.
     unimplemented!();
 }
 
+// ANCHOR: traverse
 /// Обходит лес `forest` в поисках листа с координатами `leaf_coordinates`.
 /// Возвращает ссылку на запись с номером соответствующего блока данных [`Inode`],
 /// хранящуюся в самом [`Inode`] или в его косвенном блоке.
@@ -382,10 +409,12 @@ fn traverse<'a>(
     leaf_coordinates: LeafCoordinates,
     mut block_bitmap: Option<&mut Bitmap>,
 ) -> Result<&'a mut usize> {
+    // ANCHOR_END: traverse
     // TODO: your code here.
     unimplemented!();
 }
 
+// ANCHOR: next_level
 /// Возвращает срез потомков узла `node` в лесу отображения блоков [`Inode`].
 /// При необходимости, то есть когда `*node` равен [`NO_BLOCK`],
 /// выделяет косвенный блок для них из `block_bitmap` и заполняет его записями [`NO_BLOCK`].
@@ -393,6 +422,7 @@ fn next_level<'a>(
     node: &'a mut usize,
     block_bitmap: &mut Option<&mut Bitmap>,
 ) -> Result<&'a mut [usize]> {
+    // ANCHOR_END: next_level
     // TODO: your code here.
     unimplemented!();
 }
@@ -413,8 +443,10 @@ const_assert!(BLOCK_SIZE % mem::size_of::<Inode>() == 0);
 /// Арность дерева отображения блоков.
 const INDIRECT_BLOCK_ARITY: usize = BLOCK_SIZE / mem::size_of::<usize>();
 
+// ANCHOR: max_height
 /// Максимальная высота дерева отображения блоков.
 const MAX_HEIGHT: usize = 4;
+// ANCHOR_END: max_height
 
 /// Зарезервированный номер блока, означающий что блок не выделен.
 const NO_BLOCK: usize = 0;

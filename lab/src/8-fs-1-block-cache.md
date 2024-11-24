@@ -6,12 +6,7 @@
 [`kernel::fs::block_cache::BlockCache`](../../doc/kernel/fs/block_cache/struct.BlockCache.html):
 
 ```rust
-struct BlockCache {
-    cache: Block<Page>,
-    disk: Disk,
-    eviction_policy: Lru<usize, ()>,
-    stats: Stats,
-}
+{{#include ../../kernel/src/fs/block_cache.rs:block_cache}}
 ```
 
 Она является [синглтоном](https://en.wikipedia.org/wiki/Singleton_pattern)
@@ -59,11 +54,7 @@ struct BlockCache {
 инициализации блочного кэша
 
 ```rust
-fn BlockCache::init(
-    disk: Disk,
-    disk_block_count: usize,
-    cache_block_count: usize,
-) -> Result<()>
+{{#include ../../kernel/src/fs/block_cache.rs:init}}
 ```
 
 в файле
@@ -82,10 +73,7 @@ fn BlockCache::init(
 Реализуйте [метод](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.block_impl)
 
 ```rust
-fn block_impl(
-    &self,
-    block_number: usize,
-) -> Result<Block<Virt>>
+{{#include ../../kernel/src/fs/block_cache.rs:block_impl}}
 ```
 
 Он возвращает блок памяти блочного кэша,
@@ -97,9 +85,7 @@ fn block_impl(
 Реализуйте [метод](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.trap_handler)
 
 ```rust
-fn BlockCache::trap_handler(
-    info: &Info,
-) -> Result<bool>
+{{#include ../../kernel/src/fs/block_cache.rs:trap_handler}}
 ```
 
 в файле
@@ -120,10 +106,7 @@ fn BlockCache::trap_handler(
 Реализуйте [метод](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.flush_block_impl)
 
 ```rust
-fn BlockCache::flush_block_impl(
-    &mut self,
-    block_number: usize,
-) -> Result<()>
+{{#include ../../kernel/src/fs/block_cache.rs:flush_block_impl}}
 ```
 
 в файле
@@ -135,7 +118,19 @@ fn BlockCache::flush_block_impl(
 
 - Блок отображён в память. Это означает что к нему были обращения.
 - И помечен как [`PageTableFlags::DIRTY`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.DIRTY). То есть, в память были записи, а значит блок на диске потенциально содержит устаревшие данные. Если обращения к блоку были только на чтение, то данные в памяти такие же как на диске, и можно их не записывать. А процессор в этом случае не установит бит [`PageTableFlags::DIRTY`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.DIRTY).
-- После записи блока, сбросьте бит [`PageTableFlags::DIRTY`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.DIRTY). Он фактически означает одинаковость данных на диске и в памяти блочного кэша. Которая только что восстановлена. При этом нужно сбросить и соответствующую запись в [TLB](https://en.wikipedia.org/wiki/Translation_lookaside_buffer) с помощью функции [`kernel::memory::mmu::flush()`](../../doc/kernel/memory/mmu/fn.flush.html). Иначе процессор не узнает, что вы сбросили [`PageTableFlags::DIRTY`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.DIRTY) и не проставит его в таблице страниц при следующей записи. И обновлённый блок на диск записан не будет.
+
+После записи блока, сбросьте бит
+[`PageTableFlags::DIRTY`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.DIRTY).
+Он фактически означает неодинаковость данных на диске и в памяти блочного кэша.
+Которая только что устранена.
+При этом нужно сбросить и соответствующую запись в
+[TLB](https://en.wikipedia.org/wiki/Translation_lookaside_buffer)
+с помощью функции
+[`kernel::memory::mmu::flush()`](../../doc/kernel/memory/mmu/fn.flush.html).
+Иначе процессор не узнает, что вы сбросили
+[`PageTableFlags::DIRTY`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.DIRTY)
+и не проставит его в таблице страниц при следующей записи.
+А обновлённый блок на диск в следующий раз записан не будет.
 
 
 ### Проверьте себя

@@ -168,12 +168,14 @@ impl FileSystem {
         BlockCache::flush(self.superblock.blocks().end)
     }
 
+    // ANCHOR: open
     /// Проходит от корня файловой системы по заданному полному пути `path`.
     /// Возвращает [`File`], соответствующий этому `path`.
     pub fn open(
         &mut self,
         path: &str,
     ) -> Result<File> {
+        // ANCHOR_END: open
         // TODO: your code here.
         unimplemented!();
     }

@@ -21,6 +21,7 @@ use super::{
 #[allow(unused)]
 use ku::error::Error;
 
+// ANCHOR: superblock
 /// Суперблок
 /// ([superblock](https://en.wikipedia.org/wiki/Unix_File_System#Design))
 /// [файловой системы](https://en.wikipedia.org/wiki/File_system).
@@ -47,6 +48,7 @@ pub struct Superblock {
     /// Полное количество [`Inode`] в файловой системе, включая зарезервированные.
     inode_count: usize,
 }
+// ANCHOR_END: superblock
 
 const_assert!(mem::align_of::<Superblock>() == BLOCK_SIZE);
 const_assert!(mem::size_of::<Superblock>() == BLOCK_SIZE);

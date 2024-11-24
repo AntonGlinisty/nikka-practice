@@ -36,6 +36,7 @@ use super::{
     },
 };
 
+// ANCHOR: block_cache
 /// [Блочный кэш](https://en.wikipedia.org/wiki/Page_cache)
 /// для ускорения работы с диском за счёт кэширования блоков файловой системы в памяти.
 #[derive(Clone, Debug)]
@@ -52,8 +53,10 @@ pub struct BlockCache {
     /// Статистика работы блочного кэша.
     stats: Stats,
 }
+// ANCHOR_END: block_cache
 
 impl BlockCache {
+    // ANCHOR: init
     /// Инициализирует блочный кэш в
     /// [синглтоне](https://en.wikipedia.org/wiki/Singleton_pattern)
     /// [`struct@BLOCK_CACHE`].
@@ -67,6 +70,7 @@ impl BlockCache {
         block_count: usize,
         capacity: usize,
     ) -> Result<()> {
+        // ANCHOR_END: init
         // TODO: your code here.
         unimplemented!();
     }
@@ -112,10 +116,12 @@ impl BlockCache {
         }
     }
 
+    // ANCHOR: trap_handler
     /// Обрабатывает Page Fault, если адрес, который его вызвал, относится к блочному кэшу.
     /// Если это так и Page Fault успешно обработан, возвращает `true`.
     /// Если адрес, вызвавший Page Fault, не относится к блочному кэшу, возвращает `false`.
     pub(crate) fn trap_handler(info: &Info) -> Result<bool> {
+        // ANCHOR_END: trap_handler
         // TODO: your code here.
         Ok(false) // TODO: remove before flight.
     }
@@ -129,16 +135,19 @@ impl BlockCache {
         }
     }
 
+    // ANCHOR: block_impl
     /// Возвращает блок памяти блочного кэша,
     /// который отвечает блоку `block_number` диска.
     pub(super) fn block_impl(
         &self,
         block_number: usize,
     ) -> Result<Block<Virt>> {
+        // ANCHOR_END: block_impl
         // TODO: your code here.
         unimplemented!();
     }
 
+    // ANCHOR: flush_block_impl
     /// Записывает блок `block_number` на диск, если:
     ///
     /// - Блок отображён в память. Это означает, что к нему были обращения.
@@ -162,6 +171,7 @@ impl BlockCache {
         &mut self,
         block_number: usize,
     ) -> Result<()> {
+        // ANCHOR_END: flush_block_impl
         // TODO: your code here.
         unimplemented!();
     }

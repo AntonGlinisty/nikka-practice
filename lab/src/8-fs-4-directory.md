@@ -8,10 +8,9 @@
 [`kernel::fs::directory_entry::DirectoryEntry`](../../doc/kernel/fs/directory_entry/struct.DirectoryEntry.html):
 
 ```rust
-struct DirectoryEntry {
-    inode: usize,
-    name: [u8; MAX_NAME_LEN],
-}
+{{#include ../../kernel/src/fs/directory_entry.rs:directory_entry}}
+
+{{#include ../../kernel/src/fs/directory_entry.rs:max_name_len}}
 ```
 
 Отсутствующие или удалённые записи при этом имеют зарезервированный номер `inode` равный
@@ -42,12 +41,7 @@ struct DirectoryEntry {
 Он продвигает итератор
 
 ```rust
-struct Iter<'a> {
-    block: Block<Virt>,
-    block_number: usize,
-    entry: usize,
-    inode: &'a mut Inode,
-}
+{{#include ../../kernel/src/fs/inode.rs:iter}}
 ```
 
 по записям директории
@@ -76,15 +70,12 @@ struct Iter<'a> {
 [`kernel::fs::inode::Inode::insert()`](../../doc/kernel/fs/inode/struct.Inode.html#method.insert):
 
 ```rust
-fn Inode::find_entry(
-    &mut self,
-    name: &str,
-    bitmap: Option<&mut Bitmap>,
-) -> Result<&mut DirectoryEntry>
+{{#include ../../kernel/src/fs/inode.rs:find_entry}}
 ```
 
 Он находит запись в директории с именем `name`.
-Если такой записи нет, то верните свободную запись.
+Если такой записи нет, то верните свободную запись, ---
+[`DirectoryEntry::is_free()`](../../doc/kernel/fs/directory_entry/struct.DirectoryEntry.html#method.is_free).
 Если и таких нет, и при этом `bitmap` является `Some`, попробуйте расширить директорию
 и вернуть новую свободную запись.
 Директорию имеет смысл расширять несколькими записями сразу на один целый блок.
@@ -104,19 +95,15 @@ fn Inode::find_entry(
 Реализуйте [метод](../../doc/kernel/fs/inode/struct.Inode.html#method.insert)
 
 ```rust
-fn Inode::insert(
-    &mut self,
-    name: &str,
-    kind: Kind,
-    bitmap: &mut Bitmap,
-) -> Result<&mut Inode>
+{{#include ../../kernel/src/fs/inode.rs:insert}}
 ```
 
-Он вставляет в директорию запись с именем `name` и типом `kind`.
+Он вставляет в директорию запись с именем `name`.
 Если запись с таким именем уже есть, верните ошибку
 [`Error::FileExists`](../../doc/kernel/error/enum.Error.html#variant.FileExists).
-Используйте любую свободную запись.
-Не забудьте обновить как время модификации выделенной записи, так и время модификации самой директории.
+Используйте любую свободную запись ---
+[`DirectoryEntry::is_free()`](../../doc/kernel/fs/directory_entry/struct.DirectoryEntry.html#method.is_free).
+Не забудьте обновить время модификации директории.
 Используйте вспомогательный метод
 [`Inode::find_entry()`](../../doc/kernel/fs/inode/struct.Inode.html#method.find_entry).
 

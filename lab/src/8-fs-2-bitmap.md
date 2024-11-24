@@ -6,12 +6,7 @@
 [`kernel::fs::bitmap::Bitmap`](../../doc/kernel/fs/bitmap/struct.Bitmap.html):
 
 ```rust
-struct Bitmap {
-    bitmap: &'static mut [u64],
-    block: usize,
-    elements: Range<usize>,
-    cursor: usize,
-}
+{{#include ../../kernel/src/fs/bitmap.rs:bitmap}}
 ```
 
 Каждое значение в срезе
@@ -26,10 +21,7 @@ struct Bitmap {
 Доделайте [метод](../../doc/kernel/fs/bitmap/struct.Bitmap.html#method.format)
 
 ```rust
-fn format(
-    block: usize,
-    elements: Range<usize>,
-) -> Result<()>
+{{#include ../../kernel/src/fs/bitmap.rs:format}}
 ```
 
 в файле
@@ -42,9 +34,7 @@ fn format(
 Реализуйте [метод](../../doc/kernel/fs/bitmap/struct.Bitmap.html#method.allocate)
 
 ```rust
-fn Bitmap::allocate(
-    &mut self,
-) -> Result<usize>
+{{#include ../../kernel/src/fs/bitmap.rs:allocate}}
 ```
 
 в файле

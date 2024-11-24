@@ -26,6 +26,7 @@ use super::{
 #[allow(unused)]
 use ku::error::Error;
 
+// ANCHOR: bitmap
 /// [Битовая карта](https://en.wikipedia.org/wiki/Free-space_bitmap)
 /// для отслеживания какие именно элементы
 /// (блоки или [inode](https://en.wikipedia.org/wiki/Inode) для соответствующей битовой карты)
@@ -51,6 +52,7 @@ pub(super) struct Bitmap {
     /// Служит для ускорения аллокаций и равномерного распределения занятых элементов.
     cursor: usize,
 }
+// ANCHOR_END: bitmap
 
 impl Bitmap {
     /// Возвращает битовую карту файловой системы или ошибку [`Error::Medium`],
@@ -65,6 +67,7 @@ impl Bitmap {
         bitmap.validate()
     }
 
+    // ANCHOR: format
     /// Форматирует часть диска, начинающуюся с блока `block` и
     /// отведённую под битовую карту для `elements.end` элементов,
     /// его начальным состоянием.
@@ -76,6 +79,7 @@ impl Bitmap {
         block: usize,
         elements: Range<usize>,
     ) -> Result<()> {
+        // ANCHOR_END: format
         let bitmap = Self::new_unchecked(block, elements.clone());
 
         // TODO: your code here.
@@ -115,6 +119,7 @@ impl Bitmap {
         self.bitmap[number / Self::BITS_PER_ENTRY] &= !(1 << (number % Self::BITS_PER_ENTRY));
     }
 
+    // ANCHOR: allocate
     /// Находит по [`Bitmap::bitmap`] свободный элемент и выделяет его.
     /// Возвращает номер выделенного элемента или
     /// ошибку [`Error::NoDisk`], если свободных элементов не осталось.
@@ -126,6 +131,7 @@ impl Bitmap {
     /// Может опираться на то, что биты для элементов вне диапазона [`Bitmap::elements`]
     /// гарантированно выставлены в единицы, см. [`Bitmap::format()`].
     pub(super) fn allocate(&mut self) -> Result<usize> {
+        // ANCHOR_END: allocate
         // TODO: your code here.
         unimplemented!();
     }
