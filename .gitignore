@@ -9,6 +9,7 @@ doc/
 fs.img
 lab/book/
 lab/src/*.svg
+last_failed_*
 serial.out
 target
 target/

@@ -35,10 +35,13 @@ xmas-elf = "*"
 sentinel_frame = { path = "../sentinel_frame" }
 
 [dev-dependencies]
+anyhow = "*"
 duplicate = "*"
 nix = { version = "0.27.*", features = ["mman"] }
 rand = { version = "*", default-features = false, features = ["small_rng"] }
 rstest = "*"
+serde = { version = "*", default-features = false, features = ["alloc", "derive"] }
+serde_json = { version = "*", default-features = false, features = ["alloc"] }
 tracing-subscriber = { git = "https://github.com/tokio-rs/tracing", features = ["env-filter"] }
 
 [features]

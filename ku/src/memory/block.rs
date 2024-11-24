@@ -13,6 +13,11 @@ use core::{
     ptr::NonNull,
 };
 
+use serde::{
+    Deserialize,
+    Serialize,
+};
+
 use crate::error::{
     Error::InvalidArgument,
     Result,
@@ -53,7 +58,7 @@ use {
 /// - `Block<Page>` --- набор последовательных виртуальных страниц.
 ///
 /// [`Block`] не владеет описываемой им памятью.
-#[derive(Clone, Copy, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Block<T: Memory> {
     /// Номер первого элемента в блоке.
     start: usize,

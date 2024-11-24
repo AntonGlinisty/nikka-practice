@@ -2,9 +2,21 @@ use core::{
     arch::asm,
     fmt,
     mem,
+    result,
 };
 
 use bitflags::bitflags;
+use serde::{
+    Deserialize,
+    Deserializer,
+    Serialize,
+    Serializer,
+    de::{
+        self,
+        Unexpected,
+        Visitor,
+    },
+};
 use static_assertions::const_assert_eq;
 
 use crate::{
@@ -24,6 +36,7 @@ use super::{
         Frame,
         Page,
     },
+    size,
 };
 
 /// Запись таблицы страниц.
@@ -205,6 +218,43 @@ bitflags! {
 
         /// Запрет интерпретировать данные в странице как код, требует включения флага [`x86_64::registers::model_specific::EferFlags::NO_EXECUTE_ENABLE`] в [`x86_64::registers::model_specific::Efer`].
         const NO_EXECUTE = 1 << 63;
+    }
+}
+
+impl Serialize for PageTableFlags {
+    fn serialize<S: Serializer>(
+        &self,
+        serializer: S,
+    ) -> result::Result<S::Ok, S::Error> {
+        serializer.serialize_u64(size::into_u64(self.bits()))
+    }
+}
+
+impl<'de> Deserialize<'de> for PageTableFlags {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> result::Result<Self, D::Error> {
+        /// [`Visitor`] для десериализации [`PageTableFlags`].
+        struct PageTableFlagsVisitor;
+
+        impl<'de> Visitor<'de> for PageTableFlagsVisitor {
+            type Value = PageTableFlags;
+
+            fn expecting(
+                &self,
+                formatter: &mut fmt::Formatter,
+            ) -> fmt::Result {
+                formatter.write_str("a valid usize value")
+            }
+
+            fn visit_u64<E: de::Error>(
+                self,
+                value: u64,
+            ) -> result::Result<PageTableFlags, E> {
+                PageTableFlags::from_bits(size::from(value))
+                    .ok_or(de::Error::invalid_value(Unexpected::Unsigned(value), &self))
+            }
+        }
+
+        deserializer.deserialize_u64(PageTableFlagsVisitor)
     }
 }
 

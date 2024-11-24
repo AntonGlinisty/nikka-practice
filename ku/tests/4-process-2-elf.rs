@@ -6,15 +6,25 @@
 use std::{
     alloc::Layout,
     cmp,
+    fs,
     ops::Range,
+    panic,
 };
 
+use anyhow::{
+    Context,
+    bail,
+};
 use duplicate::duplicate_item;
 use rand::{
     Rng,
     SeedableRng,
     distributions::Alphanumeric,
     rngs::SmallRng,
+};
+use serde::{
+    Deserialize,
+    Serialize,
 };
 use xmas_elf::program::{
     FLAG_R,
@@ -211,8 +221,44 @@ fn t05_validate_order() {
     }
 }
 
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
+struct CombineTestCase {
+    curr: ElfRange,
+    next: ElfRange,
+}
+
 #[test]
-fn t06_stress_combine() {
+fn t06_0_rerun_last_failed_test() {
+    log::init();
+
+    if let Err(error) = read_file(TEST_CASE_PATH)
+        .and_then(|test_case| deserialize(&test_case))
+        .and_then(rerun)
+    {
+        trace!(
+            ?error,
+            file = TEST_CASE_PATH,
+            "could not read the last failed test case",
+        );
+    }
+
+    fn read_file(file: &str) -> anyhow::Result<String> {
+        fs::read_to_string(file).with_context(|| format!("failed to read file {file:?}"))
+    }
+
+    fn rerun(test_case: CombineTestCase) -> anyhow::Result<()> {
+        info!(?test_case, "rerunning the last failed test case");
+
+        if panic::catch_unwind(|| validate_combine(test_case.curr, test_case.next)).is_err() {
+            std::process::exit(1);
+        }
+
+        Ok(())
+    }
+}
+
+#[test]
+fn t06_1_stress_combine() {
     log::init();
 
     for curr in generate_blocks(0, 0 ..= 2, -2 ..= 2) {
@@ -223,36 +269,85 @@ fn t06_stress_combine() {
                 for next_flags in generate_flags() {
                     let curr = ElfRange::new(curr, curr_flags, 0 .. 0);
                     let next = ElfRange::new(next, next_flags, 0 .. 0);
-                    validate_combine(curr, next);
+
+                    let subtest_result = panic::catch_unwind(|| {
+                        validate_combine(curr.clone(), next.clone());
+                    });
+
+                    if let Err(err) = subtest_result {
+                        let test_case = CombineTestCase { curr, next };
+
+                        let serialized = serde_json::to_string_pretty(&test_case).unwrap();
+
+                        if let Err(error) = validate_serialization(&test_case, &serialized)
+                            .and_then(|_| write_file(TEST_CASE_PATH, serialized))
+                        {
+                            info!(?error, "could not write the failed test input");
+                        } else {
+                            info!(
+                                file = TEST_CASE_PATH,
+                                "saved the failed test case to the file",
+                            );
+                        }
+
+                        panic::resume_unwind(err);
+                    }
                 }
             }
         }
     }
 
-    fn validate_combine(
-        curr: ElfRange,
-        next: ElfRange,
-    ) {
-        let (curr_minus_next, boundary, updated_next) =
-            combine(curr.clone(), next.clone()).unwrap();
+    fn write_file(
+        file: &str,
+        string: String,
+    ) -> anyhow::Result<()> {
+        fs::write(file, string).with_context(|| format!("failed to write file {file:?}"))
+    }
 
-        trace!(%curr, %next, ?curr_minus_next, ?boundary, %updated_next, "check combine");
-
-        assert!(
-            !updated_next.memory.is_empty(),
-            "it is better to avoid corner cases arising from empty ranges",
-        );
-
-        for validate in [
-            validate_output_range,
-            validate_output_page_count,
-            validate_updated_next,
-            validate_curr_minus_next_and_boundary_presence,
-            validate_curr_minus_next,
-            validate_boundary,
-        ] {
-            validate(&curr, &next, &curr_minus_next, &boundary, &updated_next);
+    fn validate_serialization(
+        test_case: &CombineTestCase,
+        serialized: &str,
+    ) -> anyhow::Result<()> {
+        let deserialized = deserialize(serialized)?;
+        if &deserialized != test_case {
+            bail!(
+                "serialization error: test_case = {:?}, deserialized = {:?}",
+                test_case,
+                deserialized,
+            )
+        } else {
+            Ok(())
         }
+    }
+}
+
+fn deserialize(test_case: &str) -> anyhow::Result<CombineTestCase> {
+    serde_json::from_str::<CombineTestCase>(test_case)
+        .with_context(|| format!("failed to deserialize {test_case:?}"))
+}
+
+fn validate_combine(
+    curr: ElfRange,
+    next: ElfRange,
+) {
+    let (curr_minus_next, boundary, updated_next) = combine(curr.clone(), next.clone()).unwrap();
+
+    trace!(%curr, %next, ?curr_minus_next, ?boundary, %updated_next, "check combine");
+
+    assert!(
+        !updated_next.memory.is_empty(),
+        "it is better to avoid corner cases arising from empty ranges",
+    );
+
+    for validate in [
+        validate_output_range,
+        validate_output_page_count,
+        validate_updated_next,
+        validate_curr_minus_next_and_boundary_presence,
+        validate_curr_minus_next,
+        validate_boundary,
+    ] {
+        validate(&curr, &next, &curr_minus_next, &boundary, &updated_next);
     }
 
     fn validate_output_range(
@@ -1086,3 +1181,5 @@ unsafe impl BigAllocator for DummyAllocator {
         Ok(())
     }
 }
+
+const TEST_CASE_PATH: &str = "last_failed_t06_stress_combine.json";

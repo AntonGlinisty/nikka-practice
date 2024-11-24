@@ -22,6 +22,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyhow"
+version = "1.0.93"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c95c10ba0b00a02636238b814946408b1322d5ac4760326e6fb8ec956d85775"
+
+[[package]]
 name = "atomic-memcpy"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -505,6 +511,7 @@ dependencies = [
 name = "ku"
 version = "0.4.0"
 dependencies = [
+ "anyhow",
  "atomic-memcpy",
  "bitflags 2.6.0",
  "chrono",
@@ -524,6 +531,7 @@ dependencies = [
  "scopeguard",
  "sentinel_frame",
  "serde",
+ "serde_json",
  "spin",
  "static_assertions",
  "tracing",

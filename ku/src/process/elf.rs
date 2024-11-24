@@ -429,6 +429,10 @@ pub(super) mod test_scaffolding {
     use core::ops::Range;
 
     use derive_more::Display;
+    use serde::{
+        Deserialize,
+        Serialize,
+    };
     use xmas_elf::program::{
         ProgramHeader,
         ProgramHeader64,
@@ -487,7 +491,7 @@ pub(super) mod test_scaffolding {
         }
     }
 
-    #[derive(Clone, Debug, Default, Display, Eq, PartialEq)]
+    #[derive(Clone, Debug, Default, Deserialize, Display, Eq, PartialEq, Serialize)]
     #[display(
         "{{ memory: {}, flags: {}, file_range: {:#X?} }}",
         memory,
