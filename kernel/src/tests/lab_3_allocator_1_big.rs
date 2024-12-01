@@ -27,10 +27,17 @@ use ku::{
         Initialize,
     },
     error::{
-        Error::NoPage,
+        Error::{
+            InvalidArgument,
+            NoPage,
+            PermissionDenied,
+        },
         Result,
     },
-    memory::block::Memory,
+    memory::{
+        KERNEL_RW,
+        block::Memory,
+    },
 };
 
 use kernel::{
@@ -56,8 +63,10 @@ use kernel::{
             Size,
         },
         test_scaffolding::{
+            PAGES_PER_ROOT_LEVEL_ENTRY,
             forbid_frame_leaks,
             mapping,
+            user_root_level_entries,
         },
     },
 };
@@ -349,6 +358,103 @@ fn copy_mapping_same_block() {
     };
 
     assert!(slice.iter().all(|&x| x == value));
+}
+
+#[test_case]
+fn copy_mapping_corner_cases() {
+    let start = user_root_level_entries().start * PAGES_PER_ROOT_LEVEL_ENTRY;
+
+    let big_1 = Block::from_index(start + 5, start + 10).unwrap();
+    let big_2 = Block::from_index(start + 8, start + 13).unwrap();
+    let small_1 = Block::from_index(start, start + 1).unwrap();
+    let small_2 = Block::from_index(start + 6, start + 7).unwrap();
+
+    for block in [small_1, small_2, big_1, big_2] {
+        let mut address_space = BASE_ADDRESS_SPACE.lock();
+        unsafe {
+            address_space.allocator(USER_RW).map(block, USER_RW).unwrap();
+        }
+    }
+
+    for (old_block, new_block) in [
+        (big_1, big_2),
+        (big_1, small_1),
+        (big_1, small_2),
+        (small_1, big_1),
+        (small_2, big_1),
+    ] {
+        for flags in [None, Some(USER_R), Some(KERNEL_RW)] {
+            validate_copy_mapping(old_block, new_block, flags, Err(InvalidArgument));
+        }
+    }
+
+    for (flags, expected) in [
+        (None, Err(InvalidArgument)),
+        (Some(USER_R), Ok(())),
+        (Some(KERNEL_RW), Err(PermissionDenied)),
+    ] {
+        validate_copy_mapping(small_1, small_1, flags, expected);
+    }
+
+    for (flags, expected) in [
+        (None, Ok(())),
+        (Some(USER_R), Ok(())),
+        (Some(KERNEL_RW), Err(PermissionDenied)),
+    ] {
+        validate_copy_mapping(small_1, small_2, flags, expected);
+    }
+
+    fn validate_copy_mapping(
+        old_block: Block<Page>,
+        new_block: Block<Page>,
+        flags: Option<PageTableFlags>,
+        expected_result: Result<()>,
+    ) {
+        let blocks_message = if old_block == new_block {
+            "the same block"
+        } else if old_block.size() == new_block.size() {
+            if old_block.is_disjoint(new_block) {
+                "disjoint blocks of the same size"
+            } else {
+                "different intersecting blocks of the same size"
+            }
+        } else if old_block.contains_block(new_block) {
+            "old block is a strict superblock"
+        } else if new_block.contains_block(old_block) {
+            "new block is a strict superblock"
+        } else {
+            "block size differs"
+        };
+
+        let flags_message = if let Some(flags) = flags {
+            if flags.contains(PageTableFlags::USER_ACCESSIBLE) {
+                "allowed"
+            } else {
+                "disallowed"
+            }
+        } else {
+            "no"
+        };
+
+        debug!(
+            ?expected_result,
+            %old_block,
+            %new_block,
+            ?flags,
+            "{}, {} flags",
+            blocks_message,
+            flags_message,
+        );
+
+        let actual_result = unsafe {
+            BASE_ADDRESS_SPACE
+                .lock()
+                .allocator(USER_RW)
+                .copy_mapping(old_block, new_block, flags)
+        };
+
+        assert_eq!(actual_result, expected_result);
+    }
 }
 
 #[test_case]
