@@ -118,6 +118,7 @@ impl Phys2Virt {
         }
     }
 
+    // ANCHOR: make
     /// Создаёт отображение [`Phys2Virt`] всей физической памяти `physical_memory`
     /// (см. [`kernel::memory::range::physical()`]),
     /// используя рекурсивную запись `recursive_mapping`.
@@ -143,6 +144,7 @@ impl Phys2Virt {
         physical_memory: Block<Frame>,
         recursive_mapping: usize,
     ) -> Result<Self> {
+        // ANCHOR_END: make
         if recursive_mapping == 0 || recursive_mapping >= PAGE_TABLE_ENTRY_COUNT {
             return Err(InvalidArgument);
         }
