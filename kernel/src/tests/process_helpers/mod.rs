@@ -1,5 +1,9 @@
 #![allow(dead_code)]
 
+extern crate alloc;
+
+use alloc::vec::Vec;
+
 use xmas_elf::ElfFile;
 
 use ku::sync::spinlock::SpinlockGuard;
@@ -20,6 +24,10 @@ use kernel::{
         Process,
         Table,
         test_scaffolding,
+    },
+    trap::{
+        TRAP_STATS,
+        Trap,
     },
 };
 
@@ -98,6 +106,41 @@ fn check(
         !pte.flags().contains(PageTableFlags::NO_EXECUTE),
         "the entry point is not executable",
     );
+}
+
+#[must_use]
+pub(super) fn forbid_traps() -> impl Drop {
+    forbid_traps_except(&[])
+}
+
+#[must_use]
+pub(super) fn forbid_traps_except(allowed_traps: &[Trap]) -> impl Drop {
+    return scopeguard::guard(trap_counts(), |start_trap_counts| {
+        let end_trap_counts = trap_counts();
+        for ((trap, start_count), (same_trap, end_count)) in
+            start_trap_counts.into_iter().zip(end_trap_counts)
+        {
+            if allowed_traps.iter().all(|&allowed_trap| allowed_trap != trap) {
+                assert_eq!(trap, same_trap);
+                assert!(start_count <= end_count);
+
+                assert_eq!(
+                    start_count,
+                    end_count,
+                    "unexpected trap {:?} fired {} times",
+                    trap,
+                    end_count - start_count,
+                );
+            }
+        }
+    });
+
+    fn trap_counts() -> Vec<(Trap, usize)> {
+        enum_iterator::all::<Trap>()
+            .filter(|&trap| trap <= Trap::SecurityException)
+            .map(|trap| (trap, TRAP_STATS[trap].count()))
+            .collect()
+    }
 }
 
 #[macro_export]

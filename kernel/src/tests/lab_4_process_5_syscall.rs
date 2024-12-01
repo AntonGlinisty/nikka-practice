@@ -20,6 +20,8 @@ const LOG_VALUE_ELF: &[u8] = page_aligned!("../../target/kernel/user/log_value")
 
 #[test_case]
 fn syscall_exit() {
+    let _trap_guard = process_helpers::forbid_traps();
+
     let mut process = process_helpers::dummy_allocate(EXIT_ELF);
 
     test_scaffolding::disable_interrupts(&mut process);
@@ -47,6 +49,8 @@ fn syscall_exit() {
 
 #[test_case]
 fn syscall_log_value() {
+    let _trap_guard = process_helpers::forbid_traps();
+
     let mut process = process_helpers::dummy_allocate(LOG_VALUE_ELF);
 
     test_scaffolding::disable_interrupts(&mut process);

@@ -39,6 +39,7 @@ sentinel_frame = { path = "../sentinel_frame" }
 text = { path = "../text" }
 
 [dev-dependencies]
+enum-iterator = "*"
 introsort = { version = "*", default-features = false }
 xmas-elf = "*"
 

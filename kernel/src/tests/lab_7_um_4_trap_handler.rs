@@ -21,6 +21,7 @@ const TRAP_HANDLER_ELF: &[u8] = page_aligned!("../../target/kernel/user/trap_han
 
 #[test_case]
 fn trap_handler() {
+    let _trap_guard = process_helpers::forbid_traps_except(&[Trap::PageFault]);
     let _guard = forbid_frame_leaks();
 
     let pid = process_helpers::allocate(TRAP_HANDLER_ELF).pid();

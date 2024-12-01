@@ -3,6 +3,7 @@ use core::{
     mem,
 };
 
+use enum_iterator::Sequence;
 use memoffset::offset_of;
 use num_enum::{
     IntoPrimitive,
@@ -24,7 +25,9 @@ use super::{
 };
 
 /// Исключение или прерывание.
-#[derive(Clone, Copy, Debug, Eq, IntoPrimitive, PartialEq, TryFromPrimitive)]
+#[derive(
+    Clone, Copy, Debug, Eq, IntoPrimitive, Ord, PartialEq, PartialOrd, Sequence, TryFromPrimitive,
+)]
 #[repr(usize)]
 pub enum Trap {
     /// [Exceptions: Division Error](https://wiki.osdev.org/Exception#Division_Error)

@@ -42,6 +42,8 @@ const COW_FORK_ELF: &[u8] = page_aligned!("../../target/kernel/user/cow_fork");
 
 #[test_case]
 fn cow_fork() {
+    let _trap_guard = process_helpers::forbid_traps_except(&[Trap::PageFault]);
+
     static START_FREE_FRAMES: AtomicUsize = AtomicUsize::new(0);
     static ONE_PROCESS_FRAMES: AtomicUsize = AtomicUsize::new(0);
     static PARENTS: Spinlock<Vec<(Pid, Pid)>> = Spinlock::new(Vec::new());

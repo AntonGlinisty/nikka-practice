@@ -401,6 +401,7 @@ fn copy_mapping_of_enormous_blocks() {
 
 #[test_case]
 fn user_space_memory_allocator() {
+    let _trap_guard = process_helpers::forbid_traps();
     let _guard = forbid_frame_leaks();
 
     Scheduler::enqueue(process_helpers::allocate(MEMORY_ALLOCATOR_ELF).pid());

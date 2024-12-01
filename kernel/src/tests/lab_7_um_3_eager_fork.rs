@@ -51,6 +51,7 @@ const EXIT_ELF: &[u8] = page_aligned!("../../target/kernel/user/exit");
 
 #[test_case]
 fn t1_exofork_syscall() {
+    let _trap_guard = process_helpers::forbid_traps_except(&[Trap::PageFault]);
     let _guard = forbid_frame_leaks();
 
     let mut parent = process_helpers::allocate(EXIT_ELF);
@@ -129,6 +130,8 @@ fn t1_exofork_syscall() {
 
 #[test_case]
 fn t2_eager_fork() {
+    let _trap_guard = process_helpers::forbid_traps();
+
     let start_page_fault_count = TRAP_STATS[Trap::PageFault].count();
 
     static PARENTS: Spinlock<Vec<(Pid, Pid)>> = Spinlock::new(Vec::new());

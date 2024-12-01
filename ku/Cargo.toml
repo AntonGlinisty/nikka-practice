@@ -15,6 +15,7 @@ atomic-memcpy = "*"
 bitflags = "*"
 chrono = { version = "*", default-features = false }
 derive_more = { version = "*", default-features = false, features = ["full"] }
+enum-iterator = "*"
 heapless = "*"
 itertools = { version = "*", default-features = false }
 memoffset = { version = "*", features = ["unstable_const"] }

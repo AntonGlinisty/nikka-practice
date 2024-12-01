@@ -20,11 +20,12 @@ mod process_helpers;
 init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::PROCESS);
 
 const EXIT_ELF: &[u8] = page_aligned!("../../target/kernel/user/exit");
-const PAGE_FAULT_ELF: &[u8] = page_aligned!("../../target/kernel/user/page_fault");
+const LOG_VALUE_ELF: &[u8] = page_aligned!("../../target/kernel/user/log_value");
 const SCHED_YIELD_ELF: &[u8] = page_aligned!("../../target/kernel/user/sched_yield");
 
 #[test_case]
 fn syscall_sched_yield() {
+    let _trap_guard = process_helpers::forbid_traps();
     let _guard = forbid_frame_leaks();
 
     let mut process = process_helpers::allocate(SCHED_YIELD_ELF);
@@ -62,15 +63,17 @@ fn syscall_sched_yield() {
 
 #[test_case]
 fn scheduler() {
+    let _trap_guard = process_helpers::forbid_traps();
+
     let exit_pid = process_helpers::allocate(EXIT_ELF).pid();
-    let page_fault_pid = process_helpers::allocate(PAGE_FAULT_ELF).pid();
+    let log_value_pid = process_helpers::allocate(LOG_VALUE_ELF).pid();
 
     Scheduler::enqueue(exit_pid);
-    Scheduler::enqueue(page_fault_pid);
+    Scheduler::enqueue(log_value_pid);
 
     while Scheduler::run_one() {}
 
     Table::get(exit_pid).expect_err("the 'exit' process was not run up to its completion");
-    Table::get(page_fault_pid)
-        .expect_err("the 'page_fault' process was not run up to its completion");
+    Table::get(log_value_pid)
+        .expect_err("the 'log_value' process was not run up to its completion");
 }
