@@ -24,6 +24,7 @@ use crate::{
             VirtTag,
         },
     },
+    process::MiniContext,
 };
 
 pub use callsite::Callsite;
@@ -91,19 +92,7 @@ impl Backtrace {
         rbp: usize,
         rsp: usize,
     ) -> Result<Self> {
-        let lower_limit = Virt::new(rsp)?;
-        let stack_size = if cfg!(feature = "conservative-backtraces") {
-            1
-        } else {
-            32 * Page::SIZE
-        };
-        let stack = Block::from_index(rbp, rbp + stack_size)?.enclosing().into();
-
-        Ok(Self {
-            lower_limit,
-            stack,
-            stack_frame: StackFrame::new(rbp)?,
-        })
+        Self::new_impl(rbp, rsp, StackFrame::new(rbp)?)
     }
 
     /// Возвращает ошибку, так как для получения трассировки стека нужен ассемблер.
@@ -133,6 +122,25 @@ impl Backtrace {
         Self::new(rbp(), rsp)
     }
 
+    /// Возвращает трассировку стека по значениям регистров `rbp` и контексту `context`,
+    /// который указывает на самый вложенный фрейм.
+    ///
+    /// Мы указываем компилятору выполнить встраивание этой функции,
+    /// чтобы не порождать дополнительный стековый фрейм под её вызов и не захламлять трассировку стека.
+    /// В результате, функция вызвавшая [`Backtrace::current()`], в него не попадёт.
+    #[inline(always)]
+    pub fn with_context(
+        rbp: usize,
+        context: MiniContext,
+    ) -> Result<Self> {
+        let stack_frame = StackFrame {
+            outer: NonZeroUsize::new(rbp),
+            return_address: NonZeroUsize::new(context.rip().into_usize()),
+        };
+
+        Self::new_impl(rbp, context.rsp().into_usize(), stack_frame)
+    }
+
     /// Возвращает трассировку текущего стека.
     ///
     /// `stack` --- текущий стек, знание которого позволяет найти конец списка стековых фреймов.
@@ -145,6 +153,33 @@ impl Backtrace {
         let mut backtrace = Self::current()?;
         backtrace.stack = stack;
         Ok(backtrace)
+    }
+
+    /// Возвращает трассировку стека по значениям регистров `rbp` и `rsp`,
+    /// и с самым вложенным фреймом `stack_frame`.
+    ///
+    /// Мы указываем компилятору выполнить встраивание этой функции,
+    /// чтобы не порождать дополнительный стековый фрейм под её вызов и не захламлять трассировку стека.
+    /// В результате, функция вызвавшая [`Backtrace::current()`], в него не попадёт.
+    #[inline(always)]
+    fn new_impl(
+        rbp: usize,
+        rsp: usize,
+        stack_frame: StackFrame,
+    ) -> Result<Self> {
+        let lower_limit = Virt::new(rsp)?;
+        let stack_size = if cfg!(feature = "conservative-backtraces") {
+            1
+        } else {
+            32 * Page::SIZE
+        };
+        let stack = Block::from_index(rbp, rbp + stack_size)?.enclosing().into();
+
+        Ok(Self {
+            lower_limit,
+            stack,
+            stack_frame,
+        })
     }
 }
 

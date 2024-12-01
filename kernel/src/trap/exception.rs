@@ -178,8 +178,8 @@ extern "C" fn generic_trap(
             Err(error) => error!(?error, "failed to handle a page fault in the block cache"),
         }
 
-        let rsp = context.get().mini_context().rsp().into_usize();
-        let backtrace = Backtrace::new(rbp, rsp).unwrap_or_default();
+        let backtrace =
+            Backtrace::with_context(rbp, context.get().mini_context()).unwrap_or_default();
 
         if fatal {
             panic!(
