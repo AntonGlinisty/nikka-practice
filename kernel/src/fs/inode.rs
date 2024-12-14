@@ -5,7 +5,10 @@ use core::{
     },
     fmt,
     iter::Filter,
-    mem,
+    mem::{
+        self,
+        MaybeUninit,
+    },
     ops::Add,
 };
 
@@ -289,14 +292,6 @@ impl Inode {
         assert!(inode_block_number < self.size.div_ceil(BLOCK_SIZE));
         BlockCache::block(*self.block_entry(inode_block_number, None)?)
     }
-
-    /// Расширяет директорию свободными записями на один блок.
-    fn extend(
-        &mut self,
-        block_bitmap: &mut Bitmap,
-    ) -> Result<()> {
-        self.set_size(self.size() + BLOCK_SIZE, block_bitmap)
-    }
 }
 
 impl fmt::Display for Inode {
@@ -331,6 +326,38 @@ pub(super) struct Iter<'a> {
     inode: &'a mut Inode,
 }
 // ANCHOR_END: iter
+
+impl<'a> Iter<'a> {
+    /// Расширяет директорию свободными записями на один блок.
+    fn extend(
+        &mut self,
+        block_bitmap: &mut Bitmap,
+    ) -> Result<()> {
+        let block_number = self.inode.size() / BLOCK_SIZE;
+
+        self.inode.set_size(self.inode.size() + BLOCK_SIZE, block_bitmap)?;
+
+        let block = self.inode.block(block_number)?;
+
+        let entries = unsafe {
+            MaybeUninit::slice_assume_init_mut(
+                block
+                    .try_into_mut_slice::<MaybeUninit<DirectoryEntry>>()
+                    .expect(Self::BAD_MEMORY_BLOCK),
+            )
+        };
+        for entry in entries.iter_mut() {
+            entry.set_free();
+        }
+
+        Ok(())
+    }
+
+    /// Блок виртуальных адресов не подходит для хранения массива [`DirectoryEntry`].
+    /// Возможно, есть проблема с размером самой [`DirectoryEntry`] ---
+    /// он должен делить [`BLOCK_SIZE`] нацело.
+    const BAD_MEMORY_BLOCK: &'static str = "bad memory block for directory entries";
+}
 
 impl<'a> Iterator for Iter<'a> {
     type Item = &'a mut DirectoryEntry;

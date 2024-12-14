@@ -86,7 +86,7 @@
 и соответствующим
 [`Iter::next()`](../../doc/kernel/fs/inode/struct.Iter.html#method.next).
 Также вам может пригодиться метод
-[`Inode::extend()`](../../doc/kernel/fs/inode/struct.Inode.html#method.extend),
+[`Iter::extend()`](../../doc/kernel/fs/inode/struct.Iter.html#method.extend),
 который расширяет директорию на один блок.
 
 
