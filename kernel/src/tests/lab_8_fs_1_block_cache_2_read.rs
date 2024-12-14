@@ -36,7 +36,7 @@ fn read_what_was_written() {
         let expected = if block % 2 == 0 {
             i
         } else {
-            0
+            INVALID_DISK_PATTERN
         };
         if *actual != expected || i % 777 == 0 {
             debug!(i, block, actual, expected);
@@ -49,3 +49,4 @@ fn read_what_was_written() {
 
 const FS_DISK: usize = 1;
 const FS_SIZE: usize = 32 * MiB;
+const INVALID_DISK_PATTERN: usize = 0xAAAA_AAAA_AAAA_AAAA;
