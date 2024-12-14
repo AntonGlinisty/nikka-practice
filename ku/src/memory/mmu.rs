@@ -39,6 +39,10 @@ use super::{
     size,
 };
 
+// Used in docs.
+#[allow(unused)]
+use crate::error::Error;
+
 /// Запись таблицы страниц.
 ///
 /// Аналогична [`x86_64::structures::paging::page_table::PageTableEntry`].
@@ -68,6 +72,11 @@ impl PageTableEntry {
     }
 
     /// Физический фрейм, на который указывает эта запись.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::NoPage`] --- эта запись не используется,
+    ///   то есть, сброшен бит [`PageTableFlags::PRESENT`].
     pub fn frame(&self) -> Result<Frame> {
         if self.is_present() {
             Ok(Frame::new(self.phys()).unwrap())

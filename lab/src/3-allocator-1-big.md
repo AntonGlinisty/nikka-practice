@@ -50,6 +50,9 @@ unsafe fn copy_mapping(
 за исключением случая совпадения при `flags == Some(...)`,
 метод `copy_mapping()` возвращает ошибку
 [`Error::InvalidArgument`](../../doc/ku/error/enum.Error.html#variant.InvalidArgument).
+Если запрошенные флаги `flags` не допускаются этим аллокатором, метод возвращает ошибку
+[`Error::PermissionDenied`](../../doc/ku/error/enum.Error.html#variant.PermissionDenied).
+
 Когда выходной блок совпадает со входным и `flags == Some(...)`,
 нужно поменять флаги отображения блока, не меняя целевые фреймы отображения.
 Этот случай нам ещё понадобится при загрузке ELF--файла процесса в следующей лабораторной работе.
