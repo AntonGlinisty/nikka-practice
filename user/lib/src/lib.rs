@@ -39,7 +39,7 @@ use core::{
     },
 };
 
-use static_assertions::const_assert;
+use static_assertions::const_assert_eq;
 use tracing_core::{
     Level,
     dispatch,
@@ -115,7 +115,10 @@ fn panic(panic_info: &PanicInfo) -> ! {
     let panic_handler = PANIC_HANDLER.load(Ordering::Relaxed);
     if !panic_handler.is_null() {
         unsafe {
-            const_assert!(mem::size_of::<*const ()>() == mem::size_of::<fn(&PanicInfo)>());
+            const_assert_eq!(
+                mem::size_of::<*const ()>(),
+                mem::size_of::<fn(&PanicInfo)>(),
+            );
             let panic_handler = mem::transmute::<*const (), fn(&PanicInfo)>(panic_handler);
             (panic_handler)(panic_info);
         }

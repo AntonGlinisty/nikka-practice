@@ -8,7 +8,7 @@ use core::{
     },
 };
 
-use static_assertions::const_assert;
+use static_assertions::const_assert_eq;
 use tracing_core::Level;
 
 use ku::{
@@ -279,7 +279,7 @@ extern "C" fn trap_handler_invoker(
     let trap_handler = TRAP_HANDLER.load(Ordering::Relaxed);
     if !trap_handler.is_null() {
         unsafe {
-            const_assert!(mem::size_of::<*const ()>() == mem::size_of::<fn(&TrapInfo)>());
+            const_assert_eq!(mem::size_of::<*const ()>(), mem::size_of::<fn(&TrapInfo)>());
             let trap_handler = mem::transmute::<*const (), fn(&TrapInfo)>(trap_handler);
             (trap_handler)(info);
         }

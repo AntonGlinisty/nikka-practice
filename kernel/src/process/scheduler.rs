@@ -97,7 +97,7 @@ pub mod test_scaffolding {
         },
     };
 
-    use static_assertions::const_assert;
+    use static_assertions::const_assert_eq;
     use x86_64::instructions;
 
     use super::{
@@ -121,7 +121,7 @@ pub mod test_scaffolding {
         let handler = HANDLER.load(Ordering::Relaxed);
         if !handler.is_null() {
             unsafe {
-                const_assert!(mem::size_of::<*const ()>() == mem::size_of::<fn()>());
+                const_assert_eq!(mem::size_of::<*const ()>(), mem::size_of::<fn()>());
                 let handler = mem::transmute::<*const (), fn()>(handler);
                 (handler)();
             }

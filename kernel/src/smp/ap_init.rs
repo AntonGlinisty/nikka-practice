@@ -12,7 +12,7 @@ use core::{
 
 use chrono::Duration;
 use memoffset::offset_of;
-use static_assertions::const_assert;
+use static_assertions::const_assert_eq;
 use x86::msr::IA32_EFER;
 use x86_64::{
     instructions::interrupts,
@@ -227,7 +227,7 @@ struct BootStack {
     gdt: SmallGdt,
 }
 
-const_assert!(offset_of!(BootStack, cpu) % mem::size_of::<Virt>() == 0);
+const_assert_eq!(offset_of!(BootStack, cpu) % mem::size_of::<Virt>(), 0);
 
 impl BootStack {
     /// Подготавливает временный стек для функции [`switch_from_real_mode_to_long_mode()`].

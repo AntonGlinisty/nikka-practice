@@ -535,7 +535,7 @@ pub(super) mod test_scaffolding {
         },
     };
 
-    use static_assertions::const_assert;
+    use static_assertions::const_assert_eq;
 
     use super::{
         super::registers::test_scaffolding,
@@ -567,7 +567,7 @@ pub(super) mod test_scaffolding {
         let pid_callback = PID_CALLBACK.load(Ordering::Relaxed);
         if !pid_callback.is_null() {
             unsafe {
-                const_assert!(mem::size_of::<*const ()>() == mem::size_of::<fn(&Process)>());
+                const_assert_eq!(mem::size_of::<*const ()>(), mem::size_of::<fn(&Process)>());
                 let pid_callback = mem::transmute::<*const (), fn(&Process)>(pid_callback);
                 (pid_callback)(process);
             }

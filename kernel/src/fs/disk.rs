@@ -8,7 +8,7 @@ use core::{
 use bitflags::bitflags;
 use chrono::Duration;
 use derive_more::Display;
-use static_assertions::const_assert;
+use static_assertions::const_assert_eq;
 use x86::io;
 
 use ku::{
@@ -312,7 +312,7 @@ pub(super) const SECTOR_SIZE: usize = 1 << 9;
 /// Тайм-аут ожидания готовности диска к приёму команды в секундах.
 const TIMEOUT_IN_SECONDS: i64 = 10;
 
-const_assert!(SECTOR_SIZE % mem::size_of::<u32>() == 0);
+const_assert_eq!(SECTOR_SIZE % mem::size_of::<u32>(), 0);
 
 bitflags! {
     /// [PATA](https://en.wikipedia.org/wiki/Parallel_ATA)--команда работы с диском.

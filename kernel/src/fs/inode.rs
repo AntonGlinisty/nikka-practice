@@ -16,7 +16,7 @@ use chrono::{
     DateTime,
     Utc,
 };
-use static_assertions::const_assert;
+use static_assertions::const_assert_eq;
 
 use ku::{
     error::{
@@ -464,8 +464,8 @@ struct LeafCoordinates {
     tree: usize,
 }
 
-const_assert!(BLOCK_SIZE % mem::size_of::<usize>() == 0);
-const_assert!(BLOCK_SIZE % mem::size_of::<Inode>() == 0);
+const_assert_eq!(BLOCK_SIZE % mem::size_of::<usize>(), 0);
+const_assert_eq!(BLOCK_SIZE % mem::size_of::<Inode>(), 0);
 
 /// Арность дерева отображения блоков.
 const INDIRECT_BLOCK_ARITY: usize = BLOCK_SIZE / mem::size_of::<usize>();

@@ -3,7 +3,7 @@ use core::{
     ops::Range,
 };
 
-use static_assertions::const_assert;
+use static_assertions::const_assert_eq;
 
 use ku::error::{
     Error::Medium,
@@ -50,8 +50,8 @@ pub struct Superblock {
 }
 // ANCHOR_END: superblock
 
-const_assert!(mem::align_of::<Superblock>() == BLOCK_SIZE);
-const_assert!(mem::size_of::<Superblock>() == BLOCK_SIZE);
+const_assert_eq!(mem::align_of::<Superblock>(), BLOCK_SIZE);
+const_assert_eq!(mem::size_of::<Superblock>(), BLOCK_SIZE);
 
 impl Superblock {
     /// Возвращает суперблок файловой системы или ошибку [`Error::Medium`],

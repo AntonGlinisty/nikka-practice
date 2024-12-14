@@ -6,7 +6,7 @@ use core::{
 
 use bitflags::bitflags;
 use chrono::Duration;
-use static_assertions::const_assert;
+use static_assertions::const_assert_eq;
 
 use ku::time;
 
@@ -122,7 +122,7 @@ pub(crate) struct LocalApic {
     _6: [Register; 1],
 }
 
-const_assert!(mem::size_of::<LocalApic>() == Page::SIZE);
+const_assert_eq!(mem::size_of::<LocalApic>(), Page::SIZE);
 
 impl LocalApic {
     /// Инициализирует виртуальную страницу для [`LocalApic`] нулями.

@@ -4,7 +4,7 @@ use core::{
 };
 
 use number_prefix::NumberPrefix;
-use static_assertions::const_assert;
+use static_assertions::const_assert_eq;
 
 use crate::error::{
     Error,
@@ -38,14 +38,14 @@ where
 /// Преобразует [`u64`] в [`usize`],
 /// проверяя что эти типы имеют одинаковый размер на этапе компиляции.
 pub const fn into_usize(x: u64) -> usize {
-    const_assert!(mem::size_of::<u64>() == mem::size_of::<usize>());
+    const_assert_eq!(mem::size_of::<u64>(), mem::size_of::<usize>());
     x as usize
 }
 
 /// Преобразует [`usize`] в [`u64`],
 /// проверяя что эти типы имеют одинаковый размер на этапе компиляции.
 pub const fn into_u64(x: usize) -> u64 {
-    const_assert!(mem::size_of::<u64>() == mem::size_of::<usize>());
+    const_assert_eq!(mem::size_of::<u64>(), mem::size_of::<usize>());
     x as u64
 }
 

@@ -297,7 +297,7 @@ impl Step for Page {
 
 #[cfg(test)]
 mod test {
-    use static_assertions::const_assert;
+    use static_assertions::const_assert_eq;
 
     use super::{
         super::{
@@ -314,7 +314,7 @@ mod test {
         Page,
     };
 
-    const_assert!(Page::SIZE == 1 << PAGE_OFFSET_BITS);
+    const_assert_eq!(Page::SIZE, 1 << PAGE_OFFSET_BITS);
 
     fn frage_alignment_check<T: Tag>() {
         for offset in 1 .. Frage::<T>::SIZE {

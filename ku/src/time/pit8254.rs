@@ -1,4 +1,4 @@
-use static_assertions::const_assert;
+use static_assertions::const_assert_eq;
 
 use crate::system_info;
 
@@ -15,7 +15,7 @@ pub const DIVISOR: u32 = BASE / TICKS_PER_SECOND;
 /// Выбрана так, чтобы делить базовую частоту PIT без остатка.
 pub const TICKS_PER_SECOND: u32 = 2 * 2 * 5;
 
-const_assert!(TICKS_PER_SECOND * DIVISOR == BASE);
+const_assert_eq!(TICKS_PER_SECOND * DIVISOR, BASE);
 
 /// Устаревший
 /// [программируемый таймер](https://en.wikipedia.org/wiki/Programmable_interval_timer)
