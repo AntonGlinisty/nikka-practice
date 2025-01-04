@@ -5,28 +5,27 @@ digraph diagram {
 
     fontname="Helvetica,Arial,sans-serif"
 
-    node [fontname = "Helvetica,Arial,sans-serif"; width = 2.0; height = 1.0; style = filled; fillcolor = "#CCCCCC"]
-    edge [arrowhead = vee; fontname="Helvetica,Arial,sans-serif"]
+    node [shape = box; width = 1.0; height = 0.5; style = filled; fillcolor = "#CCCCCC"]
+    edge [arrowhead = vee]
 
-    Virt [label = "Virt / Block::<Virt> / Block::<Page>"]
+    Virt [label = "\nVirt\n\nBlock::<Virt>\n\nBlock::<Page>\n "]
 
     const_ptr [label = "*const T"]
     const_ref [label = "&T"]
-    left_blank [style = invis]
-
-    const_ref -> left_blank [constraint = false; style = invis]
+    const_slice [label = "&[T]"]
 
     mut_ptr [label = "*mut T"]
     mut_ref [label = "&mut T"]
     mut_slice [label = "&mut [T]"]
 
-    const_ptr -> Virt [label = "from_ptr<T>()"]
-    const_ref -> Virt [label = "from_ref<T>()"]
-    left_blank -> Virt [style = invis]
+    const_ptr:ne -> Virt:n [label = "from_ptr<T>()"]
+    const_ref:ne -> Virt [label = "from_ref<T>()"]
+    const_slice:ne -> Virt:sw [label = "from_slice<T>()"]
 
-    Virt -> const_ptr [constraint = false; label = "try_into_ptr<T>()?"]
-    Virt -> const_ref [constraint = false; label = "try_into_ref<T>()?"]
-    Virt -> mut_ptr [label = "try_into_mut_ptr<T>()?"]
-    Virt -> mut_ref [label = "try_into_mut<T>()?"]
-    Virt -> mut_slice [label = "try_into_mut_slice<T>()?"]
+    Virt:nw -> const_ptr:se [constraint = false; label = "try_into_ptr<T>()?"]
+    Virt -> const_ref:se [constraint = false; label = "try_into_ref<T>()?"]
+    Virt:s -> const_slice:se [constraint = false; label = "try_into_slice<T>()?"]
+    Virt:ne -> mut_ptr:w [label = "try_into_mut_ptr<T>()?"]
+    Virt:e -> mut_ref:w [label = "try_into_mut<T>()?"]
+    Virt:se -> mut_slice:w [label = "try_into_mut_slice<T>()?"]
 }

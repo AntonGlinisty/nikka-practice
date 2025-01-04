@@ -5,23 +5,25 @@ digraph diagram {
 
     fontname="Helvetica,Arial,sans-serif"
 
-    node [fontname = "Helvetica,Arial,sans-serif"; width = 2.0; height = 1.0; style = filled; fillcolor = "#CCCCCC"]
-    edge [arrowhead = vee; fontname="Helvetica,Arial,sans-serif"]
+    node [shape = box; width = 1.0; height = 0.5; style = filled; fillcolor = "#CCCCCC"]
+    edge [arrowhead = vee; labelfloat = false]
 
-    usize
     u64
+    usize
     Addr
     Frage
 
-    usize -> u64 [label = "ku::memory::size::into_u64()"]
-    u64 -> usize [label = "ku::memory::size::from()"]
+    { rank = same; usize; u64 }
 
-    usize -> Addr [label = "Addr::new()"]
-    u64 -> Addr [label = "Addr::new_u64()"]
+    usize:sw -> u64:nw [xlabel = "ku::memory::size::into_u64()"]
+    u64:n -> usize:s [label = "ku::memory::size::from()"]
 
-    Addr -> usize [constraint = false; label = "Addr::into_usize()"]
-    Addr -> u64 [constraint = false; label = "Addr::into_u64()"]
+    usize:ne -> Addr:n [label = "Addr::new()"]
+    u64:ne -> Addr:sw [label = "Addr::new_u64()"]
 
-    Addr -> Frage [label = "Frage::new()"]
-    Frage -> Addr [constraint = false; label = "Frage::address()"]
+    Addr:nw -> usize:se [label = "Addr::into_usize()"]
+    Addr:s -> u64:se [label = "Addr::into_u64()"]
+
+    Addr:ne -> Frage:nw [label = "Frage::new()"]
+    Frage:sw -> Addr:se [label = "Frage::address()"]
 }

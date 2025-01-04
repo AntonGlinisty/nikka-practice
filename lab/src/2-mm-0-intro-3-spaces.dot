@@ -4,8 +4,8 @@ digraph diagram {
 
     fontname="Helvetica,Arial,sans-serif"
 
-    node [fontname = "Helvetica,Arial,sans-serif"; width = 2.0; height = 1.0; style = filled; fillcolor = "#CCCCCC"]
-    edge [arrowhead = vee; fontname="Helvetica,Arial,sans-serif"]
+    node [shape = box; width = 1.0; height = 0.5; style = filled; fillcolor = "#CCCCCC"]
+    edge [arrowhead = vee]
 
     subgraph cluster_phys_memory {
         label = "Физическое"
@@ -21,6 +21,6 @@ digraph diagram {
         Virt
     }
 
-    Phys -> Virt [label = "Phys2Virt::map()"]
-    Virt -> Phys [constraint = false; label = "Mapping::translate()"]
+    Phys:ne -> Virt:nw [label = "Phys2Virt::map()"]
+    Virt:sw -> Phys:se [constraint = false; label = "Mapping::translate()"]
 }
