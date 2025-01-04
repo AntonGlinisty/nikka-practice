@@ -1,0 +1,147 @@
+
+\documentclass[border=2mm]{standalone}
+
+\usepackage[dvipsnames]{xcolor}
+\usepackage{pgfmath,pgffor}
+\usepackage{tikz}
+
+\usetikzlibrary{arrows.meta}
+\usetikzlibrary{decorations.pathreplacing,calligraphy}
+\usetikzlibrary{math}
+\usetikzlibrary{matrix}
+\usetikzlibrary{positioning}
+\usetikzlibrary{shapes.misc}
+
+\begin{document}
+
+\definecolor{headerclear}{RGB}{202, 218, 246}
+\definecolor{headerwritten}{RGB}{221, 253, 234}
+\definecolor{headerread}{RGB}{252, 244, 221}
+\definecolor{headerclosed}{RGB}{252, 225, 228}
+\definecolor{garbage}{RGB}{204, 204, 204}
+\definecolor{payload}{RGB}{255, 255, 255}
+
+\begin{tikzpicture}[ultra thick]
+
+\tikzset{
+    stats/.style={
+        matrix of nodes,
+        row sep=-\pgflinewidth,
+        column sep=-\pgflinewidth,
+        nodes={rectangle, draw=black, align=left, font=\bf},
+        minimum height=2em,
+        text depth=0.5ex,
+        text height=2ex,
+        nodes in empty cells,
+        column 1/.style={nodes={fill=headerclear, font=\large\bf}},
+        row 1/.style={nodes={fill=headerclear, font=\large\bf}},
+    }
+}
+
+
+                \node[draw, fill=headerwritten, minimum size=7mm] at
+                    (0mm, 0mm) (node0) { \bf{}00\strut };
+                \node[draw, fill=headerwritten, minimum size=7mm] at
+                    (7mm, 0mm) (node1) { \bf{}00\strut };
+                \node[draw, fill=headerwritten, minimum size=7mm] at
+                    (14mm, 0mm) (node2) { \bf{}05\strut };
+                \node[draw, fill=payload, minimum size=7mm] at
+                    (21mm, 0mm) (node3) { \bf{}N\strut };
+                \node[draw, fill=payload, minimum size=7mm] at
+                    (28mm, 0mm) (node4) { \bf{}i\strut };
+                \node[draw, fill=payload, minimum size=7mm] at
+                    (35mm, 0mm) (node5) { \bf{}k\strut };
+                \node[draw, fill=payload, minimum size=7mm] at
+                    (42mm, 0mm) (node6) { \bf{}k\strut };
+                \node[draw, fill=payload, minimum size=7mm] at
+                    (49mm, 0mm) (node7) { \bf{}a\strut };
+                \node[draw, fill=headerclear, minimum size=7mm] at
+                    (56mm, 0mm) (node8) { \bf{}00\strut };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (63mm, 0mm) (node9) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (70mm, 0mm) (node10) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (77mm, 0mm) (node11) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (84mm, 0mm) (node12) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (91mm, 0mm) (node13) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (98mm, 0mm) (node14) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (105mm, 0mm) (node15) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (112mm, 0mm) (node16) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (119mm, 0mm) (node17) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (126mm, 0mm) (node18) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (133mm, 0mm) (node19) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (140mm, 0mm) (node20) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (147mm, 0mm) (node21) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (154mm, 0mm) (node22) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (161mm, 0mm) (node23) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (168mm, 0mm) (node24) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (175mm, 0mm) (node25) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (182mm, 0mm) (node26) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (189mm, 0mm) (node27) {  };
+                \node[draw, shape=chamfered rectangle, below=20mm of node0.west, minimum size=10mm] (head) {
+                    \begin{tabular}{c} \large\bf{write tx} \\ \large\bf{head} \\
+                    \end{tabular}
+                };
+                \node[draw, shape=chamfered rectangle, below=20mm of node8.west, minimum size=10mm] (tail) {
+                    \begin{tabular}{c} \large\bf{write tx} \\ \large\bf{tail} \\
+                    \end{tabular}
+                };
+            \draw[-{Latex[length=5mm, width=2mm]}] (head.north) -- (node0.south west);
+            \draw[-{Latex[length=5mm, width=2mm]}] (tail.north) -- (node8.south west);
+            \draw[decorate, decoration = {calligraphic brace, raise=5pt, amplitude=10pt}]
+                (node0.130) -- (node7.50)
+                node[midway, above=6mm] {\Large\bf{}Write transaction \#1 --- one record\strut};
+            \matrix[
+                above=15mm of node27.north east,
+                anchor=south east,
+                column sep=0.5mm,
+                row sep=1mm
+            ] (legend) {
+                &&
+                \node[draw, fill=headerclear, text width=115mm, align=left] {
+                    \large\bf\strut Header::Clear = [0x00]
+                }; \\
+                &&
+                \node[draw, fill=headerwritten, text width=115mm, align=left] {
+                    \large\bf\strut Header::Written = [0x01, (size\textgreater\textgreater8{})\&{}0xFF, size\&{}0xFF]
+                }; \\
+                \node[draw, fill=payload, text width=35mm, align=left] {
+                    \large\bf\strut payload
+                }; &&
+                \node[draw, fill=headerread, text width=115mm, align=left] {
+                    \large\bf\strut Header::Read = [0x02, (size\textgreater\textgreater8{})\&{}0xFF, size\&{}0xFF]
+                }; \\
+                \node[draw, fill=garbage, text width=35mm, align=left] {
+                    \large\bf\strut garbage
+                }; &&
+                \node[draw, fill=headerclosed, text width=115mm, align=left] {
+                    \large\bf\strut Header::Closed = [0x03]
+                }; \\
+            };
+            \node[
+                below=2mm of legend.north west,
+                anchor=north west,
+                text width=30mm,
+                align=left
+            ] { \Huge Legend: };
+
+\end{tikzpicture}
+
+\end{document}

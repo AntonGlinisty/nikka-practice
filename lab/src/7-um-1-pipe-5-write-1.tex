@@ -1,0 +1,111 @@
+
+\documentclass[border=2mm]{standalone}
+
+\usepackage[dvipsnames]{xcolor}
+\usepackage{pgfmath,pgffor}
+\usepackage{tikz}
+
+\usetikzlibrary{arrows.meta}
+\usetikzlibrary{decorations.pathreplacing,calligraphy}
+\usetikzlibrary{math}
+\usetikzlibrary{matrix}
+\usetikzlibrary{positioning}
+\usetikzlibrary{shapes.misc}
+
+\begin{document}
+
+\definecolor{headerclear}{RGB}{202, 218, 246}
+\definecolor{headerwritten}{RGB}{221, 253, 234}
+\definecolor{headerread}{RGB}{252, 244, 221}
+\definecolor{headerclosed}{RGB}{252, 225, 228}
+\definecolor{garbage}{RGB}{204, 204, 204}
+\definecolor{payload}{RGB}{255, 255, 255}
+
+\begin{tikzpicture}[ultra thick]
+
+\tikzset{
+    stats/.style={
+        matrix of nodes,
+        row sep=-\pgflinewidth,
+        column sep=-\pgflinewidth,
+        nodes={rectangle, draw=black, align=left, font=\bf},
+        minimum height=2em,
+        text depth=0.5ex,
+        text height=2ex,
+        nodes in empty cells,
+        column 1/.style={nodes={fill=headerclear, font=\large\bf}},
+        row 1/.style={nodes={fill=headerclear, font=\large\bf}},
+    }
+}
+
+
+                \node[draw, fill=headerclear, minimum size=7mm] at
+                    (0mm, 0mm) (node0) { \bf{}00\strut };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (7mm, 0mm) (node1) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (14mm, 0mm) (node2) {  };
+                \node[draw, fill=payload, minimum size=7mm] at
+                    (21mm, 0mm) (node3) { \bf{}N\strut };
+                \node[draw, fill=payload, minimum size=7mm] at
+                    (28mm, 0mm) (node4) { \bf{}i\strut };
+                \node[draw, fill=payload, minimum size=7mm] at
+                    (35mm, 0mm) (node5) { \bf{}k\strut };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (42mm, 0mm) (node6) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (49mm, 0mm) (node7) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (56mm, 0mm) (node8) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (63mm, 0mm) (node9) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (70mm, 0mm) (node10) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (77mm, 0mm) (node11) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (84mm, 0mm) (node12) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (91mm, 0mm) (node13) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (98mm, 0mm) (node14) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (105mm, 0mm) (node15) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (112mm, 0mm) (node16) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (119mm, 0mm) (node17) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (126mm, 0mm) (node18) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (133mm, 0mm) (node19) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (140mm, 0mm) (node20) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (147mm, 0mm) (node21) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (154mm, 0mm) (node22) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (161mm, 0mm) (node23) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (168mm, 0mm) (node24) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (175mm, 0mm) (node25) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (182mm, 0mm) (node26) {  };
+                \node[draw, fill=garbage, minimum size=7mm] at
+                    (189mm, 0mm) (node27) {  };
+                \node[draw, shape=chamfered rectangle, below=20mm of node0.west, minimum size=10mm] (head) {
+                    \begin{tabular}{c} \large\bf{write tx} \\ \large\bf{head} \\
+                    \end{tabular}
+                };
+                \node[draw, shape=chamfered rectangle, below=20mm of node6.west, minimum size=10mm] (tail) {
+                    \begin{tabular}{c} \large\bf{write tx} \\ \large\bf{tail} \\
+                    \end{tabular}
+                };
+            \draw[-{Latex[length=5mm, width=2mm]}] (head.north) -- (node0.south west);
+            \draw[-{Latex[length=5mm, width=2mm]}] (tail.north) -- (node6.south west);
+
+\end{tikzpicture}
+
+\end{document}

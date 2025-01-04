@@ -1,0 +1,109 @@
+digraph translate {
+    rankdir = TD
+    ranksep = 3
+    nodesep = 1
+
+    fontname="Helvetica,Arial,sans-serif"
+
+    node [shape = record]
+    edge [arrowhead = vee]
+
+    virt [
+        shape = plaintext
+        label = <
+            <table border='1' cellborder='0' cellspacing='4'>
+                <tr><td>Виртуальные страницы RingBuffer.</td></tr>
+                <tr><td></td></tr>
+                <tr><td align='left'>Непрерывное содержимое — "Nikka".</td></tr>
+                <tr><td align='left'>Размер отображённой виртуальной памяти = 6 * Page::SIZE.</td></tr>
+                <tr><td></td></tr>
+                <tr>
+                    <td><table border='0' cellborder='0' cellpadding='5' cellspacing='1'>
+                    <tr>
+                        <td width='90' align='left'>Page(512 @</td>
+                        <td width='90' align='left'>Page(513 @</td>
+                        <td width='90' align='left'>Page(514 @</td>
+                        <td width='90' align='left'>Page(515 @</td>
+                        <td width='90' align='left'>Page(516 @</td>
+                        <td width='90' align='left'>Page(517 @</td>
+                    </tr>
+                    <tr>
+                        <td width='90' align='left'>0v20_0000)</td>
+                        <td width='90' align='left'>0v20_1000)</td>
+                        <td width='90' align='left'>0v20_2000)</td>
+                        <td width='90' align='left'>0v20_3000)</td>
+                        <td width='90' align='left'>0v20_4000)</td>
+                        <td width='90' align='left'>0v20_5000)</td>
+                    </tr>
+                    </table></td>
+                </tr>
+                <tr>
+                    <td><table border='0' cellborder='1' cellpadding='5' cellspacing='0'>
+                    <tr>
+                        <td bgcolor='#CADAF6' port='page_0' width='90' align='left'>ka</td>
+                        <td bgcolor='#DDFDEA' port='page_1' width='90'></td>
+                        <td bgcolor='#FCE1E4' port='page_2' width='90' align='right'>Nik</td>
+                        <td bgcolor='#CADAF6' port='page_3' width='90' align='left'>ka</td>
+                        <td bgcolor='#DDFDEA' port='page_4' width='90'> </td>
+                        <td bgcolor='#FCE1E4' port='page_5' width='90' align='right'>Nik</td>
+                    </tr>
+                    </table></td>
+                </tr>
+            </table>
+        >
+    ]
+
+    phys [
+        shape = plaintext
+        label = <
+            <table border='1' cellborder='0' cellspacing='4'>
+                <tr>
+                    <td><table border='0' cellborder='1' cellpadding='5' cellspacing='0'>
+                    <tr>
+                        <td width='50'>...</td>
+                        <td bgcolor='#DDFDEA' port='frame_1' width='90'> </td>
+                        <td width='50'>...</td>
+                        <td bgcolor='#CADAF6' port='frame_3' width='90' align='left'>ka</td>
+                        <td width='50'>...</td>
+                        <td bgcolor='#FCE1E4' port='frame_4' width='90' align='right'>Nik</td>
+                        <td width='50'>...</td>
+                    </tr>
+                    </table></td>
+                </tr>
+                <tr>
+                    <td><table border='0' cellborder='0' cellpadding='5' cellspacing='1'>
+                    <tr>
+                        <td width='50'></td>
+                        <td width='90' align='left'>Frame(82 @</td>
+                        <td width='50'></td>
+                        <td width='90' align='left'>Frame(90 @</td>
+                        <td width='50'></td>
+                        <td width='90' align='left'>Frame(92 @</td>
+                        <td width='50'></td>
+                    </tr>
+                    <tr>
+                        <td width='50'></td>
+                        <td width='90' align='left'>0p5_2000)</td>
+                        <td width='50'></td>
+                        <td width='90' align='left'>0p5_5000)</td>
+                        <td width='50'></td>
+                        <td width='90' align='left'>0p5_C000)</td>
+                        <td width='50'></td>
+                    </tr>
+                    </table></td>
+                </tr>
+                <tr><td></td></tr>
+                <tr><td align='left'>Ёмкость буфера под пользовательские данные — capacity ≈ 3 * Frame::SIZE.</td></tr>
+                <tr><td></td></tr>
+                <tr><td>Физические фреймы.</td></tr>
+            </table>
+        >
+    ]
+
+    virt:page_0:s -> phys:frame_3:n
+    virt:page_1:s -> phys:frame_1:n
+    virt:page_2:s -> phys:frame_4:n
+    virt:page_3:s -> phys:frame_3:n
+    virt:page_4:s -> phys:frame_1:n
+    virt:page_5:s -> phys:frame_4:n
+}

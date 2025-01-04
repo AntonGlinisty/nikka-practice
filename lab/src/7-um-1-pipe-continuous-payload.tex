@@ -1,0 +1,163 @@
+
+\documentclass[border=2mm]{standalone}
+
+\usepackage[dvipsnames]{xcolor}
+\usepackage{pgfmath,pgffor}
+\usepackage{tikz}
+
+\usetikzlibrary{arrows.meta}
+\usetikzlibrary{decorations.pathreplacing,calligraphy}
+\usetikzlibrary{math}
+\usetikzlibrary{matrix}
+\usetikzlibrary{positioning}
+\usetikzlibrary{shapes.misc}
+
+\begin{document}
+
+\definecolor{headerclear}{RGB}{202, 218, 246}
+\definecolor{headerwritten}{RGB}{221, 253, 234}
+\definecolor{headerread}{RGB}{252, 244, 221}
+\definecolor{headerclosed}{RGB}{252, 225, 228}
+\definecolor{garbage}{RGB}{204, 204, 204}
+\definecolor{payload}{RGB}{255, 255, 255}
+
+\begin{tikzpicture}[ultra thick]
+
+\tikzset{
+    stats/.style={
+        matrix of nodes,
+        row sep=-\pgflinewidth,
+        column sep=-\pgflinewidth,
+        nodes={rectangle, draw=black, align=left, font=\bf},
+        minimum height=2em,
+        text depth=0.5ex,
+        text height=2ex,
+        nodes in empty cells,
+        column 1/.style={nodes={fill=headerclear, font=\large\bf}},
+        row 1/.style={nodes={fill=headerclear, font=\large\bf}},
+    }
+}
+
+
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (0mm, 90mm) (virt0) { \Large\bf{}n\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (9mm, 90mm) (virt1) { \Large\bf{}u\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (18mm, 90mm) (virt2) { \Large\bf{}o\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (27mm, 90mm) (virt3) { \Large\bf{}u\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (36mm, 90mm) (virt4) { \Large\bf{}s\strut };
+                \node[draw, fill=garbage, minimum size=9mm] at
+                    (45mm, 90mm) (virt5) {  };
+                \node[draw, fill=garbage, minimum size=9mm] at
+                    (54mm, 90mm) (virt6) {  };
+                \node[draw, fill=garbage, minimum size=9mm] at
+                    (63mm, 90mm) (virt7) {  };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (72mm, 90mm) (virt8) { \Large\bf{}d\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (81mm, 90mm) (virt9) { \Large\bf{}i\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (90mm, 90mm) (virt10) { \Large\bf{}s\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (99mm, 90mm) (virt11) { \Large\bf{}c\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (108mm, 90mm) (virt12) { \Large\bf{}o\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (117mm, 90mm) (virt13) { \Large\bf{}n\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (126mm, 90mm) (virt14) { \Large\bf{}t\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (135mm, 90mm) (virt15) { \Large\bf{}i\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (144mm, 90mm) (virt16) { \Large\bf{}n\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (153mm, 90mm) (virt17) { \Large\bf{}u\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (162mm, 90mm) (virt18) { \Large\bf{}o\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (171mm, 90mm) (virt19) { \Large\bf{}u\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (180mm, 90mm) (virt20) { \Large\bf{}s\strut };
+                \node[draw, fill=garbage, minimum size=9mm] at
+                    (189mm, 90mm) (virt21) {  };
+                \node[draw, fill=garbage, minimum size=9mm] at
+                    (198mm, 90mm) (virt22) {  };
+                \node[draw, fill=garbage, minimum size=9mm] at
+                    (207mm, 90mm) (virt23) {  };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (216mm, 90mm) (virt24) { \Large\bf{}d\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (225mm, 90mm) (virt25) { \Large\bf{}i\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (234mm, 90mm) (virt26) { \Large\bf{}s\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (243mm, 90mm) (virt27) { \Large\bf{}c\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (252mm, 90mm) (virt28) { \Large\bf{}o\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (261mm, 90mm) (virt29) { \Large\bf{}n\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (270mm, 90mm) (virt30) { \Large\bf{}t\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (279mm, 90mm) (virt31) { \Large\bf{}i\strut };
+            \draw[decorate, decoration = {calligraphic brace, raise=5pt, amplitude=10pt}]
+                (virt8.130) -- (virt20.50)
+                node[midway, above=6mm] {\Large\bf{}continuous view of the payload\strut};
+            \draw[decorate, decoration = {calligraphic brace, mirror, raise=5pt, amplitude=10pt}]
+                (virt0.230) -- (virt15.310)
+                node[midway, below=6mm] {\Large\bf{}the first virtual page set\strut};
+            \draw[decorate, decoration = {calligraphic brace, mirror, raise=5pt, amplitude=10pt}]
+                (virt16.230) -- (virt31.310)
+                node[midway, below=6mm] {\Large\bf{}
+            \begin{tabular}{c}
+                the second virtual page set \\
+                mapped to the same frames
+            \end{tabular}
+            \strut};
+
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (0mm, 0mm) (phys0) { \Large\bf{}n\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (9mm, 0mm) (phys1) { \Large\bf{}u\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (18mm, 0mm) (phys2) { \Large\bf{}o\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (27mm, 0mm) (phys3) { \Large\bf{}u\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (36mm, 0mm) (phys4) { \Large\bf{}s\strut };
+                \node[draw, fill=garbage, minimum size=9mm] at
+                    (45mm, 0mm) (phys5) {  };
+                \node[draw, fill=garbage, minimum size=9mm] at
+                    (54mm, 0mm) (phys6) {  };
+                \node[draw, fill=garbage, minimum size=9mm] at
+                    (63mm, 0mm) (phys7) {  };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (72mm, 0mm) (phys8) { \Large\bf{}d\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (81mm, 0mm) (phys9) { \Large\bf{}i\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (90mm, 0mm) (phys10) { \Large\bf{}s\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (99mm, 0mm) (phys11) { \Large\bf{}c\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (108mm, 0mm) (phys12) { \Large\bf{}o\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (117mm, 0mm) (phys13) { \Large\bf{}n\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (126mm, 0mm) (phys14) { \Large\bf{}t\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (135mm, 0mm) (phys15) { \Large\bf{}i\strut };
+            \draw[decorate, decoration = {calligraphic brace, mirror, raise=5pt, amplitude=10pt}]
+                (phys0.230) -- (phys15.310)
+                node[midway, below=6mm] {\Large\bf{}physical frames\strut};
+
+            \draw[-{Latex[length=5mm, width=2mm]}] (virt0.south west) -- (phys0.north west);
+            \draw[-{Latex[length=5mm, width=2mm]}] (virt16.south west) -- (phys0.north west);
+            \draw[-{Latex[length=5mm, width=2mm]}] (virt15.south east) -- (phys15.north east);
+            \draw[-{Latex[length=5mm, width=2mm]}] (virt31.south east) -- (phys15.north east);
+\end{tikzpicture}
+
+\end{document}

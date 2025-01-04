@@ -108,11 +108,29 @@ test-gdb: install
 		done; \
 	)
 
-lab: $(RUST_PATH)/mdbook doc lab/src/*.dot lab/src/*.md
+lab: $(RUST_PATH)/mdbook doc lab/src/*.dot lab/src/*.md lab/src/*.puml
 	@( \
+		if grep --quiet 'compose::begin_private' ku/src/ipc/pipe.rs; then \
+			cd ku; \
+			cargo test --test pipe-visualization; \
+			cd - >/dev/null; \
+			cd lab/src; \
+			sed '/(node0)/{s@headerwritten@headerclear@g;s@01@00@g;}' < 6-um-1-pipe-8-write-tx-1-commit.tex > 6-um-1-pipe-8-write-tx-1-commit-1-part.tex; \
+			sed '/(node0)/{s@headerread@headerwritten@g;s@02@01@g;}' < 6-um-1-pipe-19-read-tx-commit.tex > 6-um-1-pipe-19-read-tx-commit-1-part.tex; \
+			cd - >/dev/null; \
+		fi; \
 		sed -i 's@/home/[a-z-]*/tmp/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/\.@/.../.@g' lab/src/*.md; \
 		cd lab/src; \
 		for i in *.dot; do dot -Tsvg $$i > $${i%dot}svg; done; \
+		for i in *.puml; do java -jar /usr/share/java/plantuml/plantuml.jar -tsvg $$i; done; \
+		for i in 6-um-1-pipe*.tex; do \
+			sed -i 's@\s*$$@@g;' $$i; \
+			pdflatex -halt-on-error $$i >/dev/null; \
+			latex_error=$$?; \
+			cat $${i%tex}log | grep --after-context=2 '^!'; \
+			if [ $$latex_error -ne 0 ]; then exit $$latex_error; fi; \
+			pdf2svg $${i%tex}pdf $${i%tex}svg; \
+		done; \
 		cd - >/dev/null; \
 		cd lab; \
 		cp book-base.toml book.toml; \
@@ -125,6 +143,7 @@ lab: $(RUST_PATH)/mdbook doc lab/src/*.dot lab/src/*.md
 		mv html book/; \
 		mv book/html/* book/; \
 		cd - >/dev/null; \
+		rm --force lab/src/*.aux lab/src/*.log lab/src/*.pdf; \
 	)
 
 fs-dump:
@@ -150,8 +169,9 @@ clean:
 		doc \
 		fs.img \
 		kernel/serial.out \
+		ku/*.aux ku/*.log ku/*.pdf ku/*.tex \
 		lab/book \
-		lab/src/*.svg \
+		lab/src/*.aux lab/src/*.log lab/src/*.pdf lab/src/*.svg \
 		$(find . -name \*.rs.bk)
 
 stat:
@@ -165,6 +185,11 @@ install:
 	@(which bootimage > /dev/null || (cargo install bootimage))
 	@(which rustfilt > /dev/null || (cargo install rustfilt))
 	@(which cargo-expand > /dev/null || (cargo install cargo-expand))
+
+$(RUST_PATH)/mdbook:
+	cargo install mdbook
+	cargo install mdbook-mermaid
+	cargo install mdbook-plantuml
 
 nikka.pdf: FORCE
 	@trueprint \

@@ -1,0 +1,45 @@
+@startuml
+    skinparam StateBackgroundColor #CADAF6
+    skinparam StateBorderColor #656D7B
+    skinparam ArrowColor #656D7B
+    skinparam StateStartColor #656D7B
+
+    State Active {
+        state "Header::Clear" as clear
+        [*] -d-> clear: make_pipe
+
+        state "Header::Written" as written
+        /' written: written payload size '/
+
+        state "Header::Read" as read
+        /' read: read payload size '/
+
+        clear -d-> written: write tx \n commit
+        written -d-> read: read tx \n commit
+        read -d-> logically_garbage: writer \n advanced \n head
+
+        state "logically garbage" as logically_garbage
+        state "physically garbage" as physically_garbage
+
+        logically_garbage -d-> physically_garbage: writer has \n overwritten \n this location \n with \n another \n data
+        physically_garbage -u-> clear: next char \n after written \n data on \n write tx commit
+
+        clear -r-> ok: writer normal close
+        clear -r-> ok: reader normal close
+        written -r-> ok: reader normal close
+
+        written -l-> error: reader detected \n writer's misbehavior
+        clear -l-> error: writer detected \n reader's misbehavior
+
+        state ok <<exitPoint>>
+        state error <<exitPoint>>
+    }
+
+    state "Header::Closed" as normal_close
+
+    ok -r-> normal_close
+
+    state "Header::Closed" as error_close
+
+    error -l-> error_close
+@enduml

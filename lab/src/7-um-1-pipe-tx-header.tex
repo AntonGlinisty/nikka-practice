@@ -1,0 +1,124 @@
+
+\documentclass[border=2mm]{standalone}
+
+\usepackage[dvipsnames]{xcolor}
+\usepackage{pgfmath,pgffor}
+\usepackage{tikz}
+
+\usetikzlibrary{arrows.meta}
+\usetikzlibrary{decorations.pathreplacing,calligraphy}
+\usetikzlibrary{math}
+\usetikzlibrary{matrix}
+\usetikzlibrary{positioning}
+\usetikzlibrary{shapes.misc}
+
+\begin{document}
+
+\definecolor{headerclear}{RGB}{202, 218, 246}
+\definecolor{headerwritten}{RGB}{221, 253, 234}
+\definecolor{headerread}{RGB}{252, 244, 221}
+\definecolor{headerclosed}{RGB}{252, 225, 228}
+\definecolor{garbage}{RGB}{204, 204, 204}
+\definecolor{payload}{RGB}{255, 255, 255}
+
+\begin{tikzpicture}[ultra thick]
+
+\tikzset{
+    stats/.style={
+        matrix of nodes,
+        row sep=-\pgflinewidth,
+        column sep=-\pgflinewidth,
+        nodes={rectangle, draw=black, align=left, font=\bf},
+        minimum height=2em,
+        text depth=0.5ex,
+        text height=2ex,
+        nodes in empty cells,
+        column 1/.style={nodes={fill=headerclear, font=\large\bf}},
+        row 1/.style={nodes={fill=headerclear, font=\large\bf}},
+    }
+}
+
+
+                \node[draw, fill=headerwritten, minimum size=17mm] at
+                    (0mm, 0mm) (node0) { \Large\bf{}0x01\strut };
+                \node[draw, fill=headerwritten, minimum size=17mm] at
+                    (17mm, 0mm) (node1) { \Large\bf{}0x00\strut };
+                \node[draw, fill=headerwritten, minimum size=17mm] at
+                    (34mm, 0mm) (node2) { \Large\bf{}0x0C\strut };
+                \node[draw, fill=payload, minimum size=17mm] at
+                    (51mm, 0mm) (node3) { \Large\bf{}N\strut };
+                \node[draw, fill=payload, minimum size=17mm] at
+                    (68mm, 0mm) (node4) { \Large\bf{}i\strut };
+                \node[draw, fill=payload, minimum size=17mm] at
+                    (85mm, 0mm) (node5) { \Large\bf{}k\strut };
+                \node[draw, fill=payload, minimum size=17mm] at
+                    (102mm, 0mm) (node6) { \Large\bf{}k\strut };
+                \node[draw, fill=payload, minimum size=17mm] at
+                    (119mm, 0mm) (node7) { \Large\bf{}a\strut };
+                \node[draw, fill=payload, minimum size=17mm] at
+                    (136mm, 0mm) (node8) { \Large\bf{} \strut };
+                \node[draw, fill=payload, minimum size=17mm] at
+                    (153mm, 0mm) (node9) { \Large\bf{}r\strut };
+                \node[draw, fill=payload, minimum size=17mm] at
+                    (170mm, 0mm) (node10) { \Large\bf{}o\strut };
+                \node[draw, fill=payload, minimum size=17mm] at
+                    (187mm, 0mm) (node11) { \Large\bf{}c\strut };
+                \node[draw, fill=payload, minimum size=17mm] at
+                    (204mm, 0mm) (node12) { \Large\bf{}k\strut };
+                \node[draw, fill=payload, minimum size=17mm] at
+                    (221mm, 0mm) (node13) { \Large\bf{}s\strut };
+                \node[draw, fill=payload, minimum size=17mm] at
+                    (238mm, 0mm) (node14) { \Large\bf{}!\strut };
+            \draw[decorate, decoration = {calligraphic brace, raise=5pt, amplitude=10pt}]
+                (node0.130) -- (node2.50)
+                node[midway, above=6mm] {\Large\bf{}header\strut};
+            \draw[decorate, decoration = {calligraphic brace, raise=5pt, amplitude=10pt}]
+                (node3.130) -- (node14.50)
+                node[midway, above=6mm] {\Large\bf{}payload (12 bytes)\strut};
+            \draw[decorate, decoration = {calligraphic brace, mirror, raise=5pt, amplitude=10pt}]
+                (node0.230) -- (node0.310)
+                node[midway, below=6mm] {\Large\bf{}state\strut};
+            \draw[decorate, decoration = {calligraphic brace, mirror, raise=5pt, amplitude=10pt}]
+                (node1.230) -- (node2.310)
+                node[midway, below=6mm] {\Large\bf{}
+                \begin{tabular}{c}
+                    payload size\\0x000C = 12
+                \end{tabular}
+                \strut};
+            \matrix[
+                above=15mm of node14.north east,
+                anchor=south east,
+                column sep=0.5mm,
+                row sep=1mm
+            ] (legend) {
+                &&
+                \node[draw, fill=headerclear, text width=115mm, align=left] {
+                    \large\bf\strut Header::Clear = [0x00]
+                }; \\
+                &&
+                \node[draw, fill=headerwritten, text width=115mm, align=left] {
+                    \large\bf\strut Header::Written = [0x01, (size\textgreater\textgreater8{})\&{}0xFF, size\&{}0xFF]
+                }; \\
+                \node[draw, fill=payload, text width=35mm, align=left] {
+                    \large\bf\strut payload
+                }; &&
+                \node[draw, fill=headerread, text width=115mm, align=left] {
+                    \large\bf\strut Header::Read = [0x02, (size\textgreater\textgreater8{})\&{}0xFF, size\&{}0xFF]
+                }; \\
+                \node[draw, fill=garbage, text width=35mm, align=left] {
+                    \large\bf\strut garbage
+                }; &&
+                \node[draw, fill=headerclosed, text width=115mm, align=left] {
+                    \large\bf\strut Header::Closed = [0x03]
+                }; \\
+            };
+            \node[
+                below=2mm of legend.north west,
+                anchor=north west,
+                text width=30mm,
+                align=left
+            ] { \Huge Legend: };
+
+\end{tikzpicture}
+
+\end{document}

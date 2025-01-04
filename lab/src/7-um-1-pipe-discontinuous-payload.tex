@@ -1,0 +1,110 @@
+
+\documentclass[border=2mm]{standalone}
+
+\usepackage[dvipsnames]{xcolor}
+\usepackage{pgfmath,pgffor}
+\usepackage{tikz}
+
+\usetikzlibrary{arrows.meta}
+\usetikzlibrary{decorations.pathreplacing,calligraphy}
+\usetikzlibrary{math}
+\usetikzlibrary{matrix}
+\usetikzlibrary{positioning}
+\usetikzlibrary{shapes.misc}
+
+\begin{document}
+
+\definecolor{headerclear}{RGB}{202, 218, 246}
+\definecolor{headerwritten}{RGB}{221, 253, 234}
+\definecolor{headerread}{RGB}{252, 244, 221}
+\definecolor{headerclosed}{RGB}{252, 225, 228}
+\definecolor{garbage}{RGB}{204, 204, 204}
+\definecolor{payload}{RGB}{255, 255, 255}
+
+\begin{tikzpicture}[ultra thick]
+
+\tikzset{
+    stats/.style={
+        matrix of nodes,
+        row sep=-\pgflinewidth,
+        column sep=-\pgflinewidth,
+        nodes={rectangle, draw=black, align=left, font=\bf},
+        minimum height=2em,
+        text depth=0.5ex,
+        text height=2ex,
+        nodes in empty cells,
+        column 1/.style={nodes={fill=headerclear, font=\large\bf}},
+        row 1/.style={nodes={fill=headerclear, font=\large\bf}},
+    }
+}
+
+
+                \node[draw, fill=garbage, minimum size=9mm] at
+                    (0mm, 25mm) (node0) {  };
+                \node[draw, fill=garbage, minimum size=9mm] at
+                    (9mm, 25mm) (node1) {  };
+                \node[draw, fill=garbage, minimum size=9mm] at
+                    (18mm, 25mm) (node2) {  };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (27mm, 25mm) (node3) { \large\bf{}c\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (36mm, 25mm) (node4) { \large\bf{}o\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (45mm, 25mm) (node5) { \large\bf{}n\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (54mm, 25mm) (node6) { \large\bf{}t\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (63mm, 25mm) (node7) { \large\bf{}i\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (72mm, 25mm) (node8) { \large\bf{}n\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (81mm, 25mm) (node9) { \large\bf{}u\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (90mm, 25mm) (node10) { \large\bf{}o\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (99mm, 25mm) (node11) { \large\bf{}u\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (108mm, 25mm) (node12) { \large\bf{}s\strut };
+                \node[draw, fill=garbage, minimum size=9mm] at
+                    (117mm, 25mm) (node13) {  };
+                \node[draw, fill=garbage, minimum size=9mm] at
+                    (126mm, 25mm) (node14) {  };
+                \node[draw, fill=garbage, minimum size=9mm] at
+                    (135mm, 25mm) (node15) {  };
+
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (0mm, 0mm) (node0) { \Large\bf{}n\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (9mm, 0mm) (node1) { \Large\bf{}u\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (18mm, 0mm) (node2) { \Large\bf{}o\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (27mm, 0mm) (node3) { \Large\bf{}u\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (36mm, 0mm) (node4) { \Large\bf{}s\strut };
+                \node[draw, fill=garbage, minimum size=9mm] at
+                    (45mm, 0mm) (node5) {  };
+                \node[draw, fill=garbage, minimum size=9mm] at
+                    (54mm, 0mm) (node6) {  };
+                \node[draw, fill=garbage, minimum size=9mm] at
+                    (63mm, 0mm) (node7) {  };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (72mm, 0mm) (node8) { \Large\bf{}d\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (81mm, 0mm) (node9) { \Large\bf{}i\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (90mm, 0mm) (node10) { \Large\bf{}s\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (99mm, 0mm) (node11) { \Large\bf{}c\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (108mm, 0mm) (node12) { \Large\bf{}o\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (117mm, 0mm) (node13) { \Large\bf{}n\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (126mm, 0mm) (node14) { \Large\bf{}t\strut };
+                \node[draw, fill=payload, minimum size=9mm] at
+                    (135mm, 0mm) (node15) { \Large\bf{}i\strut };
+
+\end{tikzpicture}
+
+\end{document}

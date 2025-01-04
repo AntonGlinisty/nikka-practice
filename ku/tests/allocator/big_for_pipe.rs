@@ -67,6 +67,8 @@ impl BigForPipe {
         let virt = Virt::from_ptr(ptr);
         Block::new(Page::new(virt)?, Page::new((virt + len)?)?)
     }
+
+    pub const GARBAGE: u8 = 0xFF;
 }
 
 unsafe impl BigAllocator for BigForPipe {
@@ -161,6 +163,10 @@ unsafe impl BigAllocator for BigForPipe {
         };
 
         self.buffer = Self::block(ptr, block.size())?;
+
+        unsafe {
+            self.buffer.try_into_mut_slice()?.fill(Self::GARBAGE);
+        }
 
         Ok(())
     }

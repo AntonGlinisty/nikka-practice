@@ -12,6 +12,8 @@ use core::{
     },
 };
 
+use derive_getters::Getters;
+
 use crate::{
     allocator::BigAllocator,
     error::{
@@ -231,6 +233,7 @@ impl<T: Tag> RingBuffer<T> {
         }
     }
 
+    // ANCHOR: header_size
     /// Вычисляет размер заголовка одной записи для `RingBuffer` размера `REAL_SIZE`.
     const fn header_size() -> usize {
         let mut header_size = mem::size_of::<AtomicU8>();
@@ -243,6 +246,7 @@ impl<T: Tag> RingBuffer<T> {
 
         header_size
     }
+    // ANCHOR_END: header_size
 }
 
 /// Читающая сторона [`RingBuffer`].
@@ -364,15 +368,15 @@ impl Header {
 
     /// Значение флага для записи, закрывающей [`RingBuffer`].
     /// См. [`Header::Closed`].
-    const CLOSED: u8 = 1;
+    const CLOSED: u8 = 3;
 
     /// Значение флага для зафиксированной писателем и не зафиксированной читателем записи.
     /// См. [`Header::Written`].
-    const WRITTEN: u8 = 2;
+    const WRITTEN: u8 = 1;
 
     /// Значение флага для зафиксированной и писателем и читателем записи.
     /// См. [`Header::Written`].
-    const READ: u8 = 3;
+    const READ: u8 = 2;
 }
 
 // ANCHOR: ring_buffer_tx
@@ -509,7 +513,7 @@ impl Tag for WriteTag {
 
 // ANCHOR: ring_buffer_stats
 /// Статистики чтения или записи в буфер.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, Getters, PartialEq)]
 pub struct RingBufferStats {
     /// Количество байт, прочитанных или записанных в зафиксированных транзакциях.
     committed: usize,
@@ -572,3 +576,43 @@ const MAPPED_SIZE: usize = 2 * REAL_SIZE;
 
 /// Размер занимаемой физической памяти.
 const REAL_SIZE: usize = 4 * Page::SIZE;
+
+#[doc(hidden)]
+pub mod test_scaffolding {
+    use crate::memory::{
+        Block,
+        Page,
+    };
+
+    use super::{
+        Header,
+        REAL_SIZE,
+        RingBuffer,
+        RingBufferStats,
+        RingBufferTx,
+        Tag,
+    };
+
+    pub fn block<T: Tag>(buffer: &RingBuffer<T>) -> Block<Page> {
+        buffer.block()
+    }
+
+    pub fn head_tail<T: Tag>(buffer: &RingBuffer<T>) -> (usize, usize) {
+        (buffer.head % REAL_SIZE, buffer.tail % REAL_SIZE)
+    }
+
+    pub fn stats<T: Tag>(buffer: &RingBuffer<T>) -> RingBufferStats {
+        buffer.stats
+    }
+
+    pub fn tx_head_tail<'a, T: Tag>(tx: &'a RingBufferTx<'a, T>) -> (usize, usize) {
+        (tx.head % REAL_SIZE, tx.tail % REAL_SIZE)
+    }
+
+    pub const CLEAR: u8 = Header::CLEAR;
+    pub const CLOSED: u8 = Header::CLOSED;
+    pub const WRITTEN: u8 = Header::WRITTEN;
+    pub const READ: u8 = Header::READ;
+
+    pub const HEADER_SIZE: usize = super::HEADER_SIZE;
+}

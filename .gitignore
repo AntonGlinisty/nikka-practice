@@ -1,4 +1,6 @@
+*.aux
 *.diff
+*.log
 *.orig
 *.pdf
 *.rej
