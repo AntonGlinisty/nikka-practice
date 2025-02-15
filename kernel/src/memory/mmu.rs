@@ -4,6 +4,7 @@ pub use ku::memory::mmu::{
     FULL_ACCESS,
     KERNEL_R,
     KERNEL_RW,
+    KERNEL_RX,
     PAGE_OFFSET_BITS,
     PAGE_TABLE_ENTRY_COUNT,
     PAGE_TABLE_INDEX_BITS,
@@ -17,6 +18,7 @@ pub use ku::memory::mmu::{
     USER,
     USER_R,
     USER_RW,
+    USER_RX,
     page_table_root,
     set_page_table_root,
 };

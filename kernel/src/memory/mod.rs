@@ -97,9 +97,11 @@ pub use frame_allocator::FRAME_ALLOCATOR;
 pub use mmu::{
     KERNEL_R,
     KERNEL_RW,
+    KERNEL_RX,
     USER,
     USER_R,
     USER_RW,
+    USER_RX,
 };
 pub use size::{
     Size,

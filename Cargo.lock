@@ -68,7 +68,7 @@ dependencies = [
 
 [[package]]
 name = "bga"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "bitflags 2.6.0",
  "bootloader",
@@ -124,7 +124,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "check_context"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "lib",
 ]
@@ -155,7 +155,7 @@ dependencies = [
 
 [[package]]
 name = "cow_fork"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "heapless 0.8.0",
  "ku",
@@ -219,7 +219,7 @@ dependencies = [
 
 [[package]]
 name = "eager_fork"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "heapless 0.8.0",
  "ku",
@@ -294,7 +294,7 @@ checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
 
 [[package]]
 name = "exit"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "chrono",
  "ku",
@@ -507,7 +507,7 @@ checksum = "49f1f14873335454500d59611f1cf4a4b0f786f9ac11f4312a78e4cf2566695b"
 
 [[package]]
 name = "kernel"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "acpi",
  "bitflags 2.6.0",
@@ -541,7 +541,7 @@ dependencies = [
 
 [[package]]
 name = "ku"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "atomic-memcpy",
@@ -586,7 +586,7 @@ dependencies = [
 
 [[package]]
 name = "lib"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "ku",
  "static_assertions",
@@ -617,7 +617,7 @@ checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
 
 [[package]]
 name = "log_value"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "ku",
  "lib",
@@ -625,7 +625,7 @@ dependencies = [
 
 [[package]]
 name = "loop"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "lib",
 ]
@@ -672,7 +672,7 @@ dependencies = [
 
 [[package]]
 name = "memory_syscalls"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "ku",
  "lib",
@@ -763,7 +763,7 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 
 [[package]]
 name = "page_fault"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "chrono",
  "ku",
@@ -772,7 +772,7 @@ dependencies = [
 
 [[package]]
 name = "pic8259"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "x86",
 ]
@@ -1000,7 +1000,7 @@ checksum = "f3cb5ba0dc43242ce17de99c180e96db90b235b8a9fdc9543c96d2209116bd9f"
 
 [[package]]
 name = "sched_yield"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "ku",
  "lib",
@@ -1020,7 +1020,7 @@ checksum = "61697e0a1c7e512e84a621326239844a24d8207b4669b41bc18b32ea5cbf988b"
 
 [[package]]
 name = "sentinel_frame"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "macrotest",
  "proc-macro2",
@@ -1072,7 +1072,7 @@ dependencies = [
 
 [[package]]
 name = "serial"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "x86",
 ]
@@ -1160,7 +1160,7 @@ dependencies = [
 
 [[package]]
 name = "text"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "bitflags 2.6.0",
  "ku",
@@ -1267,7 +1267,7 @@ dependencies = [
 
 [[package]]
 name = "trap_handler"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "ku",
  "lib",

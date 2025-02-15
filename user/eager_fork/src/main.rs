@@ -19,13 +19,13 @@ use ku::{
         Page,
         Virt,
         mmu::{
+            FULL_ACCESS,
             PAGE_OFFSET_BITS,
             PAGE_TABLE_INDEX_BITS,
             PAGE_TABLE_LEAF_LEVEL,
             PAGE_TABLE_ROOT_LEVEL,
             PageTableFlags,
             USER,
-            USER_RW,
         },
     },
     process::{

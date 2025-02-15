@@ -103,7 +103,7 @@ fn check(
         "the ELF file is not accessible from the user space",
     );
     assert!(
-        !pte.flags().contains(PageTableFlags::NO_EXECUTE),
+        pte.flags().contains(PageTableFlags::EXECUTABLE),
         "the entry point is not executable",
     );
 }

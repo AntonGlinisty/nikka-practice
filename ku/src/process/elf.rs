@@ -333,8 +333,7 @@ impl From<ElfRange> for PageRange {
 ///     Может быть равна [`None`].
 ///   - `boundary` --- пограничная страница, в которую попадает как `curr`,
 ///     так и `next`. Но при этом не могут попасть никакие последующие сегменты ELF--файла.
-///     Флаги в ней должны быть подходящими как для диапазона `curr`, так и для диапазона `next`,
-///     см. функцию [`combine_flags()`].
+///     Флаги в ней должны быть подходящими как для диапазона `curr`, так и для диапазона `next`.
 ///     Поэтому они могут отличаться от флагов `curr_minus_next` и поэтому эта пограничная
 ///     страница не может быть обработана в составе `curr_minus_next`.
 ///     Часть `boundary` может содержать только одну страницу памяти.
@@ -344,8 +343,7 @@ impl From<ElfRange> for PageRange {
 ///     которые не попали в `curr_minus_next` и `boundary`.
 ///     Флаги в ней должны быть подходящими для диапазона `next`.
 ///     В случае, если `curr` задевает те же страницы,
-///     флаги `updated_next` должны быть подходящими и для `curr`,
-///     см. функцию [`combine_flags()`].
+///     флаги `updated_next` должны быть подходящими и для `curr`.
 ///     В этом случае `updated_next` не может задевать больше одной страницы.
 fn combine(
     curr: ElfRange,
@@ -374,12 +372,12 @@ impl TryFrom<Flags> for PageTableFlags {
             return Err(PermissionDenied);
         }
 
-        let mut flags = PageTableFlags::PRESENT | PageTableFlags::NO_EXECUTE;
+        let mut flags = PageTableFlags::PRESENT;
 
         for (ph_flag, flag) in [
             (FLAG_R, PageTableFlags::default()),
             (FLAG_W, PageTableFlags::WRITABLE),
-            (FLAG_X, PageTableFlags::NO_EXECUTE),
+            (FLAG_X, PageTableFlags::EXECUTABLE),
         ] {
             if ph_flags & ph_flag != 0 {
                 flags ^= flag;
@@ -388,19 +386,6 @@ impl TryFrom<Flags> for PageTableFlags {
 
         Ok(flags)
     }
-}
-
-/// Объединяет флаги диапазонов памяти.
-///
-/// При отображении страницы в память с получившимися флагами,
-/// она будет доступна как для операций, которые требуют флагов [`curr_flags`][PageTableFlags],
-/// так и для операций, которые требуют флагов [`next_flags`][PageTableFlags].
-fn combine_flags(
-    curr_flags: PageTableFlags,
-    next_flags: PageTableFlags,
-) -> PageTableFlags {
-    ((curr_flags ^ PageTableFlags::NO_EXECUTE) | (next_flags ^ PageTableFlags::NO_EXECUTE)) ^
-        PageTableFlags::NO_EXECUTE
 }
 
 /// Требует чтобы [`curr`][ElfRange] лежал левее [`next`][ElfRange] в диапазоне адресов.
@@ -616,12 +601,5 @@ pub(super) mod test_scaffolding {
             boundary.map(|x| x.into()),
             updated_next.into(),
         ))
-    }
-
-    pub fn combine_flags(
-        curr_flags: PageTableFlags,
-        next_flags: PageTableFlags,
-    ) -> PageTableFlags {
-        super::combine_flags(curr_flags, next_flags)
     }
 }

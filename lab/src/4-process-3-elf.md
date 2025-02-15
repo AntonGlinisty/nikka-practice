@@ -195,7 +195,7 @@ ELF--файла в порядке адресов в памяти.
 Реализуйте указанные функции.
 Вам могут пригодиться:
 
-- Вспомогательные функции [`ku::process::elf::combine_flags()`](../../doc/ku/process/elf/fn.combine_flags.html) и [`ku::process::elf::validate_order()`](../../doc/ku/process/elf/fn.validate_order.html).
+- Вспомогательная функция [`ku::process::elf::validate_order()`](../../doc/ku/process/elf/fn.validate_order.html).
 - Метод [`PageTableFlags::try_from(ph_flags: xmas_elf::program::Flags)`](../../doc/kernel/memory/mmu/struct.PageTableFlags.html#method.try_from), который преобразовывает флаги ELF--файла в соответствующие флаги страниц. Так как [x86-64](https://en.wikipedia.org/wiki/X86-64) не поддерживает флага, который бы запрещал читать страницу, это отображение не точное. Кроме того, оно запрещает флаги, потенциально позволяющие атакующему [записать и выполнить произвольный код](https://en.wikipedia.org/wiki/Arbitrary_code_execution) в процессе работы процесса --- комбинацию флагов "доступно и на запись и на исполнение".
 - Метод [`fn Block::<Virt>::enclosing() -> Block<Page>`](../../doc/ku/memory/block/struct.Block.html#method.enclosing), который для заданного блока виртуальных адресов возвращает минимальный содержащий его блок страниц виртуальной памяти.
 - [`Block::<Virt>::try_into_mut_slice()`](../../doc/ku/memory/block/struct.Block.html#method.try_into_mut_slice), а также другие методы блоков, например [`Block::is_empty()`](../../doc/ku/memory/block/struct.Block.html#method.is_empty), [`Block::is_disjoint()`](../../doc/ku/memory/block/struct.Block.html#method.is_disjoint), [`Block::count()`](../../doc/ku/memory/block/struct.Block.html#method.count), [`Block::tail()`](../../doc/ku/memory/block/struct.Block.html#method.tail).

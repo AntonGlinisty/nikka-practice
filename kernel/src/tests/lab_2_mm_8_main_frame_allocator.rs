@@ -16,10 +16,10 @@ use kernel::{
         Page,
         USER_R,
         USER_RW,
+        USER_RX,
         Virt,
         mmu::{
             self,
-            FULL_ACCESS,
             PAGE_TABLE_ENTRY_COUNT,
             PAGE_TABLE_ROOT_LEVEL,
             PageTableEntry,
@@ -393,11 +393,7 @@ fn all_frames_are_freed_on_drop() {
 
     let mut address_space = duplicate(&BASE_ADDRESS_SPACE.lock()).unwrap();
 
-    for (i, flags) in (0 ..= FULL_ACCESS.bits())
-        .map(PageTableFlags::from_bits_truncate)
-        .filter(|flags| flags.contains(USER_R))
-        .enumerate()
-    {
+    for (i, flags) in [USER_R, USER_RW, USER_RX].into_iter().enumerate() {
         let page =
             Page::from_index((user_root_level_entries().start + i) * PAGES_PER_ROOT_LEVEL_ENTRY)
                 .unwrap();

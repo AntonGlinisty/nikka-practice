@@ -65,7 +65,6 @@ use ku::{
         Loader,
         PageRange,
         combine,
-        combine_flags,
         program_header_to_elf_range,
     },
 };
@@ -79,17 +78,11 @@ fn t00_flags() {
     log::init();
 
     for (ph_flags, flags) in [
-        (FLAG_R, PageTableFlags::NO_EXECUTE),
-        (
-            FLAG_W,
-            PageTableFlags::NO_EXECUTE | PageTableFlags::WRITABLE,
-        ),
-        (FLAG_X, PageTableFlags::default()),
-        (
-            FLAG_R | FLAG_W,
-            PageTableFlags::NO_EXECUTE | PageTableFlags::WRITABLE,
-        ),
-        (FLAG_R | FLAG_X, PageTableFlags::default()),
+        (FLAG_R, PageTableFlags::default()),
+        (FLAG_W, PageTableFlags::WRITABLE),
+        (FLAG_X, PageTableFlags::EXECUTABLE),
+        (FLAG_R | FLAG_W, PageTableFlags::WRITABLE),
+        (FLAG_R | FLAG_X, PageTableFlags::EXECUTABLE),
     ] {
         assert_eq!(
             PageTableFlags::try_from(Flags(ph_flags)),
@@ -485,8 +478,8 @@ fn validate_combine(
             );
             assert!(curr_pages.contains_block(boundary.memory));
             assert!(next_pages.contains_block(boundary.memory));
-            validate_that_new_flags_include_old_flags(curr.flags, boundary.flags);
-            validate_that_new_flags_include_old_flags(next.flags, boundary.flags);
+            assert!(boundary.flags.contains(curr.flags));
+            assert!(boundary.flags.contains(next.flags));
         }
     }
 
@@ -507,20 +500,11 @@ fn validate_combine(
 
         let curr_intersects_with_updated_next = !updated_next.memory.is_disjoint(curr_pages.into());
         if curr_intersects_with_updated_next {
-            validate_that_new_flags_include_old_flags(curr.flags, updated_next.flags);
-            validate_that_new_flags_include_old_flags(next.flags, updated_next.flags);
+            assert!(updated_next.flags.contains(curr.flags));
+            assert!(updated_next.flags.contains(next.flags));
         } else {
             assert_eq!(next.flags, updated_next.flags);
         }
-    }
-
-    fn validate_that_new_flags_include_old_flags(
-        subset: PageTableFlags,
-        superset: PageTableFlags,
-    ) {
-        assert!(
-            (superset ^ PageTableFlags::NO_EXECUTE).contains(subset ^ PageTableFlags::NO_EXECUTE),
-        );
     }
 }
 
@@ -780,8 +764,7 @@ fn t10_load_program_header() {
 
                     if curr_end.div_ceil(Page::SIZE) > next_start.div_floor(Page::SIZE) {
                         let boundary = expected_pages.len() - 1;
-                        expected_pages[boundary].flags =
-                            combine_flags(expected_pages[boundary].flags, next.flags);
+                        expected_pages[boundary].flags |= next.flags;
                     }
                     while curr_end.div_ceil(Page::SIZE) < next_end.div_ceil(Page::SIZE) {
                         expected_pages.push(DummyPage {
@@ -892,7 +875,7 @@ fn generate_blocks(
 
 fn generate_flags() -> impl Iterator<Item = PageTableFlags> {
     gen {
-        for executable in [PageTableFlags::NO_EXECUTE, PageTableFlags::default()] {
+        for executable in [PageTableFlags::default(), PageTableFlags::EXECUTABLE] {
             for writable in [PageTableFlags::default(), PageTableFlags::WRITABLE] {
                 yield executable | writable | PageTableFlags::PRESENT
             }

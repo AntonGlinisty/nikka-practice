@@ -69,7 +69,7 @@ pub(super) fn check_intermediate_flags(
         "intermediate page table flags are incorrect",
     );
 
-    let leaf_flags = PageTableFlags::empty();
+    let leaf_flags = PageTableFlags::EXECUTABLE;
     let pte = mapping.translate(virt).unwrap();
     assert_eq!(
         pte.flags(),
@@ -221,6 +221,7 @@ pub(super) fn test_translate(address_space: &mut AddressSpace) {
     let frame = pte.frame().unwrap();
     let expected_flags = PageTableFlags::PRESENT |
         PageTableFlags::WRITABLE |
+        PageTableFlags::EXECUTABLE |
         PageTableFlags::ACCESSED |
         PageTableFlags::DIRTY;
 

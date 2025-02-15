@@ -34,9 +34,11 @@ pub use mmu::{
     FULL_ACCESS,
     KERNEL_R,
     KERNEL_RW,
+    KERNEL_RX,
     USER,
     USER_R,
     USER_RW,
+    USER_RX,
 };
 pub use page_fault_info::PageFaultInfo;
 pub use size::{

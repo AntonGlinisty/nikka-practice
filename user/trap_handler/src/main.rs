@@ -22,11 +22,8 @@ use ku::{
         Block,
         Page,
         PageFaultInfo,
+        USER_RW,
         Virt,
-        mmu::{
-            PageTableFlags,
-            USER_RW,
-        },
     },
     process::{
         Info,
@@ -179,7 +176,7 @@ fn map_pages(
     index: usize,
     count: usize,
 ) -> Block<Page> {
-    let flags = USER_RW | PageTableFlags::NO_EXECUTE;
+    let flags = USER_RW;
     let block = Block::from_index(index, index + count);
     my_assert!(block.is_ok());
     let block = syscall::map(Pid::Current, block.unwrap(), flags);

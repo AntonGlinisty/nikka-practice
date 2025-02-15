@@ -37,7 +37,7 @@ impl Stack {
         address_space: &mut AddressSpace,
         flags: PageTableFlags,
     ) -> Result<&'static mut Self> {
-        let flags = flags | PageTableFlags::NO_EXECUTE;
+        let flags = flags & !PageTableFlags::EXECUTABLE;
         Ok(&mut Self::new_slice(address_space, flags, 1)?[0])
     }
 
@@ -47,7 +47,7 @@ impl Stack {
         flags: PageTableFlags,
         len: usize,
     ) -> Result<&'static mut [Self]> {
-        let flags = flags | PageTableFlags::NO_EXECUTE;
+        let flags = flags & !PageTableFlags::EXECUTABLE;
         let stacks = unsafe { address_space.map_slice_zeroed::<Self>(len, flags)? };
 
         for stack in stacks.iter_mut() {

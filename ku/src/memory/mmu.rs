@@ -54,13 +54,14 @@ impl PageTableEntry {
     /// Флаги доступа к странице, которую описывает эта запись.
     pub fn flags(&self) -> PageTableFlags {
         let flags = self.0 & !Self::ADDRESS_MASK;
-
-        PageTableFlags::from_bits(flags).unwrap_or_else(|| {
+        let flags = PageTableFlags::from_bits(flags).unwrap_or_else(|| {
             panic!(
                 "incorrect PageTableFlags {flags:#X} for PTE at {}",
                 Virt::from_ref(self),
             )
-        })
+        });
+
+        flags ^ PageTableFlags::EXECUTABLE
     }
 
     /// Устанавливает флаги доступа к странице, которую описывает эта запись.
@@ -107,7 +108,7 @@ impl PageTableEntry {
         phys: Phys,
         flags: PageTableFlags,
     ) {
-        self.0 = phys.into_usize() | flags.bits();
+        self.0 = phys.into_usize() | (flags ^ PageTableFlags::EXECUTABLE).bits();
     }
 
     /// Возвращает `true`, если запись используется.
@@ -225,8 +226,24 @@ bitflags! {
         /// для пометки страниц, которые должны быть скопированы в случае записи в них.
         const COPY_ON_WRITE = 1 << 9;
 
-        /// Запрет интерпретировать данные в странице как код, требует включения флага [`x86_64::registers::model_specific::EferFlags::NO_EXECUTE_ENABLE`] в [`x86_64::registers::model_specific::Efer`].
-        const NO_EXECUTE = 1 << 63;
+        /// Страница доступна на исполнение.
+        ///
+        /// Процессор интерпретирует единицу в этом бите как запрет исполнения, а не разрешение.
+        /// То есть, для него этот бит --- `NO_EXECUTE`.
+        /// Но работать в коде с такой семантикой этого бита неудобно.
+        /// Так как операции вроде `|` и `&` будут по-разному работать с битами
+        /// [`PageTableFlags::WRITABLE`] и [`PageTableFlags::USER_ACCESSIBLE`] с одной стороны
+        /// и `PageTableFlags::NO_EXECUTE` с другой.
+        /// Поэтому в коде удобнее работать с [`PageTableFlags::EXECUTABLE`], который ведёт себя
+        /// аналогично флагам [`PageTableFlags::WRITABLE`] и [`PageTableFlags::USER_ACCESSIBLE`].
+        /// А при чтении и сохранении [`PageTableFlags`] в [`PageTableEntry`] значение этого флага
+        /// инвертируется, см. [`PageTableEntry::flags()`] и [`PageTableEntry::set_phys()`].
+        ///
+        /// Чтобы работал запрет исполнения данных в страницах как кода,
+        /// дополнительно требуется включить флаг
+        /// [`x86_64::registers::model_specific::EferFlags::NO_EXECUTE_ENABLE`] в
+        /// [`x86_64::registers::model_specific::Efer`].
+        const EXECUTABLE = 1 << 63;
     }
 }
 
@@ -296,10 +313,10 @@ impl fmt::Display for PageTableFlags {
         write!(
             formatter,
             "{}({:#03X})",
-            if self.contains(PageTableFlags::NO_EXECUTE) {
-                '-'
-            } else {
+            if self.contains(PageTableFlags::EXECUTABLE) {
                 'X'
+            } else {
+                '-'
             },
             self.bits(),
         )
@@ -314,6 +331,10 @@ pub const KERNEL_R: PageTableFlags =
 pub const KERNEL_RW: PageTableFlags =
     PageTableFlags::from_bits_truncate(KERNEL_R.bits() | PageTableFlags::WRITABLE.bits());
 
+/// Флаги для страниц, доступных ядру только на чтение и исполнение.
+pub const KERNEL_RX: PageTableFlags =
+    PageTableFlags::from_bits_truncate(KERNEL_R.bits() | PageTableFlags::EXECUTABLE.bits());
+
 /// Шаблон флагов для страниц, доступных коду пользователя.
 pub const USER: PageTableFlags = PageTableFlags::from_bits_truncate(
     PageTableFlags::PRESENT.bits() | PageTableFlags::USER_ACCESSIBLE.bits(),
@@ -327,16 +348,21 @@ pub const USER_R: PageTableFlags =
 pub const USER_RW: PageTableFlags =
     PageTableFlags::from_bits_truncate(KERNEL_RW.bits() | PageTableFlags::USER_ACCESSIBLE.bits());
 
+/// Флаги для страниц, доступных коду пользователя только на чтение и исполнение.
+pub const USER_RX: PageTableFlags =
+    PageTableFlags::from_bits_truncate(KERNEL_RX.bits() | PageTableFlags::USER_ACCESSIBLE.bits());
+
 /// Шаблон флагов для страниц, не ограничивающий доступ.
 pub const FULL_ACCESS: PageTableFlags = PageTableFlags::from_bits_truncate(
     PageTableFlags::PRESENT.bits() |
         PageTableFlags::WRITABLE.bits() |
-        PageTableFlags::USER_ACCESSIBLE.bits(),
+        PageTableFlags::USER_ACCESSIBLE.bits() |
+        PageTableFlags::EXECUTABLE.bits(),
 );
 
 /// Шаблон флагов для страниц, который пользователь может задавать в системных вызовах.
 pub const SYSCALL_ALLOWED_FLAGS: PageTableFlags =
-    PageTableFlags::from_bits_truncate(USER_RW.bits() | PageTableFlags::COPY_ON_WRITE.bits());
+    PageTableFlags::from_bits_truncate(FULL_ACCESS.bits() | PageTableFlags::COPY_ON_WRITE.bits());
 
 /// Количество бит в смещении внутри виртуальной страницы или физического фрейма.
 /// Равно двоичному логарифму их размера.
