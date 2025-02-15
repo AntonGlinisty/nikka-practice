@@ -130,7 +130,7 @@ fn stress() {
                 for hole_end in pages.into_iter().filter(|hole_end| hole_start < *hole_end) {
                     let hole = Block::from_index(hole_start.index(), hole_end.index() + 1).unwrap();
                     unsafe {
-                        if hole_flags.contains(PageTableFlags::PRESENT) {
+                        if hole_flags.is_present() {
                             address_space.map_block(hole, hole_flags).unwrap();
                         } else {
                             address_space.unmap_block(hole).unwrap();
@@ -149,7 +149,7 @@ fn stress() {
                     }
 
                     unsafe {
-                        if hole_flags.contains(PageTableFlags::PRESENT) {
+                        if hole_flags.is_present() {
                             address_space.unmap_block(hole).unwrap();
                         }
                         address_space.map_block(hole, USER_RW).unwrap();

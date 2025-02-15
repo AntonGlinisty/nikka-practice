@@ -20,7 +20,7 @@ use ku::{
     memory::{
         Block,
         Page,
-        USER,
+        USER_R,
         Virt,
         mmu::PageTableFlags,
         size,
@@ -159,7 +159,7 @@ pub fn copy_mapping(
     dst_block: Block<Page>,
     flags: Option<PageTableFlags>,
 ) -> Result<()> {
-    if src_block.count() == dst_block.count() && flags.unwrap_or(USER).contains(USER) {
+    if src_block.count() == dst_block.count() && flags.unwrap_or(USER_R).is_user() {
         syscall(
             Syscall::CopyMapping,
             dst_pid.into_usize(),

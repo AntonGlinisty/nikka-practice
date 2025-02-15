@@ -38,6 +38,7 @@ use crate::{
     },
     memory::{
         Block,
+        KERNEL_RW,
         Page,
         Virt,
         mmu::PageTableFlags,
@@ -133,7 +134,7 @@ impl<'a, T: BigAllocator> Loader<'a, T> {
     ///   Последние проставит в дальнейшем метод [`Loader::finalize_mapping()`].
     /// - Кроме нужных для копирования флагов требуется также указывать
     ///   флаги аллокатора [`Loader::allocator.flags()`][BigAllocator::flags].
-    ///   Среди них, например, может быть [`PageTableFlags::USER_ACCESSIBLE`],
+    ///   Среди них, например, может быть [`PageTableFlags::USER`],
     ///   которого нет во флагах ELF--файла.
     /// - Новые страницы отображения заполняет нулями с помощью [`MaybeUninit::fill()`].
     fn extend_mapping(
@@ -176,7 +177,7 @@ impl<'a, T: BigAllocator> Loader<'a, T> {
     ///
     /// Кроме нужных для копирования флагов требуется также указывать
     /// флаги аллокатора [`Loader::allocator.flags()`][BigAllocator::flags].
-    /// Среди них, например, может быть [`PageTableFlags::USER_ACCESSIBLE`],
+    /// Среди них, например, может быть [`PageTableFlags::USER`],
     /// которого нет во флагах ELF--файла.
     fn finalize_mapping(
         &mut self,
@@ -195,9 +196,7 @@ impl<'a, T: BigAllocator> Loader<'a, T> {
 
     /// Флаги, используемые изначально для копирования в память содержимого из ELF--файла,
     /// которые выставляет метод [`Loader::extend_mapping()`].
-    const INITIAL_FLAGS: PageTableFlags = PageTableFlags::from_bits_truncate(
-        PageTableFlags::PRESENT.bits() | PageTableFlags::WRITABLE.bits(),
-    );
+    const INITIAL_FLAGS: PageTableFlags = KERNEL_RW;
 }
 
 // ANCHOR: elf_range

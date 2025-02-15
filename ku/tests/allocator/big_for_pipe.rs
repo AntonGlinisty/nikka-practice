@@ -80,7 +80,7 @@ unsafe impl BigAllocator for BigForPipe {
         &mut self,
         flags: PageTableFlags,
     ) -> Result<()> {
-        if flags.contains(PageTableFlags::USER_ACCESSIBLE) {
+        if flags.is_user() {
             self.flags = flags;
 
             Ok(())
@@ -146,7 +146,7 @@ unsafe impl BigAllocator for BigForPipe {
         assert!(self.reserved.contains_block(block));
 
         let mut prot_flags = ProtFlags::PROT_READ;
-        if flags.contains(PageTableFlags::WRITABLE) {
+        if flags.is_writable() {
             prot_flags |= ProtFlags::PROT_WRITE;
         }
 

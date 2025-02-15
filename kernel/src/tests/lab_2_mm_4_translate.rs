@@ -11,14 +11,12 @@ use kernel::{
     memory::{
         BASE_ADDRESS_SPACE,
         FRAME_ALLOCATOR,
+        KERNEL_RW,
         Phys,
+        USER_R,
+        USER_RW,
         Virt,
-        mmu::{
-            KERNEL_RW,
-            PageTableFlags,
-            USER,
-            USER_RW,
-        },
+        mmu::PageTableFlags,
         test_scaffolding::{
             forbid_frame_leaks,
             get_pte,
@@ -51,7 +49,7 @@ fn do_not_loose_intermediate_flags(virt: Virt) {
     map_intermediate(virt, KERNEL_RW);
     check_intermediate(virt, KERNEL_RW);
 
-    map_intermediate(virt, USER);
+    map_intermediate(virt, USER_R);
     check_intermediate(virt, USER_RW);
 
     fn check_intermediate(
@@ -102,7 +100,7 @@ fn t04_huge_page() {
     let result = get_pte(&path);
     assert_eq!(result, Err(Unimplemented));
 
-    let result = path.map_intermediate(USER);
+    let result = path.map_intermediate(USER_R);
     assert_eq!(result, Err(Unimplemented));
 }
 

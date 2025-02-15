@@ -98,7 +98,7 @@ fn check_path(
 
     let (level, pte) = deepest_pte(&path);
     if level > 0 {
-        assert!(!pte.is_present() || pte.flags().contains(PageTableFlags::HUGE));
+        assert!(!pte.is_present() || pte.is_huge());
     }
 
     for (&child, &parent) in nodes(&path).iter().zip(nodes(&path)[1 ..].iter()) {
@@ -201,7 +201,7 @@ pub(super) fn test_path(address_space: &mut AddressSpace) {
         "a Path should not descend deeper into a huge page",
     );
     assert!(pte.is_present());
-    assert!(pte.flags().contains(PageTableFlags::HUGE));
+    assert!(pte.is_huge());
     assert_eq!(get_pte(&huge_path), Err(Unimplemented));
     check_path(mapping, huge_virt);
 }
@@ -266,7 +266,7 @@ pub(super) fn unique_virt(flags: PageTableFlags) -> Virt {
 
     static UNIQUE_ROOT_LEVEL_ENTRY: AtomicUsize = AtomicUsize::new(1);
 
-    let is_user = flags.contains(PageTableFlags::USER_ACCESSIBLE);
+    let is_user = flags.is_user();
     let start = user_pages().start_address();
     let entry = UNIQUE_ROOT_LEVEL_ENTRY.fetch_add(1, Ordering::Relaxed);
     let misalignment = 1 << (entry % (size::from(PAGE_OFFSET_BITS) + 1));

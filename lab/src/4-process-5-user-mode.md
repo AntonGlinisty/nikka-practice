@@ -220,7 +220,7 @@ $ (cd kernel; cargo test --test 4-process-5-user-mode)
 20:37:19 0 D elf loadable program header; file_block = [0v25_6C18, 0v25_DC78), size 28.094 KiB; memory_block = [0v1005_3C18, 0v1005_ACA0), size 28.133 KiB
 20:37:19 0 I switch to; address_space = "base" @ 0p1000
 20:37:19 0 I loaded ELF file; context = { rip: 0v1000_9A40, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.659 MiB; process = { pid: <current>, address_space: "process" @ 0p7E9_9000, { rip: 0v1000_9A40, rsp: 0v7F7F_FFFF_F000 } }
-20:37:19 0 I user process page table entry; entry_point = 0v1000_9A40; frame = Frame(32320 @ 0p7E4_0000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:37:19 0 I user process page table entry; entry_point = 0v1000_9A40; frame = Frame(32320 @ 0p7E4_0000); flags = PageTableFlags(PRESENT | WRITABLE | USER | ACCESSED | DIRTY)
 20:37:19 0 D process_frames = 153
 20:37:19 0 I switch to; address_space = "process" @ 0p7E9_9000
 20:37:19 0 D switched to address_space
@@ -248,7 +248,7 @@ $ (cd kernel; cargo test --test 4-process-5-user-mode)
 20:37:20.321 0 D elf loadable program header; file_block = [0v25_6C18, 0v25_DC78), size 28.094 KiB; memory_block = [0v1005_3C18, 0v1005_ACA0), size 28.133 KiB
 20:37:20.363 0 I switch to; address_space = "base" @ 0p1000
 20:37:20.365 0 I loaded ELF file; context = { rip: 0v1000_9A40, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.659 MiB; process = { pid: <current>, address_space: "process" @ 0p7E9_9000, { rip: 0v1000_9A40, rsp: 0v7F7F_FFFF_F000 } }
-20:37:20.377 0 I user process page table entry; entry_point = 0v1000_9A40; frame = Frame(32223 @ 0p7DD_F000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:37:20.377 0 I user process page table entry; entry_point = 0v1000_9A40; frame = Frame(32223 @ 0p7DD_F000); flags = PageTableFlags(PRESENT | WRITABLE | USER | ACCESSED | DIRTY)
 20:37:20.387 0 D process_frames = 153
 20:37:20.391 0 I switch to; address_space = "process" @ 0p7E9_9000
 20:37:20.395 0 D switched to address_space

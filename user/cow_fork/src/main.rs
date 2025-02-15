@@ -29,7 +29,6 @@ use ku::{
             PAGE_TABLE_ROOT_LEVEL,
             PageTableFlags,
             SYSCALL_ALLOWED_FLAGS,
-            USER,
             USER_RW,
         },
     },

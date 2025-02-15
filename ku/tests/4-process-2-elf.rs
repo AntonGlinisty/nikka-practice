@@ -54,7 +54,6 @@ use ku::{
         Block,
         KERNEL_R,
         Page,
-        USER,
         USER_R,
         Virt,
         mmu::PageTableFlags,
@@ -529,7 +528,7 @@ fn t07_initial_flags() {
     let initial_flags = allocator.pages[0].flags;
 
     debug!(%initial_flags);
-    assert!(initial_flags.contains(PageTableFlags::WRITABLE));
+    assert!(initial_flags.is_writable());
     assert_eq!(initial_flags, expected_initial_flags);
 }
 
@@ -835,7 +834,7 @@ fn validate_memory(
 fn generate_allocator_flags() -> impl Iterator<Item = PageTableFlags> {
     [
         KERNEL_R,
-        USER,
+        USER_R,
         PageTableFlags::NO_CACHE,
         PageTableFlags::ACCESSED | PageTableFlags::DIRTY,
         PageTableFlags::AVAILABLE,
@@ -1016,9 +1015,8 @@ impl DummyAllocator {
         for (i, dummy_page) in self.pages.iter().enumerate() {
             if dummy_page.reserved {
                 let page = Page::from_index(self.offset_page() + i).unwrap();
-
                 assert!(
-                    dummy_page.flags.contains(PageTableFlags::PRESENT),
+                    dummy_page.flags.is_present(),
                     "page {page} is reserved but is not unused",
                 );
             }
@@ -1118,7 +1116,7 @@ unsafe impl BigAllocator for DummyAllocator {
         );
 
         assert!(
-            flags.contains(PageTableFlags::PRESENT),
+            flags.is_present(),
             "map() with non-present flags makes no sense",
         );
 

@@ -59,7 +59,7 @@ impl MappedBlock {
 
     /// Возвращает `true`, если этот блок отображён в физическую память.
     pub fn is_present(&self) -> bool {
-        self.flags.contains(PageTableFlags::PRESENT)
+        self.flags.is_present()
     }
 
     #[allow(rustdoc::private_intra_doc_links)]
@@ -99,7 +99,7 @@ impl MappedBlock {
 
         let frames = if ignore_frame_addresses {
             Ok(Block::default())
-        } else if flags.contains(PageTableFlags::PRESENT) {
+        } else if flags.is_present() {
             self.frames.coalesce(other.frames)
         } else {
             Block::from_index(0, self.frames.count() + other.frames.count())

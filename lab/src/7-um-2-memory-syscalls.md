@@ -238,7 +238,7 @@ $ (cd kernel; cargo test --test 6-um-2-memory-syscalls-allocator)
 20:53:54 0 D elf loadable program header; file_block = [0v28_C630, 0v37_83E0), size 943.422 KiB; memory_block = [0v1008_9630, 0v1017_5410), size 943.469 KiB
 20:53:54 0 I switch to; address_space = "base" @ 0p1000
 20:53:54 0 I loaded ELF file; context = { rip: 0v1003_2EA0, rsp: 0v7F7F_FFFF_F000 }; file_size = 8.782 MiB; process = { pid: <current>, address_space: "process" @ 0p7E2_6000, { rip: 0v1003_2EA0, rsp: 0v7F7F_FFFF_F000 } }
-20:53:54 0 I user process page table entry; entry_point = 0v1003_2EA0; frame = Frame(32220 @ 0p7DD_C000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:53:54 0 I user process page table entry; entry_point = 0v1003_2EA0; frame = Frame(32220 @ 0p7DD_C000); flags = PageTableFlags(PRESENT | WRITABLE | USER | ACCESSED | DIRTY)
 20:53:54 0 D process_frames = 437
 20:53:54 0 I switch to; address_space = "0:0" @ 0p7E2_6000
 20:53:54 0 D dropping; spinlock = kernel/tests/6-um-2-memory-syscalls-allocator.rs:45:19; stats = Stats { failures: 0, locks: 54, unlocks: 54, waits: 0 }
@@ -261,7 +261,7 @@ $ (cd kernel; cargo test --test 6-um-2-memory-syscalls-allocator)
 20:53:55.909 0 I switch to; address_space = "base" @ 0p1000
 20:53:55.913 0 I loaded ELF file; context = { rip: 0v1003_2EA0, rsp: 0v7F7F_FFFF_F000 }; file_size = 8.782 MiB; process = { pid: <current>, address_space: "process" @ 0p7E2_6000, { rip: 0v1003_2EA0, rsp: 0v7F7F_FFFF_F000 } }
 20:53:55.927 0 I allocate; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E2_6000, { rip: 0v1003_2EA0, rsp: 0v7F7F_FFFF_F000 } }; process_count = 1
-20:53:55.937 0 I user process page table entry; entry_point = 0v1003_2EA0; frame = Frame(31912 @ 0p7CA_8000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:53:55.937 0 I user process page table entry; entry_point = 0v1003_2EA0; frame = Frame(31912 @ 0p7CA_8000); flags = PageTableFlags(PRESENT | WRITABLE | USER | ACCESSED | DIRTY)
 20:53:55.947 0 D process_frames = 437
 20:53:55.951 0 I dequeue; pid = Some(0:0)
 20:53:55.955 0 I switch to; address_space = "0:0" @ 0p7E2_6000

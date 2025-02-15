@@ -3,6 +3,7 @@ use ku::{
     memory::{
         Block,
         Frame,
+        KERNEL_RW,
         Page,
         Phys,
         Virt,
@@ -11,7 +12,6 @@ use ku::{
             PAGE_TABLE_ENTRY_COUNT,
             PageTable,
             PageTableEntry,
-            PageTableFlags,
         },
         size::{
             GiB,
@@ -79,18 +79,17 @@ fn basic() {
                 assert_eq!(root[root_entries_end], PageTableEntry::default());
             }
 
-            let expected_flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
-
             let mut entry = 0;
             for root_entry in &root[root_entries_start .. root_entries_end] {
-                assert!(root_entry.flags().contains(expected_flags));
+                assert!(root_entry.flags().contains(KERNEL_RW));
 
                 let frame = root_entry.frame().unwrap();
                 let virt = phys2virt.map(frame.address()).unwrap();
                 let node = unsafe { virt.try_into_ref::<PageTable>().unwrap() };
                 for pte in node {
                     if entry < entry_count {
-                        assert!(pte.flags().contains(expected_flags | PageTableFlags::HUGE));
+                        assert!(pte.is_huge());
+                        assert!(pte.flags().contains(KERNEL_RW));
                         assert_eq!(
                             pte.frame().unwrap().index(),
                             entry * (PAGES_PER_ROOT_LEVEL_ENTRY / PAGE_TABLE_ENTRY_COUNT),

@@ -28,7 +28,9 @@ use crate::{
 use super::{
     Block,
     FRAME_ALLOCATOR,
+    FULL_ACCESS,
     Phys2Virt,
+    USER_R,
     Virt,
     frage::{
         Frame,
@@ -37,7 +39,6 @@ use super::{
     mapped_block::MappedBlock,
     mmu::{
         self,
-        FULL_ACCESS,
         PAGE_OFFSET_BITS,
         PAGE_TABLE_ENTRY_COUNT,
         PAGE_TABLE_INDEX_BITS,
@@ -48,7 +49,6 @@ use super::{
         PageTable,
         PageTableEntry,
         PageTableFlags,
-        USER_R,
     },
     size,
 };
@@ -273,7 +273,7 @@ impl Mapping {
         for mut path in self.range_mut(last_page ..).skip(1) {
             let (_, pte) = path.deepest_pte_mut();
 
-            if pte.flags().contains(PageTableFlags::PRESENT | PageTableFlags::HUGE) {
+            if pte.is_huge() {
                 pte.clear();
                 cleared_pte_count += 1;
             } else {
@@ -503,7 +503,7 @@ impl<'a> Path<'a> {
 
         if level == PAGE_TABLE_LEAF_LEVEL {
             Ok(pte)
-        } else if pte.flags().contains(PageTableFlags::HUGE) {
+        } else if pte.is_huge() {
             Err(Unimplemented)
         } else {
             Err(NoPage)
@@ -628,7 +628,7 @@ impl<'a> Path<'a> {
 
         if level > size::from(PAGE_TABLE_LEAF_LEVEL) {
             assert!(self.nodes[.. level].iter().all(|&pte| pte == Virt::default()));
-            assert_eq!(pte.is_present(), pte.flags().contains(PageTableFlags::HUGE));
+            assert_eq!(pte.is_present(), pte.is_huge());
         }
     }
 
@@ -652,8 +652,8 @@ impl<'a> fmt::Display for Path<'a> {
             if let Ok(next_frame) = pte.frame() {
                 frame = next_frame;
 
-                if pte.flags().contains(PageTableFlags::HUGE) || level == PAGE_TABLE_LEAF_LEVEL {
-                    if pte.flags().contains(PageTableFlags::HUGE) {
+                if pte.is_huge() || level == PAGE_TABLE_LEAF_LEVEL {
+                    if pte.is_huge() {
                         write!(formatter, " (huge page)")?;
                     }
 

@@ -95,10 +95,12 @@ pub use frage::{
 };
 pub use frame_allocator::FRAME_ALLOCATOR;
 pub use mmu::{
+    FULL_ACCESS,
+    KERNEL_MMIO,
     KERNEL_R,
     KERNEL_RW,
     KERNEL_RX,
-    USER,
+    SYSCALL_ALLOWED_FLAGS,
     USER_R,
     USER_RW,
     USER_RX,

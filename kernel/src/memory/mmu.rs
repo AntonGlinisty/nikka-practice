@@ -2,6 +2,7 @@ use x86::tlb;
 
 pub use ku::memory::mmu::{
     FULL_ACCESS,
+    KERNEL_MMIO,
     KERNEL_R,
     KERNEL_RW,
     KERNEL_RX,
@@ -15,7 +16,7 @@ pub use ku::memory::mmu::{
     PageTable,
     PageTableEntry,
     PageTableFlags,
-    USER,
+    SYSCALL_ALLOWED_FLAGS,
     USER_R,
     USER_RW,
     USER_RX,

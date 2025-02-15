@@ -55,7 +55,6 @@ use crate::{
         FRAME_ALLOCATOR,
         KERNEL_RW,
         Page,
-        USER,
         USER_R,
         Virt,
         mmu::{
@@ -416,7 +415,7 @@ fn check_block(
 /// адресное пространство процесса `process` с заданными флагами `flags`.
 /// Флаги [`PageTableFlags::COPY_ON_WRITE`] и [`PageTableFlags::WRITABLE`]
 /// при проверке считаются эквивалентными,
-/// а флаг [`PageTableFlags::USER_ACCESSIBLE`] --- обязательно включённым.
+/// а флаг [`PageTableFlags::USER`] --- обязательно включённым.
 /// Возвращает копию [`PageTableEntry`], с физическим фреймом,
 /// в который она отображена, и флагами исходного отображения.
 ///
@@ -443,7 +442,7 @@ fn check_frame(
 ///   - [`Error::InvalidArgument`], если во `flags` установлен бит,
 ///     не соответствующий никакому флагу [`PageTableFlags`].
 ///   - [`Error::PermissionDenied`], если `flags != 0` и
-///     в них не включён [`PageTableFlags::USER_ACCESSIBLE`].
+///     в них не включён [`PageTableFlags::USER`].
 fn check_page_flags(flags: usize) -> Result<Option<PageTableFlags>> {
     // TODO: your code here.
     unimplemented!();

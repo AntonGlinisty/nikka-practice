@@ -153,8 +153,8 @@ pub(super) fn validate_block(pages: Block<Page>) -> Result<()> {
 ///
 /// То есть, адрес этой страницы лежит в зарезервированной для пользователя области
 /// [`kernel::memory::range::user_pages()`], а во `flags` нет доступа пользователю ---
-/// флага [`PageTableFlags::USER_ACCESSIBLE`].
-/// Либо наоборот, флаг [`PageTableFlags::USER_ACCESSIBLE`] есть, но страница не
+/// флага [`PageTableFlags::USER`].
+/// Либо наоборот, флаг [`PageTableFlags::USER`] есть, но страница не
 /// лежит в области [`kernel::memory::range::user_pages()`].
 pub(super) fn validate_block_flags(
     pages: Block<Page>,
@@ -162,7 +162,7 @@ pub(super) fn validate_block_flags(
 ) -> Result<()> {
     validate_block(pages)?;
 
-    if is_user_block(pages) == flags.contains(PageTableFlags::USER_ACCESSIBLE) {
+    if is_user_block(pages) == flags.is_user() {
         Ok(())
     } else {
         Err(PermissionDenied)
@@ -174,14 +174,14 @@ pub(super) fn validate_block_flags(
 ///
 /// То есть, адрес этой страницы лежит в зарезервированной для пользователя области
 /// [`kernel::memory::range::user_pages()`], а во `flags` нет доступа пользователю ---
-/// флага [`PageTableFlags::USER_ACCESSIBLE`].
-/// Либо наоборот, флаг [`PageTableFlags::USER_ACCESSIBLE`] есть, но страница не
+/// флага [`PageTableFlags::USER`].
+/// Либо наоборот, флаг [`PageTableFlags::USER`] есть, но страница не
 /// лежит в области [`kernel::memory::range::user_pages()`].
 pub(super) fn validate_page_flags(
     page: Page,
     flags: PageTableFlags,
 ) -> Result<()> {
-    if is_user_page(page) == flags.contains(PageTableFlags::USER_ACCESSIBLE) {
+    if is_user_page(page) == flags.is_user() {
         Ok(())
     } else {
         Err(PermissionDenied)

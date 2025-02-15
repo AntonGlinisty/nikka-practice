@@ -339,7 +339,7 @@ $ (cd kernel; cargo test --test 4-process-3-elf)
 20:57:27.979 0 D     [0vFFFF_FFBF_FFFF_F000, 0vFFFF_FFC0_0000_0000), size 4.000 KiB, 0------UWPX(0x7)
 20:57:28.263 0 D     [0vFFFF_FFF8_0000_0000, 0vFFFF_FFF8_0080_1000), size 8.004 MiB, 0-H-----WPX(0x83)
 20:57:28.273 0 I loaded ELF file; entry = 0v1000_0000_88D0; file_size = 5.999 MiB; process = { pid: <current>, address_space: "process" @ 0p7E9_9000, { rip: 0v1000_0000_88D0, rsp: 0v7FFF_FFFF_5000 } }
-20:57:28.287 0 I user process page table entry; entry_point = 0v1000_0000_88D0; frame = Frame(32319 @ 0p7E3_F000); flags = PageTableFlags(PRESENT | USER_ACCESSIBLE)
+20:57:28.287 0 I user process page table entry; entry_point = 0v1000_0000_88D0; frame = Frame(32319 @ 0p7E3_F000); flags = PageTableFlags(PRESENT | USER)
 20:57:28.301 0 D process_frames = 146
 20:57:28.307 0 D dropping; spinlock = kernel/src/process/process.rs:85:28; stats = Stats { failures: 0, locks: 1, unlocks: 1, waits: 0 }
 20:57:28.315 0 I drop; address_space = "process" @ 0p7E9_9000

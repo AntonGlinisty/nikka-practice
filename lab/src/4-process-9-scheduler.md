@@ -129,7 +129,7 @@ $ (cd kernel; cargo test --test 4-process-9-scheduler)
 20:40:09.551 0 I switch to; address_space = "base" @ 0p1000
 20:40:09.557 0 I loaded ELF file; context = { rip: 0v1000_9A40, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.661 MiB; process = { pid: <current>, address_space: "process" @ 0p7E2_6000, { rip: 0v1000_9A40, rsp: 0v7F7F_FFFF_F000 } }
 20:40:09.575 0 I allocate; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E2_6000, { rip: 0v1000_9A40, rsp: 0v7F7F_FFFF_F000 } }; process_count = 1
-20:40:09.589 0 I user process page table entry; entry_point = 0v1000_9A40; frame = Frame(32255 @ 0p7DF_F000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:40:09.589 0 I user process page table entry; entry_point = 0v1000_9A40; frame = Frame(32255 @ 0p7DF_F000); flags = PageTableFlags(PRESENT | WRITABLE | USER | ACCESSED | DIRTY)
 20:40:09.613 0 D process_frames = 160
 20:40:10.265 0 I page allocator init; free_page_count = 33822867456; block = [0v180_0000_0000, 0v7F80_0000_0000), size 126.000 TiB
 20:40:10.275 0 I duplicate; address_space = "process" @ 0p7D8_6000
@@ -144,7 +144,7 @@ $ (cd kernel; cargo test --test 4-process-9-scheduler)
 20:40:10.407 0 I switch to; address_space = "base" @ 0p1000
 20:40:10.413 0 I loaded ELF file; context = { rip: 0v1000_9A40, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.659 MiB; process = { pid: <current>, address_space: "process" @ 0p7D8_6000, { rip: 0v1000_9A40, rsp: 0v7F7F_FFFF_F000 } }
 20:40:10.427 0 I allocate; slot = Process { pid: 1:0, address_space: "1:0" @ 0p7D8_6000, { rip: 0v1000_9A40, rsp: 0v7F7F_FFFF_F000 } }; process_count = 2
-20:40:10.437 0 I user process page table entry; entry_point = 0v1000_9A40; frame = Frame(32095 @ 0p7D5_F000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:40:10.437 0 I user process page table entry; entry_point = 0v1000_9A40; frame = Frame(32095 @ 0p7D5_F000); flags = PageTableFlags(PRESENT | WRITABLE | USER | ACCESSED | DIRTY)
 20:40:10.449 0 D process_frames = 160
 20:40:10.455 0 I dequeue; pid = Some(0:0)
 20:40:10.459 0 I switch to; address_space = "0:0" @ 0p7E2_6000
@@ -207,7 +207,7 @@ $ (cd kernel; cargo test --test 4-process-9-scheduler)
 20:40:13.625 0 I switch to; address_space = "base" @ 0p1000
 20:40:13.629 0 I loaded ELF file; context = { rip: 0v1000_8EF0, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.613 MiB; process = { pid: <current>, address_space: "process" @ 0p7D8_6000, { rip: 0v1000_8EF0, rsp: 0v7F7F_FFFF_F000 } }
 20:40:13.641 0 I allocate; slot = Process { pid: 1:1, address_space: "1:1" @ 0p7D8_6000, { rip: 0v1000_8EF0, rsp: 0v7F7F_FFFF_F000 } }; process_count = 1
-20:40:13.651 0 I user process page table entry; entry_point = 0v1000_8EF0; frame = Frame(32004 @ 0p7D0_4000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:40:13.651 0 I user process page table entry; entry_point = 0v1000_8EF0; frame = Frame(32004 @ 0p7D0_4000); flags = PageTableFlags(PRESENT | WRITABLE | USER | ACCESSED | DIRTY)
 20:40:13.663 0 D process_frames = 155
 20:40:13.667 0 I switch to; address_space = "1:1" @ 0p7D8_6000
 20:40:13.671 0 D switched to address_space

@@ -16,7 +16,6 @@ use kernel::{
     memory::{
         FRAME_ALLOCATOR,
         Virt,
-        mmu::PageTableFlags,
     },
     process::{
         self,
@@ -99,13 +98,10 @@ fn check(
 
     assert!(pte.is_present(), "{}", mapping_error);
     assert!(
-        pte.flags().contains(PageTableFlags::USER_ACCESSIBLE),
+        pte.is_user(),
         "the ELF file is not accessible from the user space",
     );
-    assert!(
-        pte.flags().contains(PageTableFlags::EXECUTABLE),
-        "the entry point is not executable",
-    );
+    assert!(pte.is_executable(), "the entry point is not executable");
 }
 
 #[must_use]

@@ -26,7 +26,6 @@ use ku::{
         Block,
         Page,
         SizeOf,
-        USER,
         USER_RW,
         mmu::PageTableFlags,
     },
@@ -59,7 +58,7 @@ unsafe impl BigAllocator for MapAllocator {
         &mut self,
         flags: PageTableFlags,
     ) -> Result<()> {
-        if flags.contains(USER) {
+        if flags.is_user() {
             self.flags = flags;
 
             Ok(())
@@ -74,7 +73,7 @@ unsafe impl BigAllocator for MapAllocator {
     ) -> Result<Block<Page>> {
         if layout.align() <= Page::SIZE {
             let block = Block::from_index(0, Page::count_up(layout.size()))?;
-            syscall::map(Pid::Current, block, USER)
+            syscall::map(Pid::Current, block, PageTableFlags::USER)
         } else {
             Err(InvalidAlignment)
         }
@@ -84,7 +83,7 @@ unsafe impl BigAllocator for MapAllocator {
         &mut self,
         block: Block<Page>,
     ) -> Result<()> {
-        syscall::map(Pid::Current, block, USER).map(|_| ())
+        syscall::map(Pid::Current, block, PageTableFlags::USER).map(|_| ())
     }
 
     unsafe fn unreserve(

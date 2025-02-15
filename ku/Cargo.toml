@@ -16,6 +16,7 @@ bitflags = "*"
 chrono = { version = "*", default-features = false }
 derive-getters = "*"
 derive_more = { version = "*", default-features = false, features = ["full"] }
+duplicate = "*"
 enum-iterator = "*"
 heapless = "*"
 itertools = { version = "*", default-features = false }
@@ -38,7 +39,6 @@ sentinel_frame = { path = "../sentinel_frame" }
 
 [dev-dependencies]
 anyhow = "*"
-duplicate = "*"
 nix = { version = "0.27.*", features = ["mman"] }
 rand = { version = "*", default-features = false, features = ["small_rng"] }
 rstest = "*"

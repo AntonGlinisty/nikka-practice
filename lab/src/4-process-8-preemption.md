@@ -155,7 +155,7 @@ $ (cd kernel; cargo test --test 4-process-8-preemption)
 20:39:56.119 0 I switch to; address_space = "base" @ 0p1000
 20:39:56.123 0 I loaded ELF file; context = { rip: 0v1000_8F60, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.613 MiB; process = { pid: <current>, address_space: "process" @ 0p7E2_6000, { rip: 0v1000_8F60, rsp: 0v7F7F_FFFF_F000 } }
 20:39:56.139 0 I allocate; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E2_6000, { rip: 0v1000_8F60, rsp: 0v7F7F_FFFF_F000 } }; process_count = 1
-20:39:56.149 0 I user process page table entry; entry_point = 0v1000_8F60; frame = Frame(32263 @ 0p7E0_7000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:39:56.149 0 I user process page table entry; entry_point = 0v1000_8F60; frame = Frame(32263 @ 0p7E0_7000); flags = PageTableFlags(PRESENT | WRITABLE | USER | ACCESSED | DIRTY)
 20:39:56.163 0 D process_frames = 148
 20:39:56.167 0 I switch to; address_space = "0:0" @ 0p7E2_6000
 20:39:56.171 0 D switched to address_space

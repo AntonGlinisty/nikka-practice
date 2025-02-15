@@ -118,7 +118,7 @@ $ (cd kernel; cargo test --test 6-um-5-cow-fork)
 20:55:20 0 I switch to; address_space = "base" @ 0p1000
 20:55:20 0 I loaded ELF file; context = { rip: 0v1001_41B0, rsp: 0v7F7F_FFFF_F000 }; file_size = 7.040 MiB; process = { pid: <current>, address_space: "process" @ 0p7E2_5000, { rip: 0v1001_41B0, rsp: 0v7F7F_FFFF_F000 } }
 20:55:20 0 I allocate; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E2_5000, { rip: 0v1001_41B0, rsp: 0v7F7F_FFFF_F000 } }; process_count = 1
-20:55:20 0 I user process page table entry; entry_point = 0v1001_41B0; frame = Frame(32250 @ 0p7DF_A000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:55:20 0 I user process page table entry; entry_point = 0v1001_41B0; frame = Frame(32250 @ 0p7DF_A000); flags = PageTableFlags(PRESENT | WRITABLE | USER | ACCESSED | DIRTY)
 20:55:20 0 D process_frames = 169
 20:55:20 0 I dequeue; pid = Some(0:0)
 20:55:20 0 I switch to; address_space = "0:0" @ 0p7E2_5000

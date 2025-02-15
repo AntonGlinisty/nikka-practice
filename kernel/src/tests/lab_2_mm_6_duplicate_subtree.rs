@@ -5,8 +5,8 @@ use kernel::{
         AddressSpace,
         BASE_ADDRESS_SPACE,
         FRAME_ALLOCATOR,
+        USER_R,
         Virt,
-        mmu::USER,
         test_scaffolding::{
             duplicate,
             forbid_frame_leaks,
@@ -34,8 +34,8 @@ fn duplicate_and_drop() {
 
     {
         let original_mapping = mapping(&mut address_space);
-        original_mapping.path(a).map_intermediate(USER).unwrap();
-        mm_helpers::check_intermediate_flags(original_mapping, a, USER);
+        original_mapping.path(a).map_intermediate(USER_R).unwrap();
+        mm_helpers::check_intermediate_flags(original_mapping, a, USER_R);
     }
 
     let free_frames = map_in_duplicate(&mut address_space, false, true, a);
@@ -62,14 +62,14 @@ fn duplicate_and_drop() {
 
         {
             let start_free_frames = FRAME_ALLOCATOR.lock().count();
-            mapping_copy.path(virt).map_intermediate(USER).unwrap();
+            mapping_copy.path(virt).map_intermediate(USER_R).unwrap();
             let end_free_frames = FRAME_ALLOCATOR.lock().count();
             assert!(allocate_intermediate || end_free_frames == start_free_frames);
         }
 
-        mm_helpers::check_intermediate_flags(mapping_copy, virt, USER);
+        mm_helpers::check_intermediate_flags(mapping_copy, virt, USER_R);
         if mapped_in_original {
-            mm_helpers::check_intermediate_flags(original_mapping, virt, USER);
+            mm_helpers::check_intermediate_flags(original_mapping, virt, USER_R);
         }
 
         let free_frames = FRAME_ALLOCATOR.lock().count();

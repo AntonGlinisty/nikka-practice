@@ -349,7 +349,7 @@ fn copy_mapping_same_block() {
     }
 
     let pte = translate(&mut address_space, block.into_iter().next().unwrap()).unwrap();
-    assert!(!pte.flags().contains(PageTableFlags::WRITABLE));
+    assert!(!pte.is_writable());
 
     let slice = unsafe {
         MaybeUninit::slice_assume_init_mut(
@@ -427,7 +427,7 @@ fn copy_mapping_corner_cases() {
         };
 
         let flags_message = if let Some(flags) = flags {
-            if flags.contains(PageTableFlags::USER_ACCESSIBLE) {
+            if flags.is_user() {
                 "allowed"
             } else {
                 "disallowed"

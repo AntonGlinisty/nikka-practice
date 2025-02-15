@@ -254,7 +254,7 @@ $ (cd kernel; cargo test --test 6-um-4-trap-handler)
 20:55:14 0 I switch to; address_space = "base" @ 0p1000
 20:55:14 0 I loaded ELF file; context = { rip: 0v1000_DDC0, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.801 MiB; process = { pid: <current>, address_space: "process" @ 0p7E2_6000, { rip: 0v1000_DDC0, rsp: 0v7F7F_FFFF_F000 } }
 20:55:14 0 I allocate; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E2_6000, { rip: 0v1000_DDC0, rsp: 0v7F7F_FFFF_F000 } }; process_count = 1
-20:55:14 0 I user process page table entry; entry_point = 0v1000_DDC0; frame = Frame(32258 @ 0p7E0_2000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:55:14 0 I user process page table entry; entry_point = 0v1000_DDC0; frame = Frame(32258 @ 0p7E0_2000); flags = PageTableFlags(PRESENT | WRITABLE | USER | ACCESSED | DIRTY)
 20:55:14 0 D process_frames = 160
 20:55:14 0 I dequeue; pid = Some(0:0)
 20:55:14 0 I switch to; address_space = "0:0" @ 0p7E2_6000

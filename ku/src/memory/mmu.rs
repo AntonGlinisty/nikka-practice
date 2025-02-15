@@ -6,6 +6,7 @@ use core::{
 };
 
 use bitflags::bitflags;
+use duplicate::duplicate_item;
 use serde::{
     Deserialize,
     Deserializer,
@@ -111,9 +112,18 @@ impl PageTableEntry {
         self.0 = phys.into_usize() | (flags ^ PageTableFlags::EXECUTABLE).bits();
     }
 
-    /// Возвращает `true`, если запись используется.
-    pub fn is_present(&self) -> bool {
-        self.flags().contains(PageTableFlags::PRESENT)
+    /// Возвращает `true`, если выставлен соответствующий флаг доступа.
+    #[duplicate_item(
+        flag_getter;
+        [is_dirty];
+        [is_executable];
+        [is_huge];
+        [is_present];
+        [is_writable];
+        [is_user];
+    )]
+    pub fn flag_getter(&self) -> bool {
+        self.flags().flag_getter()
     }
 
     /// Очищает запись.
@@ -190,7 +200,7 @@ pub type PageTable = [PageTableEntry; PAGE_TABLE_ENTRY_COUNT];
 bitflags! {
     /// Флаги в записи таблицы страниц.
     /// Аналогичны [`x86_64::structures::paging::page_table::PageTableFlags`].
-    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+    #[derive(Clone, Copy, Default, Eq, PartialEq)]
     pub struct PageTableFlags: usize {
         /// Страница отображена в память.
         const PRESENT = 1 << 0;
@@ -199,7 +209,7 @@ bitflags! {
         const WRITABLE = 1 << 1;
 
         /// Страница доступна в режиме пользователя.
-        const USER_ACCESSIBLE = 1 << 2;
+        const USER = 1 << 2;
 
         /// Для страницы используется синхронная запись в память, без ожидания буфера записи.
         const WRITE_THROUGH = 1 << 3;
@@ -220,11 +230,20 @@ bitflags! {
         const GLOBAL = 1 << 8;
 
         /// Биты, доступные ОС для произвольных нужд.
-        const AVAILABLE = 0b111 << 9;
+        const AVAILABLE = Self::AVAILABLE_2.bits() | Self::AVAILABLE_1.bits() | Self::AVAILABLE_0.bits();
+
+        /// Бит, доступный ОС для произвольных нужд.
+        const AVAILABLE_0 = 0b001 << 9;
+
+        /// Бит, доступный ОС для произвольных нужд.
+        const AVAILABLE_1 = 0b010 << 9;
+
+        /// Бит, доступный ОС для произвольных нужд.
+        const AVAILABLE_2 = 0b100 << 9;
 
         /// Один из битов [`PageTableFlags::AVAILABLE`] используется
         /// для пометки страниц, которые должны быть скопированы в случае записи в них.
-        const COPY_ON_WRITE = 1 << 9;
+        const COPY_ON_WRITE = Self::AVAILABLE_0.bits();
 
         /// Страница доступна на исполнение.
         ///
@@ -232,18 +251,35 @@ bitflags! {
         /// То есть, для него этот бит --- `NO_EXECUTE`.
         /// Но работать в коде с такой семантикой этого бита неудобно.
         /// Так как операции вроде `|` и `&` будут по-разному работать с битами
-        /// [`PageTableFlags::WRITABLE`] и [`PageTableFlags::USER_ACCESSIBLE`] с одной стороны
+        /// [`PageTableFlags::WRITABLE`] и [`PageTableFlags::USER`] с одной стороны
         /// и `PageTableFlags::NO_EXECUTE` с другой.
         /// Поэтому в коде удобнее работать с [`PageTableFlags::EXECUTABLE`], который ведёт себя
-        /// аналогично флагам [`PageTableFlags::WRITABLE`] и [`PageTableFlags::USER_ACCESSIBLE`].
-        /// А при чтении и сохранении [`PageTableFlags`] в [`PageTableEntry`] значение этого флага
-        /// инвертируется, см. [`PageTableEntry::flags()`] и [`PageTableEntry::set_phys()`].
+        /// аналогично флагам [`PageTableFlags::WRITABLE`] и [`PageTableFlags::USER`].
+        /// А при чтении и сохранении [`PageTableFlags`] в [`PageTableEntry`],
+        /// а также при журналировании, значение этого флага инвертируется,
+        /// см. [`PageTableEntry::flags()`] и [`PageTableEntry::set_phys()`].
         ///
         /// Чтобы работал запрет исполнения данных в страницах как кода,
         /// дополнительно требуется включить флаг
         /// [`x86_64::registers::model_specific::EferFlags::NO_EXECUTE_ENABLE`] в
         /// [`x86_64::registers::model_specific::Efer`].
         const EXECUTABLE = 1 << 63;
+    }
+}
+
+impl PageTableFlags {
+    /// Возвращает `true`, если выставлен соответствующий флаг доступа.
+    #[duplicate_item(
+        flag_getter flag;
+        [is_dirty] [DIRTY];
+        [is_executable] [EXECUTABLE];
+        [is_huge] [HUGE];
+        [is_present] [PRESENT];
+        [is_writable] [WRITABLE];
+        [is_user] [USER];
+    )]
+    pub fn flag_getter(&self) -> bool {
+        self.contains(PageTableFlags::flag)
     }
 }
 
@@ -284,44 +320,62 @@ impl<'de> Deserialize<'de> for PageTableFlags {
     }
 }
 
+impl fmt::Debug for PageTableFlags {
+    fn fmt(
+        &self,
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
+        write!(
+            formatter,
+            "{:#03X}",
+            (*self ^ PageTableFlags::EXECUTABLE).bits(),
+        )
+    }
+}
+
 impl fmt::Display for PageTableFlags {
     fn fmt(
         &self,
         formatter: &mut fmt::Formatter,
     ) -> fmt::Result {
         /// Сокращения для флагов отображения страниц.
-        static FLAGS: [char; 9] = ['P', 'W', 'U', 'T', 'C', 'A', 'D', 'H', 'G'];
+        static FLAGS: [(PageTableFlags, char); 13] = [
+            (PageTableFlags::PRESENT, 'P'),
+            (PageTableFlags::EXECUTABLE, 'X'),
+            (PageTableFlags::WRITABLE, 'W'),
+            (PageTableFlags::USER, 'U'),
+            (PageTableFlags::WRITE_THROUGH, 'T'),
+            (PageTableFlags::NO_CACHE, 'C'),
+            (PageTableFlags::ACCESSED, 'A'),
+            (PageTableFlags::DIRTY, 'D'),
+            (PageTableFlags::HUGE, 'H'),
+            (PageTableFlags::GLOBAL, 'G'),
+            (PageTableFlags::AVAILABLE_0, '0'),
+            (PageTableFlags::AVAILABLE_1, '1'),
+            (PageTableFlags::AVAILABLE_2, '2'),
+        ];
 
-        write!(
-            formatter,
-            "{:X}",
-            (*self & PageTableFlags::AVAILABLE).bits() >> FLAGS.len(),
-        )?;
-
-        for (bit, flag) in FLAGS.iter().enumerate().rev() {
+        for (flag, flag_symbol) in FLAGS.iter().rev() {
             write!(
                 formatter,
                 "{}",
-                if self.bits() & (1 << bit) != 0 {
-                    *flag
+                if self.contains(*flag) {
+                    *flag_symbol
                 } else {
                     '-'
                 },
             )?;
         }
 
-        write!(
-            formatter,
-            "{}({:#03X})",
-            if self.contains(PageTableFlags::EXECUTABLE) {
-                'X'
-            } else {
-                '-'
-            },
-            self.bits(),
-        )
+        write!(formatter, "({self:?})")
     }
 }
+
+/// Флаги для страниц, предназначенных для взаимодействия с устройствами
+/// ([Memory--mapped I/O](https://en.wikipedia.org/wiki/Memory-mapped_I/O), MMIO).
+pub const KERNEL_MMIO: PageTableFlags = PageTableFlags::from_bits_truncate(
+    KERNEL_RW.bits() | PageTableFlags::NO_CACHE.bits() | PageTableFlags::WRITE_THROUGH.bits(),
+);
 
 /// Флаги для страниц, доступных ядру только на чтение.
 pub const KERNEL_R: PageTableFlags =
@@ -335,34 +389,34 @@ pub const KERNEL_RW: PageTableFlags =
 pub const KERNEL_RX: PageTableFlags =
     PageTableFlags::from_bits_truncate(KERNEL_R.bits() | PageTableFlags::EXECUTABLE.bits());
 
-/// Шаблон флагов для страниц, доступных коду пользователя.
-pub const USER: PageTableFlags = PageTableFlags::from_bits_truncate(
-    PageTableFlags::PRESENT.bits() | PageTableFlags::USER_ACCESSIBLE.bits(),
-);
-
 /// Флаги для страниц, доступных коду пользователя только на чтение.
-pub const USER_R: PageTableFlags =
-    PageTableFlags::from_bits_truncate(KERNEL_R.bits() | PageTableFlags::USER_ACCESSIBLE.bits());
+pub const USER_R: PageTableFlags = PageTableFlags::from_bits_truncate(
+    PageTableFlags::PRESENT.bits() | PageTableFlags::USER.bits(),
+);
 
 /// Флаги для страниц, доступных коду пользователя на чтение и запись.
 pub const USER_RW: PageTableFlags =
-    PageTableFlags::from_bits_truncate(KERNEL_RW.bits() | PageTableFlags::USER_ACCESSIBLE.bits());
+    PageTableFlags::from_bits_truncate(USER_R.bits() | PageTableFlags::WRITABLE.bits());
 
 /// Флаги для страниц, доступных коду пользователя только на чтение и исполнение.
 pub const USER_RX: PageTableFlags =
-    PageTableFlags::from_bits_truncate(KERNEL_RX.bits() | PageTableFlags::USER_ACCESSIBLE.bits());
+    PageTableFlags::from_bits_truncate(USER_R.bits() | PageTableFlags::EXECUTABLE.bits());
 
 /// Шаблон флагов для страниц, не ограничивающий доступ.
 pub const FULL_ACCESS: PageTableFlags = PageTableFlags::from_bits_truncate(
-    PageTableFlags::PRESENT.bits() |
-        PageTableFlags::WRITABLE.bits() |
-        PageTableFlags::USER_ACCESSIBLE.bits() |
-        PageTableFlags::EXECUTABLE.bits(),
+    PageTableFlags::EXECUTABLE.bits() |
+        PageTableFlags::PRESENT.bits() |
+        PageTableFlags::USER.bits() |
+        PageTableFlags::WRITABLE.bits(),
 );
 
 /// Шаблон флагов для страниц, который пользователь может задавать в системных вызовах.
-pub const SYSCALL_ALLOWED_FLAGS: PageTableFlags =
-    PageTableFlags::from_bits_truncate(FULL_ACCESS.bits() | PageTableFlags::COPY_ON_WRITE.bits());
+pub const SYSCALL_ALLOWED_FLAGS: PageTableFlags = PageTableFlags::from_bits_truncate(
+    FULL_ACCESS.bits() |
+        PageTableFlags::ACCESSED.bits() |
+        PageTableFlags::COPY_ON_WRITE.bits() |
+        PageTableFlags::DIRTY.bits(),
+);
 
 /// Количество бит в смещении внутри виртуальной страницы или физического фрейма.
 /// Равно двоичному логарифму их размера.

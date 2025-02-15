@@ -326,7 +326,7 @@ $ (cd kernel; cargo test --test 6-um-3-eager-fork)
 20:54:40.343 0 I switch to; address_space = "base" @ 0p1000
 20:54:40.347 0 I loaded ELF file; context = { rip: 0v1000_9E40, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.701 MiB; process = { pid: <current>, address_space: "process" @ 0p7E2_6000, { rip: 0v1000_9E40, rsp: 0v7F7F_FFFF_F000 } }
 20:54:40.361 0 I allocate; slot = Process { pid: 0:0, address_space: "0:0" @ 0p7E2_6000, { rip: 0v1000_9E40, rsp: 0v7F7F_FFFF_F000 } }; process_count = 1
-20:54:40.371 0 I user process page table entry; entry_point = 0v1000_9E40; frame = Frame(32259 @ 0p7E0_3000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:54:40.371 0 I user process page table entry; entry_point = 0v1000_9E40; frame = Frame(32259 @ 0p7E0_3000); flags = PageTableFlags(PRESENT | WRITABLE | USER | ACCESSED | DIRTY)
 20:54:40.383 0 D process_frames = 158
 20:54:41.007 0 I page allocator init; free_page_count = 33822867456; block = [0v180_0000_0000, 0v7F80_0000_0000), size 126.000 TiB
 20:54:41.015 0 I duplicate; address_space = "process" @ 0p7D8_8000
@@ -341,7 +341,7 @@ $ (cd kernel; cargo test --test 6-um-3-eager-fork)
 20:54:41.123 0 I switch to; address_space = "base" @ 0p1000
 20:54:41.127 0 I loaded ELF file; context = { rip: 0v1000_9E40, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.701 MiB; process = { pid: <current>, address_space: "process" @ 0p7D8_8000, { rip: 0v1000_9E40, rsp: 0v7F7F_FFFF_F000 } }
 20:54:41.137 0 I allocate; slot = Process { pid: 1:0, address_space: "1:0" @ 0p7D8_8000, { rip: 0v1000_9E40, rsp: 0v7F7F_FFFF_F000 } }; process_count = 2
-20:54:41.143 0 I user process page table entry; entry_point = 0v1000_9E40; frame = Frame(32101 @ 0p7D6_5000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:54:41.143 0 I user process page table entry; entry_point = 0v1000_9E40; frame = Frame(32101 @ 0p7D6_5000); flags = PageTableFlags(PRESENT | WRITABLE | USER | ACCESSED | DIRTY)
 20:54:41.153 0 D process_frames = 158
 20:54:41.155 0 I switch to; address_space = "0:0" @ 0p7E2_6000
 20:54:41.791 0 I page allocator init; free_page_count = 33688649728; block = [0v180_0000_0000, 0v7F00_0000_0000), size 125.500 TiB
@@ -388,7 +388,7 @@ $ (cd kernel; cargo test --test 6-um-3-eager-fork)
 20:54:45.071 0 I switch to; address_space = "base" @ 0p1000
 20:54:45.075 0 I loaded ELF file; context = { rip: 0v1001_1DB0, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.974 MiB; process = { pid: <current>, address_space: "process" @ 0p7CD_3000, { rip: 0v1001_1DB0, rsp: 0v7F7F_FFFF_F000 } }
 20:54:45.085 0 I allocate; slot = Process { pid: 2:1, address_space: "2:1" @ 0p7CD_3000, { rip: 0v1001_1DB0, rsp: 0v7F7F_FFFF_F000 } }; process_count = 1
-20:54:45.091 0 I user process page table entry; entry_point = 0v1001_1DB0; frame = Frame(32120 @ 0p7D7_8000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:54:45.091 0 I user process page table entry; entry_point = 0v1001_1DB0; frame = Frame(32120 @ 0p7D7_8000); flags = PageTableFlags(PRESENT | WRITABLE | USER | ACCESSED | DIRTY)
 20:54:45.101 0 D process_frames = 166
 20:54:45.103 0 I dequeue; pid = Some(2:1)
 20:54:45.107 0 I switch to; address_space = "2:1" @ 0p7CD_3000

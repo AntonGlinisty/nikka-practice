@@ -421,7 +421,7 @@ $ (cd kernel; cargo test --test 4-process-6-syscall --test 4-process-4-log-value
 20:37:26 0 D elf loadable program header; file_block = [0v25_23D0, 0v25_8F68), size 26.898 KiB; memory_block = [0v1004_F3D0, 0v1005_5F90), size 26.938 KiB
 20:37:26 0 I switch to; address_space = "base" @ 0p1000
 20:37:26 0 I loaded ELF file; context = { rip: 0v1000_8F60, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.613 MiB; process = { pid: <current>, address_space: "process" @ 0p7E9_9000, { rip: 0v1000_8F60, rsp: 0v7F7F_FFFF_F000 } }
-20:37:26 0 I user process page table entry; entry_point = 0v1000_8F60; frame = Frame(32321 @ 0p7E4_1000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:37:26 0 I user process page table entry; entry_point = 0v1000_8F60; frame = Frame(32321 @ 0p7E4_1000); flags = PageTableFlags(PRESENT | WRITABLE | USER | ACCESSED | DIRTY)
 20:37:26 0 D process_frames = 148
 20:37:26 0 I switch to; address_space = "0:0" @ 0p7E9_9000
 20:37:26 0 I https://en.wikipedia.org/wiki/Pi#/media/File:Pi_pie2.jpg; value = 3141592653589793238; hex_value = 0x2B992DDFA23249D6; pid = 0:0
@@ -446,7 +446,7 @@ $ (cd kernel; cargo test --test 4-process-6-syscall --test 4-process-4-log-value
 20:37:34 0 D elf loadable program header; file_block = [0v25_6C18, 0v25_DC78), size 28.094 KiB; memory_block = [0v1005_3C18, 0v1005_ACA0), size 28.133 KiB
 20:37:34 0 I switch to; address_space = "base" @ 0p1000
 20:37:34 0 I loaded ELF file; context = { rip: 0v1000_9A40, rsp: 0v7F7F_FFFF_F000 }; file_size = 6.661 MiB; process = { pid: <current>, address_space: "process" @ 0p7E9_9000, { rip: 0v1000_9A40, rsp: 0v7F7F_FFFF_F000 } }
-20:37:34 0 I user process page table entry; entry_point = 0v1000_9A40; frame = Frame(32317 @ 0p7E3_D000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:37:34 0 I user process page table entry; entry_point = 0v1000_9A40; frame = Frame(32317 @ 0p7E3_D000); flags = PageTableFlags(PRESENT | WRITABLE | USER | ACCESSED | DIRTY)
 20:37:34 0 I switch to; address_space = "0:0" @ 0p7E9_9000
 20:37:34 0 D switched to address_space
 20:37:34 0 D set pid
@@ -472,7 +472,7 @@ $ (cd kernel; cargo test --test 4-process-6-syscall --test 4-process-4-log-value
 20:37:35.691 0 D dropping; spinlock = kernel/src/process/table.rs:268:36; stats = Stats { failures: 0, locks: 2, unlocks: 2, waits: 0 }
 20:37:35.697 0 D dropping; spinlock = kernel/src/process/process.rs:65:28; stats = Stats { failures: 0, locks: 1, unlocks: 1, waits: 0 }
 20:37:35.703 0 I drop; address_space = "0:0" @ 0p7E9_9000
-20:37:36.687 0 I user process page table entry; entry_point = 0v1000_AB50; frame = Frame(32160 @ 0p7DA_0000); flags = PageTableFlags(PRESENT | WRITABLE | USER_ACCESSIBLE | ACCESSED | DIRTY)
+20:37:36.687 0 I user process page table entry; entry_point = 0v1000_AB50; frame = Frame(32160 @ 0p7DA_0000); flags = PageTableFlags(PRESENT | WRITABLE | USER | ACCESSED | DIRTY)
 20:37:36.695 0 I switch to; address_space = "0:0" @ 0p7DC_4000
 20:37:36.699 0 D switched to address_space
 20:37:36.703 0 D set pid

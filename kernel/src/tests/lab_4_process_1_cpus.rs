@@ -8,8 +8,9 @@ use kernel::{
     log::info,
     memory::{
         BASE_ADDRESS_SPACE,
+        FULL_ACCESS,
+        KERNEL_RW,
         Page,
-        mmu::PageTableFlags,
         test_scaffolding::mapping,
     },
     smp::test_scaffolding::{
@@ -63,8 +64,8 @@ fn kernel_stacks() {
             assert!(stack_pte.is_present(), "{stack_mapping_error}");
             assert_ne!(stack_page, Page::default(), "{stack_mapping_error}");
             assert_eq!(
-                stack_flags & (PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE),
-                PageTableFlags::WRITABLE,
+                stack_flags & FULL_ACCESS,
+                KERNEL_RW,
                 "wrong flags for the stack",
             );
         }

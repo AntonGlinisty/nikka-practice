@@ -21,7 +21,6 @@ use ku::{
     memory::{
         Block,
         Phys,
-        mmu::PageTableFlags,
         size,
     },
     time,
@@ -31,6 +30,7 @@ use kernel::{
     log::debug,
     memory::{
         BASE_ADDRESS_SPACE,
+        KERNEL_MMIO,
         KERNEL_RW,
     },
 };
@@ -135,8 +135,7 @@ impl<Color: Default + PixelColor> FrameBuffer<Color> {
         pixel_count: usize,
     ) -> Result<(&'static mut [Color], &'static mut [Color])> {
         let back_buffer_flags = KERNEL_RW;
-        let front_buffer_flags =
-            back_buffer_flags | PageTableFlags::NO_CACHE | PageTableFlags::WRITE_THROUGH;
+        let front_buffer_flags = KERNEL_MMIO;
 
         let mut address_space = BASE_ADDRESS_SPACE.lock();
 

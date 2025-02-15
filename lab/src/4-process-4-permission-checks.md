@@ -38,7 +38,7 @@ fn AddressSpace::check_permission_common(
 Он должен:
 - Проверить, что `block` целиком лежит в пользовательской части адресного пространства.
 - Пройтись по всем страницам заданного `block`, проверяя что они отображены в адресное пространство `self`
-с флагами `PageTableFlags::PRESENT`, `PageTableFlags::USER_ACCESSIBLE` и заданными на вход `flags` одновременно.
+с флагами `PageTableFlags::PRESENT`, `PageTableFlags::USER` и заданными на вход `flags` одновременно.
 
 
 ### Задача 2 --- проверка доступа к памяти

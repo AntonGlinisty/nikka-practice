@@ -200,7 +200,7 @@ impl AddressSpace {
         size: usize,
         flags: PageTableFlags,
     ) -> Result<Block<Page>> {
-        if flags.contains(PageTableFlags::USER_ACCESSIBLE) {
+        if flags.is_user() {
             self.user_page_allocator.allocate(size)
         } else {
             KERNEL_PAGE_ALLOCATOR.lock().allocate(size)
@@ -241,8 +241,8 @@ impl AddressSpace {
     ///   какой-нибудь страницы блока не соответствует запрошенным флагам.
     ///   То есть, адрес этой страницы лежит в зарезервированной для пользователя области
     ///   [`kernel::memory::range::user_pages()`], а во `flags` нет доступа пользователю ---
-    ///   флага [`PageTableFlags::USER_ACCESSIBLE`].
-    ///   Либо наоборот, флаг [`PageTableFlags::USER_ACCESSIBLE`] есть, но страница не
+    ///   флага [`PageTableFlags::USER`].
+    ///   Либо наоборот, флаг [`PageTableFlags::USER`] есть, но страница не
     ///   лежит в области [`kernel::memory::range::user_pages()`].
     pub fn reserve(
         &mut self,
@@ -273,8 +273,8 @@ impl AddressSpace {
     ///   страницы `page` не соответствует запрошенным флагам.
     ///   То есть адрес этой страницы лежит в зарезервированной для пользователя области
     ///   [`kernel::memory::range::user_pages()`], а во `flags` нет доступа пользователю ---
-    ///   флага [`PageTableFlags::USER_ACCESSIBLE`].
-    ///   Либо наоборот, флаг [`PageTableFlags::USER_ACCESSIBLE`] есть, но страница не
+    ///   флага [`PageTableFlags::USER`].
+    ///   Либо наоборот, флаг [`PageTableFlags::USER`] есть, но страница не
     ///   лежит в области [`kernel::memory::range::user_pages()`].
     ///
     /// # Safety
@@ -452,7 +452,7 @@ impl AddressSpace {
         flags: PageTableFlags,
         default: F,
     ) -> Result<&'static mut [T]> {
-        assert!(flags.contains(PageTableFlags::WRITABLE));
+        assert!(flags.is_writable());
         let slice = self.map_slice_uninit(len, flags)?;
         Ok(MaybeUninit::fill_with(slice, default))
     }
@@ -472,7 +472,7 @@ impl AddressSpace {
         len: usize,
         flags: PageTableFlags,
     ) -> Result<&'static mut [T]> {
-        assert!(flags.contains(PageTableFlags::WRITABLE));
+        assert!(flags.is_writable());
 
         let slice = self.map_slice_uninit(len, flags)?;
 
@@ -531,7 +531,7 @@ impl AddressSpace {
         flags: PageTableFlags,
         default: F,
     ) -> Result<&'static mut T> {
-        assert!(flags.contains(PageTableFlags::WRITABLE));
+        assert!(flags.is_writable());
         let slice = self.map_slice_uninit(1, flags)?;
         slice[0].write(default());
         Ok(unsafe { MaybeUninit::assume_init_mut(&mut slice[0]) })
@@ -598,7 +598,7 @@ impl AddressSpace {
         block: Block<Virt>,
         flags: PageTableFlags,
     ) -> Result<&'static mut [T]> {
-        assert!(flags.contains(PageTableFlags::WRITABLE));
+        assert!(flags.is_writable());
 
         self.check_permission_common(&block, flags)?;
 

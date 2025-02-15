@@ -3,8 +3,9 @@ use kernel::{
     log::info,
     memory::{
         BASE_ADDRESS_SPACE,
+        FULL_ACCESS,
+        KERNEL_MMIO,
         Phys,
-        mmu::PageTableFlags,
         test_scaffolding::mapping,
     },
     smp::test_scaffolding::{
@@ -21,8 +22,6 @@ init!(Subsystems::MEMORY | Subsystems::LOCAL_APIC);
 fn mapped_properly() {
     let local_apic = local_apic();
     let expected_local_apic_address = Phys::new(0xFEE00000).unwrap();
-    let expected_flags =
-        PageTableFlags::NO_CACHE | PageTableFlags::WRITE_THROUGH | PageTableFlags::WRITABLE;
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
     let mapping = mapping(&mut address_space);
@@ -39,8 +38,9 @@ fn mapped_properly() {
         expected_local_apic_address,
         "wrong physical address for the Local APIC",
     );
-    assert!(
-        flags.contains(expected_flags),
+    assert_eq!(
+        flags & (KERNEL_MMIO | FULL_ACCESS),
+        KERNEL_MMIO,
         "wrong flags for the Local APIC virtual page",
     );
 

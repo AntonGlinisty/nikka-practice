@@ -22,13 +22,10 @@ use crate::{
     memory::{
         BASE_ADDRESS_SPACE,
         Frame,
+        KERNEL_MMIO,
         Page,
         Phys,
         Virt,
-        mmu::{
-            KERNEL_RW,
-            PageTableFlags,
-        },
         size,
     },
     trap::Trap,
