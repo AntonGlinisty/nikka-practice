@@ -301,13 +301,13 @@ impl WriteBuffer {
     /// Возвращает [`None`], если [`RingBuffer`] был уже закрыт методом [`RingBuffer::close()`].
     pub fn write_tx(&mut self) -> Option<RingBufferWriteTx<'_>> {
         let head = self.advance_head()?;
-        let tail = self.tail;
+        let tail = self.tail + HEADER_SIZE;
 
         self.stats.txs += 1;
 
         Some(RingBufferTx {
             ring_buffer: self,
-            header: tail,
+            header: tail - HEADER_SIZE,
             head,
             tail,
             bytes: 0,
@@ -460,16 +460,7 @@ impl RingBufferTx<'_, WriteTag> {
 
     /// Ёмкость, оставшаяся в буфере транзакции на текущий момент.
     pub fn capacity(&self) -> usize {
-        let skip_header = if self.header == self.tail {
-            HEADER_SIZE
-        } else {
-            0
-        };
-        if REAL_SIZE - (self.tail - self.head) >= skip_header + STATE_SIZE {
-            REAL_SIZE - (self.tail + skip_header - self.head) - STATE_SIZE
-        } else {
-            0
-        }
+        REAL_SIZE.saturating_sub((self.tail - self.head) + STATE_SIZE)
     }
 }
 
