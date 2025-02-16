@@ -233,6 +233,15 @@ impl<T: Tag> RingBuffer<T> {
         }
     }
 
+    /// Позиция первого незафиксированного заголовка этой стороны буфера.
+    fn header_position(&self) -> usize {
+        if T::READ {
+            self.head
+        } else {
+            self.tail
+        }
+    }
+
     // ANCHOR: header_size
     /// Вычисляет размер заголовка одной записи для `RingBuffer` размера `REAL_SIZE`.
     const fn header_size() -> usize {
@@ -265,7 +274,6 @@ impl ReadBuffer {
 
         Some(RingBufferTx {
             ring_buffer: self,
-            header: head,
             head,
             tail,
             bytes: 0,
@@ -307,7 +315,6 @@ impl WriteBuffer {
 
         Some(RingBufferTx {
             ring_buffer: self,
-            header: tail - HEADER_SIZE,
             head,
             tail,
             bytes: 0,
@@ -385,9 +392,6 @@ impl Header {
 pub struct RingBufferTx<'a, T: Tag> {
     /// Ссылка на исходный [`RingBuffer`].
     ring_buffer: &'a mut RingBuffer<T>,
-
-    /// Позиция заголовка записи, которую обрабатывает эта транзакция.
-    header: usize,
 
     /// Актуальное в рамках транзакции значение количества байт,
     /// прочитанных из буфера за всё время.
