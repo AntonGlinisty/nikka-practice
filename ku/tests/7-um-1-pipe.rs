@@ -8,6 +8,7 @@ use std::{
         Duration,
         Instant,
     },
+    vec::Vec,
 };
 
 use rand::{
@@ -26,7 +27,6 @@ use ku::{
     ipc::pipe::{
         self,
         Error::Overflow,
-        MAX_CAPACITY,
         ReadBuffer,
         RingBuffer,
         RingBufferWriteTx,
@@ -66,15 +66,18 @@ const WINDOW_DURATION: Duration = Duration::from_millis(
 fn check_continuous_mapping() {
     log::init();
 
+    let frame_count = 4;
     let mut allocator = BigForPipe::new();
 
-    let (_, write_buffer) = pipe::make(&mut allocator).unwrap();
+    let (_, write_buffer) = pipe::make(frame_count, &mut allocator).unwrap();
     let block = write_buffer.block();
 
     debug!(ring_buffer_block = %block);
     assert_eq!(block.start_address().into_usize() % Page::SIZE, 0);
     assert_eq!(block.size() % (2 * Page::SIZE), 0);
     assert!(block.size() > 2 * Page::SIZE);
+    assert!(frame_count * Page::SIZE - 16 < write_buffer.max_capacity());
+    assert!(write_buffer.max_capacity() < frame_count * Page::SIZE - 1);
 
     let mut read_rng = SmallRng::seed_from_u64(SEED);
     let mut write_rng = read_rng.clone();
@@ -124,7 +127,7 @@ fn reader_close(
 
     let mut allocator = BigForPipe::new();
 
-    let (mut read_buffer, mut write_buffer) = pipe::make(&mut allocator).unwrap();
+    let (mut read_buffer, mut write_buffer) = pipe::make(4, &mut allocator).unwrap();
     let chunk = [1, 2, 3];
 
     if aborted_read_tx {
@@ -168,7 +171,7 @@ fn writer_close(#[case] corrupt: bool) {
 
     let mut allocator = BigForPipe::new();
 
-    let (mut read_buffer, mut write_buffer) = pipe::make(&mut allocator).unwrap();
+    let (mut read_buffer, mut write_buffer) = pipe::make(4, &mut allocator).unwrap();
     let chunk = [1, 2, 3];
 
     let mut write_tx = write_buffer.write_tx().unwrap();
@@ -202,10 +205,10 @@ fn sequential() {
 
     let mut allocator = BigForPipe::new();
 
-    let (mut read_buffer, mut write_buffer) = pipe::make(&mut allocator).unwrap();
+    let (mut read_buffer, mut write_buffer) = pipe::make(4, &mut allocator).unwrap();
 
     let mut rng = SmallRng::seed_from_u64(SEED);
-    let mut read_ops = Generator::new(QUALITY, SEED);
+    let mut read_ops = Generator::new(write_buffer.max_capacity(), QUALITY, SEED);
     let mut write_ops = read_ops.clone();
     let mut write_errors = 0;
 
@@ -253,7 +256,7 @@ fn concurrent() {
     for iteration in 0 .. ITERATIONS {
         let mut allocator = BigForPipe::new();
 
-        let (read_buffer, write_buffer) = pipe::make(&mut allocator).unwrap();
+        let (read_buffer, write_buffer) = pipe::make(4, &mut allocator).unwrap();
 
         let read_thread = thread::Builder::new()
             .name("read_thread".to_string())
@@ -291,7 +294,7 @@ fn read_thread(
     mut read_buffer: ReadBuffer,
 ) {
     let mut rng = SmallRng::seed_from_u64(seed);
-    let mut read_ops = Generator::new(QUALITY, seed);
+    let mut read_ops = Generator::new(read_buffer.max_capacity(), QUALITY, seed);
 
     let mut read_tx = 0;
     let mut window_bytes = 0;
@@ -342,7 +345,7 @@ fn write_thread(
     mut write_buffer: WriteBuffer,
 ) {
     let mut rng = SmallRng::seed_from_u64(seed);
-    let mut write_ops = Generator::new(QUALITY, seed);
+    let mut write_ops = Generator::new(write_buffer.max_capacity(), QUALITY, seed);
 
     let mut window_begin = Instant::now();
 
@@ -515,18 +518,19 @@ fn write_chunked(
 
 #[derive(Clone)]
 struct Generator {
-    buffer: [u8; MAX_CAPACITY],
+    buffer: Vec<u8>,
     quality: Quality,
     rng: SmallRng,
 }
 
 impl Generator {
     fn new(
+        max_capacity: usize,
         quality: Quality,
         seed: u64,
     ) -> Self {
         Self {
-            buffer: [0; MAX_CAPACITY],
+            buffer: (0 .. max_capacity).map(|_| 0).collect(),
             quality,
             rng: SmallRng::seed_from_u64(seed),
         }
@@ -561,7 +565,7 @@ impl<'a> Operation<'a> {
         quality: Quality,
         rng: &mut SmallRng,
     ) -> &'b [u8] {
-        let len = Self::generate_len(rng);
+        let len = Self::generate_len(data.len(), rng);
 
         match quality {
             Quality::Debuggable => data[.. len].fill(rng.sample(Alphanumeric)),
@@ -571,15 +575,18 @@ impl<'a> Operation<'a> {
         &data[.. len]
     }
 
-    fn generate_len(rng: &mut SmallRng) -> usize {
+    fn generate_len(
+        max_len: usize,
+        rng: &mut SmallRng,
+    ) -> usize {
         const BOUNDARY_SIZE: usize = 16;
 
         if rng.gen_ratio(3, 4) {
-            rng.gen_range(BOUNDARY_SIZE .. MAX_CAPACITY - BOUNDARY_SIZE + 1)
+            rng.gen_range(BOUNDARY_SIZE .. max_len - BOUNDARY_SIZE + 1)
         } else if rng.gen_ratio(1, 2) {
             rng.gen_range(0 .. BOUNDARY_SIZE)
         } else {
-            rng.gen_range(MAX_CAPACITY - BOUNDARY_SIZE + 1 ..= MAX_CAPACITY)
+            rng.gen_range(max_len - BOUNDARY_SIZE + 1 ..= max_len)
         }
     }
 }

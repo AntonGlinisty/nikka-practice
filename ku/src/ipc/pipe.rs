@@ -6,6 +6,7 @@ use core::{
     marker::PhantomData,
     mem,
     result,
+    slice,
     sync::atomic::{
         AtomicU8,
         Ordering,
@@ -41,7 +42,10 @@ use crate::{
 ///
 /// Возвращает пару из [`ReadBuffer`] и [`WriteBuffer`] ---
 /// интерфейса читателя и интерфейса писателя для этого буфера.
-pub fn make<T: BigAllocator>(allocator: &mut T) -> error::Result<(ReadBuffer, WriteBuffer)> {
+pub fn make<T: BigAllocator>(
+    frame_count: usize,
+    allocator: &mut T,
+) -> error::Result<(ReadBuffer, WriteBuffer)> {
     // TODO: your code here.
     Ok((ReadBuffer::default(), WriteBuffer::default())) // TODO: remove before flight.
 }
@@ -55,6 +59,9 @@ pub struct RingBuffer<T: Tag> {
 
     /// Закрыт ли буфер.
     closed: bool,
+
+    /// Размер заголовка одной записи [`RingBuffer`].
+    header_size: usize,
 
     /// Количество байт, прочитанных из буфера за всё время.
     /// То есть, эта величина потенциально больше размера буфера.
@@ -90,11 +97,20 @@ impl<T: Tag> RingBuffer<T> {
     /// Инициализирует буфер над блоком памяти `buf`.
     fn new(block: Block<Page>) -> Self {
         assert_ne!(block.start_address(), Virt::default());
-        assert_eq!(block.size(), MAPPED_SIZE);
+        assert!(block.count() % 2 == 0);
+
+        let mut header_size = mem::size_of::<AtomicU8>();
+        let mut real_size = block.size() / 2;
+
+        while real_size > 0 {
+            header_size += mem::size_of::<u8>();
+            real_size >>= u8::BITS;
+        }
 
         Self {
             block,
             closed: false,
+            header_size,
             head: 0,
             tail: 0,
             stats: RingBufferStats::default(),
@@ -122,6 +138,11 @@ impl<T: Tag> RingBuffer<T> {
     pub fn close(&mut self) {
         // TODO: your code here.
         unimplemented!();
+    }
+
+    /// Максимальный размер полезной нагрузки в одной записи [`RingBuffer`].
+    pub fn max_capacity(&self) -> usize {
+        self.real_size() - self.header_size() - STATE_SIZE
     }
 
     /// Читает заголовок записи, находящейся на позиции `position`.
@@ -189,8 +210,13 @@ impl<T: Tag> RingBuffer<T> {
     fn size(
         &mut self,
         position: usize,
-    ) -> &mut [u8; HEADER_SIZE - mem::size_of::<AtomicU8>()] {
-        self.get(position + mem::size_of::<AtomicU8>())
+    ) -> &mut [u8] {
+        unsafe {
+            slice::from_raw_parts_mut(
+                self.get::<u8>(position + mem::size_of::<AtomicU8>()) as *mut u8,
+                self.header_size() - mem::size_of::<AtomicU8>(),
+            )
+        }
     }
 
     /// Возвращает ссылку на буфер с данными, находящийся на позиции `position`.
@@ -199,8 +225,8 @@ impl<T: Tag> RingBuffer<T> {
     fn buf(
         &mut self,
         position: usize,
-    ) -> &mut [u8; REAL_SIZE] {
-        self.get(position)
+    ) -> &mut [u8] {
+        unsafe { slice::from_raw_parts_mut(self.get::<u8>(position) as *mut u8, self.real_size()) }
     }
 
     /// Возвращает ссылку на тип `Q`, записанный на позиции `position`.
@@ -219,9 +245,9 @@ impl<T: Tag> RingBuffer<T> {
         &mut self,
         position: usize,
     ) -> &mut Q {
-        assert!(mem::size_of::<Q>() <= REAL_SIZE);
+        assert!(mem::size_of::<Q>() <= self.real_size());
 
-        let offset = position % REAL_SIZE;
+        let offset = position % self.real_size();
         let block = Block::<Virt>::from(self.block)
             .slice(offset .. offset + mem::size_of::<Q>())
             .expect("RingBuffer is not mapped properly");
@@ -243,19 +269,21 @@ impl<T: Tag> RingBuffer<T> {
     }
 
     // ANCHOR: header_size
-    /// Вычисляет размер заголовка одной записи для `RingBuffer` размера `REAL_SIZE`.
-    const fn header_size() -> usize {
-        let mut header_size = mem::size_of::<AtomicU8>();
-        let mut size = REAL_SIZE;
-
-        while size > 0 {
-            header_size += mem::size_of::<u8>();
-            size >>= u8::BITS;
-        }
-
-        header_size
+    /// Размер заголовка одной записи [`RingBuffer`].
+    fn header_size(&self) -> usize {
+        self.header_size
     }
     // ANCHOR_END: header_size
+
+    /// Размер отображённой виртуальной памяти.
+    fn mapped_size(&self) -> usize {
+        self.block.size()
+    }
+
+    /// Размер занимаемой физической памяти.
+    fn real_size(&self) -> usize {
+        self.mapped_size() / 2
+    }
 }
 
 /// Читающая сторона [`RingBuffer`].
@@ -307,8 +335,9 @@ impl WriteBuffer {
     ///
     /// Возвращает [`None`], если [`RingBuffer`] был уже закрыт методом [`RingBuffer::close()`].
     pub fn write_tx(&mut self) -> Option<RingBufferWriteTx<'_>> {
+        let header_size = self.header_size();
         let head = self.advance_head()?;
-        let tail = self.tail + HEADER_SIZE;
+        let tail = self.tail + header_size;
 
         self.stats.txs += 1;
 
@@ -465,7 +494,9 @@ impl RingBufferTx<'_, WriteTag> {
     pub fn capacity(&mut self) -> usize {
         self.try_advance_head();
 
-        REAL_SIZE.saturating_sub((self.tail - self.head) + STATE_SIZE)
+        self.ring_buffer
+            .real_size()
+            .saturating_sub((self.tail - self.head) + STATE_SIZE)
     }
 
     /// Пытается продвинуть [`RingBufferWriteTx::head`],
@@ -563,23 +594,11 @@ pub enum Error {
 /// мономорфизация [`result::Result`] по типу ошибки.
 pub type Result<T> = result::Result<T, Error>;
 
-/// Максимальный размер полезной нагрузки в одной записи [`RingBuffer`].
-pub const MAX_CAPACITY: usize = REAL_SIZE - HEADER_SIZE - STATE_SIZE;
-
-/// Размер заголовка одной записи в буфере.
-const HEADER_SIZE: usize = ReadBuffer::header_size();
-
 /// Размер хвоста после конца записи в буфере --- флага состояния следующей записи.
 /// Используется при записи в буфер, чтобы отметить следующую запись свободной.
 /// То есть, чтобы читающая сторона не пыталась читать следующую запись до тех пор,
 /// пока та не будет записана на самом деле.
 const STATE_SIZE: usize = mem::size_of::<AtomicU8>();
-
-/// Размер отображённой виртуальной памяти.
-const MAPPED_SIZE: usize = 2 * REAL_SIZE;
-
-/// Размер занимаемой физической памяти.
-const REAL_SIZE: usize = 4 * Page::SIZE;
 
 #[doc(hidden)]
 pub mod test_scaffolding {
@@ -590,7 +609,6 @@ pub mod test_scaffolding {
 
     use super::{
         Header,
-        REAL_SIZE,
         RingBuffer,
         RingBufferStats,
         RingBufferTx,
@@ -602,7 +620,14 @@ pub mod test_scaffolding {
     }
 
     pub fn head_tail<T: Tag>(buffer: &RingBuffer<T>) -> (usize, usize) {
-        (buffer.head % REAL_SIZE, buffer.tail % REAL_SIZE)
+        (
+            buffer.head % buffer.real_size(),
+            buffer.tail % buffer.real_size(),
+        )
+    }
+
+    pub fn header_size<T: Tag>(buffer: &RingBuffer<T>) -> usize {
+        buffer.header_size()
     }
 
     pub fn stats<T: Tag>(buffer: &RingBuffer<T>) -> RingBufferStats {
@@ -610,13 +635,14 @@ pub mod test_scaffolding {
     }
 
     pub fn tx_head_tail<'a, T: Tag>(tx: &'a RingBufferTx<'a, T>) -> (usize, usize) {
-        (tx.head % REAL_SIZE, tx.tail % REAL_SIZE)
+        (
+            tx.head % tx.ring_buffer.real_size(),
+            tx.tail % tx.ring_buffer.real_size(),
+        )
     }
 
     pub const CLEAR: u8 = Header::CLEAR;
     pub const CLOSED: u8 = Header::CLOSED;
     pub const WRITTEN: u8 = Header::WRITTEN;
     pub const READ: u8 = Header::READ;
-
-    pub const HEADER_SIZE: usize = super::HEADER_SIZE;
 }

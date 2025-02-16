@@ -20,11 +20,11 @@ use ku::{
         test_scaffolding::{
             CLEAR,
             CLOSED,
-            HEADER_SIZE,
             READ,
             WRITTEN,
             block,
             head_tail,
+            header_size,
             stats,
             tx_head_tail,
         },
@@ -54,10 +54,11 @@ fn continuous_ring_buffer() -> Result<()> {
     let buffer_len = 16;
 
     let mut buffer = vec![BigForPipe::GARBAGE; buffer_len];
+    let header_size = 3;
     let payload = b"continuous";
     let payload_start = 3;
     buffer[payload_start .. payload_start + payload.len()].copy_from_slice(payload);
-    let continuous = Diagram::from_slice(&buffer)
+    let continuous = Diagram::from_slice(&buffer, header_size)
         .y(25.0)
         .cell_size(9.0)
         .payload_style(r##"\large\bf{}"##);
@@ -68,7 +69,7 @@ fn continuous_ring_buffer() -> Result<()> {
     discontinuous_buffer[payload_start ..].copy_from_slice(&payload[.. buffer_len - payload_start]);
     discontinuous_buffer[.. payload.len() - (buffer_len - payload_start)]
         .copy_from_slice(&payload[buffer_len - payload_start ..]);
-    let discontinuous = Diagram::from_slice(&discontinuous_buffer)
+    let discontinuous = Diagram::from_slice(&discontinuous_buffer, header_size)
         .cell_size(9.0)
         .payload_style(r##"\Large\bf{}"##);
 
@@ -88,7 +89,7 @@ fn continuous_ring_buffer() -> Result<()> {
     }
     let phys_last = buffer_len - 1;
     let virt_last = 2 * buffer_len - 1;
-    let virt = Diagram::from_slice(&continuous_buffer)
+    let virt = Diagram::from_slice(&continuous_buffer, header_size)
         .cell_size(9.0)
         .payload_style(r##"\Large\bf{}"##)
         .node("virt")
@@ -109,7 +110,7 @@ fn continuous_ring_buffer() -> Result<()> {
             \end{tabular}
             "##,
         );
-    let phys = Diagram::from_slice(&discontinuous_buffer)
+    let phys = Diagram::from_slice(&discontinuous_buffer, header_size)
         .cell_size(9.0)
         .payload_style(r##"\Large\bf{}"##)
         .node("phys")
@@ -138,11 +139,12 @@ fn pipe_usage_example() -> Result<()> {
     let mut allocator = BigForPipe::new();
 
     // ANCHOR: make
-    let (mut read_buffer, mut write_buffer) = pipe::make(&mut allocator)?;
+    let (mut read_buffer, mut write_buffer) = pipe::make(PIPE_FRAME_COUNT, &mut allocator)?;
     // ANCHOR_END: make
     let buffer = block(&write_buffer);
+    let header_size = header_size(&write_buffer);
     let (head, tail) = head_tail(&write_buffer);
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .legend(Legend::Compact)
         .head_tail(head, tail, &["read", "and", "write"])
         .write("../lab/src/6-um-1-pipe-0-make-pipe.tex");
@@ -151,7 +153,7 @@ fn pipe_usage_example() -> Result<()> {
     let mut write_tx_0 = write_buffer.write_tx().ok_or(NoData)?;
     // ANCHOR_END: write_tx_0
     let (head, tail) = tx_head_tail(&write_tx_0);
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .head_tail(head, tail, &["write tx"])
         .write("../lab/src/6-um-1-pipe-1-write-tx-0.tex");
 
@@ -159,7 +161,7 @@ fn pipe_usage_example() -> Result<()> {
     write_tx_0.write(b"Lin")?;
     // ANCHOR_END: write_0
     let (head, tail) = tx_head_tail(&write_tx_0);
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .head_tail(head, tail, &["write tx"])
         .write("../lab/src/6-um-1-pipe-2-write-0.tex");
 
@@ -167,10 +169,10 @@ fn pipe_usage_example() -> Result<()> {
     drop(write_tx_0);
     // ANCHOR_END: write_tx_0_drop
     unsafe {
-        buffer.try_into_mut_slice::<u8>()?[head + HEADER_SIZE .. tail].fill(BigForPipe::GARBAGE);
+        buffer.try_into_mut_slice::<u8>()?[head + header_size .. tail].fill(BigForPipe::GARBAGE);
     };
     let (head, tail) = head_tail(&write_buffer);
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .head_tail(head, tail, &[])
         .write("../lab/src/6-um-1-pipe-3-write-tx-0-drop.tex");
 
@@ -178,7 +180,7 @@ fn pipe_usage_example() -> Result<()> {
     let mut write_tx_1 = write_buffer.write_tx().ok_or(NoData)?;
     // ANCHOR_END: write_tx_1
     let (head, tail) = tx_head_tail(&write_tx_1);
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .head_tail(head, tail, &["write tx"])
         .write("../lab/src/6-um-1-pipe-4-write-tx-1.tex");
 
@@ -186,7 +188,7 @@ fn pipe_usage_example() -> Result<()> {
     write_tx_1.write(b"Nik")?;
     // ANCHOR_END: write_1
     let (head, tail) = tx_head_tail(&write_tx_1);
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .head_tail(head, tail, &["write tx"])
         .write("../lab/src/6-um-1-pipe-5-write-1.tex");
 
@@ -195,7 +197,7 @@ fn pipe_usage_example() -> Result<()> {
     // ANCHOR_END: write_2
     let (head, tail) = tx_head_tail(&write_tx_1);
     let (write_tx_1_head, write_tx_1_tail) = (head, tail);
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .head_tail(head, tail, &["write tx"])
         .write("../lab/src/6-um-1-pipe-6-write-2.tex");
 
@@ -209,7 +211,7 @@ fn pipe_usage_example() -> Result<()> {
     // ANCHOR: read_tx_0_drop
     drop(read_tx_0);
     // ANCHOR_END: read_tx_0_drop
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .head_tail(head, tail, &["read tx"])
         .write("../lab/src/6-um-1-pipe-7-read-tx-0.tex");
 
@@ -217,7 +219,7 @@ fn pipe_usage_example() -> Result<()> {
     // ANCHOR: write_tx_1_commit
     write_tx_1.commit();
     // ANCHOR_END: write_tx_1_commit
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .legend(Legend::Verbose)
         .head_tail(head, tail, &["write tx"])
         .brace_above(
@@ -236,14 +238,14 @@ fn pipe_usage_example() -> Result<()> {
     // ANCHOR: write_tx_2_commit
     write_tx_2.commit();
     // ANCHOR_END: write_tx_2_commit
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .head_tail(head, tail, &["write tx"])
         .brace_above(write_tx_1_head, write_tx_1_tail, r##"Write tx \#1"##)
         .brace_above(write_tx_2_head, write_tx_2_tail, r##"Write tx \#2"##)
         .write("../lab/src/6-um-1-pipe-9-write-tx-2.tex");
 
     let (head, tail) = head_tail(&read_buffer);
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .head_tail(head, tail, &["read"])
         .stats(stats(&read_buffer), stats(&write_buffer))
         .write("../lab/src/6-um-1-pipe-10-read-buffer.tex");
@@ -252,7 +254,7 @@ fn pipe_usage_example() -> Result<()> {
     let mut read_tx_1 = read_buffer.read_tx().ok_or(NoData)?;
     // ANCHOR_END: read_tx_1
     let (head, tail) = tx_head_tail(&read_tx_1);
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .head_tail(head, tail, &["read tx"])
         .write("../lab/src/6-um-1-pipe-11-read-tx-1.tex");
 
@@ -262,7 +264,7 @@ fn pipe_usage_example() -> Result<()> {
     }
     // ANCHOR_END: read_1
     let (head, tail) = tx_head_tail(&read_tx_1);
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .head_tail(head, tail, &["read tx"])
         .write("../lab/src/6-um-1-pipe-12-read-1.tex");
 
@@ -272,7 +274,7 @@ fn pipe_usage_example() -> Result<()> {
     }
     // ANCHOR_END: read_2
     let (head, tail) = tx_head_tail(&read_tx_1);
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .head_tail(head, tail, &["read tx"])
         .write("../lab/src/6-um-1-pipe-13-read-2.tex");
 
@@ -291,7 +293,7 @@ fn pipe_usage_example() -> Result<()> {
     // ANCHOR: write_tx_3_commit
     write_tx_3.commit();
     // ANCHOR_END: write_tx_3_commit
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .head_tail(head, tail, &["write tx"])
         .brace_above(write_tx_1_head, write_tx_1_tail, r##"Write tx \#1"##)
         .brace_above(write_tx_2_head, write_tx_2_tail, r##"Write tx \#2"##)
@@ -307,7 +309,7 @@ fn pipe_usage_example() -> Result<()> {
     // ANCHOR: write_tx_4_commit
     write_tx_4.commit();
     // ANCHOR_END: write_tx_4_commit
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .legend(Legend::Normal)
         .head_tail(head, tail, &["write tx"])
         .brace_above(write_tx_1_head, write_tx_1_tail, r##"Write tx \#1"##)
@@ -322,7 +324,7 @@ fn pipe_usage_example() -> Result<()> {
     }
     // ANCHOR_END: read_4
     let (head, tail) = tx_head_tail(&read_tx_1);
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .head_tail(head, tail, &["read tx"])
         .write("../lab/src/6-um-1-pipe-16-read-4.tex");
 
@@ -330,7 +332,7 @@ fn pipe_usage_example() -> Result<()> {
     drop(read_tx_1);
     // ANCHOR_END: read_tx_1_drop
     let (head, tail) = head_tail(&read_buffer);
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .head_tail(head, tail, &["read"])
         .stats(stats(&read_buffer), stats(&write_buffer))
         .write("../lab/src/6-um-1-pipe-17-read-tx-1-drop.tex");
@@ -352,19 +354,19 @@ fn pipe_usage_example() -> Result<()> {
     // ANCHOR_END: read_tx_2_reads
     let (head, tail) = tx_head_tail(&read_tx_2);
     let read_tx_2_tail = head;
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .head_tail(head, tail, &["read tx"])
         .write("../lab/src/6-um-1-pipe-18-read-tx-2.tex");
 
     unsafe {
-        buffer.try_into_mut_slice::<u8>()?[read_tx_2_head + HEADER_SIZE .. read_tx_2_tail]
+        buffer.try_into_mut_slice::<u8>()?[read_tx_2_head + header_size .. read_tx_2_tail]
             .fill(BigForPipe::GARBAGE);
     };
     // ANCHOR: read_tx_2_commit
     read_tx_2.commit();
     // ANCHOR_END: read_tx_2_commit
     let (head, tail) = head_tail(&read_buffer);
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .legend(Legend::Verbose)
         .head_tail(head, tail, &["read tx"])
         .brace_above(
@@ -385,7 +387,7 @@ fn pipe_usage_example() -> Result<()> {
     // ANCHOR: write_tx_5_commit
     write_tx_5.commit();
     // ANCHOR_END: write_tx_5_commit
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .legend(Legend::Verbose)
         .head_tail(head, tail, &["write tx"])
         .write("../lab/src/6-um-1-pipe-20-write-tx-5.tex");
@@ -404,12 +406,12 @@ fn pipe_usage_example() -> Result<()> {
     read_tx_3.commit();
     // ANCHOR_END: read_tx_3_commit
     unsafe {
-        buffer.try_into_mut_slice::<u8>()?[head + HEADER_SIZE .. range.end]
+        buffer.try_into_mut_slice::<u8>()?[head + header_size .. range.end]
             .fill(BigForPipe::GARBAGE);
         buffer.try_into_mut_slice::<u8>()?[.. tail].fill(BigForPipe::GARBAGE);
     };
     let (head, tail) = head_tail(&read_buffer);
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .head_tail(head, tail, &["read tx"])
         .write("../lab/src/6-um-1-pipe-21-read-tx-3.tex");
 
@@ -417,7 +419,7 @@ fn pipe_usage_example() -> Result<()> {
     read_buffer.close();
     // ANCHOR_END: read_close
     let (head, tail) = head_tail(&read_buffer);
-    Diagram::new(buffer, range.clone())
+    Diagram::new(buffer, header_size, range.clone())
         .head_tail(head, tail, &["read", "and", "write"])
         .stats(stats(&read_buffer), stats(&write_buffer))
         .write("../lab/src/6-um-1-pipe-22-read-buffer-close.tex");
@@ -436,7 +438,8 @@ fn tx_example() -> Result<()> {
     let mut allocator = BigForPipe::new();
 
     // ANCHOR: tx_example
-    let (_, mut write_buffer) = pipe::make(&mut allocator)?;
+    let (_, mut write_buffer) = pipe::make(PIPE_FRAME_COUNT, &mut allocator)?;
+    let header_size = header_size(&write_buffer);
     let mut write_tx = write_buffer.write_tx().ok_or(NoData)?;
     write_tx.write(b"Nikka rocks!")?;
     write_tx.commit();
@@ -444,23 +447,23 @@ fn tx_example() -> Result<()> {
 
     let buffer = block(&write_buffer);
     let (head, tail) = head_tail(&write_buffer);
-    let payload_size = tail - head - HEADER_SIZE;
+    let payload_size = tail - head - header_size;
 
-    Diagram::new(buffer, head .. tail)
+    Diagram::new(buffer, header_size, head .. tail)
         .cell_size(17.0)
         .header_style(r##"\Large\bf{}0x"##)
         .payload_style(r##"\Large\bf{}"##)
         .legend(Legend::Verbose)
-        .brace_above(head, head + HEADER_SIZE, "header")
+        .brace_above(head, head + header_size, "header")
         .brace_above(
-            head + HEADER_SIZE,
+            head + header_size,
             tail,
             &format!("payload ({payload_size} bytes)"),
         )
         .brace_below(head, head + 1, "state")
         .brace_below(
             head + 1,
-            head + HEADER_SIZE,
+            head + header_size,
             &format!(
                 r##"
                 \begin{{tabular}}{{c}}
@@ -481,6 +484,7 @@ struct Diagram<'a> {
     buffer: &'a [u8],
     cell_size: f32,
     contents: String,
+    header_size: usize,
     header_style: String,
     legend: Legend,
     node: String,
@@ -492,17 +496,22 @@ struct Diagram<'a> {
 impl<'a> Diagram<'a> {
     fn new(
         buffer: Block<Page>,
+        header_size: usize,
         range: Range<usize>,
     ) -> Self {
         let buffer = unsafe { buffer.try_into_slice::<u8>().unwrap() };
-        Self::from_slice(&buffer[range.start .. range.end])
+        Self::from_slice(&buffer[range.start .. range.end], header_size)
     }
 
-    fn from_slice(buffer: &'a [u8]) -> Self {
+    fn from_slice(
+        buffer: &'a [u8],
+        header_size: usize,
+    ) -> Self {
         Self {
             buffer,
             cell_size: 7.0,
             contents: String::new(),
+            header_size,
             header_style: r##"\bf{}"##.into(),
             legend: Legend::None,
             node: "node".into(),
@@ -743,11 +752,11 @@ impl<'a> Diagram<'a> {
                         "headerclosed"
                     },
                     WRITTEN => {
-                        fill_active = HEADER_SIZE - 1;
+                        fill_active = self.header_size - 1;
                         "headerwritten"
                     },
                     READ => {
-                        fill_active = HEADER_SIZE - 1;
+                        fill_active = self.header_size - 1;
                         "headerread"
                     },
                     _ => {
@@ -789,7 +798,7 @@ impl<'a> Diagram<'a> {
         let mut size = "size".into();
         if self.legend >= Legend::Verbose {
             size += r##"\&{}0xFF"##;
-            for i in 1 .. HEADER_SIZE - 1 {
+            for i in 1 .. self.header_size - 1 {
                 let shift = i * 8;
                 size = format!(r##"(size\textgreater\textgreater{shift}{{}})\&{{}}0xFF, {size}"##);
             }
@@ -924,6 +933,8 @@ enum Legend {
     Normal,
     Verbose,
 }
+
+const PIPE_FRAME_COUNT: usize = 4;
 
 const HEADER: &str = r##"
 \documentclass[border=2mm]{standalone}

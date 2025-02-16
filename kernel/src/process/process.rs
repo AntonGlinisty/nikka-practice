@@ -402,7 +402,8 @@ impl Process {
 
         let flags = USER_RW;
 
-        let (read_buffer, write_buffer) = pipe::make(&mut address_space.allocator(flags))?;
+        let (read_buffer, write_buffer) =
+            pipe::make(Self::LOG_FRAME_COUNT, &mut address_space.allocator(flags))?;
         let recursive_mapping = address_space.mapping().make_recursive_mapping()?;
         let system_info = Self::map_system_info(address_space)?;
 
@@ -447,6 +448,9 @@ impl Process {
 
         system_info_page.address().try_into_ptr()
     }
+
+    /// Количество фреймов памяти, которые отводятся под буфер журналирования процесса.
+    const LOG_FRAME_COUNT: usize = 4;
 }
 
 impl fmt::Display for Process {
