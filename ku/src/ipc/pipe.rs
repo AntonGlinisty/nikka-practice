@@ -267,18 +267,22 @@ impl ReadBuffer {
     ///
     /// Возвращает [`None`], если [`RingBuffer`] был уже закрыт методом [`RingBuffer::close()`].
     pub fn read_tx(&mut self) -> Option<RingBufferReadTx<'_>> {
-        let head = self.head;
-        let tail = self.advance_tail()?;
+        if self.is_closed() {
+            None
+        } else {
+            let head = self.head;
+            let tail = self.tail;
 
-        self.stats.txs += 1;
+            self.stats.txs += 1;
 
-        Some(RingBufferTx {
-            ring_buffer: self,
-            head,
-            tail,
-            bytes: 0,
-            _tag: PhantomData,
-        })
+            Some(RingBufferTx {
+                ring_buffer: self,
+                head,
+                tail,
+                bytes: 0,
+                _tag: PhantomData,
+            })
+        }
     }
 
     /// Возвращает статистики читающих транзакций.
@@ -286,16 +290,11 @@ impl ReadBuffer {
         &self.stats
     }
 
-    // ANCHOR: advance_tail
-    /// Обновляет [`RingBuffer::tail`] и возвращает его.
-    ///
-    /// Если буфер закрыт, возвращает [`None`].
-    /// Если замечает нарушение инвариантов буфера,
-    /// считает что противоположная сторона испортила буфер и расценивает его как закрытый.
-    fn advance_tail(&mut self) -> Option<usize> {
-        // ANCHOR_END: advance_tail
-        // TODO: your code here.
-        None // TODO: remove before flight.
+    /// Возвращает `true` если буфер закрыт.
+    /// При этом обновляет информацию об этом от противоположного --- пишущего --- конца.
+    fn is_closed(&mut self) -> bool {
+        self.closed = self.closed || self.read_header(self.tail) == Header::Closed;
+        self.closed
     }
 }
 
@@ -463,8 +462,18 @@ impl RingBufferTx<'_, WriteTag> {
     }
 
     /// Ёмкость, оставшаяся в буфере транзакции на текущий момент.
-    pub fn capacity(&self) -> usize {
+    pub fn capacity(&mut self) -> usize {
+        self.try_advance_head();
+
         REAL_SIZE.saturating_sub((self.tail - self.head) + STATE_SIZE)
+    }
+
+    /// Пытается продвинуть [`RingBufferWriteTx::head`],
+    /// на случай что читающая сторона конкурентно зафиксировала новые [`RingBufferReadTx`].
+    fn try_advance_head(&mut self) {
+        if let Some(head) = self.ring_buffer.advance_head() {
+            self.head = head;
+        }
     }
 }
 

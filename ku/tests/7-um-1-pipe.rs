@@ -499,7 +499,7 @@ fn write_chunked(
 
         tx.write(chunk)?;
 
-        assert_eq!(tx.capacity() + chunk.len(), old_capacity);
+        assert!(tx.capacity() + chunk.len() >= old_capacity);
 
         data = more_data;
         chunk_count += 1;

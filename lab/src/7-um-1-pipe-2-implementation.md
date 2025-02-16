@@ -69,7 +69,7 @@ fn RingBuffer::close(
 Оно только возрастает, так как содержит значение до взятия по модулю размера буфера.
 
 
-#### Получение актуальных головы и хвоста
+#### Получение актуальной головы
 
 Реализуйте
 [метод](../../doc/ku/ipc/pipe/type.WriteBuffer.html#method.advance_head)
@@ -81,29 +81,17 @@ fn RingBuffer::close(
 Он должен обновить поле
 [`WriteBuffer::head`](../../doc/ku/ipc/pipe/type.WriteBuffer.html#structfield.head).
 
-И симметричный
-[метод](../../doc/ku/ipc/pipe/type.ReadBuffer.html#method.advance_tail)
-
-```rust
-{{#include ../../ku/src/ipc/pipe.rs:advance_tail}}
-```
-
-Он должен обновить поле
-[`ReadBuffer::tail`](../../doc/ku/ipc/pipe/type.ReadBuffer.html#structfield.tail).
-
-Для этого, отталкиваясь от их текущих значений, они читает заголовки последующих записей методом
+Для этого, отталкиваясь от его текущего значения, он читает заголовки последующих записей методом
 [`RingBuffer::read_header()`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#method.read_header).
-И продвигают
+И продвигает
 [`WriteBuffer::head`](../../doc/ku/ipc/pipe/type.WriteBuffer.html#structfield.head)
-и
-[`ReadBuffer::tail`](../../doc/ku/ipc/pipe/type.ReadBuffer.html#structfield.tail)
 в соответствии с состояниями записей в прочитанных заголовках.
 Если в голове находится запись в состоянии
 [`Header::Closed`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Closed),
-это означает что буфер закрыт и методы возвращают `None`.
+это означает что буфер закрыт и метод возвращает `None`.
 Кроме того, при обнаружении любых несогласованностей или нарушений инвариантов во время чтения заголовков,
 буфер также считается закрытым.
-Если всё хорошо, возвращается новое значение `head` или `tail` соответственно.
+Если всё хорошо, возвращается новое значение `head`.
 
 
 #### Читающая транзакция

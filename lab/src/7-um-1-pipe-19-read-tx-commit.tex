@@ -99,12 +99,12 @@
                     \begin{tabular}{c} \large\bf{read tx} \\ \large\bf{head} \\
                     \end{tabular}
                 };
-                \node[draw, shape=chamfered rectangle, below=20mm of node24.west, minimum size=10mm] (tail) {
+                \node[draw, shape=chamfered rectangle, right=2mm of head, minimum size=10mm] (tail) {
                     \begin{tabular}{c} \large\bf{read tx} \\ \large\bf{tail} \\
                     \end{tabular}
                 };
             \draw[-{Latex[length=5mm, width=2mm]}] (head.north) -- (node20.south west);
-            \draw[-{Latex[length=5mm, width=2mm]}] (tail.north) -- (node24.south west);
+            \draw[-{Latex[length=5mm, width=2mm]}] (tail.north) -- (node20.south west);
             \draw[decorate, decoration = {calligraphic brace, raise=5pt, amplitude=10pt}]
                 (node0.130) -- (node19.50)
                 node[midway, above=6mm] {\Large\bf{}Read transaction --- several records replaced by one\strut};
