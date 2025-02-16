@@ -78,30 +78,46 @@ ELF--файла в порядке адресов в памяти.
 Нам придётся отслеживать пару диапазонов адресов --- `curr` и `next`,
 каждый со своими флагами.
 Для их хранения используется структура
-[`ku::process::elf::ElfRange`](../../doc/ku/process/elf/struct.ElfRange.html):
+[`ku::process::elf::FileRange`](../../doc/ku/process/elf/struct.FileRange.html):
 
 ```rust
-{{#include ../../ku/src/process/elf.rs:elf_range}}
+{{#include ../../ku/src/process/elf.rs:file_range}}
 ```
 
-Создаётся она изначально для отдельного сегмента ELF--файла
+А также её часть, связанная только с памятью ---
+[`FileRange::virt_range`](../../doc/ku/process/elf/struct.FileRange.html#structfield.virt_range).
+
+Создаётся
+[`FileRange`](../../doc/ku/process/elf/struct.FileRange.html)
+изначально для отдельного сегмента ELF--файла
 [`xmas_elf::program::ProgramHeader`](../../doc/xmas_elf/program/enum.ProgramHeader.html).
 Но в процессе загрузки ELF--файла может быть как объединена со смежными диапазонами,
 так и разделена на части типа
-[`ku::process::elf::PageRange`](../../doc/ku/process/elf/struct.PageRange.html)
+[`ku::process::elf::PageRange`](../../doc/ku/process/elf/type.PageRange.html)
 и
-[`ku::process::elf::ElfRange`](../../doc/ku/process/elf/struct.ElfRange.html).
+[`ku::process::elf::VirtRange`](../../doc/ku/process/elf/type.VirtRange.html).
 
-Структура [`ku::process::elf::PageRange`](../../doc/ku/process/elf/struct.PageRange.html)
+Структура [`ku::process::elf::PageRange`](../../doc/ku/process/elf/type.PageRange.html)
 описывает целый диапазон страниц,
-который уже не будет пересекаться с последующими сегментами:
-
-```rust
-{{#include ../../ku/src/process/elf.rs:page_range}}
-```
-
+который уже не будет пересекаться с последующими сегментами.
 Поэтому требующиеся для него флаги отображения уже вычислены.
 И для этого диапазона уже можно установить в страничном отображении финальные флаги доступа.
+
+Типы
+[`VirtRange`](../../doc/ku/process/elf/type.VirtRange.html)
+и
+[`PageRange`](../../doc/ku/process/elf/type.PageRange.html) ---
+мономорфизации типа
+[`ku::process::elf::MemoryRange`](../../doc/ku/process/elf/struct.MemoryRange.html)
+для
+[`Virt`](../../doc/ku/memory/addr/type.Virt.html)
+и
+[`Page`](../../doc/ku/memory/frage/type.Page.html)
+соответственно:
+
+```rust
+{{#include ../../ku/src/process/elf.rs:memory_range}}
+```
 
 Основная функция, которая объединяет или разбивает соседние диапазоны
 `curr` и `next` ---
@@ -112,16 +128,13 @@ ELF--файла в порядке адресов в памяти.
 ```
 
 Метод
-[`ku::process::elf::ElfRange::copy_to_memory()`](../../doc/ku/process/elf/struct.ElfRange.html#method.copy_to_memory)
+[`ku::process::elf::FileRange::copy_to_memory()`](../../doc/ku/process/elf/struct.FileRange.html#method.copy_to_memory)
 копирует байты сегмента из ELF--файла в память:
 
 ```rust
 {{#include ../../ku/src/process/elf.rs:copy_to_memory}}
 ```
 
-Он используется пока
-[`ku::process::elf::ElfRange`](../../doc/ku/process/elf/struct.ElfRange.html)
-ещё соответствует одному сегменту ELF--файла.
 Обратите внимание на то, что размер сегмента в файле
 [`ProgramHeader::file_size()`](../../doc/xmas_elf/program/enum.ProgramHeader.html#method.file_size)
 может быть меньше чем его размер в памяти
@@ -132,7 +145,7 @@ ELF--файла в порядке адресов в памяти.
 предназначенная для неинициализированных или инициализированных нулями статических переменных.
 
 Занулять байты имеет смысл не в методе
-[`ku::process::elf::ElfRange::copy_to_memory()`](../../doc/ku/process/elf/struct.ElfRange.html#method.copy_to_memory),
+[`ku::process::elf::FileRange::copy_to_memory()`](../../doc/ku/process/elf/struct.FileRange.html#method.copy_to_memory),
 а раньше, в методе
 [`ku::process::elf::Loader::extend_mapping()`](../../doc/ku/process/elf/struct.Loader.html#method.extend_mapping) ---
 сразу после выделения страниц.

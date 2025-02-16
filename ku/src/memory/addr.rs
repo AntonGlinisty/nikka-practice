@@ -17,6 +17,10 @@ use num_traits::{
     One,
     Zero,
 };
+use serde::{
+    Deserialize,
+    Serialize,
+};
 use static_assertions::{
     const_assert,
     const_assert_eq,
@@ -53,7 +57,7 @@ use crate::{
 };
 
 /// Базовый тип для адресов [архитектуры x86-64](https://wiki.osdev.org/X86-64), как виртуальных, так и физических.
-#[derive(Clone, Copy, Default, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Default, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[repr(transparent)]
 pub struct Addr<T>(usize, PhantomData<T>);
 

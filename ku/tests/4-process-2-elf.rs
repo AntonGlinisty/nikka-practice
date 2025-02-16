@@ -60,11 +60,12 @@ use ku::{
         size,
     },
     process::test_scaffolding::{
-        ElfRange,
+        FileRange,
         Loader,
         PageRange,
+        VirtRange,
         combine,
-        program_header_to_elf_range,
+        program_header_to_file_range,
     },
 };
 
@@ -99,13 +100,13 @@ fn t00_flags() {
     for ph_flags in generate_ph_flags() {
         program_header.flags = ph_flags;
         if let Ok(expected_flags) = PageTableFlags::try_from(program_header.flags) {
-            let elf_range = program_header_to_elf_range(&program_header).unwrap();
-            info!(%program_header.flags, %elf_range.flags, %expected_flags);
-            assert_eq!(expected_flags, elf_range.flags);
+            let file_range = program_header_to_file_range(&program_header).unwrap();
+            info!(%program_header.flags, %file_range.virt_range.flags, %expected_flags);
+            assert_eq!(expected_flags, file_range.virt_range.flags);
         } else {
-            let elf_range = program_header_to_elf_range(&program_header);
-            info!(?elf_range, %ph_flags);
-            assert_eq!(elf_range, Err(PermissionDenied));
+            let file_range = program_header_to_file_range(&program_header);
+            info!(?file_range, %ph_flags);
+            assert_eq!(file_range, Err(PermissionDenied));
         }
     }
 }
@@ -118,11 +119,11 @@ fn t01_ranges() {
         for size in 0 .. 5 {
             let memory_size = cmp::max(size, 1);
             let program_header = program_header(start, memory_size, start, size);
-            let elf_range = program_header_to_elf_range(&program_header).unwrap();
-            info!(?elf_range, ?program_header);
-            assert_eq!(elf_range.memory.start(), start);
-            assert_eq!(elf_range.memory.end(), start + memory_size);
-            assert_eq!(elf_range.file_range, start .. (start + size));
+            let file_range = program_header_to_file_range(&program_header).unwrap();
+            info!(?file_range, ?program_header);
+            assert_eq!(file_range.virt_range.memory.start(), start);
+            assert_eq!(file_range.virt_range.memory.end(), start + memory_size);
+            assert_eq!(file_range.file_range, start .. (start + size));
         }
     }
 }
@@ -144,9 +145,9 @@ fn t02_range_errors() {
         (program_header(0, 20, usize::MAX - 10, 20), Overflow),
         (program_header(0, 20, 0, 21), Overflow),
     ] {
-        let elf_range = program_header_to_elf_range(&program_header);
-        info!(?elf_range, ?program_header);
-        assert_eq!(elf_range, Err(error));
+        let virt_range = program_header_to_file_range(&program_header);
+        info!(?virt_range, ?program_header);
+        assert_eq!(virt_range, Err(error));
     }
 }
 
@@ -164,10 +165,10 @@ fn t03_out_of_bounds() {
 
     let program_header = program_header_block(Block::from_slice_mut(&mut target), &bad_file_range);
 
-    let elf_range = program_header_to_elf_range(&program_header).unwrap();
-    info!(%elf_range, ?program_header);
+    let virt_range = program_header_to_file_range(&program_header).unwrap();
+    info!(%virt_range, ?program_header);
 
-    assert_eq!(elf_range.copy_to_memory(&file), Err(Overflow));
+    assert_eq!(virt_range.copy_to_memory(&file), Err(Overflow));
 }
 
 #[test]
@@ -185,10 +186,10 @@ fn t04_file_offset() {
 
     let program_header = program_header_block(Block::from_slice_mut(&mut target), &file_range);
 
-    let elf_range = program_header_to_elf_range(&program_header).unwrap();
-    info!(%elf_range, ?program_header);
+    let virt_range = program_header_to_file_range(&program_header).unwrap();
+    info!(%virt_range, ?program_header);
 
-    elf_range.copy_to_memory(&file).unwrap();
+    virt_range.copy_to_memory(&file).unwrap();
 
     assert_eq!(&file[file_range], &target);
 }
@@ -204,8 +205,8 @@ fn t05_validate_order() {
     let e = Block::from_index(0, 3).unwrap();
 
     for (curr, next) in [(b, a), (a, c), (c, a), (a, d), (d, a), (a, e), (e, a)] {
-        let curr = ElfRange::new(curr, USER_R, 0 .. 0);
-        let next = ElfRange::new(next, USER_R, 0 .. 0);
+        let curr = VirtRange::new(curr, USER_R);
+        let next = VirtRange::new(next, USER_R);
 
         info!(%curr, %next);
 
@@ -215,8 +216,8 @@ fn t05_validate_order() {
 
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 struct CombineTestCase {
-    curr: ElfRange,
-    next: ElfRange,
+    curr: VirtRange,
+    next: VirtRange,
 }
 
 #[test]
@@ -259,11 +260,11 @@ fn t06_1_stress_combine() {
             assert!(!next.is_empty());
             for curr_flags in generate_flags() {
                 for next_flags in generate_flags() {
-                    let curr = ElfRange::new(curr, curr_flags, 0 .. 0);
-                    let next = ElfRange::new(next, next_flags, 0 .. 0);
+                    let curr = VirtRange::new(curr, curr_flags);
+                    let next = VirtRange::new(next, next_flags);
 
                     let subtest_result = panic::catch_unwind(|| {
-                        validate_combine(curr.clone(), next.clone());
+                        validate_combine(curr, next);
                     });
 
                     if let Err(err) = subtest_result {
@@ -319,10 +320,10 @@ fn deserialize(test_case: &str) -> anyhow::Result<CombineTestCase> {
 }
 
 fn validate_combine(
-    curr: ElfRange,
-    next: ElfRange,
+    curr: VirtRange,
+    next: VirtRange,
 ) {
-    let (curr_minus_next, boundary, updated_next) = combine(curr.clone(), next.clone()).unwrap();
+    let (curr_minus_next, boundary, updated_next) = combine(curr, next).unwrap();
 
     trace!(%curr, %next, ?curr_minus_next, ?boundary, %updated_next, "check combine");
 
@@ -343,11 +344,11 @@ fn validate_combine(
     }
 
     fn validate_output_range(
-        curr: &ElfRange,
-        next: &ElfRange,
+        curr: &VirtRange,
+        next: &VirtRange,
         curr_minus_next: &Option<PageRange>,
         boundary: &Option<PageRange>,
-        updated_next: &ElfRange,
+        updated_next: &VirtRange,
     ) {
         let result_start = if let Some(curr_minus_next) = curr_minus_next {
             curr_minus_next.start_address()
@@ -366,11 +367,11 @@ fn validate_combine(
     }
 
     fn validate_output_page_count(
-        curr: &ElfRange,
-        next: &ElfRange,
+        curr: &VirtRange,
+        next: &VirtRange,
         curr_minus_next: &Option<PageRange>,
         boundary: &Option<PageRange>,
-        updated_next: &ElfRange,
+        updated_next: &VirtRange,
     ) {
         let curr_pages = curr.memory.enclosing();
         let next_pages = next.memory.enclosing();
@@ -391,11 +392,11 @@ fn validate_combine(
     }
 
     fn validate_curr_minus_next_and_boundary_presence(
-        curr: &ElfRange,
-        next: &ElfRange,
+        curr: &VirtRange,
+        next: &VirtRange,
         curr_minus_next: &Option<PageRange>,
         boundary: &Option<PageRange>,
-        updated_next: &ElfRange,
+        updated_next: &VirtRange,
     ) {
         let curr_pages = curr.memory.enclosing();
         let next_pages = next.memory.enclosing();
@@ -432,11 +433,11 @@ fn validate_combine(
     }
 
     fn validate_curr_minus_next(
-        curr: &ElfRange,
-        next: &ElfRange,
+        curr: &VirtRange,
+        next: &VirtRange,
         curr_minus_next: &Option<PageRange>,
         boundary: &Option<PageRange>,
-        updated_next: &ElfRange,
+        updated_next: &VirtRange,
     ) {
         let curr_pages = curr.memory.enclosing();
         let updated_next_pages = updated_next.memory.enclosing();
@@ -454,11 +455,11 @@ fn validate_combine(
     }
 
     fn validate_boundary(
-        curr: &ElfRange,
-        next: &ElfRange,
+        curr: &VirtRange,
+        next: &VirtRange,
         curr_minus_next: &Option<PageRange>,
         boundary: &Option<PageRange>,
-        updated_next: &ElfRange,
+        updated_next: &VirtRange,
     ) {
         let curr_pages = curr.memory.enclosing();
         let next_pages = next.memory.enclosing();
@@ -483,11 +484,11 @@ fn validate_combine(
     }
 
     fn validate_updated_next(
-        curr: &ElfRange,
-        next: &ElfRange,
+        curr: &VirtRange,
+        next: &VirtRange,
         curr_minus_next: &Option<PageRange>,
         boundary: &Option<PageRange>,
-        updated_next: &ElfRange,
+        updated_next: &VirtRange,
     ) {
         let curr_pages = curr.memory.enclosing();
         let updated_next_pages = updated_next.memory.enclosing();
@@ -515,7 +516,7 @@ fn t07_initial_flags() {
     let file = [];
 
     let curr = None;
-    let next = ElfRange::new(
+    let next = FileRange::new(
         Block::new(offset, (offset + Page::SIZE).unwrap()).unwrap(),
         PageTableFlags::default(),
         0 .. 0,
@@ -668,7 +669,7 @@ fn t09_extend_mapping() {
                 rng.gen_range(next_start + min_block_len ..= next_start + max_block_len),
                 end,
             );
-            let next = ElfRange::new(
+            let next = FileRange::new(
                 Block::new((offset + next_start).unwrap(), (offset + next_end).unwrap()).unwrap(),
                 block_flags[rng.gen_range(0 .. block_flags.len())],
                 0 .. 0,
@@ -686,7 +687,7 @@ fn t09_extend_mapping() {
 
             loader.extend_mapping(&curr, &next).unwrap();
 
-            curr = Some(next);
+            curr = Some(next.virt_range);
         }
 
         assert_eq!(allocator.pages, expected);
@@ -752,7 +753,7 @@ fn t10_load_program_header() {
                     let file_size = rng.gen_range(0 ..= memory.size());
                     let file_start = rng.gen_range(0 .. file.len() - file_size);
                     let file_end = file_start + file_size;
-                    let next = ElfRange::new(
+                    let next = FileRange::new(
                         memory,
                         block_flags[rng.gen_range(0 .. block_flags.len())],
                         file_start .. file_end,
@@ -763,11 +764,11 @@ fn t10_load_program_header() {
 
                     if curr_end.div_ceil(Page::SIZE) > next_start.div_floor(Page::SIZE) {
                         let boundary = expected_pages.len() - 1;
-                        expected_pages[boundary].flags |= next.flags;
+                        expected_pages[boundary].flags |= next.virt_range.flags;
                     }
                     while curr_end.div_ceil(Page::SIZE) < next_end.div_ceil(Page::SIZE) {
                         expected_pages.push(DummyPage {
-                            flags: next.flags | allocator_flags,
+                            flags: next.virt_range.flags | allocator_flags,
                             reserved: true,
                         });
                         curr_end += Page::SIZE;

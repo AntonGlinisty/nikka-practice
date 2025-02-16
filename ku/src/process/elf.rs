@@ -41,6 +41,7 @@ use crate::{
         KERNEL_RW,
         Page,
         Virt,
+        block::Memory,
         mmu::PageTableFlags,
         size,
     },
@@ -97,11 +98,11 @@ impl<'a, T: BigAllocator> Loader<'a, T> {
     }
 
     // ANCHOR: load_program_header
-    /// Загружает диапазон [`next`][ElfRange] со следующим сегментом
+    /// Загружает диапазон [`next`][FileRange] со следующим сегментом
     /// [ELF--файла](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format).
     ///
     /// - Выделяет для него память с помощью [`Loader::extend_mapping()`].
-    /// - Копирует его в память с помощью [`ElfRange::copy_to_memory()`].
+    /// - Копирует его в память с помощью [`FileRange::copy_to_memory()`].
     /// - С помощью метода [`Loader::process_boundary()`] исправляет флаги отображения
     ///   для той части `curr` и границы между `curr` и `next`,
     ///   про которые стали известны окончательные значения флагов отображения.
@@ -110,9 +111,9 @@ impl<'a, T: BigAllocator> Loader<'a, T> {
     ///   То есть, уже не обязательно соответствующую одному сегменту ELF--файла.
     fn load_program_header(
         &mut self,
-        curr: Option<ElfRange>,
-        next: ElfRange,
-    ) -> Result<ElfRange> {
+        curr: Option<VirtRange>,
+        next: FileRange,
+    ) -> Result<VirtRange> {
         // ANCHOR_END: load_program_header
         // TODO: your code here.
         unimplemented!();
@@ -128,8 +129,8 @@ impl<'a, T: BigAllocator> Loader<'a, T> {
     ///   Для этого резервирует виртуальные страницы методом [`BigAllocator::reserve_fixed()`].
     ///   А после этого отображает в физическую память методом [`BigAllocator::map()`].
     /// - Флаги страниц должны быть выставлены так, чтобы в эту память мог записать метод
-    ///   [`ElfRange::copy_to_memory()`], см. [`Loader::initial_flags()`].
-    ///   Эти флаги могут не совпадать с флагами [`ElfRange::flags`],
+    ///   [`FileRange::copy_to_memory()`], см. [`Loader::initial_flags()`].
+    ///   Эти флаги могут не совпадать с флагами [`VirtRange::flags`],
     ///   с которыми этот диапазон должен быть отображён в память процесса.
     ///   Последние проставит в дальнейшем метод [`Loader::finalize_mapping()`].
     /// - Кроме нужных для копирования флагов требуется также указывать
@@ -139,8 +140,8 @@ impl<'a, T: BigAllocator> Loader<'a, T> {
     /// - Новые страницы отображения заполняет нулями с помощью [`MaybeUninit::fill()`].
     fn extend_mapping(
         &mut self,
-        curr: &Option<ElfRange>,
-        next: &ElfRange,
+        curr: &Option<VirtRange>,
+        next: &FileRange,
     ) -> Result<()> {
         // ANCHOR_END: extend_mapping
         // TODO: your code here.
@@ -160,9 +161,9 @@ impl<'a, T: BigAllocator> Loader<'a, T> {
     /// - Возвращает диапазон памяти, флаги которого ещё могут измениться.
     fn process_boundary(
         &mut self,
-        curr: ElfRange,
-        next: ElfRange,
-    ) -> Result<ElfRange> {
+        curr: VirtRange,
+        next: VirtRange,
+    ) -> Result<VirtRange> {
         // ANCHOR_END: process_boundary
         // TODO: your code here.
         unimplemented!();
@@ -199,7 +200,39 @@ impl<'a, T: BigAllocator> Loader<'a, T> {
     const INITIAL_FLAGS: PageTableFlags = KERNEL_RW;
 }
 
-// ANCHOR: elf_range
+// ANCHOR: memory_range
+/// Диапазон памяти процесса с заданными флагами доступа.
+#[derive(Debug, Display, Eq, PartialEq)]
+#[display("{{ memory: {}, flags: {} }}", memory, flags)]
+struct MemoryRange<T: Memory<Address = Virt>> {
+    /// Флаги, с которыми должен быть отображён этот диапазон памяти процесса.
+    flags: PageTableFlags,
+
+    /// Диапазон памяти процесса, который нужно отобразить в адресное пространство процесса.
+    memory: Block<T>,
+}
+// ANCHOR_END: memory_range
+
+/// Не выровненный по границам страниц диапазон памяти,
+/// который нужно отобразить в адресное пространство процесса.
+type VirtRange = MemoryRange<Virt>;
+
+/// Выровненный по границам страниц диапазон памяти,
+/// который нужно отобразить в адресное пространство процесса.
+type PageRange = MemoryRange<Page>;
+
+impl From<VirtRange> for PageRange {
+    /// Возвращает выровненный по границам страниц диапазон памяти [`PageRange`],
+    /// содержащий [`self`][VirtRange] и имеющий те же флаги отображения страниц.
+    fn from(virt_range: VirtRange) -> Self {
+        Self {
+            flags: virt_range.flags,
+            memory: virt_range.memory.enclosing(),
+        }
+    }
+}
+
+// ANCHOR: file_range
 /// Не выровненный по границам страниц диапазон памяти,
 /// который нужно скопировать из ELF--файла в адресное пространство процесса.
 ///
@@ -207,58 +240,38 @@ impl<'a, T: BigAllocator> Loader<'a, T> {
 /// он ещё не готов к отображению в память с финальными флагами,
 /// которые диктует ELF--файл.
 ///
-/// Создаётся по [`ProgramHeader`] в методе [`ElfRange::try_from()`].
+/// Создаётся по [`ProgramHeader`] в методе [`FileRange::try_from()`].
 /// То есть, изначально соответствует одному загружаемому сегменту ELF--файла.
 /// Но в процессе загрузки ELF--файла может быть как объединён со смежными сегментами,
-/// так и разделён на части типа [`PageRange`] и [`ElfRange`].
+/// так и разделён на части типа [`PageRange`] и [`VirtRange`].
 /// См. функцию [`combine()`].
 #[derive(Debug, Display, Eq, PartialEq)]
-#[display(
-    "{{ memory: {}, flags: {}, file_range: {:#X?} }}",
-    memory,
-    flags,
-    file_range
-)]
-struct ElfRange {
+#[display("{{ {}, file_range: {:#X?} }}", virt_range, file_range)]
+struct FileRange {
     /// Диапазон байт файла, которые нужно скопировать в память процесса.
-    ///
-    /// Используется только в [`ElfRange::copy_to_memory()`].
-    /// Поэтому [`combine()`], которая вызывается после вызова
-    /// [`ElfRange::copy_to_memory()`], может не беспокоиться о том,
-    /// какой [`ElfRange::file_range`] у её аргументов `curr` и `next` и
-    /// какой [`ElfRange::file_range`] выставить для своего результата `updated_next`.
-    ///
-    /// Альтернативой было бы поглощать `self` в [`ElfRange::copy_to_memory()`]
-    /// и возвращать из неё другую структуру, уже без этого поля.
-    /// А в [`combine()`] использовать этот другой тип.
-    /// Который можно было бы совместить с [`PageRange`], параметризовав его
-    /// [`Virt`] или [`Page`].
     file_range: Range<usize>,
-
-    /// Флаги, с которыми должен быть отображён этот диапазон памяти процесса.
-    flags: PageTableFlags,
 
     /// Не выровненный по границам страниц диапазон памяти,
     /// который нужно отобразить в адресное пространство процесса.
-    memory: Block<Virt>,
+    virt_range: VirtRange,
 }
-// ANCHOR_END: elf_range
+// ANCHOR_END: file_range
 
-impl ElfRange {
+impl FileRange {
     // ANCHOR: copy_to_memory
     /// Копирует из ELF--файла `file` в адресное пространство процесса
-    /// диапазон памяти [`self`][ElfRange].
+    /// диапазон памяти [`self`][FileRange].
     fn copy_to_memory(
-        &self,
+        self,
         file: &[u8],
-    ) -> Result<()> {
+    ) -> Result<VirtRange> {
         // ANCHOR_END: copy_to_memory
         // TODO: your code here.
         unimplemented!();
     }
 }
 
-impl TryFrom<ProgramHeader<'_>> for ElfRange {
+impl TryFrom<ProgramHeader<'_>> for FileRange {
     type Error = Error;
 
     /// Преобразует сегмент [`program_header`][ProgramHeader]
@@ -272,7 +285,7 @@ impl TryFrom<ProgramHeader<'_>> for ElfRange {
     ///   - [`Error::Overflow`] если:
     ///     - Диапазон в памяти не корректен или меньше чем диапазон в файле, см.
     ///       [System V Application Binary Interface](https://refspecs.linuxbase.org/elf/gabi4+/ch5.pheader.html).
-    ///     - При вычислении диапазона [`ElfRange::file_range`],
+    ///     - При вычислении диапазона [`FileRange::file_range`],
     ///       отвечающего содержимому сегмента в ELF--файле,
     ///       возникает переполнение.
     ///   - [`Error::PermissionDenied`] если входные флаги содержат одновременно
@@ -285,36 +298,10 @@ impl TryFrom<ProgramHeader<'_>> for ElfRange {
     }
 }
 
-// ANCHOR: page_range
-/// Выровненный по границам страниц диапазон памяти,
-/// который нужно отобразить в адресное пространство процесса.
-#[derive(Debug, Display, Eq, PartialEq)]
-#[display("{{ memory: {}, flags: {} }}", memory, flags)]
-struct PageRange {
-    /// Флаги, с которыми должен быть отображён этот диапазон памяти процесса.
-    flags: PageTableFlags,
-
-    /// Выровненный по границам страниц диапазон памяти,
-    /// который нужно отобразить в адресное пространство процесса.
-    memory: Block<Page>,
-}
-// ANCHOR_END: page_range
-
-impl From<ElfRange> for PageRange {
-    /// Возвращает выровненный по границам страниц диапазон памяти [`PageRange`],
-    /// содержащий [`self`][ElfRange] и имеющий те же флаги отображения страниц.
-    fn from(elf_range: ElfRange) -> Self {
-        Self {
-            flags: elf_range.flags,
-            memory: elf_range.memory.enclosing(),
-        }
-    }
-}
-
 // ANCHOR: combine
 /// Объединяет не выровненные по границам страниц
-/// текущий обрабатываемый диапазон [`curr`][ElfRange] и
-/// следующий за ним диапазон [`next`][ElfRange].
+/// текущий обрабатываемый диапазон [`curr`][VirtRange] и
+/// следующий за ним диапазон [`next`][VirtRange].
 ///
 /// Требует, чтобы `curr` лежал левее `next` в диапазоне адресов.
 /// А также, чтобы они не пересекались.
@@ -345,9 +332,9 @@ impl From<ElfRange> for PageRange {
 ///     флаги `updated_next` должны быть подходящими и для `curr`.
 ///     В этом случае `updated_next` не может задевать больше одной страницы.
 fn combine(
-    curr: ElfRange,
-    next: ElfRange,
-) -> Result<(Option<PageRange>, Option<PageRange>, ElfRange)> {
+    curr: VirtRange,
+    next: VirtRange,
+) -> Result<(Option<PageRange>, Option<PageRange>, VirtRange)> {
     // ANCHOR_END: combine
     // TODO: your code here.
     unimplemented!();
@@ -387,14 +374,14 @@ impl TryFrom<Flags> for PageTableFlags {
     }
 }
 
-/// Требует чтобы [`curr`][ElfRange] лежал левее [`next`][ElfRange] в диапазоне адресов.
+/// Требует чтобы [`curr`][VirtRange] лежал левее [`next`][VirtRange] в диапазоне адресов.
 /// А также, чтобы они не пересекались.
 /// См.
 /// [System V Application Binary Interface](https://refspecs.linuxbase.org/elf/gabi4+/ch5.pheader.html).
 /// В противном случае, возвращает ошибку [`Error::InvalidArgument`].
 fn validate_order(
-    curr: &ElfRange,
-    next: &ElfRange,
+    curr: &VirtRange,
+    next: &VirtRange,
 ) -> Result<()> {
     if curr.memory.partial_cmp(&next.memory) != Some(Ordering::Less) {
         warn!(
@@ -429,6 +416,7 @@ pub(super) mod test_scaffolding {
             Block,
             Page,
             Virt,
+            block::Memory,
             mmu::PageTableFlags,
         },
     };
@@ -445,9 +433,9 @@ pub(super) mod test_scaffolding {
 
         pub fn load_program_header(
             &mut self,
-            curr: Option<ElfRange>,
-            next: ElfRange,
-        ) -> Result<ElfRange> {
+            curr: Option<VirtRange>,
+            next: FileRange,
+        ) -> Result<VirtRange> {
             let curr = curr.map(|x| x.into());
             let next = next.into();
             self.0.load_program_header(curr, next).map(|x| x.into())
@@ -455,10 +443,10 @@ pub(super) mod test_scaffolding {
 
         pub fn extend_mapping(
             &mut self,
-            curr: &Option<ElfRange>,
-            next: &ElfRange,
+            curr: &Option<VirtRange>,
+            next: &FileRange,
         ) -> Result<()> {
-            let curr = curr.clone().map(|x| x.into());
+            let curr = curr.map(|x| x.into());
             let next = next.clone().into();
             self.0.extend_mapping(&curr, &next)
         }
@@ -475,78 +463,16 @@ pub(super) mod test_scaffolding {
         }
     }
 
-    #[derive(Clone, Debug, Default, Deserialize, Display, Eq, PartialEq, Serialize)]
-    #[display(
-        "{{ memory: {}, flags: {}, file_range: {:#X?} }}",
-        memory,
-        flags,
-        file_range
-    )]
-    pub struct ElfRange {
-        pub file_range: Range<usize>,
-        pub flags: PageTableFlags,
-        pub memory: Block<Virt>,
-    }
-
-    impl ElfRange {
-        pub fn new(
-            memory: Block<Virt>,
-            flags: PageTableFlags,
-            file_range: Range<usize>,
-        ) -> Self {
-            Self {
-                file_range,
-                flags,
-                memory,
-            }
-        }
-
-        pub fn start_address(&self) -> Virt {
-            self.memory.start_address()
-        }
-
-        pub fn end_address(&self) -> Result<Virt> {
-            self.memory.end_address()
-        }
-
-        pub fn copy_to_memory(
-            &self,
-            file: &[u8],
-        ) -> Result<()> {
-            super::ElfRange::from(self.clone()).copy_to_memory(file)
-        }
-    }
-
-    impl From<ElfRange> for super::ElfRange {
-        fn from(elf_range: ElfRange) -> Self {
-            Self {
-                file_range: elf_range.file_range,
-                flags: elf_range.flags,
-                memory: elf_range.memory,
-            }
-        }
-    }
-
-    impl From<super::ElfRange> for ElfRange {
-        fn from(elf_range: super::ElfRange) -> Self {
-            Self {
-                file_range: elf_range.file_range,
-                flags: elf_range.flags,
-                memory: elf_range.memory,
-            }
-        }
-    }
-
-    #[derive(Clone, Copy, Debug, Default, Display, Eq, PartialEq)]
+    #[derive(Clone, Copy, Debug, Default, Deserialize, Display, Eq, PartialEq, Serialize)]
     #[display("{{ memory: {}, flags: {} }}", memory, flags)]
-    pub struct PageRange {
+    pub struct MemoryRange<T: Memory<Address = Virt>> {
         pub flags: PageTableFlags,
-        pub memory: Block<Page>,
+        pub memory: Block<T>,
     }
 
-    impl PageRange {
+    impl<T: Memory<Address = Virt>> MemoryRange<T> {
         pub fn new(
-            memory: Block<Page>,
+            memory: Block<T>,
             flags: PageTableFlags,
         ) -> Self {
             Self { flags, memory }
@@ -561,38 +487,93 @@ pub(super) mod test_scaffolding {
         }
     }
 
-    impl From<PageRange> for super::PageRange {
-        fn from(page_range: PageRange) -> Self {
+    impl<T: Memory<Address = Virt>> From<MemoryRange<T>> for super::MemoryRange<T> {
+        fn from(memory_range: MemoryRange<T>) -> Self {
             Self {
-                flags: page_range.flags,
-                memory: page_range.memory,
+                flags: memory_range.flags,
+                memory: memory_range.memory,
             }
         }
     }
 
-    impl From<super::PageRange> for PageRange {
-        fn from(page_range: super::PageRange) -> Self {
+    impl<T: Memory<Address = Virt>> From<super::MemoryRange<T>> for MemoryRange<T> {
+        fn from(memory_range: super::MemoryRange<T>) -> Self {
             Self {
-                flags: page_range.flags,
-                memory: page_range.memory,
+                flags: memory_range.flags,
+                memory: memory_range.memory,
             }
         }
     }
 
-    impl From<ElfRange> for PageRange {
-        fn from(elf_range: ElfRange) -> Self {
-            super::PageRange::from(super::ElfRange::from(elf_range)).into()
+    pub type VirtRange = MemoryRange<Virt>;
+
+    pub type PageRange = MemoryRange<Page>;
+
+    impl From<VirtRange> for PageRange {
+        fn from(virt_range: VirtRange) -> Self {
+            super::PageRange::from(super::VirtRange::from(virt_range)).into()
         }
     }
 
-    pub fn program_header_to_elf_range(program_header: &ProgramHeader64) -> Result<ElfRange> {
-        Ok(super::ElfRange::try_from(ProgramHeader::Ph64(program_header))?.into())
+    #[derive(Clone, Debug, Default, Display, Eq, PartialEq)]
+    #[display("{{ {}, file_range: {:#X?} }}", virt_range, file_range)]
+    pub struct FileRange {
+        pub file_range: Range<usize>,
+        pub virt_range: VirtRange,
+    }
+
+    impl FileRange {
+        pub fn new(
+            memory: Block<Virt>,
+            flags: PageTableFlags,
+            file_range: Range<usize>,
+        ) -> Self {
+            Self {
+                file_range,
+                virt_range: VirtRange::new(memory, flags),
+            }
+        }
+
+        pub fn copy_to_memory(
+            self,
+            file: &[u8],
+        ) -> Result<VirtRange> {
+            Ok(super::FileRange::from(self.clone()).copy_to_memory(file)?.into())
+        }
+    }
+
+    impl From<FileRange> for super::FileRange {
+        fn from(file_range: FileRange) -> Self {
+            Self {
+                file_range: file_range.file_range,
+                virt_range: super::VirtRange {
+                    flags: file_range.virt_range.flags,
+                    memory: file_range.virt_range.memory,
+                },
+            }
+        }
+    }
+
+    impl From<super::FileRange> for FileRange {
+        fn from(file_range: super::FileRange) -> Self {
+            Self {
+                virt_range: VirtRange::new(
+                    file_range.virt_range.memory,
+                    file_range.virt_range.flags,
+                ),
+                file_range: file_range.file_range,
+            }
+        }
+    }
+
+    pub fn program_header_to_file_range(program_header: &ProgramHeader64) -> Result<FileRange> {
+        Ok(super::FileRange::try_from(ProgramHeader::Ph64(program_header))?.into())
     }
 
     pub fn combine(
-        curr: ElfRange,
-        next: ElfRange,
-    ) -> Result<(Option<PageRange>, Option<PageRange>, ElfRange)> {
+        curr: VirtRange,
+        next: VirtRange,
+    ) -> Result<(Option<PageRange>, Option<PageRange>, VirtRange)> {
         let (curr_minus_next, boundary, updated_next) = super::combine(curr.into(), next.into())?;
 
         Ok((
