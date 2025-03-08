@@ -1,0 +1,20 @@
+dev_comments = false
+skip_readme = false
+
+[hunspell]
+extra_dictionaries = ["ru_RU.dic", "en_US.dic", "spellcheck.exceptions"]
+lang = "ru_RU"
+search_dirs = ["/usr/share/hunspell", "."]
+skip_os_lookups = false
+tokenization_splitchars = '''",;:.!?#(){}[]|/_-‒'`&@§¶…='''
+use_builtin = true
+
+[hunspell.quirks]
+allow_concatenation = false
+allow_dashes = false
+allow_emojis = true
+check_footnote_references = true
+transform_regex = []
+
+[reflow]
+max_line_length = 80

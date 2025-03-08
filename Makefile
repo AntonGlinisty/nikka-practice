@@ -19,6 +19,7 @@ RUST_PATH = $(HOME)/.cargo/bin
 export PATH := $(RUST_PATH):$(PATH)
 
 CRATES = ku serial text kernel sem
+WORKSPACES = . sem
 
 all: test run
 
@@ -72,11 +73,41 @@ gdb:
 
 FORCE:
 
-test: install
+lint: install
 	@( \
 		rustup component add clippy; \
-		rustup component add miri; \
 		rustup component add rustfmt; \
+		nikka_root=$$(pwd); \
+		for workspace in $(WORKSPACES); do \
+			cd $$workspace; \
+			cargo spellcheck --cfg $$nikka_root/tools/lint/spellcheck.toml --code 1; \
+			typos --config $$nikka_root/tools/lint/typos.toml || exit 1; \
+			cargo fmt --check || exit 1; \
+			cd - >/dev/null; \
+		done; \
+		for crate in $(CRATES); do \
+			cd $$crate; \
+			cargo clippy --all-targets || exit 1; \
+			cd - >/dev/null; \
+		done; \
+		taplo format --config tools/lint/taplo.toml --check $$(find . -name \*.toml) || exit 1; \
+		long_lines=$$(grep '^.\{101\}' $$(find . -name \*.rs | grep -v -e '^\./target/' -e '^\./sem/target/' -e 'tests/with_sentinel_frame/expand') | grep -v -e '^[^:]*: *///' -e 'compose::public' -e 'https*://'); \
+		if [ ! -z "$$long_lines" ]; then \
+			echo "Too long lines found."; \
+			echo "$$long_lines"; \
+			exit 1; \
+		fi; \
+		typos=$$(hunspell -d ru_RU,en_US -p tools/lint/spellcheck.exceptions -l lab/src/*.md sem/*/*.md); \
+		if [ ! -z "$$typos" ]; then \
+			echo "Typos found."; \
+			echo "$$typos"; \
+			exit 1; \
+		fi; \
+	)
+
+test: install
+	@( \
+		rustup component add miri; \
 		for crate in $(CRATES); do \
 			cd $$crate; \
 			if [ .$$crate = .ku ]; then \
@@ -85,8 +116,6 @@ test: install
 				test_flags=''; \
 			fi; \
 			RUST_BACKTRACE=1 cargo test $$test_flags || exit 1; \
-			cargo clippy || exit 1; \
-			cargo fmt --check || exit 1; \
 			cd - >/dev/null; \
 		done; \
 		cd ku; \
@@ -185,6 +214,9 @@ install:
 	@(which bootimage > /dev/null || (cargo install bootimage))
 	@(which rustfilt > /dev/null || (cargo install rustfilt))
 	@(which cargo-expand > /dev/null || (cargo install cargo-expand))
+	@(which cargo-spellcheck  > /dev/null || (cargo install cargo-spellcheck))
+	@(which typos > /dev/null || (cargo install typos-cli))
+	@(which taplo > /dev/null || (cargo install taplo-cli))
 
 $(RUST_PATH)/mdbook:
 	cargo install mdbook

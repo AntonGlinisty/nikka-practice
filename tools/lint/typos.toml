@@ -1,0 +1,29 @@
+[files]
+extend-exclude = [
+    "doc/",
+    "lab/book/",
+    "lab/src/*.aux",
+    "lab/src/*.log",
+    "lab/src/*.tex",
+    "sem/target",
+    "target/",
+    "tools/lint",
+]
+ignore-dot = true
+ignore-files = true
+ignore-global = true
+ignore-hidden = true
+ignore-parent = true
+ignore-vcs = true
+
+[default]
+binary = false
+check-file = true
+check-filename = true
+extend-ignore-identifiers-re = ["ba", "ba_result"]
+extend-ignore-re = []
+extend-ignore-words-re = ["Marz", "BA", "DBE", "ser", "IST", "HDA"]
+identifier-leading-digits = false
+ignore-hex = true
+locale = "en"
+unicode = true

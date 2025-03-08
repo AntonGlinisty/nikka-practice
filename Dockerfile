@@ -1,7 +1,7 @@
 FROM rust:1.81
 
 RUN apt-get update
-RUN apt-get install sudo qemu-system-x86 llvm -y
+RUN apt-get install sudo qemu-system-x86 llvm hunspell-ru hunspell-en-us -y
 
 RUN mkdir -p /opt/shad/nikka
 COPY .gitlab-ci.yml /opt/shad/.grader-ci.yml
@@ -13,6 +13,7 @@ RUN rm --force --recursive .git .jj
 RUN rm --force --recursive $(find . -name \*.orig -o -name \*.rej -o -name \*.diff)
 
 RUN make install
+RUN make lint
 RUN cargo miri setup
 
 RUN cd sem && cargo build
