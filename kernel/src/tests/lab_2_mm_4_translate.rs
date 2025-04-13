@@ -46,10 +46,10 @@ fn t01_translate() {
 }
 
 fn do_not_loose_intermediate_flags(virt: Virt) {
-    map_intermediate(virt, KERNEL_RW);
+    mm_helpers::map_intermediate(virt, KERNEL_RW).unwrap();
     check_intermediate(virt, KERNEL_RW);
 
-    map_intermediate(virt, USER_R);
+    mm_helpers::map_intermediate(virt, USER_R).unwrap();
     check_intermediate(virt, USER_RW);
 
     fn check_intermediate(
@@ -61,23 +61,12 @@ fn do_not_loose_intermediate_flags(virt: Virt) {
 
         mm_helpers::check_intermediate_flags(mapping, virt, flags);
     }
-
-    fn map_intermediate(
-        virt: Virt,
-        flags: PageTableFlags,
-    ) {
-        let mut address_space = BASE_ADDRESS_SPACE.lock();
-        let mapping = mapping(&mut address_space);
-
-        let mut path = mapping.path(virt);
-        path.map_intermediate(flags).unwrap();
-    }
 }
 
 #[test_case]
 fn t02_map_intermediate() {
     let _guard = forbid_frame_leaks();
-    mm_helpers::map_intermediate(mm_helpers::unique_user_virt());
+    mm_helpers::check_map_intermediate(mm_helpers::unique_user_virt());
     do_not_loose_intermediate_flags(mm_helpers::unique_user_virt());
 }
 
@@ -96,12 +85,15 @@ fn t04_huge_page() {
     let phys2virt = phys2virt(mapping);
     let phys2virt_start = phys2virt.map(Phys::default()).unwrap();
 
-    let mut path = mapping.path(phys2virt_start);
+    let path = mapping.path(phys2virt_start);
     let result = get_pte(&path);
     assert_eq!(result, Err(Unimplemented));
 
-    let result = path.map_intermediate(USER_R);
-    assert_eq!(result, Err(Unimplemented));
+    drop(address_space);
+    assert_eq!(
+        mm_helpers::map_intermediate(phys2virt_start, USER_R),
+        Err(Unimplemented),
+    );
 }
 
 #[test_case]
@@ -150,7 +142,8 @@ fn t99_no_frame() {
     let mapping = mapping(&mut address_space);
 
     let frame_count = FRAME_ALLOCATOR.lock().count();
-    let mut real_frame_count = 0;
+    let frame = FRAME_ALLOCATOR.lock().allocate().unwrap();
+    let mut real_frame_count = 1;
 
     while FRAME_ALLOCATOR.lock().allocate().is_ok() {
         real_frame_count += 1;
@@ -165,6 +158,9 @@ fn t99_no_frame() {
     assert!(real_frame_count <= frame_count);
 
     let virt = mm_helpers::unique_user_virt();
-    let pte = mapping.path(virt).map_intermediate(PageTableFlags::empty());
-    assert_eq!(pte, Err(NoFrame));
+    let mut path = mapping.path(virt);
+    assert_eq!(
+        unsafe { path.map(frame, PageTableFlags::empty()) },
+        Err(NoFrame),
+    );
 }

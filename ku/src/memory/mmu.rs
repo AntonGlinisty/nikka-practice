@@ -131,6 +131,23 @@ impl PageTableEntry {
         self.0 = 0;
     }
 
+    /// Забирает из записи физический фрейм, на который она указывает.
+    /// Сама запись очищается.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::NoPage`] --- эта запись не используется,
+    ///   то есть, сброшен бит [`PageTableFlags::PRESENT`].
+    pub fn take(&mut self) -> Result<Frame> {
+        if self.is_present() {
+            let phys = self.phys();
+            self.clear();
+            Ok(Frame::new(phys).unwrap())
+        } else {
+            Err(NoPage)
+        }
+    }
+
     /// Маска адреса физического фрейма, на который указывает эта запись.
     const ADDRESS_MASK: usize = ((1 << Phys::BITS) - 1) & !((1 << PAGE_OFFSET_BITS) - 1);
 }

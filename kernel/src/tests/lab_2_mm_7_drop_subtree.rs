@@ -22,7 +22,7 @@ fn drop_subtree() {
     {
         let start_free_frames = FRAME_ALLOCATOR.lock().count();
 
-        mm_helpers::map_intermediate(mm_helpers::unique_user_virt());
+        mm_helpers::check_map_intermediate(mm_helpers::unique_user_virt());
         assert!(FRAME_ALLOCATOR.lock().count() < start_free_frames);
 
         let mut address_space = BASE_ADDRESS_SPACE.lock();
@@ -45,7 +45,7 @@ fn drop_subtree() {
 
     {
         let _guard = forbid_frame_leaks();
-        mm_helpers::map_intermediate(mm_helpers::unique_user_virt());
+        mm_helpers::check_map_intermediate(mm_helpers::unique_user_virt());
     }
 
     {

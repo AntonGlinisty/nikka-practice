@@ -6,9 +6,12 @@ use core::sync::atomic::{
 };
 
 use ku::{
-    error::Error::{
-        NoPage,
-        Unimplemented,
+    error::{
+        Error::{
+            NoPage,
+            Unimplemented,
+        },
+        Result,
     },
     log::debug,
     memory::{
@@ -78,6 +81,44 @@ pub(super) fn check_intermediate_flags(
     );
 }
 
+pub(super) fn check_map_intermediate(virt: Virt) {
+    let start_free_frames = FRAME_ALLOCATOR.lock().count();
+
+    {
+        let mut address_space = BASE_ADDRESS_SPACE.lock();
+        let mapping = mapping(&mut address_space);
+        let path = mapping.path(virt);
+        let start_root_pte_flags = unsafe {
+            nodes(&path)[size::from(PAGE_TABLE_ROOT_LEVEL)]
+                .try_into_ref::<PageTableEntry>()
+                .unwrap()
+                .flags()
+        };
+        assert!(!start_root_pte_flags.is_present());
+    }
+
+    let pte = map_intermediate(virt, PageTableFlags::PRESENT).unwrap();
+
+    debug!(?pte);
+
+    let end_free_frames = FRAME_ALLOCATOR.lock().count();
+    assert!(start_free_frames > end_free_frames);
+
+    {
+        let mut address_space = BASE_ADDRESS_SPACE.lock();
+        let mapping = mapping(&mut address_space);
+        check_intermediate_flags(mapping, virt, PageTableFlags::PRESENT);
+    }
+
+    for flags in [KERNEL_RW, USER_RW] {
+        map_intermediate(virt, flags).unwrap();
+        assert_eq!(FRAME_ALLOCATOR.lock().count(), end_free_frames);
+        let mut address_space = BASE_ADDRESS_SPACE.lock();
+        let mapping = mapping(&mut address_space);
+        check_intermediate_flags(mapping, virt, flags);
+    }
+}
+
 fn check_path(
     mapping: &mut Mapping,
     virt: Virt,
@@ -114,42 +155,39 @@ fn check_path(
     }
 }
 
-pub(super) fn map_intermediate(virt: Virt) {
-    let start_free_frames = FRAME_ALLOCATOR.lock().count();
-
+pub(super) fn map_intermediate(
+    virt: Virt,
+    flags: PageTableFlags,
+) -> Result<PageTableEntry> {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
     let mapping = mapping(&mut address_space);
 
+    let frame = FRAME_ALLOCATOR.lock().allocate().unwrap();
     let mut path = mapping.path(virt);
-    path.map_intermediate(PageTableFlags::empty()).unwrap();
-    let pte = get_pte(&path).unwrap();
-
-    debug!(?pte);
-
-    let end_free_frames = FRAME_ALLOCATOR.lock().count();
-    assert!(start_free_frames > end_free_frames);
-
-    check_intermediate_flags(mapping, virt, PageTableFlags::PRESENT);
-
-    for flags in [KERNEL_RW, USER_RW] {
-        mapping.path(virt).map_intermediate(flags).unwrap();
-        assert_eq!(FRAME_ALLOCATOR.lock().count(), end_free_frames);
-        check_intermediate_flags(mapping, virt, flags);
+    let map_result = unsafe { path.map(frame, flags) };
+    if map_result.is_err() {
+        FRAME_ALLOCATOR.lock().deallocate(frame);
     }
+    map_result?;
+    let pte = *get_pte(&path)?;
+    unsafe {
+        path.unmap()?;
+    }
+
+    Ok(pte)
 }
 
 pub(super) fn test_no_excessive_intermediate_flags(virt: Virt) {
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
 
-    let mut address_space = BASE_ADDRESS_SPACE.lock();
-    let mapping = mapping(&mut address_space);
-
     let flags = PageTableFlags::all().difference(FULL_ACCESS);
-    mapping.path(virt).map_intermediate(flags).unwrap();
+    map_intermediate(virt, flags).unwrap();
 
     let end_free_frames = FRAME_ALLOCATOR.lock().count();
     assert!(start_free_frames > end_free_frames);
 
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+    let mapping = mapping(&mut address_space);
     check_intermediate_flags(mapping, virt, PageTableFlags::PRESENT);
 }
 

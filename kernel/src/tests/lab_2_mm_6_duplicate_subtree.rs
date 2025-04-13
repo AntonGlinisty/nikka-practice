@@ -33,8 +33,13 @@ fn duplicate_and_drop() {
     let b = mm_helpers::unique_user_virt();
 
     {
+        let frame = FRAME_ALLOCATOR.lock().allocate().unwrap();
         let original_mapping = mapping(&mut address_space);
-        original_mapping.path(a).map_intermediate(USER_R).unwrap();
+        let mut path = original_mapping.path(a);
+        unsafe {
+            path.map(frame, USER_R).unwrap();
+            path.unmap().unwrap();
+        }
         mm_helpers::check_intermediate_flags(original_mapping, a, USER_R);
     }
 
@@ -62,7 +67,12 @@ fn duplicate_and_drop() {
 
         {
             let start_free_frames = FRAME_ALLOCATOR.lock().count();
-            mapping_copy.path(virt).map_intermediate(USER_R).unwrap();
+            let frame = FRAME_ALLOCATOR.lock().allocate().unwrap();
+            let mut path = mapping_copy.path(virt);
+            unsafe {
+                path.map(frame, USER_R).unwrap();
+                path.unmap().unwrap();
+            }
             let end_free_frames = FRAME_ALLOCATOR.lock().count();
             assert!(allocate_intermediate || end_free_frames == start_free_frames);
         }
