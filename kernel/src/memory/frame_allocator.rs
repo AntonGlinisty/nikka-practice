@@ -8,6 +8,7 @@ use crate::error::Result;
 use super::{
     BootFrameAllocator,
     Frame,
+    FrameGuard,
     main_frame_allocator::MainFrameAllocator,
 };
 
@@ -25,7 +26,7 @@ pub trait FrameAllocator {
     ///
     /// Если свободных физических фреймов не осталось,
     /// возвращает ошибку [`Error::NoFrame`].
-    fn allocate(&mut self) -> Result<Frame>;
+    fn allocate(&mut self) -> Result<FrameGuard>;
 
     /// Уменьшает на единицу счётчик использований заданного физического фрейма `frame`.
     /// Физический фрейм освобождается, если на него не осталось других ссылок.
@@ -48,7 +49,7 @@ pub trait FrameAllocator {
     fn reference(
         &mut self,
         frame: Frame,
-    );
+    ) -> FrameGuard;
 
     /// Возвращает количество ссылок на `frame`.
     ///
@@ -117,7 +118,7 @@ impl FrameAllocator for CurrentFrameAllocator {
     #[duplicate_item(
         method getter reference(type) result;
         [count] [get] [&type] [usize];
-        [allocate] [get_mut] [&mut type] [Result<Frame>];
+        [allocate] [get_mut] [&mut type] [Result<FrameGuard>];
     )]
     fn method(self: reference([Self])) -> result {
         self.getter().method()
@@ -127,7 +128,7 @@ impl FrameAllocator for CurrentFrameAllocator {
     #[duplicate_item(
         method getter reference(type) result;
         [deallocate] [get_mut] [&mut type] [()];
-        [reference] [get_mut] [&mut type] [()];
+        [reference] [get_mut] [&mut type] [FrameGuard];
         [reference_count] [get] [&type] [Result<usize>];
         [is_used] [get] [&type] [bool];
     )]

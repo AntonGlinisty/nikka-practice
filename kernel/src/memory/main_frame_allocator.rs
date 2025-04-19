@@ -28,6 +28,7 @@ use super::{
     CurrentFrameAllocator,
     FRAME_ALLOCATOR,
     FrameAllocator,
+    FrameGuard,
     KERNEL_RW,
     frage::Frame,
     size,
@@ -169,7 +170,7 @@ impl FrameAllocator for MainFrameAllocator {
         self.free_count
     }
 
-    fn allocate(&mut self) -> Result<Frame> {
+    fn allocate(&mut self) -> Result<FrameGuard> {
         // TODO: your code here.
         unimplemented!();
     }
@@ -185,7 +186,7 @@ impl FrameAllocator for MainFrameAllocator {
     fn reference(
         &mut self,
         frame: Frame,
-    ) {
+    ) -> FrameGuard {
         // TODO: your code here.
         unimplemented!();
     }

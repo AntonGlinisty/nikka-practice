@@ -44,6 +44,7 @@ use kernel::memory::{
     BASE_ADDRESS_SPACE,
     FRAME_ALLOCATOR,
     FrameAllocator,
+    FrameGuard,
     test_scaffolding::{
         Mapping,
         deepest_pte,
@@ -163,13 +164,11 @@ pub(super) fn map_intermediate(
     let mut address_space = BASE_ADDRESS_SPACE.lock();
     let mapping = mapping(&mut address_space);
 
-    let frame = FRAME_ALLOCATOR.lock().allocate().unwrap();
+    let frame = FrameGuard::allocate().unwrap();
     let mut path = mapping.path(virt);
-    let map_result = unsafe { path.map(frame, flags) };
-    if map_result.is_err() {
-        FRAME_ALLOCATOR.lock().deallocate(frame);
+    unsafe {
+        path.map(frame, flags)?;
     }
-    map_result?;
     let pte = *get_pte(&path)?;
     unsafe {
         path.unmap()?;

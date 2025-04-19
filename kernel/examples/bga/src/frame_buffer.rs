@@ -30,6 +30,7 @@ use kernel::{
     log::debug,
     memory::{
         BASE_ADDRESS_SPACE,
+        FrameGuard,
         KERNEL_MMIO,
         KERNEL_RW,
     },
@@ -142,6 +143,7 @@ impl<Color: Default + PixelColor> FrameBuffer<Color> {
         let front_buffer = address_space.allocate(frame_buffer.size(), front_buffer_flags)?;
 
         for (frame, page) in frame_buffer.enclosing().into_iter().zip(front_buffer.into_iter()) {
+            let frame = FrameGuard::reference(frame);
             unsafe {
                 address_space.map_page_to_frame(page, frame, front_buffer_flags)?;
             }

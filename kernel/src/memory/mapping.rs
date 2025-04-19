@@ -30,6 +30,7 @@ use super::{
     FRAME_ALLOCATOR,
     FULL_ACCESS,
     FrameAllocator,
+    FrameGuard,
     Phys2Virt,
     USER_R,
     Virt,
@@ -108,8 +109,9 @@ impl Mapping {
     /// Поэтому копия может быть модифицирована независимо от оригинала.
     pub(super) fn duplicate(&self) -> Result<Self> {
         let mut result = Self::new(Frame::default(), self.phys2virt);
-        result.page_table_root =
-            self.duplicate_subtree(&mut result, self.page_table_root(), PAGE_TABLE_ROOT_LEVEL)?;
+        result.page_table_root = self
+            .duplicate_subtree(&mut result, self.page_table_root(), PAGE_TABLE_ROOT_LEVEL)?
+            .take();
         Ok(result)
     }
 
@@ -205,7 +207,7 @@ impl Mapping {
         dst: &mut Mapping,
         src_frame: Frame,
         level: u32,
-    ) -> Result<Frame> {
+    ) -> Result<FrameGuard> {
         // TODO: your code here.
         unimplemented!();
     }
@@ -369,7 +371,7 @@ impl Mapping {
     ///
     /// Очищает записи [`PageTableEntry`] в новом узле с помощью [`MaybeUninit::zeroed()`].
     /// Возвращает фрейм нового узла.
-    fn allocate_node(&mut self) -> Result<Frame> {
+    fn allocate_node(&mut self) -> Result<FrameGuard> {
         // TODO: your code here.
         unimplemented!();
     }
@@ -531,7 +533,7 @@ impl<'a> Path<'a> {
     /// В частности, не осталось ссылок, которые ведут в удаляемую страницу.
     pub unsafe fn map(
         &mut self,
-        frame: Frame,
+        frame: FrameGuard,
         flags: PageTableFlags,
     ) -> Result<()> {
         // TODO: your code here.

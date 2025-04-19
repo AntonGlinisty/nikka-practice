@@ -6,6 +6,7 @@ use kernel::{
         BASE_ADDRESS_SPACE,
         FRAME_ALLOCATOR,
         FrameAllocator,
+        FrameGuard,
         USER_R,
         Virt,
         test_scaffolding::{
@@ -34,7 +35,7 @@ fn duplicate_and_drop() {
     let b = mm_helpers::unique_user_virt();
 
     {
-        let frame = FRAME_ALLOCATOR.lock().allocate().unwrap();
+        let frame = FrameGuard::allocate().unwrap();
         let original_mapping = mapping(&mut address_space);
         let mut path = original_mapping.path(a);
         unsafe {
@@ -68,7 +69,7 @@ fn duplicate_and_drop() {
 
         {
             let start_free_frames = FRAME_ALLOCATOR.lock().count();
-            let frame = FRAME_ALLOCATOR.lock().allocate().unwrap();
+            let frame = FrameGuard::allocate().unwrap();
             let mut path = mapping_copy.path(virt);
             unsafe {
                 path.map(frame, USER_R).unwrap();

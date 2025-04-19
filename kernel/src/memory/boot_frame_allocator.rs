@@ -18,6 +18,7 @@ use crate::{
 
 use super::{
     FrameAllocator,
+    FrameGuard,
     block::Block,
     frage::Frame,
     size::SizeOf,
@@ -101,7 +102,7 @@ impl FrameAllocator for BootFrameAllocator {
         self.block.count() + self.deallocations - self.references
     }
 
-    fn allocate(&mut self) -> Result<Frame> {
+    fn allocate(&mut self) -> Result<FrameGuard> {
         // TODO: your code here.
         unimplemented!();
     }
@@ -123,9 +124,10 @@ impl FrameAllocator for BootFrameAllocator {
     /// Поэтому этот метод должен использоваться только в тестах.
     fn reference(
         &mut self,
-        _frame: Frame,
-    ) {
+        frame: Frame,
+    ) -> FrameGuard {
         self.references += 1;
+        FrameGuard::new(frame)
     }
 
     fn reference_count(

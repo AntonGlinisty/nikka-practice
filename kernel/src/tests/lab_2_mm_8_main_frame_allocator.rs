@@ -1,7 +1,6 @@
-use ku::{
-    error::Result,
-    memory::size::MiB,
-};
+use core::mem;
+
+use ku::memory::size::MiB;
 
 use kernel::{
     Subsystems,
@@ -13,6 +12,7 @@ use kernel::{
         FRAME_ALLOCATOR,
         Frame,
         FrameAllocator,
+        FrameGuard,
         KERNEL_RW,
         Page,
         USER_R,
@@ -70,8 +70,8 @@ fn basic_frame_allocator_functions() {
     let frame_count = init::frame_count();
 
     let frames = [
-        frame_allocator.allocate().unwrap(),
-        frame_allocator.allocate().unwrap(),
+        take(frame_allocator.allocate().unwrap()),
+        take(frame_allocator.allocate().unwrap()),
     ];
 
     debug!(?frames, frame_count);
@@ -87,13 +87,13 @@ fn basic_frame_allocator_functions() {
     frame_allocator.deallocate(frames[0]);
     assert_eq!(frame_allocator.count(), start_free_frames - 1);
 
-    let reallocate_last_freed_frame = frame_allocator.allocate().unwrap();
+    let reallocate_last_freed_frame = take(frame_allocator.allocate().unwrap());
 
     debug!(?reallocate_last_freed_frame);
     assert_eq!(reallocate_last_freed_frame, frames[0]);
     assert_eq!(frame_allocator.count(), start_free_frames - 2);
 
-    frame_allocator.reference(frames[1]);
+    take(frame_allocator.reference(frames[1]));
     assert_eq!(frame_allocator.count(), start_free_frames - 2);
 
     frame_allocator.deallocate(frames[1]);
@@ -106,7 +106,7 @@ fn basic_frame_allocator_functions() {
 
     let unmanaged_frame =
         Frame::containing((physical_memory().end_address().unwrap() + TiB).unwrap());
-    frame_allocator.reference(unmanaged_frame);
+    take(frame_allocator.reference(unmanaged_frame));
     frame_allocator.deallocate(unmanaged_frame);
 }
 
@@ -132,11 +132,13 @@ fn allocated_frames_are_not_used() {
     let mut frames_poisoned = 0;
     let mut prev_frame = None;
 
-    while let Ok(frame) = allocate_frame() {
+    while let Ok(frame_guard) = FrameGuard::allocate() {
+        let frame = *frame_guard;
+
         {
             let mut frame_allocator = FRAME_ALLOCATOR.lock();
             assert_eq!(frame_allocator.reference_count(frame), Ok(1));
-            frame_allocator.reference(frame);
+            take(frame_allocator.reference(frame));
             assert_eq!(frame_allocator.reference_count(frame), Ok(2));
         }
 
@@ -152,7 +154,7 @@ fn allocated_frames_are_not_used() {
             assert_eq!(FRAME_ALLOCATOR.lock().reference_count(prev_frame), Ok(2));
         }
         unsafe {
-            address_space.map_page_to_frame(page, frame, KERNEL_RW).unwrap();
+            address_space.map_page_to_frame(page, frame_guard, KERNEL_RW).unwrap();
             mmu::flush(page);
         }
         if let Some(prev_frame) = prev_frame {
@@ -192,7 +194,7 @@ fn allocated_frames_are_not_used() {
         assert_ne!(a, b, "allocated the same frame twice");
     }
 
-    for &frame in &frames[.. frames_poisoned] {
+    for &mut frame in &mut frames[.. frames_poisoned] {
         let mut frame_allocator = FRAME_ALLOCATOR.lock();
         assert_eq!(frame_allocator.reference_count(frame), Ok(1));
         frame_allocator.deallocate(frame);
@@ -204,10 +206,6 @@ fn allocated_frames_are_not_used() {
 
     unsafe {
         address_space.unmap_slice(frames).unwrap();
-    }
-
-    fn allocate_frame() -> Result<Frame> {
-        FRAME_ALLOCATOR.lock().allocate()
     }
 }
 
@@ -227,7 +225,7 @@ fn allocated_frames_are_unique() {
     debug!(free_frames, frame_count);
 
     for frame in &mut frames[.. free_frames] {
-        *frame = frame_allocator.allocate().unwrap();
+        *frame = take(frame_allocator.allocate().unwrap());
         assert!(
             frame.index() < frame_count,
             "allocated a frame {frame} outside of the physical memory of the current machine with \
@@ -262,11 +260,9 @@ fn allocated_frames_are_unique() {
 fn shared_memory() {
     let _guard = forbid_frame_leaks();
 
-    let frame = FRAME_ALLOCATOR.lock().allocate().expect("failed to allocate a frame");
+    let frame = FrameGuard::allocate().expect("failed to allocate a frame");
 
-    debug!(?frame);
-
-    FRAME_ALLOCATOR.lock().reference(frame);
+    debug!(%frame);
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
@@ -279,13 +275,16 @@ fn shared_memory() {
 
     debug!(?pages);
 
-    unsafe {
-        for page in pages {
+    for page in pages {
+        let frame = FrameGuard::reference(*frame);
+        unsafe {
             address_space
                 .map_page_to_frame(page, frame, KERNEL_RW)
                 .expect("failed to map a page frame");
         }
     }
+
+    drop(frame);
 
     let read_ptr: *const u64 = pages[0].address().try_into_ptr().unwrap();
     let write_ptr: *mut u64 = pages[1].address().try_into_mut_ptr().unwrap();
@@ -322,7 +321,7 @@ fn garbage_after_unmap() {
     let virt = Virt::new(0x0000_4000_0000_0000).unwrap();
     let mut path = mapping.path(virt);
     unsafe {
-        let frame = FRAME_ALLOCATOR.lock().allocate().unwrap();
+        let frame = FrameGuard::allocate().unwrap();
         path.map(frame, PageTableFlags::PRESENT).unwrap();
         path.unmap().unwrap();
     }
@@ -537,8 +536,10 @@ fn tlb_flush() {
     let old_mark = 1111111;
     let new_mark = 2222222;
 
-    let old_frame = get_marked_frame(old_mark);
-    let new_frame = get_marked_frame(new_mark);
+    let old_frame_guard = get_marked_frame(old_mark);
+    let new_frame_guard = get_marked_frame(new_mark);
+    let old_frame = *old_frame_guard;
+    let new_frame = *new_frame_guard;
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
@@ -551,7 +552,7 @@ fn tlb_flush() {
 
     unsafe {
         address_space
-            .map_page_to_frame(page, old_frame, KERNEL_RW)
+            .map_page_to_frame(page, old_frame_guard, KERNEL_RW)
             .expect("failed to map a page frame");
     }
 
@@ -567,7 +568,7 @@ fn tlb_flush() {
 
     unsafe {
         address_space
-            .map_page_to_frame(page, new_frame, KERNEL_RW)
+            .map_page_to_frame(page, new_frame_guard, KERNEL_RW)
             .expect("failed to map a page frame");
     }
 
@@ -588,10 +589,9 @@ fn tlb_flush() {
     FRAME_ALLOCATOR.lock().deallocate(old_frame);
     FRAME_ALLOCATOR.lock().deallocate(new_frame);
 
-    fn get_marked_frame(mark: u64) -> Frame {
-        let frame = FRAME_ALLOCATOR.lock().allocate().expect("failed to allocate a frame");
-        FRAME_ALLOCATOR.lock().reference(frame);
-        FRAME_ALLOCATOR.lock().reference(frame);
+    fn get_marked_frame(mark: u64) -> FrameGuard {
+        let frame = FrameGuard::allocate().expect("failed to allocate a frame");
+        take(FrameGuard::reference(*frame));
 
         let mut address_space = BASE_ADDRESS_SPACE.lock();
 
@@ -603,6 +603,7 @@ fn tlb_flush() {
             .unwrap();
 
         unsafe {
+            let frame = FrameGuard::reference(*frame);
             address_space
                 .map_page_to_frame(page, frame, KERNEL_RW)
                 .expect("failed to map a page frame");
@@ -626,6 +627,13 @@ fn tlb_flush() {
     fn get_page_mark(page: Page) -> u64 {
         unsafe { page.address().try_into_ptr::<u64>().unwrap().read_volatile() }
     }
+}
+
+fn take(frame_guard: FrameGuard) -> Frame {
+    let frame = *frame_guard;
+    mem::forget(frame_guard);
+
+    frame
 }
 
 fn translate(

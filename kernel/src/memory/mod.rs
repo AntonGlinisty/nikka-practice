@@ -97,6 +97,7 @@ pub use frame_allocator::{
     FRAME_ALLOCATOR,
     FrameAllocator,
 };
+pub use frame_guard::FrameGuard;
 pub use mmu::{
     FULL_ACCESS,
     KERNEL_MMIO,

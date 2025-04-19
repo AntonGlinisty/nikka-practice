@@ -22,6 +22,7 @@ use kernel::{
         FRAME_ALLOCATOR,
         Frame,
         FrameAllocator,
+        FrameGuard,
         KERNEL_R,
         KERNEL_RW,
         Page,
@@ -206,7 +207,6 @@ fn unmap_nonmapped_page() {
 fn kernel_and_user_are_separated() {
     let _guard = forbid_frame_leaks();
 
-    let frame = FRAME_ALLOCATOR.lock().allocate().unwrap();
     let checks_per_root_level_entry = 16;
 
     for i in kernel_root_level_entries() {
@@ -218,6 +218,7 @@ fn kernel_and_user_are_separated() {
             .unwrap();
 
             for map_function in [map_page_function, map_page_to_frame_function] {
+                let frame = FrameGuard::allocate().unwrap();
                 assert_eq!(
                     map_function(page, frame, USER_R),
                     Err(PermissionDenied),
@@ -236,6 +237,7 @@ fn kernel_and_user_are_separated() {
             .unwrap();
 
             for map_function in [map_page_function, map_page_to_frame_function] {
+                let frame = FrameGuard::allocate().unwrap();
                 assert!(
                     map_function(page, frame, KERNEL_R).is_err(),
                     "user space {page:?} is mappable with kernel flags",
@@ -244,11 +246,9 @@ fn kernel_and_user_are_separated() {
         }
     }
 
-    FRAME_ALLOCATOR.lock().deallocate(frame);
-
     fn map_page_function(
         page: Page,
-        _frame: Frame,
+        _frame: FrameGuard,
         flags: PageTableFlags,
     ) -> Result<()> {
         unsafe { map_page(&mut BASE_ADDRESS_SPACE.lock(), page, flags).map(|_| ()) }
@@ -256,7 +256,7 @@ fn kernel_and_user_are_separated() {
 
     fn map_page_to_frame_function(
         page: Page,
-        frame: Frame,
+        frame: FrameGuard,
         flags: PageTableFlags,
     ) -> Result<()> {
         unsafe { map_page_to_frame(&mut BASE_ADDRESS_SPACE.lock(), page, frame, flags) }

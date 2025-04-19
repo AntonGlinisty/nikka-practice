@@ -19,6 +19,7 @@ use crate::{
     memory::{
         BASE_ADDRESS_SPACE,
         Frame,
+        FrameGuard,
         KERNEL_MMIO,
         Page,
         Phys,

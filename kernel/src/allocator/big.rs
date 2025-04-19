@@ -20,8 +20,7 @@ use crate::{
     log::warn,
     memory::{
         AddressSpace,
-        FRAME_ALLOCATOR,
-        FrameAllocator,
+        FrameGuard,
     },
 };
 

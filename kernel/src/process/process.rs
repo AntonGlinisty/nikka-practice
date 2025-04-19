@@ -44,8 +44,7 @@ use crate::{
         AddressSpace,
         BASE_ADDRESS_SPACE,
         Block,
-        FRAME_ALLOCATOR,
-        FrameAllocator,
+        FrameGuard,
         Stack,
         USER_R,
         USER_RW,
@@ -441,7 +440,7 @@ impl Process {
             .next()
             .ok_or(NoPage)?;
 
-        FRAME_ALLOCATOR.lock().reference(system_info_frame);
+        let system_info_frame = FrameGuard::reference(system_info_frame);
 
         unsafe {
             address_space.map_page_to_frame(system_info_page, system_info_frame, flags)?;

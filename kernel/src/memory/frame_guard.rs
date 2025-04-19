@@ -1,10 +1,13 @@
-#![allow(dead_code)]
-
 use core::mem;
 
 use derive_more::{
     Deref,
     Display,
+};
+
+use ku::memory::mmu::{
+    PageTableEntry,
+    PageTableFlags,
 };
 
 use crate::error::Result;
@@ -21,6 +24,7 @@ use {
     ku::error::Error,
 };
 
+#[allow(rustdoc::private_intra_doc_links)]
 /// RAII для операции выделения одного [`Frame`].
 ///
 /// Вызывает [`FrameAllocator::deallocate()`] для [frame][Frame] при
@@ -71,11 +75,39 @@ impl FrameGuard {
     ///
     /// - [`Error::NoFrame`] --- свободных физических фреймов не осталось.
     pub fn allocate() -> Result<Self> {
-        Ok(Self::new(FRAME_ALLOCATOR.lock().allocate()?))
+        FRAME_ALLOCATOR.lock().allocate()
+    }
+
+    /// Забирает из [`pte`][PageTableEntry] физический фрейм, на который она указывает.
+    /// Возвращает этот фрейм, обёрнутый во [`FrameGuard`].
+    /// Сама [`pte`][PageTableEntry] очищается.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::NoPage`] --- эта [`pte`][PageTableEntry] не используется,
+    ///   то есть, сброшен бит [`PageTableFlags::PRESENT`].
+    pub fn load(pte: &mut PageTableEntry) -> Result<Self> {
+        Ok(Self::new(pte.take()?))
+    }
+
+    /// Создает новый [`FrameGuard`] от выражения
+    /// [`FRAME_ALLOCATOR.lock().reference(frame)`][FrameAllocator::reference].
+    pub fn reference(frame: Frame) -> Self {
+        FRAME_ALLOCATOR.lock().reference(frame)
+    }
+
+    /// Записывает [`Frame`] из данного [`FrameGuard`] в
+    /// [`pte`][PageTableEntry] с заданными флагами [`flags`][PageTableFlags].
+    pub fn store(
+        self,
+        pte: &mut PageTableEntry,
+        flags: PageTableFlags,
+    ) {
+        pte.set_frame(self.take(), flags);
     }
 
     /// Забирает [`Frame`] из данного [`FrameGuard`].
-    pub fn take(self) -> Frame {
+    pub(super) fn take(self) -> Frame {
         let frame = self.frame;
         mem::forget(self);
         frame

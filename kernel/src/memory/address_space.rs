@@ -35,6 +35,7 @@ use crate::{
 use super::{
     FRAME_ALLOCATOR,
     FrameAllocator,
+    FrameGuard,
     KERNEL_PAGE_ALLOCATOR,
     Phys2Virt,
     Virt,
@@ -286,7 +287,7 @@ impl AddressSpace {
     pub unsafe fn map_page_to_frame(
         &mut self,
         page: Page,
-        frame: Frame,
+        frame: FrameGuard,
         flags: PageTableFlags,
     ) -> Result<()> {
         // TODO: your code here.
@@ -713,7 +714,7 @@ pub(super) mod test_scaffolding {
     use super::{
         super::{
             Block,
-            Frame,
+            FrameGuard,
             Page,
             Virt,
             mmu::PageTableFlags,
@@ -734,7 +735,7 @@ pub(super) mod test_scaffolding {
     pub unsafe fn map_page_to_frame(
         address_space: &mut AddressSpace,
         page: Page,
-        frame: Frame,
+        frame: FrameGuard,
         flags: PageTableFlags,
     ) -> Result<()> {
         unsafe { address_space.map_page_to_frame(page, frame, flags) }

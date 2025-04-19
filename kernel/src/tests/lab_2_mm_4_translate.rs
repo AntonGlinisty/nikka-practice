@@ -1,3 +1,5 @@
+use core::mem;
+
 use itertools::Itertools;
 
 use kernel::{
@@ -12,6 +14,7 @@ use kernel::{
         BASE_ADDRESS_SPACE,
         FRAME_ALLOCATOR,
         FrameAllocator,
+        FrameGuard,
         KERNEL_RW,
         Phys,
         USER_R,
@@ -143,10 +146,11 @@ fn t99_no_frame() {
     let mapping = mapping(&mut address_space);
 
     let frame_count = FRAME_ALLOCATOR.lock().count();
-    let frame = FRAME_ALLOCATOR.lock().allocate().unwrap();
+    let frame = FrameGuard::allocate().unwrap();
     let mut real_frame_count = 1;
 
-    while FRAME_ALLOCATOR.lock().allocate().is_ok() {
+    while let Ok(frame) = FrameGuard::allocate() {
+        mem::forget(frame);
         real_frame_count += 1;
     }
 

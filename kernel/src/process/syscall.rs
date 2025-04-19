@@ -52,8 +52,7 @@ use crate::{
     memory::{
         self,
         Block,
-        FRAME_ALLOCATOR,
-        FrameAllocator,
+        FrameGuard,
         KERNEL_RW,
         Page,
         USER_R,
@@ -338,7 +337,7 @@ fn check_frames<'a>(
     process: &'a SpinlockGuard<Process>,
     block: Block<Page>,
     flags: PageTableFlags,
-) -> Result<Vec<PageTableEntry, MemoryAllocator<'a>>> {
+) -> Result<Vec<(FrameGuard, PageTableFlags), MemoryAllocator<'a>>> {
     // TODO: your code here.
     unimplemented!();
 }
@@ -353,7 +352,7 @@ fn check_frames<'a>(
 /// Количества элементов в `src_ptes` и `dst_pages` должны совпадать.
 fn map_pages_to_frames(
     process: &SpinlockGuard<Process>,
-    src_ptes: Vec<PageTableEntry, MemoryAllocator>,
+    src_ptes: Vec<(FrameGuard, PageTableFlags), MemoryAllocator>,
     dst_pages: Block<Page>,
     flags: Option<PageTableFlags>,
 ) -> Result<()> {

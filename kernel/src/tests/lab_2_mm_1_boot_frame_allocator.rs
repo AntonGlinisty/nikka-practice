@@ -1,3 +1,5 @@
+use core::mem;
+
 use ku::memory::size::{
     MiB,
     Size,
@@ -98,12 +100,14 @@ fn t3_allocate() {
     debug!(?frames, frame_count);
     assert_ne!(frames[0], frames[1]);
     assert_eq!(frame_allocator.count(), start_free_frames - 2);
-    for frame in frames {
+    for frame in &frames {
         assert!(
             frame.index() < frame_count,
             "allocated a frame outside of the physical memory of the current machine",
         );
     }
+
+    mem::forget(frames);
 }
 
 #[test_case]
@@ -118,7 +122,9 @@ fn t4_allocated_frames_are_unique() {
     let mut prev_frame = None;
 
     for i in 0 .. free_frames {
-        let frame = frame_allocator.allocate().unwrap();
+        let frame_guard = frame_allocator.allocate().unwrap();
+        let frame = *frame_guard;
+        mem::forget(frame_guard);
         assert!(
             frame.index() < frame_count,
             "allocated a frame {frame} outside of the physical memory of the current machine with \
