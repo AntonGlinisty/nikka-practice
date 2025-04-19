@@ -40,6 +40,7 @@ use ku::{
 
 use super::{
     FRAME_ALLOCATOR,
+    FrameAllocator,
     range,
 };
 

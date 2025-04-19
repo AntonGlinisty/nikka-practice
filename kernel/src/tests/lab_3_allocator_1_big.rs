@@ -49,6 +49,7 @@ use kernel::{
         BASE_ADDRESS_SPACE,
         Block,
         FRAME_ALLOCATOR,
+        FrameAllocator,
         Page,
         Virt,
         mmu::{

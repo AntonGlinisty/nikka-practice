@@ -5,6 +5,7 @@ use kernel::{
         AddressSpace,
         BASE_ADDRESS_SPACE,
         FRAME_ALLOCATOR,
+        FrameAllocator,
         USER_R,
         Virt,
         test_scaffolding::{

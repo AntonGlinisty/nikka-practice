@@ -45,6 +45,7 @@ use crate::{
         BASE_ADDRESS_SPACE,
         Block,
         FRAME_ALLOCATOR,
+        FrameAllocator,
         Stack,
         USER_R,
         USER_RW,

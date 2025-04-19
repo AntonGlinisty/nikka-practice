@@ -11,6 +11,7 @@ use kernel::{
     memory::{
         BASE_ADDRESS_SPACE,
         FRAME_ALLOCATOR,
+        FrameAllocator,
         KERNEL_RW,
         Phys,
         USER_R,

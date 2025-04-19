@@ -25,6 +25,7 @@ use super::{
     BASE_ADDRESS_SPACE,
     Block,
     BootFrameAllocator,
+    CurrentFrameAllocator,
     FRAME_ALLOCATOR,
     FrameAllocator,
     KERNEL_RW,
@@ -116,9 +117,10 @@ impl MainFrameAllocator {
             free_frame: None,
         };
 
-        let boot_frame_allocator = mem::replace(&mut *FRAME_ALLOCATOR.lock(), FrameAllocator::Void);
+        let boot_frame_allocator =
+            mem::replace(&mut *FRAME_ALLOCATOR.lock(), CurrentFrameAllocator::Void);
 
-        if let FrameAllocator::Boot(boot_frame_allocator) = boot_frame_allocator {
+        if let CurrentFrameAllocator::Boot(boot_frame_allocator) = boot_frame_allocator {
             main_frame_allocator.init_frame_info(memory_map, &boot_frame_allocator);
             debug!(frame_allocator = "main", duration = %timer.lap(), "frame info init");
 
@@ -127,74 +129,8 @@ impl MainFrameAllocator {
 
             main_frame_allocator
         } else {
-            panic!("FrameAllocator should be a Boot one now");
+            panic!("current frame allocator should be a boot one now");
         }
-    }
-
-    /// Возвращает количество свободных физических фреймов у аллокатора [`MainFrameAllocator`].
-    pub(super) fn count(&self) -> usize {
-        self.free_count
-    }
-
-    /// Выделяет ровно один физический фрейм.
-    /// Устанавливает количество ссылок на него равным единице.
-    ///
-    /// Если свободных физических фреймов не осталось,
-    /// возвращает ошибку [`Error::NoFrame`].
-    pub(super) fn allocate(&mut self) -> Result<Frame> {
-        // TODO: your code here.
-        unimplemented!();
-    }
-
-    /// Уменьшает на единицу счётчик использований заданного физического фрейма `frame`.
-    /// Физический фрейм освобождается, если на него не осталось других ссылок.
-    ///
-    /// # Panics
-    ///
-    /// Паникует, если фрейм свободен.
-    pub(super) fn deallocate(
-        &mut self,
-        frame: Frame,
-    ) {
-        // TODO: your code here.
-        unimplemented!();
-    }
-
-    /// Увеличивает на единицу счётчик использований заданного физического фрейма `frame`.
-    ///
-    /// # Panics
-    ///
-    /// Паникует, если фрейм свободен.
-    pub(super) fn reference(
-        &mut self,
-        frame: Frame,
-    ) {
-        // TODO: your code here.
-        unimplemented!();
-    }
-
-    /// Возвращает количество ссылок на `frame`.
-    ///
-    /// - Если `frame` свободен, возвращается `0`.
-    /// - Если он отсутствует или зарезервирован --- [`Error::NoFrame`].
-    pub(super) fn reference_count(
-        &self,
-        frame: Frame,
-    ) -> Result<usize> {
-        match self.frame_info[frame.index()] {
-            FrameInfo::Absent => Err(NoFrame),
-            FrameInfo::Free { .. } => Ok(0),
-            FrameInfo::Used { reference_count } => Ok(reference_count),
-        }
-    }
-
-    /// Проверяет, что заданный физический фрейм уже был выделен.
-    pub(super) fn is_used(
-        &self,
-        frame: Frame,
-    ) -> bool {
-        frame.index() >= self.frame_info.len() ||
-            !matches!(self.frame_info[frame.index()], FrameInfo::Free { .. })
     }
 
     /// Инициализирует аллокатор [`MainFrameAllocator`] по информации из `memory_map`.
@@ -225,5 +161,51 @@ impl MainFrameAllocator {
 impl Drop for MainFrameAllocator {
     fn drop(&mut self) {
         panic!("can not drop MainFrameAllocator");
+    }
+}
+
+impl FrameAllocator for MainFrameAllocator {
+    fn count(&self) -> usize {
+        self.free_count
+    }
+
+    fn allocate(&mut self) -> Result<Frame> {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    fn deallocate(
+        &mut self,
+        frame: Frame,
+    ) {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    fn reference(
+        &mut self,
+        frame: Frame,
+    ) {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    fn reference_count(
+        &self,
+        frame: Frame,
+    ) -> Result<usize> {
+        match self.frame_info[frame.index()] {
+            FrameInfo::Absent => Err(NoFrame),
+            FrameInfo::Free { .. } => Ok(0),
+            FrameInfo::Used { reference_count } => Ok(reference_count),
+        }
+    }
+
+    fn is_used(
+        &self,
+        frame: Frame,
+    ) -> bool {
+        frame.index() >= self.frame_info.len() ||
+            !matches!(self.frame_info[frame.index()], FrameInfo::Free { .. })
     }
 }

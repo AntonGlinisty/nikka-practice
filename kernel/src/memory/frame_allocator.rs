@@ -1,11 +1,9 @@
+use duplicate::duplicate_item;
 use lazy_static::lazy_static;
 
 use ku::sync::Spinlock;
 
-use crate::error::{
-    Error::NoFrame,
-    Result,
-};
+use crate::error::Result;
 
 use super::{
     BootFrameAllocator,
@@ -17,9 +15,70 @@ use super::{
 #[allow(unused)]
 use crate::error::Error;
 
-/// Аллокатор физических фреймов [`FrameAllocator`],
+/// Типаж аллокатора физических фреймов.
+#[allow(rustdoc::private_intra_doc_links)]
+pub trait FrameAllocator {
+    /// Возвращает количество свободных физических фреймов у аллокатора.
+    fn count(&self) -> usize;
+
+    /// Выделяет ровно один физический фрейм.
+    ///
+    /// Если свободных физических фреймов не осталось,
+    /// возвращает ошибку [`Error::NoFrame`].
+    fn allocate(&mut self) -> Result<Frame>;
+
+    /// Уменьшает на единицу счётчик использований заданного физического фрейма `frame`.
+    /// Физический фрейм освобождается, если на него не осталось других ссылок.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если фрейм свободен или
+    /// если в данный момент за выделение физических фреймов отвечает не [`MainFrameAllocator`].
+    fn deallocate(
+        &mut self,
+        frame: Frame,
+    );
+
+    /// Увеличивает на единицу счётчик использований заданного физического фрейма `frame`.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если фрейм свободен или
+    /// если в данный момент за выделение физических фреймов отвечает не [`MainFrameAllocator`].
+    fn reference(
+        &mut self,
+        frame: Frame,
+    );
+
+    /// Возвращает количество ссылок на `frame`.
+    ///
+    /// - Если `frame` свободен, возвращается `0`.
+    /// - Если он отсутствует или зарезервирован --- [`Error::NoFrame`].
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если в данный момент за выделение физических фреймов
+    /// отвечает не [`MainFrameAllocator`].
+    fn reference_count(
+        &self,
+        frame: Frame,
+    ) -> Result<usize>;
+
+    /// Проверяет, что заданный физический фрейм уже был выделен.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если в данный момент ни [`BootFrameAllocator`] ни [`MainFrameAllocator`]
+    /// ещё не используются.
+    fn is_used(
+        &self,
+        frame: Frame,
+    ) -> bool;
+}
+
+/// Аллокатор физических фреймов [`CurrentFrameAllocator`],
 /// хранящий и оборачивающий либо [`BootFrameAllocator`], либо [`MainFrameAllocator`].
-pub enum FrameAllocator {
+pub enum CurrentFrameAllocator {
     /// Пустой аллокатор физических фреймов.
     Void,
 
@@ -31,105 +90,60 @@ pub enum FrameAllocator {
 }
 
 #[allow(rustdoc::private_intra_doc_links)]
-impl FrameAllocator {
-    /// Возвращает количество свободных физических фреймов у аллокатора [`FrameAllocator`].
-    pub fn count(&self) -> usize {
-        match self {
-            FrameAllocator::Void => 0,
-            FrameAllocator::Boot(boot_allocator) => boot_allocator.count(),
-            FrameAllocator::Main(main_allocator) => main_allocator.count(),
-        }
-    }
-
-    /// Выделяет ровно один физический фрейм.
-    ///
-    /// Если свободных физических фреймов не осталось,
-    /// возвращает ошибку [`Error::NoFrame`].
-    pub fn allocate(&mut self) -> Result<Frame> {
-        match self {
-            FrameAllocator::Void => Err(NoFrame),
-            FrameAllocator::Boot(boot_allocator) => boot_allocator.allocate(),
-            FrameAllocator::Main(main_allocator) => main_allocator.allocate(),
-        }
-    }
-
-    /// Уменьшает на единицу счётчик использований заданного физического фрейма `frame`.
-    /// Физический фрейм освобождается, если на него не осталось других ссылок.
-    ///
-    /// # Panics
-    ///
-    /// Паникует, если фрейм свободен или
-    /// если в данный момент за выделение физических фреймов отвечает не [`MainFrameAllocator`].
-    pub fn deallocate(
-        &mut self,
-        frame: Frame,
-    ) {
-        match self {
-            FrameAllocator::Boot(boot_allocator) => boot_allocator.deallocate(frame),
-            FrameAllocator::Main(main_allocator) => main_allocator.deallocate(frame),
-            _ => panic!("can not deallocate a frame without a frame allocator"),
-        }
-    }
-
-    /// Увеличивает на единицу счётчик использований заданного физического фрейма `frame`.
-    ///
-    /// # Panics
-    ///
-    /// Паникует, если фрейм свободен или
-    /// если в данный момент за выделение физических фреймов отвечает не [`MainFrameAllocator`].
-    pub fn reference(
-        &mut self,
-        frame: Frame,
-    ) {
-        match self {
-            FrameAllocator::Boot(boot_allocator) => boot_allocator.reference(frame),
-            FrameAllocator::Main(main_allocator) => main_allocator.reference(frame),
-            _ => panic!("can not reference a frame without a frame allocator"),
-        }
-    }
-
-    /// Возвращает количество ссылок на `frame`.
-    ///
-    /// - Если `frame` свободен, возвращается `0`.
-    /// - Если он отсутствует или зарезервирован --- [`Error::NoFrame`].
-    ///
-    /// # Panics
-    ///
-    /// Паникует, если в данный момент за выделение физических фреймов
-    /// отвечает не [`MainFrameAllocator`].
-    pub fn reference_count(
-        &self,
-        frame: Frame,
-    ) -> Result<usize> {
-        match self {
-            FrameAllocator::Main(main_allocator) => main_allocator.reference_count(frame),
-            _ => panic!("can not get the reference count without the main frame allocator"),
-        }
-    }
-
-    /// Проверяет, что заданный физический фрейм уже был выделен.
+impl CurrentFrameAllocator {
+    /// Возвращает ссылку на текущий аллокатор фреймов.
     ///
     /// # Panics
     ///
     /// Паникует, если в данный момент ни [`BootFrameAllocator`] ни [`MainFrameAllocator`]
     /// ещё не используются.
-    pub(super) fn is_used(
-        &self,
-        frame: Frame,
-    ) -> bool {
+    #[allow(clippy::needless_arbitrary_self_type)]
+    #[duplicate_item(
+        getter reference(type);
+        [get] [&type];
+        [get_mut] [&mut type];
+    )]
+    fn getter(self: reference([Self])) -> reference([dyn FrameAllocator]) {
         match self {
-            FrameAllocator::Void =>
-                panic!("no frames should be marked as used by void frame allocator"),
-            FrameAllocator::Boot(boot_allocator) => boot_allocator.is_used(frame),
-            FrameAllocator::Main(main_allocator) => main_allocator.is_used(frame),
+            Self::Void => panic!("no current frame allocator"),
+            Self::Boot(boot_allocator) => boot_allocator as reference([dyn FrameAllocator]),
+            Self::Main(main_allocator) => main_allocator as reference([dyn FrameAllocator]),
         }
     }
 }
 
+impl FrameAllocator for CurrentFrameAllocator {
+    #[allow(clippy::needless_arbitrary_self_type)]
+    #[duplicate_item(
+        method getter reference(type) result;
+        [count] [get] [&type] [usize];
+        [allocate] [get_mut] [&mut type] [Result<Frame>];
+    )]
+    fn method(self: reference([Self])) -> result {
+        self.getter().method()
+    }
+
+    #[allow(clippy::needless_arbitrary_self_type)]
+    #[duplicate_item(
+        method getter reference(type) result;
+        [deallocate] [get_mut] [&mut type] [()];
+        [reference] [get_mut] [&mut type] [()];
+        [reference_count] [get] [&type] [Result<usize>];
+        [is_used] [get] [&type] [bool];
+    )]
+    fn method(
+        self: reference([Self]),
+        frame: Frame,
+    ) -> result {
+        self.getter().method(frame)
+    }
+}
+
 lazy_static! {
-    /// Аллокатор физических фреймов [`FrameAllocator`],
+    /// Аллокатор физических фреймов [`CurrentFrameAllocator`],
     /// хранящий и оборачивающий либо [`BootFrameAllocator`], либо [`MainFrameAllocator`].
-    pub static ref FRAME_ALLOCATOR: Spinlock<FrameAllocator> = Spinlock::new(FrameAllocator::Void);
+    pub static ref FRAME_ALLOCATOR: Spinlock<CurrentFrameAllocator> =
+        Spinlock::new(CurrentFrameAllocator::Void);
 }
 
 #[doc(hidden)]
@@ -139,6 +153,7 @@ pub(super) mod test_scaffolding {
     use super::{
         super::BASE_ADDRESS_SPACE,
         FRAME_ALLOCATOR,
+        FrameAllocator,
     };
 
     #[must_use]

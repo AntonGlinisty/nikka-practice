@@ -21,6 +21,7 @@ use kernel::{
         Block,
         FRAME_ALLOCATOR,
         Frame,
+        FrameAllocator,
         KERNEL_R,
         KERNEL_RW,
         Page,

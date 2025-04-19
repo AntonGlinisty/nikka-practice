@@ -53,6 +53,7 @@ use crate::{
         self,
         Block,
         FRAME_ALLOCATOR,
+        FrameAllocator,
         KERNEL_RW,
         Page,
         USER_R,

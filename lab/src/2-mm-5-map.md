@@ -51,7 +51,7 @@ unsafe fn AddressSpace::map_page_to_frame(
 Дело в том, что нам иногда захочется использовать
 [`AddressSpace::map_page_to_frame()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.map_page_to_frame)
 для отображения зарезервированных физических фреймов, про которые
-[`FrameAllocator`](../../doc/kernel/memory/frame_allocator/enum.FrameAllocator.html)
+[`FrameAllocator`](../../doc/kernel/memory/trait.FrameAllocator.html)
 ничего не знает и не отслеживает количество ссылок на них.
 Например, это делает метод
 [`kernel::smp::local_apic::LocalApic::map()`](../../doc/kernel/smp/local_apic/struct.LocalApic.html#method.map),
@@ -67,7 +67,7 @@ unsafe fn AddressSpace::map_page_to_frame(
 [`Path::unmap()`](../../doc/kernel/memory/mapping/struct.Path.html#method.unmap).
 
 Используя
-[`FrameAllocator::allocate()`](../../doc/kernel/memory/frame_allocator/enum.FrameAllocator.html#method.allocate)
+[`FrameAllocator::allocate()`](../../doc/kernel/memory/trait.FrameAllocator.html#tymethod.allocate)
 из глобального
 [`FRAME_ALLOCATOR`](../../doc/kernel/memory/struct.FRAME_ALLOCATOR.html)
 и
@@ -132,7 +132,7 @@ unsafe fn Path::unmap(
 
 Также вам пригодятся
 
-- [`FrameAllocator::deallocate()`](../../doc/kernel/memory/frame_allocator/enum.FrameAllocator.html#method.deallocate) и
+- [`FrameAllocator::deallocate()`](../../doc/kernel/memory/trait.FrameAllocator.html#tymethod.deallocate) и
 - [`PageTableEntry::clear()`](../../doc/kernel/memory/mmu/struct.PageTableEntry.html#method.clear).
 
 

@@ -20,6 +20,7 @@ use kernel::{
     log::debug,
     memory::{
         FRAME_ALLOCATOR,
+        FrameAllocator,
         test_scaffolding::forbid_frame_leaks,
     },
     process::{

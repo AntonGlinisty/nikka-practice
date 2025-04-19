@@ -34,6 +34,7 @@ use crate::{
 
 use super::{
     FRAME_ALLOCATOR,
+    FrameAllocator,
     KERNEL_PAGE_ALLOCATOR,
     Phys2Virt,
     Virt,

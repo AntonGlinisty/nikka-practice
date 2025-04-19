@@ -43,6 +43,7 @@ use kernel::memory::{
     AddressSpace,
     BASE_ADDRESS_SPACE,
     FRAME_ALLOCATOR,
+    FrameAllocator,
     test_scaffolding::{
         Mapping,
         deepest_pte,

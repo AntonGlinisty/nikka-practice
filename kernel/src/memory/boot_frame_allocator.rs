@@ -17,6 +17,7 @@ use crate::{
 };
 
 use super::{
+    FrameAllocator,
     block::Block,
     frage::Frame,
     size::SizeOf,
@@ -55,13 +56,6 @@ impl BootFrameAllocator {
         unimplemented!();
     }
 
-    /// Возвращает количество "свободных" физических фреймов, считая, в том числе:
-    ///   - утёкшие при освобождении методом [`BootFrameAllocator::deallocate()`],
-    ///   - фреймы для которых было "увеличено количество ссылок" в [`BootFrameAllocator::reference()`].
-    pub(super) fn count(&self) -> usize {
-        self.block.count() + self.deallocations - self.references
-    }
-
     /// Выделяет блок подряд идущих фреймов, достаточный для хранения объекта
     /// размером `size` **байт**.
     ///
@@ -75,40 +69,9 @@ impl BootFrameAllocator {
         unimplemented!();
     }
 
-    /// Выделяет ровно один физический фрейм.
-    ///
-    /// Если свободных физических фреймов не осталось,
-    /// возвращает ошибку [`Error::NoFrame`].
-    pub(super) fn allocate(&mut self) -> Result<Frame> {
-        // TODO: your code here.
-        unimplemented!();
-    }
-
-    /// Увеличивает на единицу общий счётчик освобождённых фреймов.
-    /// Счетчик учитывается в [`BootFrameAllocator::count()`].
-    /// Физический фрейм `_frame` утекает.
-    /// Поэтому этот метод должен использоваться только в тестах.
-    pub(super) fn deallocate(
-        &mut self,
-        _frame: Frame,
-    ) {
-        self.deallocations += 1;
-    }
-
-    /// Увеличивает на единицу общий счётчик ссылок на фреймы.
-    /// Счетчик учитывается в [`BootFrameAllocator::count()`].
-    /// Не увеличивает счётчик использования самого фрейма `_frame`.
-    /// Поэтому этот метод должен использоваться только в тестах.
-    pub(super) fn reference(
-        &mut self,
-        _frame: Frame,
-    ) {
-        self.references += 1;
-    }
-
     /// Возвращает `true`, если не было вызовов
     /// [`BootFrameAllocator::deallocate()`] или [`BootFrameAllocator::reference()`],
-    /// после которых информация об использовании физических фреймов может быть несогласованна.
+    /// после которых информация об использовании физических фреймов может быть неконсистентна.
     pub(super) fn is_consistent(&self) -> bool {
         self.deallocations == 0 && self.references == 0
     }
@@ -120,21 +83,64 @@ impl BootFrameAllocator {
     ) -> bool {
         self.initial_block.contains(frame)
     }
-
-    /// Проверяет, что заданный физический фрейм уже был выделен, причём этим аллокатором.
-    pub(super) fn is_used(
-        &self,
-        frame: Frame,
-    ) -> bool {
-        self.is_managed(frame) && !self.block.contains(frame)
-    }
 }
 
 impl Drop for BootFrameAllocator {
     fn drop(&mut self) {
         let leaked_frame_count = self.count();
         info!(frame_allocator = "boot", block = %self.block, leaked_frame_count, "drop");
-        assert_eq!(leaked_frame_count, 0, "leaked some memory frames");
+        assert!(leaked_frame_count == 0, "leaked some memory frames");
+    }
+}
+
+impl FrameAllocator for BootFrameAllocator {
+    /// Возвращает количество "свободных" физических фреймов, считая, в том числе:
+    ///   - утёкшие при освобождении методом [`BootFrameAllocator::deallocate()`],
+    ///   - фреймы для которых было "увеличено количество ссылок" в [`BootFrameAllocator::reference()`].
+    fn count(&self) -> usize {
+        self.block.count() + self.deallocations - self.references
+    }
+
+    fn allocate(&mut self) -> Result<Frame> {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    /// Увеличивает на единицу общий счётчик освобождённых фреймов.
+    /// Счетчик учитывается в [`BootFrameAllocator::count()`].
+    /// Физический фрейм `_frame` утекает.
+    /// Поэтому этот метод должен использоваться только в тестах.
+    fn deallocate(
+        &mut self,
+        _frame: Frame,
+    ) {
+        self.deallocations += 1;
+    }
+
+    /// Увеличивает на единицу общий счётчик ссылок на фреймы.
+    /// Счетчик учитывается в [`BootFrameAllocator::count()`].
+    /// Не увеличивает счётчик использования самого фрейма `_frame`.
+    /// Поэтому этот метод должен использоваться только в тестах.
+    fn reference(
+        &mut self,
+        _frame: Frame,
+    ) {
+        self.references += 1;
+    }
+
+    fn reference_count(
+        &self,
+        _frame: Frame,
+    ) -> Result<usize> {
+        panic!("boot frame allocator does not support frame reference count");
+    }
+
+    /// Проверяет, что заданный физический фрейм уже был выделен, причём этим аллокатором.
+    fn is_used(
+        &self,
+        frame: Frame,
+    ) -> bool {
+        self.is_managed(frame) && !self.block.contains(frame)
     }
 }
 
@@ -146,6 +152,7 @@ pub(super) mod test_scaffolding {
         super::{
             Block,
             Frame,
+            FrameAllocator,
         },
         BootFrameAllocator,
     };

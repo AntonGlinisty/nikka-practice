@@ -76,7 +76,7 @@ use crate::{
 };
 
 use boot_frame_allocator::BootFrameAllocator;
-use frame_allocator::FrameAllocator;
+use frame_allocator::CurrentFrameAllocator;
 use mapping::Mapping;
 use range::PAGES_PER_ROOT_LEVEL_ENTRY;
 
@@ -93,7 +93,10 @@ pub use frage::{
     Frame,
     Page,
 };
-pub use frame_allocator::FRAME_ALLOCATOR;
+pub use frame_allocator::{
+    FRAME_ALLOCATOR,
+    FrameAllocator,
+};
 pub use mmu::{
     FULL_ACCESS,
     KERNEL_MMIO,
@@ -158,7 +161,7 @@ pub(super) fn init(
 
     if subsystems.contains(Subsystems::PHYS_MEMORY) {
         *FRAME_ALLOCATOR.lock() =
-            FrameAllocator::Boot(BootFrameAllocator::new(&boot_info.memory_map));
+            CurrentFrameAllocator::Boot(BootFrameAllocator::new(&boot_info.memory_map));
     }
 
     let phys2virt = if cfg!(feature = "bootloader-phys2virt") {
@@ -181,11 +184,11 @@ pub(super) fn init(
     }
 
     if subsystems.contains(Subsystems::MAIN_FRAME_ALLOCATOR) {
-        if let FrameAllocator::Boot(boot_frame_allocator) = &*FRAME_ALLOCATOR.lock() {
+        if let CurrentFrameAllocator::Boot(boot_frame_allocator) = &*FRAME_ALLOCATOR.lock() {
             assert!(boot_frame_allocator.is_consistent());
         }
 
-        *FRAME_ALLOCATOR.lock() = FrameAllocator::Main(main_frame_allocator::init(
+        *FRAME_ALLOCATOR.lock() = CurrentFrameAllocator::Main(main_frame_allocator::init(
             physical_memory,
             &boot_info.memory_map,
         ));
@@ -216,8 +219,8 @@ pub mod test_scaffolding {
         BASE_ADDRESS_SPACE,
         Block,
         BootFrameAllocator,
+        CurrentFrameAllocator,
         Frame,
-        FrameAllocator,
     };
 
     use super::phys2virt::test_scaffolding as phys2virt;
@@ -232,10 +235,12 @@ pub mod test_scaffolding {
         range::test_scaffolding::*,
     };
 
-    pub fn get_boot(frame_allocator: &mut FrameAllocator) -> Option<&mut BootFrameAllocator> {
+    pub fn get_boot(
+        frame_allocator: &mut CurrentFrameAllocator
+    ) -> Option<&mut BootFrameAllocator> {
         match frame_allocator {
-            FrameAllocator::Boot(boot_allocator) => Some(boot_allocator),
-            FrameAllocator::Main(..) | FrameAllocator::Void => None,
+            CurrentFrameAllocator::Boot(boot_allocator) => Some(boot_allocator),
+            CurrentFrameAllocator::Main(..) | CurrentFrameAllocator::Void => None,
         }
     }
 

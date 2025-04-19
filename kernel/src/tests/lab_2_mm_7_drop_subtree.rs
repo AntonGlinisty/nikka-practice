@@ -3,6 +3,7 @@ use kernel::{
     memory::{
         BASE_ADDRESS_SPACE,
         FRAME_ALLOCATOR,
+        FrameAllocator,
         test_scaffolding::{
             forbid_frame_leaks,
             mapping,

@@ -21,6 +21,7 @@ use crate::{
     memory::{
         AddressSpace,
         FRAME_ALLOCATOR,
+        FrameAllocator,
     },
 };
 

@@ -29,6 +29,7 @@ use super::{
     Block,
     FRAME_ALLOCATOR,
     FULL_ACCESS,
+    FrameAllocator,
     Phys2Virt,
     USER_R,
     Virt,

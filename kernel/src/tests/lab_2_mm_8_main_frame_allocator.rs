@@ -12,6 +12,7 @@ use kernel::{
         BASE_ADDRESS_SPACE,
         FRAME_ALLOCATOR,
         Frame,
+        FrameAllocator,
         KERNEL_RW,
         Page,
         USER_R,

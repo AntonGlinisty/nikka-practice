@@ -331,12 +331,12 @@ fn Mapping::duplicate_subtree(
 - Не используемые записи в новых [`PageTable`](../../doc/ku/memory/mmu/type.PageTable.html) нужно почистить, как и в [`Mapping::map_intermediate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.map_intermediate).
 
 Для физических фреймов, на которые указывают скопированные записи листьевого уровня L0, нужно вызвать
-[`FrameAllocator::reference()`](../../doc/kernel/memory/frame_allocator/enum.FrameAllocator.html#method.reference).
+[`FrameAllocator::reference()`](../../doc/kernel/memory/trait.FrameAllocator.html#tymethod.reference).
 Этот метод увеличивает число ссылок на физический фрейм.
 И позволяет понять, что физический фрейм нельзя считать свободным пока оба отображения `self` и `dst` существуют.
 А ведь именно указанные фреймы мы разделяем, используя сразу в обоих отображениях.
 Для выделения новых физических фреймов используйте
-[`FrameAllocator::allocate()`](../../doc/kernel/memory/frame_allocator/enum.FrameAllocator.html#method.allocate).
+[`FrameAllocator::allocate()`](../../doc/kernel/memory/trait.FrameAllocator.html#tymethod.allocate).
 В обоих случаях обращайтесь к глобальному
 [`FRAME_ALLOCATOR`](../../doc/kernel/memory/struct.FRAME_ALLOCATOR.html).
 
@@ -393,7 +393,7 @@ fn Mapping::drop_subtree(
 - Если `drop_used = false`, удаляются только узлы, через которые не отображена ни одна страница. То есть, узлы в которых все элементы равны [`PageTableEntry::default()`](../../doc/ku/memory/mmu/struct.PageTableEntry.html#method.default), либо становятся таковыми после удаления ненужных узлов следующих уровней. Это нужно для очистки не использующейся памяти методом [`Mapping::unmap_unused_intermediate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.unmap_unused_intermediate) и корректной работы функции `forbid_frame_leaks()`, которая следит за отсутствием утечек физических фреймов в тестах. В этом режиме используется возвращаемое значение, которое говорит о том, был ли удалён текущий узел.
 
 Для освобождения фреймов используйте
-[`FrameAllocator::deallocate()`](../../doc/kernel/memory/frame_allocator/enum.FrameAllocator.html#method.deallocate),
+[`FrameAllocator::deallocate()`](../../doc/kernel/memory/trait.FrameAllocator.html#tymethod.deallocate),
 он уменьшит количество ссылок на фрейм и освободит его, когда ссылок не останется.
 Перед освобождением фрейма, занятого под одну из `PageTable`, то есть из записей `PageTableEntry` уровней L3--L1,
 нужно спуститься в этот фрейм, рекурсивно вызвав `Mapping::drop_subtree()`.

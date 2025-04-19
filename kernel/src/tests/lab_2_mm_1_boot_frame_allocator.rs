@@ -11,6 +11,7 @@ use kernel::{
         Block,
         FRAME_ALLOCATOR,
         Frame,
+        FrameAllocator,
         Phys,
         test_scaffolding::{
             allocate_block,
