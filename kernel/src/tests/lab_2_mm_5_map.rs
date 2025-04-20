@@ -16,7 +16,6 @@ use kernel::{
     },
     log::debug,
     memory::{
-        AddressSpace,
         BASE_ADDRESS_SPACE,
         Block,
         FRAME_ALLOCATOR,
@@ -28,17 +27,14 @@ use kernel::{
         Page,
         USER_R,
         Virt,
-        mmu::{
-            PageTableEntry,
-            PageTableFlags,
-        },
+        mmu::PageTableFlags,
         test_scaffolding::{
             PAGES_PER_ROOT_LEVEL_ENTRY,
             forbid_frame_leaks,
             kernel_root_level_entries,
             map_page,
             map_page_to_frame,
-            mapping,
+            translate,
             unmap_page,
             user_root_level_entries,
         },
@@ -92,7 +88,7 @@ fn map_readable() {
 
     let page = Page::containing(mm_helpers::unique_kernel_virt());
     unsafe { map_page(&mut address_space, page, KERNEL_R).unwrap() };
-    let frame = translate(&mut address_space, page);
+    let frame = translate(&mut address_space, page.address()).unwrap().frame().unwrap();
     debug!(%page, %frame);
 
     unsafe {
@@ -129,7 +125,7 @@ fn check_map_writable(
     }
 
     unsafe { map_page(&mut address_space, page, KERNEL_RW).unwrap() };
-    let frame = translate(&mut address_space, page);
+    let frame = translate(&mut address_space, page.address()).unwrap().frame().unwrap();
     debug!(%page, %frame);
 
     unsafe {
@@ -156,31 +152,28 @@ fn map_twice() {
     let virt = mm_helpers::unique_kernel_virt();
     let page = Page::containing(virt);
 
-    unsafe { map_page(&mut BASE_ADDRESS_SPACE.lock(), page, KERNEL_R).unwrap() };
-    let old_frame = translate(page.address()).frame();
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
 
-    let pte = translate(virt);
+    unsafe { map_page(&mut address_space, page, KERNEL_R).unwrap() };
+    let old_frame = translate(&mut address_space, page.address()).unwrap().frame();
+
+    let pte = translate(&mut address_space, virt).unwrap();
     assert_eq!(KERNEL_R, pte.flags());
 
-    unsafe { map_page(&mut BASE_ADDRESS_SPACE.lock(), page, KERNEL_RW).unwrap() };
-    let new_frame = translate(page.address()).frame();
+    unsafe { map_page(&mut address_space, page, KERNEL_RW).unwrap() };
+    let new_frame = translate(&mut address_space, page.address()).unwrap().frame();
 
-    let pte = translate(virt);
+    let pte = translate(&mut address_space, virt).unwrap();
     assert_eq!(KERNEL_RW, pte.flags());
 
-    let hacked_frame = unsafe { map_page(&mut BASE_ADDRESS_SPACE.lock(), page, USER_R) };
+    let hacked_frame = unsafe { map_page(&mut address_space, page, USER_R) };
     assert_eq!(hacked_frame, Err(PermissionDenied));
 
     debug!(?old_frame, ?new_frame);
     assert_ne!(old_frame, new_frame);
 
     unsafe {
-        unmap_page(&mut BASE_ADDRESS_SPACE.lock(), page).unwrap();
-    }
-
-    fn translate(virt: Virt) -> PageTableEntry {
-        let mut address_space = BASE_ADDRESS_SPACE.lock();
-        *mapping(&mut address_space).translate(virt).unwrap()
+        unmap_page(&mut address_space, page).unwrap();
     }
 }
 
@@ -261,11 +254,4 @@ fn kernel_and_user_are_separated() {
     ) -> Result<()> {
         unsafe { map_page_to_frame(&mut BASE_ADDRESS_SPACE.lock(), page, frame, flags) }
     }
-}
-
-fn translate(
-    address_space: &mut AddressSpace,
-    page: Page,
-) -> Frame {
-    mapping(address_space).translate(page.address()).unwrap().frame().unwrap()
 }

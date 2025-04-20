@@ -17,6 +17,7 @@ use kernel::{
         FRAME_ALLOCATOR,
         FrameAllocator,
         Virt,
+        test_scaffolding::translate,
     },
     process::{
         self,
@@ -88,7 +89,7 @@ fn check(
 
     let mapping_error =
         "the ELF file has not been loaded into the address space at the correct address";
-    let pte = process.address_space().mapping().translate(entry_point).expect(mapping_error);
+    let pte = translate(process.address_space(), entry_point).expect(mapping_error);
 
     info!(
         %entry_point,

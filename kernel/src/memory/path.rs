@@ -63,7 +63,7 @@ use crate::error::Error;
 ///
 /// Фактически дерево большой арности, если игнорировать рекурсивные записи.
 #[derive(Debug, Default, Eq, PartialEq)]
-pub struct Mapping {
+pub(super) struct Mapping {
     /// Фрейм с корневым узлом таблицы страниц.
     page_table_root: Frame,
 
@@ -141,7 +141,7 @@ impl Mapping {
     ///   - [`Error::NoPage`] если промежуточного или нужного листьевого узла таблицы страниц нет.
     ///   - [`Error::Unimplemented`] если промежуточный узел таблицы страниц
     ///     имеет флаг [`PageTableFlags::HUGE`].
-    pub fn translate(
+    pub(super) fn translate(
         &mut self,
         virt: Virt,
     ) -> Result<&mut PageTableEntry> {
@@ -160,7 +160,7 @@ impl Mapping {
     /// тогда все элементы [`Path::nodes`] не равны [`Virt::default()`],
     /// либо последний не равный [`Virt::default()`], элемент соответствует
     /// [`PageTableEntry`] с установленным флагом [`PageTableFlags::HUGE`].
-    pub fn path(
+    pub(super) fn path(
         &mut self,
         virt: Virt,
     ) -> Path {
@@ -169,7 +169,7 @@ impl Mapping {
     }
 
     /// Возвращает итератор по листьям дерева отображения страниц.
-    pub fn iter_mut(&mut self) -> MappingIterator {
+    pub(super) fn iter_mut(&mut self) -> MappingIterator {
         self.range_mut(..)
     }
 
@@ -235,7 +235,7 @@ impl Mapping {
     }
 
     /// Освобождает не использующиеся промежуточные узлы отображения страниц.
-    pub fn unmap_unused_intermediate(&mut self) {
+    pub(super) fn unmap_unused_intermediate(&mut self) {
         if self.is_valid() &&
             self.drop_subtree(self.page_table_root(), PAGE_TABLE_ROOT_LEVEL, false)
         {
@@ -250,7 +250,7 @@ impl Mapping {
     ///
     /// Если свободных записей в таблице страниц корневого уровня нет,
     /// возвращает ошибку [`Error::NoPage`].
-    pub(crate) fn make_recursive_mapping(&mut self) -> Result<usize> {
+    pub(super) fn make_recursive_mapping(&mut self) -> Result<usize> {
         // TODO: your code here.
         Ok(self.recursive_mapping) // TODO: remove before flight.
     }
@@ -744,19 +744,14 @@ pub(super) mod test_scaffolding {
     use ku::error::Result;
 
     use super::super::{
-        Phys2Virt,
         Virt,
         mmu::{
             PAGE_TABLE_LEVEL_COUNT,
-            PageTable,
             PageTableEntry,
         },
     };
 
-    pub use super::{
-        Mapping,
-        Path,
-    };
+    pub use super::Path;
 
     pub fn deepest_pte<'a>(path: &'a Path<'a>) -> (u32, &'a PageTableEntry) {
         path.deepest_pte()
@@ -768,13 +763,5 @@ pub(super) mod test_scaffolding {
 
     pub fn nodes(path: &Path) -> [Virt; PAGE_TABLE_LEVEL_COUNT] {
         path.nodes
-    }
-
-    pub fn page_table_root(mapping: &Mapping) -> &PageTable {
-        unsafe { mapping.page_table_ref(mapping.page_table_root()) }
-    }
-
-    pub fn phys2virt(mapping: &Mapping) -> Phys2Virt {
-        mapping.phys2virt()
     }
 }

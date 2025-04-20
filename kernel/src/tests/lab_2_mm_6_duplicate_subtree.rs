@@ -12,8 +12,9 @@ use kernel::{
         test_scaffolding::{
             duplicate,
             forbid_frame_leaks,
-            mapping,
+            path,
             switch_to,
+            translate,
         },
     },
 };
@@ -36,21 +37,19 @@ fn duplicate_and_drop() {
 
     {
         let frame = FrameGuard::allocate().unwrap();
-        let original_mapping = mapping(&mut address_space);
-        let mut path = original_mapping.path(a);
+        let mut path = path(&mut address_space, a);
         unsafe {
             path.map(frame, USER_R).unwrap();
             path.unmap().unwrap();
         }
-        mm_helpers::check_intermediate_flags(original_mapping, a, USER_R);
+        mm_helpers::check_intermediate_flags(&mut address_space, a, USER_R);
     }
 
     let free_frames = map_in_duplicate(&mut address_space, false, true, a);
     assert!(start_free_frames > free_frames);
 
     {
-        let original_mapping = mapping(&mut address_space);
-        let pte = original_mapping.translate(b);
+        let pte = translate(&mut address_space, b);
         assert_eq!(pte, Err(NoPage));
     }
 
@@ -64,13 +63,11 @@ fn duplicate_and_drop() {
         virt: Virt,
     ) -> usize {
         let mut address_space_copy = duplicate(address_space).unwrap();
-        let mapping_copy = mapping(&mut address_space_copy);
-        let original_mapping = mapping(address_space);
 
         {
             let start_free_frames = FRAME_ALLOCATOR.lock().count();
             let frame = FrameGuard::allocate().unwrap();
-            let mut path = mapping_copy.path(virt);
+            let mut path = path(&mut address_space_copy, virt);
             unsafe {
                 path.map(frame, USER_R).unwrap();
                 path.unmap().unwrap();
@@ -79,9 +76,9 @@ fn duplicate_and_drop() {
             assert!(allocate_intermediate || end_free_frames == start_free_frames);
         }
 
-        mm_helpers::check_intermediate_flags(mapping_copy, virt, USER_R);
+        mm_helpers::check_intermediate_flags(&mut address_space_copy, virt, USER_R);
         if mapped_in_original {
-            mm_helpers::check_intermediate_flags(original_mapping, virt, USER_R);
+            mm_helpers::check_intermediate_flags(address_space, virt, USER_R);
         }
 
         let free_frames = FRAME_ALLOCATOR.lock().count();

@@ -6,7 +6,7 @@ use kernel::{
         FrameAllocator,
         test_scaffolding::{
             forbid_frame_leaks,
-            mapping,
+            unmap_unused_intermediate,
         },
     },
 };
@@ -18,7 +18,7 @@ init!(Subsystems::PHYS_MEMORY | Subsystems::VIRT_MEMORY);
 
 #[test_case]
 fn drop_subtree() {
-    BASE_ADDRESS_SPACE.lock().mapping().unmap_unused_intermediate();
+    unmap_unused_intermediate(&mut BASE_ADDRESS_SPACE.lock());
 
     {
         let start_free_frames = FRAME_ALLOCATOR.lock().count();
@@ -27,12 +27,11 @@ fn drop_subtree() {
         assert!(FRAME_ALLOCATOR.lock().count() < start_free_frames);
 
         let mut address_space = BASE_ADDRESS_SPACE.lock();
-        let mapping = mapping(&mut address_space);
 
-        mapping.unmap_unused_intermediate();
+        unmap_unused_intermediate(&mut address_space);
         let mid_free_frames = FRAME_ALLOCATOR.lock().count();
 
-        mapping.unmap_unused_intermediate();
+        unmap_unused_intermediate(&mut address_space);
         let end_free_frames = FRAME_ALLOCATOR.lock().count();
         if start_free_frames < end_free_frames {
             panic!(

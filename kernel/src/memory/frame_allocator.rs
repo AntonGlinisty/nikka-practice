@@ -159,10 +159,10 @@ pub(super) mod test_scaffolding {
 
     #[must_use]
     pub fn forbid_frame_leaks() -> impl Drop {
-        BASE_ADDRESS_SPACE.lock().mapping().unmap_unused_intermediate();
+        BASE_ADDRESS_SPACE.lock().unmap_unused_intermediate();
 
         scopeguard::guard(FRAME_ALLOCATOR.lock().count(), |start_free_frames| {
-            BASE_ADDRESS_SPACE.lock().mapping().unmap_unused_intermediate();
+            BASE_ADDRESS_SPACE.lock().unmap_unused_intermediate();
 
             let end_free_frames = FRAME_ALLOCATOR.lock().count();
 

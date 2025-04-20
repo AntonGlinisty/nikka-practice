@@ -7,7 +7,6 @@ use kernel::{
     error::Error::NoFrame,
     log::debug,
     memory::{
-        AddressSpace,
         BASE_ADDRESS_SPACE,
         FRAME_ALLOCATOR,
         Frame,
@@ -32,9 +31,10 @@ use kernel::{
             forbid_frame_leaks,
             get_pte,
             map_page,
-            mapping,
+            path,
             physical_memory,
             switch_to,
+            translate,
             unmap_page,
             user_root_level_entries,
         },
@@ -316,10 +316,9 @@ fn garbage_after_unmap() {
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
-    let mapping = mapping(&mut address_space);
 
     let virt = Virt::new(0x0000_4000_0000_0000).unwrap();
-    let mut path = mapping.path(virt);
+    let mut path = path(&mut address_space, virt);
     unsafe {
         let frame = FrameGuard::allocate().unwrap();
         path.map(frame, PageTableFlags::PRESENT).unwrap();
@@ -338,7 +337,7 @@ fn garbage_after_unmap() {
 
     for neighbour in 1 .. PAGE_TABLE_ENTRY_COUNT {
         let neighbour_virt = (virt + neighbour * Page::SIZE).unwrap();
-        let neighbour_pte = mapping.translate(neighbour_virt).unwrap();
+        let neighbour_pte = translate(&mut address_space, neighbour_virt).unwrap();
         if *neighbour_pte != expected_pte {
             debug!(?neighbour_pte, ?expected_pte);
         }
@@ -353,7 +352,7 @@ fn duplicate_and_drop_mapping() {
     let variable =
         unsafe { BASE_ADDRESS_SPACE.lock().map_slice_zeroed::<usize>(1, KERNEL_RW).unwrap() };
     let virt = Virt::from_ref(&variable[0]);
-    let frame = translate(&mut BASE_ADDRESS_SPACE.lock(), virt).frame().unwrap();
+    let frame = translate(&mut BASE_ADDRESS_SPACE.lock(), virt).unwrap().frame().unwrap();
 
     let reference_count = FRAME_ALLOCATOR.lock().reference_count(frame).unwrap();
     debug!(%virt, %frame, %reference_count, "one address space");
@@ -367,8 +366,8 @@ fn duplicate_and_drop_mapping() {
     assert_eq!(reference_count, 2);
 
     let ptes = [
-        translate(&mut address_space, virt),
-        translate(&mut address_space_copy, virt),
+        translate(&mut address_space, virt).unwrap(),
+        translate(&mut address_space_copy, virt).unwrap(),
     ];
     let pte_addresses = [Virt::from_ref(ptes[0]), Virt::from_ref(ptes[1])];
 
@@ -404,7 +403,7 @@ fn all_frames_are_freed_on_drop() {
         unsafe {
             map_page(&mut address_space, page, flags).unwrap();
         }
-        let frame = translate(&mut address_space, page.address()).frame().unwrap();
+        let frame = translate(&mut address_space, page.address()).unwrap().frame().unwrap();
         debug!(%page, %frame, ?flags);
     }
 }
@@ -425,8 +424,8 @@ fn garbage_in_duplicate() {
     let mut address_space_copy = duplicate(&address_space).unwrap();
 
     let ptes = [
-        translate(&mut address_space, virt),
-        translate(&mut address_space_copy, virt),
+        translate(&mut address_space, virt).unwrap(),
+        translate(&mut address_space_copy, virt).unwrap(),
     ];
     let pte_addresses = [Virt::from_ref(ptes[0]), Virt::from_ref(ptes[1])];
 
@@ -438,8 +437,8 @@ fn garbage_in_duplicate() {
 
     for neighbour in 1 .. PAGE_TABLE_ENTRY_COUNT {
         let neighbour_virt = (virt + neighbour * Page::SIZE).unwrap();
-        let expected_neighbour_pte = translate(&mut address_space, neighbour_virt);
-        let neighbour_pte = translate(&mut address_space_copy, neighbour_virt);
+        let expected_neighbour_pte = translate(&mut address_space, neighbour_virt).unwrap();
+        let neighbour_pte = translate(&mut address_space_copy, neighbour_virt).unwrap();
         if *neighbour_pte != *expected_neighbour_pte {
             debug!(?neighbour_pte, ?expected_neighbour_pte);
         }
@@ -476,8 +475,8 @@ fn duplicate_only_kernel() {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
     let ptes = [
-        translate(&mut address_space, virt),
-        translate(&mut address_space_copy, virt),
+        translate(&mut address_space, virt).unwrap(),
+        translate(&mut address_space_copy, virt).unwrap(),
     ];
     debug!(?ptes);
     assert!(ptes[0].is_present());
@@ -634,11 +633,4 @@ fn take(frame_guard: FrameGuard) -> Frame {
     mem::forget(frame_guard);
 
     frame
-}
-
-fn translate(
-    address_space: &mut AddressSpace,
-    virt: Virt,
-) -> &PageTableEntry {
-    mapping(address_space).translate(virt).unwrap()
 }

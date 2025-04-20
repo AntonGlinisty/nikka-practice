@@ -47,6 +47,7 @@ use super::{
     mapping::Mapping,
     mmu::{
         self,
+        PageTableEntry,
         PageTableFlags,
     },
     page_allocator::PageAllocator,
@@ -162,13 +163,13 @@ impl AddressSpace {
     }
 
     /// Возвращает страничное отображение данного виртуального адресного пространства.
-    pub fn mapping(&mut self) -> &mut Mapping {
+    pub(super) fn mapping(&mut self) -> &mut Mapping {
         &mut self.mapping
     }
 
     /// Возвращает физический фрейм, в котором хранится корневой узел
     /// страничного отображения данного виртуального адресного пространства.
-    pub fn page_table_root(&self) -> Frame {
+    pub(crate) fn page_table_root(&self) -> Frame {
         self.mapping.page_table_root()
     }
 
@@ -644,10 +645,45 @@ impl AddressSpace {
         }
     }
 
+    /// Выбирает в таблице страниц корневого уровня свободную запись,
+    /// которую инициализирует как рекурсивную.
+    /// Сохраняет её номер в поле [`Mapping::recursive_mapping`] и
+    /// возвращает его в вызывающую функцию.
+    ///
+    /// Возвращает ошибки:
+    ///   - [`Error::InvalidArgument`] если [`AddressSpace`] пусто.
+    ///   - [`Error::NoPage`] если свободных записей в таблице страниц корневого уровня нет.
+    pub(crate) fn make_recursive_mapping(&mut self) -> Result<usize> {
+        self.mapping.make_recursive_mapping()
+    }
+
+    /// Принимает на вход виртуальный адрес `virt`, который нужно транслировать.
+    ///
+    /// Возвращает ссылку на запись типа [`PageTableEntry`] в
+    /// узле листьевого уровня таблицы страниц,
+    /// соответствующую входному виртуальному адресу `virt`.
+    ///
+    /// Возвращает ошибки:
+    ///   - [`Error::InvalidArgument`] если [`AddressSpace`] пусто.
+    ///   - [`Error::NoPage`] если промежуточного или нужного листьевого узла таблицы страниц нет.
+    ///   - [`Error::Unimplemented`] если промежуточный узел таблицы страниц
+    ///     имеет флаг [`PageTableFlags::HUGE`].
+    pub(crate) fn translate(
+        &mut self,
+        virt: Virt,
+    ) -> Result<&mut PageTableEntry> {
+        self.mapping.translate(virt)
+    }
+
     /// Удаляет ненужную часть --- находящуюся за пределами [`Phys2Virt`] ---
     /// линейного отображения физической памяти, которое сделал [`bootloader`].
     pub(super) fn remove_excessive_phys2virt(&mut self) -> Result<()> {
         self.mapping.remove_excessive_phys2virt()
+    }
+
+    /// Освобождает не использующиеся промежуточные узлы отображения страниц.
+    pub(super) fn unmap_unused_intermediate(&mut self) {
+        self.mapping.unmap_unused_intermediate();
     }
 }
 
@@ -717,11 +753,19 @@ pub(super) mod test_scaffolding {
             FrameGuard,
             Page,
             Virt,
-            mmu::PageTableFlags,
+            mapping::{
+                MappingIterator,
+                Path,
+            },
+            mmu::{
+                PageTable,
+                PageTableEntry,
+                PageTableFlags,
+            },
             page_allocator::test_scaffolding::block,
         },
         AddressSpace,
-        Mapping,
+        Phys2Virt,
     };
 
     pub unsafe fn map_page(
@@ -768,15 +812,41 @@ pub(super) mod test_scaffolding {
         address_space.duplicate()
     }
 
-    pub fn mapping(address_space: &mut AddressSpace) -> &mut Mapping {
-        &mut address_space.mapping
+    pub fn iter_mut(address_space: &mut AddressSpace) -> MappingIterator {
+        address_space.mapping.iter_mut()
     }
 
     pub fn page_allocator_block(address_space: &AddressSpace) -> Block<Page> {
         block(&address_space.user_page_allocator)
     }
 
+    pub fn page_table_root(address_space: &AddressSpace) -> &PageTable {
+        unsafe { address_space.mapping.page_table_ref(address_space.mapping.page_table_root()) }
+    }
+
+    pub fn path(
+        address_space: &mut AddressSpace,
+        virt: Virt,
+    ) -> Path {
+        address_space.mapping.path(virt)
+    }
+
+    pub fn phys2virt(address_space: &AddressSpace) -> Phys2Virt {
+        address_space.mapping.phys2virt()
+    }
+
     pub fn switch_to(address_space: &AddressSpace) {
         address_space.switch_to();
+    }
+
+    pub fn translate(
+        address_space: &mut AddressSpace,
+        virt: Virt,
+    ) -> Result<&mut PageTableEntry> {
+        address_space.translate(virt)
+    }
+
+    pub fn unmap_unused_intermediate(address_space: &mut AddressSpace) {
+        address_space.unmap_unused_intermediate();
     }
 }

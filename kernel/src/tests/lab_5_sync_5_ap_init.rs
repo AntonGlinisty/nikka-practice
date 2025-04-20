@@ -14,10 +14,7 @@ use kernel::{
     memory::{
         BASE_ADDRESS_SPACE,
         Virt,
-        test_scaffolding::{
-            mapping,
-            phys2virt,
-        },
+        test_scaffolding::phys2virt,
     },
     process::test_scaffolding::set_handler,
     smp::test_scaffolding::{
@@ -34,7 +31,7 @@ init!(Subsystems::MEMORY);
 fn ap_init() {
     set_handler(ap_loop);
 
-    let phys2virt = phys2virt(mapping(&mut BASE_ADDRESS_SPACE.lock()));
+    let phys2virt = phys2virt(&BASE_ADDRESS_SPACE.lock());
     init_smp(phys2virt, Subsystems::SMP).unwrap();
 
     let cpu_count = 4;

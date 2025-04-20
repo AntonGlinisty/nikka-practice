@@ -24,8 +24,10 @@ use kernel::{
         test_scaffolding::{
             forbid_frame_leaks,
             get_pte,
-            mapping,
+            iter_mut,
+            path,
             phys2virt,
+            translate,
         },
     },
 };
@@ -51,20 +53,10 @@ fn t01_translate() {
 
 fn do_not_loose_intermediate_flags(virt: Virt) {
     mm_helpers::map_intermediate(virt, KERNEL_RW).unwrap();
-    check_intermediate(virt, KERNEL_RW);
+    mm_helpers::check_intermediate_flags(&mut BASE_ADDRESS_SPACE.lock(), virt, KERNEL_RW);
 
     mm_helpers::map_intermediate(virt, USER_R).unwrap();
-    check_intermediate(virt, USER_RW);
-
-    fn check_intermediate(
-        virt: Virt,
-        flags: PageTableFlags,
-    ) {
-        let mut address_space = BASE_ADDRESS_SPACE.lock();
-        let mapping = mapping(&mut address_space);
-
-        mm_helpers::check_intermediate_flags(mapping, virt, flags);
-    }
+    mm_helpers::check_intermediate_flags(&mut BASE_ADDRESS_SPACE.lock(), virt, USER_RW);
 }
 
 #[test_case]
@@ -84,12 +76,11 @@ fn t04_huge_page() {
     let _guard = forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
-    let mapping = mapping(&mut address_space);
 
-    let phys2virt = phys2virt(mapping);
+    let phys2virt = phys2virt(&address_space);
     let phys2virt_start = phys2virt.map(Phys::default()).unwrap();
 
-    let path = mapping.path(phys2virt_start);
+    let path = path(&mut address_space, phys2virt_start);
     let result = get_pte(&path);
     assert_eq!(result, Err(Unimplemented));
 
@@ -105,10 +96,9 @@ fn t05_no_page() {
     let _guard = forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
-    let mapping = mapping(&mut address_space);
 
     let virt = mm_helpers::unique_user_virt();
-    let pte = mapping.translate(virt);
+    let pte = translate(&mut address_space, virt);
 
     assert_eq!(pte, Err(NoPage));
 }
@@ -118,7 +108,6 @@ fn t06_build_map() {
     let _guard = forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
-    let mapping = mapping(&mut address_space);
 
     let flag_mask = !(PageTableFlags::ACCESSED | PageTableFlags::DIRTY);
 
@@ -129,8 +118,7 @@ fn t06_build_map() {
             debug!("virtual to physical mapping");
         }
 
-        for block in mapping
-            .iter_mut()
+        for block in iter_mut(&mut address_space)
             .map(|path| path.block())
             .filter(|block| block.is_present())
             .coalesce(|a, b| a.coalesce(b, ignore_frame_addresses, flag_mask))
@@ -143,7 +131,6 @@ fn t06_build_map() {
 #[test_case]
 fn t99_no_frame() {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
-    let mapping = mapping(&mut address_space);
 
     let frame_count = FRAME_ALLOCATOR.lock().count();
     let frame = FrameGuard::allocate().unwrap();
@@ -163,7 +150,7 @@ fn t99_no_frame() {
     assert!(real_frame_count <= frame_count);
 
     let virt = mm_helpers::unique_user_virt();
-    let mut path = mapping.path(virt);
+    let mut path = path(&mut address_space, virt);
     assert_eq!(
         unsafe { path.map(frame, PageTableFlags::empty()) },
         Err(NoFrame),

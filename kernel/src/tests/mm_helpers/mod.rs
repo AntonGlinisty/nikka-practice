@@ -46,23 +46,23 @@ use kernel::memory::{
     FrameAllocator,
     FrameGuard,
     test_scaffolding::{
-        Mapping,
         deepest_pte,
         get_pte,
-        mapping,
         nodes,
         page_table_root,
+        path,
         phys2virt,
+        translate,
         user_pages,
     },
 };
 
 pub(super) fn check_intermediate_flags(
-    mapping: &mut Mapping,
+    address_space: &mut AddressSpace,
     virt: Virt,
     expected_flags: PageTableFlags,
 ) {
-    let path = mapping.path(virt);
+    let path = path(address_space, virt);
     let intermediate_flags = unsafe {
         nodes(&path)[size::from(PAGE_TABLE_ROOT_LEVEL)]
             .try_into_ref::<PageTableEntry>()
@@ -75,7 +75,7 @@ pub(super) fn check_intermediate_flags(
     );
 
     let leaf_flags = PageTableFlags::EXECUTABLE;
-    let pte = mapping.translate(virt).unwrap();
+    let pte = translate(address_space, virt).unwrap();
     assert_eq!(
         pte.flags(),
         leaf_flags,
@@ -88,8 +88,7 @@ pub(super) fn check_map_intermediate(virt: Virt) {
 
     {
         let mut address_space = BASE_ADDRESS_SPACE.lock();
-        let mapping = mapping(&mut address_space);
-        let path = mapping.path(virt);
+        let path = path(&mut address_space, virt);
         let start_root_pte_flags = unsafe {
             nodes(&path)[size::from(PAGE_TABLE_ROOT_LEVEL)]
                 .try_into_ref::<PageTableEntry>()
@@ -106,27 +105,25 @@ pub(super) fn check_map_intermediate(virt: Virt) {
     let end_free_frames = FRAME_ALLOCATOR.lock().count();
     assert!(start_free_frames > end_free_frames);
 
-    {
-        let mut address_space = BASE_ADDRESS_SPACE.lock();
-        let mapping = mapping(&mut address_space);
-        check_intermediate_flags(mapping, virt, PageTableFlags::PRESENT);
-    }
+    check_intermediate_flags(
+        &mut BASE_ADDRESS_SPACE.lock(),
+        virt,
+        PageTableFlags::PRESENT,
+    );
 
     for flags in [KERNEL_RW, USER_RW] {
         map_intermediate(virt, flags).unwrap();
         assert_eq!(FRAME_ALLOCATOR.lock().count(), end_free_frames);
-        let mut address_space = BASE_ADDRESS_SPACE.lock();
-        let mapping = mapping(&mut address_space);
-        check_intermediate_flags(mapping, virt, flags);
+        check_intermediate_flags(&mut BASE_ADDRESS_SPACE.lock(), virt, flags);
     }
 }
 
 fn check_path(
-    mapping: &mut Mapping,
+    address_space: &mut AddressSpace,
     virt: Virt,
 ) {
-    let page_table_root = Page::new(Virt::from_ref(page_table_root(mapping))).unwrap();
-    let path = mapping.path(virt);
+    let page_table_root = Page::new(Virt::from_ref(page_table_root(address_space))).unwrap();
+    let path = path(address_space, virt);
 
     assert_eq!(
         Page::containing(nodes(&path)[size::from(PAGE_TABLE_ROOT_LEVEL)]),
@@ -148,7 +145,7 @@ fn check_path(
         if child != Virt::default() {
             let child_page = Page::containing(child);
             let phys2virt_start_page =
-                Page::containing(phys2virt(mapping).map(Phys::default()).unwrap());
+                Page::containing(phys2virt(address_space).map(Phys::default()).unwrap());
             let child_frame_index = (child_page - phys2virt_start_page).unwrap();
             let parent_points_to =
                 unsafe { parent.try_into_ref::<PageTableEntry>().unwrap().frame().unwrap() };
@@ -162,10 +159,9 @@ pub(super) fn map_intermediate(
     flags: PageTableFlags,
 ) -> Result<PageTableEntry> {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
-    let mapping = mapping(&mut address_space);
 
     let frame = FrameGuard::allocate().unwrap();
-    let mut path = mapping.path(virt);
+    let mut path = path(&mut address_space, virt);
     unsafe {
         path.map(frame, flags)?;
     }
@@ -186,17 +182,17 @@ pub(super) fn test_no_excessive_intermediate_flags(virt: Virt) {
     let end_free_frames = FRAME_ALLOCATOR.lock().count();
     assert!(start_free_frames > end_free_frames);
 
-    let mut address_space = BASE_ADDRESS_SPACE.lock();
-    let mapping = mapping(&mut address_space);
-    check_intermediate_flags(mapping, virt, PageTableFlags::PRESENT);
+    check_intermediate_flags(
+        &mut BASE_ADDRESS_SPACE.lock(),
+        virt,
+        PageTableFlags::PRESENT,
+    );
 }
 
 pub(super) fn test_path(address_space: &mut AddressSpace) {
-    let mapping = mapping(address_space);
-
     let variable = 314159265;
     let present_virt = Virt::from_ref(&variable);
-    let present_path = mapping.path(present_virt);
+    let present_path = path(address_space, present_virt);
     let (level, pte) = deepest_pte(&present_path);
     debug!("present:");
     debug!("    virt = {present_virt}");
@@ -206,10 +202,10 @@ pub(super) fn test_path(address_space: &mut AddressSpace) {
     assert_eq!(level, PAGE_TABLE_LEAF_LEVEL);
     assert!(pte.is_present());
     assert!(get_pte(&present_path).is_ok());
-    check_path(mapping, present_virt);
+    check_path(address_space, present_virt);
 
     let non_present_virt = unique_user_virt();
-    let non_present_path = mapping.path(non_present_virt);
+    let non_present_path = path(address_space, non_present_virt);
     let (level, pte) = deepest_pte(&non_present_path);
     debug!("non-present:");
     debug!("    virt = {non_present_virt}");
@@ -224,10 +220,10 @@ pub(super) fn test_path(address_space: &mut AddressSpace) {
     );
     assert!(!pte.is_present());
     assert_eq!(get_pte(&non_present_path), Err(NoPage));
-    check_path(mapping, non_present_virt);
+    check_path(address_space, non_present_virt);
 
-    let huge_virt = phys2virt(mapping).map(Phys::new(7 * MiB).unwrap()).unwrap();
-    let huge_path = mapping.path(huge_virt);
+    let huge_virt = phys2virt(address_space).map(Phys::new(7 * MiB).unwrap()).unwrap();
+    let huge_path = path(address_space, huge_virt);
     let (level, pte) = deepest_pte(&huge_path);
     debug!("huge:");
     debug!("    virt = {huge_virt}");
@@ -241,7 +237,7 @@ pub(super) fn test_path(address_space: &mut AddressSpace) {
     assert!(pte.is_present());
     assert!(pte.is_huge());
     assert_eq!(get_pte(&huge_path), Err(Unimplemented));
-    check_path(mapping, huge_virt);
+    check_path(address_space, huge_virt);
 }
 
 pub(super) fn test_translate(address_space: &mut AddressSpace) {
@@ -250,9 +246,7 @@ pub(super) fn test_translate(address_space: &mut AddressSpace) {
 
     let virt = Virt::from_ref(&variable);
 
-    let mapping = mapping(address_space);
-
-    let pte = mapping.translate(virt).unwrap();
+    let pte = translate(address_space, virt).unwrap();
 
     debug!(?pte);
 
@@ -266,7 +260,7 @@ pub(super) fn test_translate(address_space: &mut AddressSpace) {
     assert_eq!(pte.flags(), expected_flags);
     assert_ne!(frame, Frame::from_index(0).unwrap());
 
-    let phys2virt = phys2virt(mapping);
+    let phys2virt = phys2virt(address_space);
 
     let page_offset_mask = (1 << PAGE_OFFSET_BITS) - 1;
     let page_offset = virt.into_usize() & page_offset_mask;

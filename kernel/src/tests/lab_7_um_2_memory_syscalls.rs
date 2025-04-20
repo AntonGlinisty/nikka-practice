@@ -30,7 +30,7 @@ use kernel::{
     memory::test_scaffolding::{
         forbid_frame_leaks,
         get_pte,
-        mapping,
+        path,
         switch_to,
     },
     process::{
@@ -223,8 +223,7 @@ fn map_syscall_group() {
     ) {
         let mut process = process.lock();
         let mut address_space = process.address_space();
-        let mapping = mapping(&mut address_space);
-        let path = mapping.path(virt);
+        let path = path(&mut address_space, virt);
         let actual_flags = get_pte(&path).unwrap().flags();
         debug!(%actual_flags, %expected_flags);
         assert_eq!(actual_flags, expected_flags);

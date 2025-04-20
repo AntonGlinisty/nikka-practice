@@ -404,7 +404,7 @@ impl Process {
 
         let (read_buffer, write_buffer) =
             pipe::make(Self::LOG_FRAME_COUNT, &mut address_space.allocator(flags))?;
-        let recursive_mapping = address_space.mapping().make_recursive_mapping()?;
+        let recursive_mapping = address_space.make_recursive_mapping()?;
         let system_info = Self::map_system_info(address_space)?;
 
         let process_info = address_space.map_one(flags, || {
@@ -431,8 +431,7 @@ impl Process {
     fn map_system_info(address_space: &mut AddressSpace) -> Result<*const SystemInfo> {
         let flags = USER_R;
 
-        let system_info_frame =
-            address_space.mapping().translate(Virt::from_ref(&SYSTEM_INFO))?.frame()?;
+        let system_info_frame = address_space.translate(Virt::from_ref(&SYSTEM_INFO))?.frame()?;
 
         let system_info_page = address_space
             .allocate(mem::size_of_val(&SYSTEM_INFO), flags)?

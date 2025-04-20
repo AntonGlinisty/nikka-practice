@@ -6,7 +6,7 @@ use kernel::{
         FULL_ACCESS,
         KERNEL_MMIO,
         Phys,
-        test_scaffolding::mapping,
+        test_scaffolding::translate,
     },
     smp::test_scaffolding::{
         id,
@@ -23,10 +23,8 @@ fn mapped_properly() {
     let local_apic = local_apic();
     let expected_local_apic_address = Phys::new(0xFEE00000).unwrap();
 
-    let mut address_space = BASE_ADDRESS_SPACE.lock();
-    let mapping = mapping(&mut address_space);
     let mapping_error = "Local APIC is not mapped";
-    let pte = mapping.translate(local_apic).expect(mapping_error);
+    let pte = *translate(&mut BASE_ADDRESS_SPACE.lock(), local_apic).expect(mapping_error);
     let frame = pte.frame().expect(mapping_error);
     let flags = pte.flags();
 
