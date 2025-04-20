@@ -98,6 +98,7 @@ pub use frame_allocator::{
     FrameAllocator,
 };
 pub use frame_guard::FrameGuard;
+pub use mapping::Translate;
 pub use mmu::{
     FULL_ACCESS,
     KERNEL_MMIO,

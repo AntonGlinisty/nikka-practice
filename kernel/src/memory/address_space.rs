@@ -8,6 +8,7 @@ use core::{
     ptr,
 };
 
+use duplicate::duplicate_item;
 use itertools::Itertools;
 
 use ku::sync::spinlock::Spinlock;
@@ -38,16 +39,19 @@ use super::{
     FrameGuard,
     KERNEL_PAGE_ALLOCATOR,
     Phys2Virt,
+    Translate,
     Virt,
     block::Block,
     frage::{
         Frame,
         Page,
     },
-    mapping::Mapping,
+    mapping::{
+        Mapping,
+        Path,
+    },
     mmu::{
         self,
-        PageTableEntry,
         PageTableFlags,
     },
     page_allocator::PageAllocator,
@@ -645,45 +649,10 @@ impl AddressSpace {
         }
     }
 
-    /// Выбирает в таблице страниц корневого уровня свободную запись,
-    /// которую инициализирует как рекурсивную.
-    /// Сохраняет её номер в поле [`Mapping::recursive_mapping`] и
-    /// возвращает его в вызывающую функцию.
-    ///
-    /// Возвращает ошибки:
-    ///   - [`Error::InvalidArgument`] если [`AddressSpace`] пусто.
-    ///   - [`Error::NoPage`] если свободных записей в таблице страниц корневого уровня нет.
-    pub(crate) fn make_recursive_mapping(&mut self) -> Result<usize> {
-        self.mapping.make_recursive_mapping()
-    }
-
-    /// Принимает на вход виртуальный адрес `virt`, который нужно транслировать.
-    ///
-    /// Возвращает ссылку на запись типа [`PageTableEntry`] в
-    /// узле листьевого уровня таблицы страниц,
-    /// соответствующую входному виртуальному адресу `virt`.
-    ///
-    /// Возвращает ошибки:
-    ///   - [`Error::InvalidArgument`] если [`AddressSpace`] пусто.
-    ///   - [`Error::NoPage`] если промежуточного или нужного листьевого узла таблицы страниц нет.
-    ///   - [`Error::Unimplemented`] если промежуточный узел таблицы страниц
-    ///     имеет флаг [`PageTableFlags::HUGE`].
-    pub(crate) fn translate(
-        &mut self,
-        virt: Virt,
-    ) -> Result<&mut PageTableEntry> {
-        self.mapping.translate(virt)
-    }
-
     /// Удаляет ненужную часть --- находящуюся за пределами [`Phys2Virt`] ---
     /// линейного отображения физической памяти, которое сделал [`bootloader`].
     pub(super) fn remove_excessive_phys2virt(&mut self) -> Result<()> {
         self.mapping.remove_excessive_phys2virt()
-    }
-
-    /// Освобождает не использующиеся промежуточные узлы отображения страниц.
-    pub(super) fn unmap_unused_intermediate(&mut self) {
-        self.mapping.unmap_unused_intermediate();
     }
 }
 
@@ -721,6 +690,29 @@ impl fmt::Display for AddressSpace {
     }
 }
 
+impl Translate for AddressSpace {
+    fn path(
+        &mut self,
+        virt: Virt,
+    ) -> Path {
+        self.mapping.path(virt)
+    }
+
+    fn make_recursive_mapping(&mut self) -> Result<usize> {
+        self.mapping.make_recursive_mapping()
+    }
+
+    #[allow(clippy::needless_arbitrary_self_type)]
+    #[duplicate_item(
+        method;
+        [remove_recursive_mappings];
+        [unmap_unused_intermediate];
+    )]
+    fn method(&mut self) {
+        self.mapping.method();
+    }
+}
+
 /// Тип виртуального адресного пространства для записи в журнал.
 #[derive(Debug, Default)]
 enum Kind {
@@ -752,6 +744,7 @@ pub(super) mod test_scaffolding {
             Block,
             FrameGuard,
             Page,
+            Translate,
             Virt,
             mapping::{
                 MappingIterator,

@@ -59,6 +59,57 @@ use super::{
 #[allow(unused)]
 use crate::error::Error;
 
+/// Типаж для манипулирования трансляцией виртуальных адресов в физические.
+pub trait Translate {
+    #[allow(rustdoc::private_intra_doc_links)]
+    /// Принимает на вход виртуальный адрес `virt`, который нужно транслировать.
+    ///
+    /// Возвращает максимально длинный отображённый в память префикс пути в дереве трансляции,
+    /// соответствующий входному виртуальному адресу `virt`.
+    /// То есть, последний из узлов [`Path::nodes`], который не равен [`Virt::default()`],
+    /// может указывать на [`PageTableEntry`] со сброшенным флагом [`PageTableFlags::PRESENT`],
+    /// но сама эта [`PageTableEntry`] присутствует в памяти.
+    /// Если же `virt` отображён в память, то либо это 4KiB-ая страница и
+    /// тогда все элементы [`Path::nodes`] не равны [`Virt::default()`],
+    /// либо последний не равный [`Virt::default()`], элемент соответствует
+    /// [`PageTableEntry`] с установленным флагом [`PageTableFlags::HUGE`].
+    fn path(
+        &mut self,
+        virt: Virt,
+    ) -> Path;
+
+    /// Принимает на вход виртуальный адрес `virt`, который нужно транслировать.
+    ///
+    /// Возвращает ссылку на запись типа [`PageTableEntry`] в
+    /// узле листьевого уровня таблицы страниц,
+    /// соответствующую входному виртуальному адресу `virt`.
+    ///
+    /// Возвращает ошибки:
+    ///   - [`Error::NoPage`] если промежуточного или нужного листьевого узла таблицы страниц нет.
+    ///   - [`Error::Unimplemented`] если промежуточный узел таблицы страниц
+    ///     имеет флаг [`PageTableFlags::HUGE`].
+    fn translate(
+        &mut self,
+        virt: Virt,
+    ) -> Result<&mut PageTableEntry> {
+        self.path(virt).get_mut()
+    }
+
+    /// Выбирает в таблице страниц корневого уровня свободную запись,
+    /// которую инициализирует как рекурсивную.
+    /// Возвращает её номер.
+    ///
+    /// Если свободных записей в таблице страниц корневого уровня нет,
+    /// возвращает ошибку [`Error::NoPage`].
+    fn make_recursive_mapping(&mut self) -> Result<usize>;
+
+    /// Удаляет все рекурсивные записи.
+    fn remove_recursive_mappings(&mut self);
+
+    /// Освобождает не использующиеся промежуточные узлы отображения страниц.
+    fn unmap_unused_intermediate(&mut self);
+}
+
 /// Многоуровневая таблица страниц.
 ///
 /// Фактически дерево большой арности, если игнорировать рекурсивные записи.
@@ -131,43 +182,6 @@ impl Mapping {
         self.phys2virt
     }
 
-    /// Принимает на вход виртуальный адрес `virt`, который нужно транслировать.
-    ///
-    /// Возвращает ссылку на запись типа [`PageTableEntry`] в
-    /// узле листьевого уровня таблицы страниц,
-    /// соответствующую входному виртуальному адресу `virt`.
-    ///
-    /// Возвращает ошибки:
-    ///   - [`Error::NoPage`] если промежуточного или нужного листьевого узла таблицы страниц нет.
-    ///   - [`Error::Unimplemented`] если промежуточный узел таблицы страниц
-    ///     имеет флаг [`PageTableFlags::HUGE`].
-    pub(super) fn translate(
-        &mut self,
-        virt: Virt,
-    ) -> Result<&mut PageTableEntry> {
-        self.path(virt).get_mut()
-    }
-
-    #[allow(rustdoc::private_intra_doc_links)]
-    /// Принимает на вход виртуальный адрес `virt`, который нужно транслировать.
-    ///
-    /// Возвращает максимально длинный отображённый в память префикс пути в дереве трансляции,
-    /// соответствующий входному виртуальному адресу `virt`.
-    /// То есть, последний из узлов [`Path::nodes`], который не равен [`Virt::default()`],
-    /// может указывать на [`PageTableEntry`] со сброшенным флагом [`PageTableFlags::PRESENT`],
-    /// но сама эта [`PageTableEntry`] присутствует в памяти.
-    /// Если же `virt` отображён в память, то либо это 4KiB-ая страница и
-    /// тогда все элементы [`Path::nodes`] не равны [`Virt::default()`],
-    /// либо последний не равный [`Virt::default()`], элемент соответствует
-    /// [`PageTableEntry`] с установленным флагом [`PageTableFlags::HUGE`].
-    pub(super) fn path(
-        &mut self,
-        virt: Virt,
-    ) -> Path {
-        // TODO: your code here.
-        unimplemented!();
-    }
-
     /// Возвращает итератор по листьям дерева отображения страниц.
     pub(super) fn iter_mut(&mut self) -> MappingIterator {
         self.range_mut(..)
@@ -232,39 +246,6 @@ impl Mapping {
     ) -> bool {
         // TODO: your code here.
         false // TODO: remove before flight.
-    }
-
-    /// Освобождает не использующиеся промежуточные узлы отображения страниц.
-    pub(super) fn unmap_unused_intermediate(&mut self) {
-        if self.is_valid() &&
-            self.drop_subtree(self.page_table_root(), PAGE_TABLE_ROOT_LEVEL, false)
-        {
-            self.page_table_root = Frame::default();
-        }
-    }
-
-    /// Выбирает в таблице страниц корневого уровня свободную запись,
-    /// которую инициализирует как рекурсивную.
-    /// Сохраняет её номер в поле [`Mapping::recursive_mapping`] и
-    /// возвращает его в вызывающую функцию.
-    ///
-    /// Если свободных записей в таблице страниц корневого уровня нет,
-    /// возвращает ошибку [`Error::NoPage`].
-    pub(super) fn make_recursive_mapping(&mut self) -> Result<usize> {
-        // TODO: your code here.
-        Ok(self.recursive_mapping) // TODO: remove before flight.
-    }
-
-    /// Удаляет все рекурсивные записи.
-    pub(super) fn remove_recursive_mappings(&mut self) {
-        let root_frame = self.page_table_root();
-        let page_table_root = unsafe { self.page_table_mut(root_frame) };
-        for pte in page_table_root.iter_mut() {
-            if pte.frame() == Ok(root_frame) {
-                debug!(?pte, "remove recursive mapping");
-                pte.clear();
-            }
-        }
     }
 
     /// Удаляет ненужную часть --- находящуюся за пределами [`Mapping::phys2virt`] ---
@@ -383,6 +364,40 @@ impl Drop for Mapping {
             assert_ne!(Self::current_page_table_root(), self.page_table_root());
 
             self.drop_subtree(self.page_table_root(), PAGE_TABLE_ROOT_LEVEL, true);
+        }
+    }
+}
+
+impl Translate for Mapping {
+    fn path(
+        &mut self,
+        virt: Virt,
+    ) -> Path {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    fn make_recursive_mapping(&mut self) -> Result<usize> {
+        // TODO: your code here.
+        Ok(self.recursive_mapping) // TODO: remove before flight.
+    }
+
+    fn remove_recursive_mappings(&mut self) {
+        let root_frame = self.page_table_root();
+        let page_table_root = unsafe { self.page_table_mut(root_frame) };
+        for pte in page_table_root.iter_mut() {
+            if pte.frame() == Ok(root_frame) {
+                debug!(?pte, "remove recursive mapping");
+                pte.clear();
+            }
+        }
+    }
+
+    fn unmap_unused_intermediate(&mut self) {
+        if self.is_valid() &&
+            self.drop_subtree(self.page_table_root(), PAGE_TABLE_ROOT_LEVEL, false)
+        {
+            self.page_table_root = Frame::default();
         }
     }
 }

@@ -152,7 +152,10 @@ pub(super) mod test_scaffolding {
     use crate::log::error;
 
     use super::{
-        super::BASE_ADDRESS_SPACE,
+        super::{
+            BASE_ADDRESS_SPACE,
+            Translate,
+        },
         FRAME_ALLOCATOR,
         FrameAllocator,
     };

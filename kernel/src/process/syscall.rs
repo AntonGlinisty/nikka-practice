@@ -55,6 +55,7 @@ use crate::{
         FrameGuard,
         KERNEL_RW,
         Page,
+        Translate,
         USER_R,
         Virt,
         mmu::{

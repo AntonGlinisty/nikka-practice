@@ -46,6 +46,7 @@ use crate::{
         Block,
         FrameGuard,
         Stack,
+        Translate,
         USER_R,
         USER_RW,
         Virt,

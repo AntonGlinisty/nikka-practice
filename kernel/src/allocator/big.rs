@@ -21,6 +21,7 @@ use crate::{
     memory::{
         AddressSpace,
         FrameGuard,
+        Translate,
     },
 };
 
