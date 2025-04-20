@@ -178,7 +178,7 @@ pub(super) fn init(
         let page_table_root = Mapping::current_page_table_root();
         let mut address_space = AddressSpace::new(page_table_root, phys2virt);
 
-        let page_table_root = unsafe { address_space.mapping().page_table_ref(page_table_root) };
+        let page_table_root = unsafe { address_space.mapping()?.page_table_ref(page_table_root) };
         *KERNEL_PAGE_ALLOCATOR.lock() =
             PageAllocator::new(page_table_root, range::kernel_root_level_entries());
 
@@ -247,6 +247,8 @@ pub mod test_scaffolding {
     }
 
     pub fn physical_memory() -> Block<Frame> {
-        phys2virt::physical_memory(&BASE_ADDRESS_SPACE.lock().mapping().phys2virt())
+        phys2virt::physical_memory(
+            &BASE_ADDRESS_SPACE.lock().mapping().expect("invalid AddressSpace").phys2virt(),
+        )
     }
 }

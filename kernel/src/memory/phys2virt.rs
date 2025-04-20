@@ -80,16 +80,6 @@ impl Phys2Virt {
         Self::new_impl(physical_memory, start, None)
     }
 
-    /// Возвращает пустое отображение [`Phys2Virt`].
-    /// В отличие от [`Phys2Virt::default()`] доступна в константном контексте.
-    pub(super) const fn zero() -> Self {
-        Self {
-            mapping: Block::zero(),
-            physical_memory: Block::zero(),
-            used_frame_count: None,
-        }
-    }
-
     /// Возвращает индекс первой страницы за концом [`Phys2Virt`]
     /// или [`None`] для пустого [`Phys2Virt`].
     pub(super) fn last_page_index(&self) -> Option<usize> {

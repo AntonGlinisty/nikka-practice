@@ -38,6 +38,7 @@ use super::{
     FrameAllocator,
     FrameGuard,
     KERNEL_PAGE_ALLOCATOR,
+    Phys,
     Phys2Virt,
     Translate,
     Virt,
@@ -75,7 +76,7 @@ pub struct AddressSpace {
     kind: Kind,
 
     /// Структура для управления отображением виртуальных страниц в физические фреймы.
-    mapping: Mapping,
+    mapping: Option<Mapping>,
 
     /// Аллокатор виртуальных страниц.
     user_page_allocator: PageAllocator,
@@ -106,7 +107,7 @@ impl AddressSpace {
 
         let address_space = Self {
             kind: Kind::Base,
-            mapping,
+            mapping: Some(mapping),
             user_page_allocator,
             pid: None,
         };
@@ -121,7 +122,7 @@ impl AddressSpace {
     pub(crate) const fn zero() -> Self {
         Self {
             kind: Kind::Base,
-            mapping: Mapping::zero(),
+            mapping: None,
             user_page_allocator: PageAllocator::zero(),
             pid: None,
         }
@@ -130,11 +131,11 @@ impl AddressSpace {
     /// Создаёт копию адресного пространства с копией страничного отображения.
     /// См. [`Mapping::duplicate()`].
     pub(crate) fn duplicate(&self) -> Result<Self> {
-        let mapping = self.mapping.duplicate()?;
+        let mapping = self.mapping.as_ref().ok_or(InvalidArgument)?.duplicate()?;
 
         let address_space = Self {
             kind: Kind::Process,
-            mapping,
+            mapping: Some(mapping),
             user_page_allocator: self.user_page_allocator.duplicate(),
             pid: None,
         };
@@ -167,14 +168,14 @@ impl AddressSpace {
     }
 
     /// Возвращает страничное отображение данного виртуального адресного пространства.
-    pub(super) fn mapping(&mut self) -> &mut Mapping {
-        &mut self.mapping
+    pub(super) fn mapping(&mut self) -> Result<&mut Mapping> {
+        self.mapping.as_mut().ok_or(InvalidArgument)
     }
 
     /// Возвращает физический фрейм, в котором хранится корневой узел
     /// страничного отображения данного виртуального адресного пространства.
-    pub(crate) fn page_table_root(&self) -> Frame {
-        self.mapping.page_table_root()
+    pub fn page_table_root(&self) -> Frame {
+        self.mapping.as_ref().expect("invalid AddressSpace").page_table_root()
     }
 
     /// Сохраняет информацию об идентификаторе процесса,
@@ -382,7 +383,7 @@ impl AddressSpace {
         range::validate_block_flags(pages, flags)?;
 
         for page in pages {
-            self.mapping.path(page.address()).set_flags(flags)?;
+            self.mapping()?.path(page.address()).set_flags(flags)?;
         }
 
         Ok(())
@@ -633,32 +634,37 @@ impl AddressSpace {
 
     /// Выводит в журнал карту виртуального адресного пространства.
     pub(crate) fn dump(&mut self) {
-        debug!("address space:");
+        if let Ok(mapping) = self.mapping() {
+            debug!("address space:");
 
-        let flag_mask = !(PageTableFlags::ACCESSED | PageTableFlags::DIRTY);
-        let ignore_frame_addresses = true;
+            let flag_mask = !(PageTableFlags::ACCESSED | PageTableFlags::DIRTY);
+            let ignore_frame_addresses = true;
 
-        for block in self
-            .mapping()
-            .iter_mut()
-            .map(|path| path.block())
-            .filter(|block| block.is_present())
-            .coalesce(|a, b| a.coalesce(b, ignore_frame_addresses, flag_mask))
-        {
-            debug!("    {}", block);
+            for block in mapping
+                .iter_mut()
+                .map(|path| path.block())
+                .filter(|block| block.is_present())
+                .coalesce(|a, b| a.coalesce(b, ignore_frame_addresses, flag_mask))
+            {
+                debug!("    {}", block);
+            }
+        } else {
+            debug!("address space is empty");
         }
     }
 
     /// Удаляет ненужную часть --- находящуюся за пределами [`Phys2Virt`] ---
     /// линейного отображения физической памяти, которое сделал [`bootloader`].
     pub(super) fn remove_excessive_phys2virt(&mut self) -> Result<()> {
-        self.mapping.remove_excessive_phys2virt()
+        self.mapping()?.remove_excessive_phys2virt()
     }
 }
 
 impl Drop for AddressSpace {
     fn drop(&mut self) {
-        if Mapping::current_page_table_root() == self.page_table_root() {
+        if let Some(mapping) = &self.mapping &&
+            Mapping::current_page_table_root() == mapping.page_table_root()
+        {
             let base_address_space = BASE_ADDRESS_SPACE.lock();
             assert_ne!(self.page_table_root(), base_address_space.page_table_root());
             base_address_space.switch_to();
@@ -678,7 +684,12 @@ impl fmt::Display for AddressSpace {
         &self,
         formatter: &mut fmt::Formatter,
     ) -> fmt::Result {
-        let page_table_root = self.page_table_root().address();
+        let page_table_root = if let Some(mapping) = &self.mapping {
+            mapping.page_table_root().address()
+        } else {
+            Phys::default()
+        };
+
         match self.kind {
             Kind::Invalid => write!(formatter, "\"invalid\" @ {page_table_root}"),
             Kind::Base => write!(formatter, "\"base\" @ {page_table_root}"),
@@ -695,11 +706,11 @@ impl Translate for AddressSpace {
         &mut self,
         virt: Virt,
     ) -> Path {
-        self.mapping.path(virt)
+        self.mapping().expect("invalid AddressSpace").path(virt)
     }
 
     fn make_recursive_mapping(&mut self) -> Result<usize> {
-        self.mapping.make_recursive_mapping()
+        self.mapping()?.make_recursive_mapping()
     }
 
     #[allow(clippy::needless_arbitrary_self_type)]
@@ -709,7 +720,9 @@ impl Translate for AddressSpace {
         [unmap_unused_intermediate];
     )]
     fn method(&mut self) {
-        self.mapping.method();
+        if let Some(mapping) = &mut self.mapping {
+            mapping.method();
+        }
     }
 }
 
@@ -737,6 +750,8 @@ pub static BASE_ADDRESS_SPACE: Spinlock<AddressSpace> = Spinlock::new(AddressSpa
 
 #[doc(hidden)]
 pub(super) mod test_scaffolding {
+    use duplicate::duplicate_item;
+
     use crate::error::Result;
 
     use super::{
@@ -747,6 +762,7 @@ pub(super) mod test_scaffolding {
             Translate,
             Virt,
             mapping::{
+                Mapping,
                 MappingIterator,
                 Path,
             },
@@ -806,7 +822,7 @@ pub(super) mod test_scaffolding {
     }
 
     pub fn iter_mut(address_space: &mut AddressSpace) -> MappingIterator {
-        address_space.mapping.iter_mut()
+        mapping_mut(address_space).iter_mut()
     }
 
     pub fn page_allocator_block(address_space: &AddressSpace) -> Block<Page> {
@@ -814,18 +830,19 @@ pub(super) mod test_scaffolding {
     }
 
     pub fn page_table_root(address_space: &AddressSpace) -> &PageTable {
-        unsafe { address_space.mapping.page_table_ref(address_space.mapping.page_table_root()) }
+        let mapping = mapping_ref(address_space);
+        unsafe { mapping.page_table_ref(mapping.page_table_root()) }
     }
 
     pub fn path(
         address_space: &mut AddressSpace,
         virt: Virt,
     ) -> Path {
-        address_space.mapping.path(virt)
+        mapping_mut(address_space).path(virt)
     }
 
     pub fn phys2virt(address_space: &AddressSpace) -> Phys2Virt {
-        address_space.mapping.phys2virt()
+        mapping_ref(address_space).phys2virt()
     }
 
     pub fn switch_to(address_space: &AddressSpace) {
@@ -841,5 +858,14 @@ pub(super) mod test_scaffolding {
 
     pub fn unmap_unused_intermediate(address_space: &mut AddressSpace) {
         address_space.unmap_unused_intermediate();
+    }
+
+    #[duplicate_item(
+        mapping_getter reference(x) converter;
+        [mapping_ref] [&x] [as_ref];
+        [mapping_mut] [&mut x] [as_mut];
+    )]
+    fn mapping_getter(address_space: reference([AddressSpace])) -> reference([Mapping]) {
+        address_space.mapping.converter().expect("invalid AddressSpace")
     }
 }

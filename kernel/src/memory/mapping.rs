@@ -143,16 +143,6 @@ impl Mapping {
         }
     }
 
-    /// Возвращает пустое отображение [`Mapping`].
-    /// В отличие от [`Mapping::default()`] доступна в константном контексте.
-    pub(super) const fn zero() -> Self {
-        Self {
-            page_table_root: Frame::zero(),
-            phys2virt: Phys2Virt::zero(),
-            recursive_mapping: usize::MAX,
-        }
-    }
-
     /// Создаёт копию отображения виртуальных страниц в физические фреймы [`Mapping`],
     /// которая указывает на те же целевые физические фреймы,
     /// то есть разделяет отображённую память.
@@ -164,12 +154,6 @@ impl Mapping {
             .duplicate_subtree(&mut result, self.page_table_root(), PAGE_TABLE_ROOT_LEVEL)?
             .take();
         Ok(result)
-    }
-
-    /// Возвращает `true` если [`Mapping`] содержит непустое
-    /// отображение виртуальной памяти в физическую.
-    pub(super) fn is_valid(&self) -> bool {
-        self.page_table_root() != Frame::default()
     }
 
     /// Возвращает корневой узел таблицы страниц отображения.
@@ -360,7 +344,7 @@ impl Mapping {
 
 impl Drop for Mapping {
     fn drop(&mut self) {
-        if self.is_valid() {
+        if self.page_table_root() != Frame::default() {
             assert_ne!(Self::current_page_table_root(), self.page_table_root());
 
             self.drop_subtree(self.page_table_root(), PAGE_TABLE_ROOT_LEVEL, true);
@@ -394,11 +378,8 @@ impl Translate for Mapping {
     }
 
     fn unmap_unused_intermediate(&mut self) {
-        if self.is_valid() &&
-            self.drop_subtree(self.page_table_root(), PAGE_TABLE_ROOT_LEVEL, false)
-        {
-            self.page_table_root = Frame::default();
-        }
+        // At least `Phys2Virt` should remain.
+        assert!(!self.drop_subtree(self.page_table_root(), PAGE_TABLE_ROOT_LEVEL, false));
     }
 }
 
