@@ -63,12 +63,8 @@ pub(super) fn check_intermediate_flags(
     expected_flags: PageTableFlags,
 ) {
     let path = path(address_space, virt);
-    let intermediate_flags = unsafe {
-        nodes(&path)[size::from(PAGE_TABLE_ROOT_LEVEL)]
-            .try_into_ref::<PageTableEntry>()
-            .unwrap()
-            .flags()
-    };
+    let intermediate_flags =
+        unsafe { nodes(&path)[size::from(PAGE_TABLE_ROOT_LEVEL)].unwrap().as_ref().flags() };
     assert_eq!(
         intermediate_flags, expected_flags,
         "intermediate page table flags are incorrect",
@@ -89,12 +85,8 @@ pub(super) fn check_map_intermediate(virt: Virt) {
     {
         let mut address_space = BASE_ADDRESS_SPACE.lock();
         let path = path(&mut address_space, virt);
-        let start_root_pte_flags = unsafe {
-            nodes(&path)[size::from(PAGE_TABLE_ROOT_LEVEL)]
-                .try_into_ref::<PageTableEntry>()
-                .unwrap()
-                .flags()
-        };
+        let start_root_pte_flags =
+            unsafe { nodes(&path)[size::from(PAGE_TABLE_ROOT_LEVEL)].unwrap().as_ref().flags() };
         assert!(!start_root_pte_flags.is_present());
     }
 
@@ -125,14 +117,16 @@ fn check_path(
     let page_table_root = Page::new(Virt::from_ref(page_table_root(address_space))).unwrap();
     let path = path(address_space, virt);
 
+    let root_pte = nodes(&path)[size::from(PAGE_TABLE_ROOT_LEVEL)]
+        .expect("PTE at PAGE_TABLE_ROOT_LEVEL should be defined in any Path");
+    let page = Page::containing(Virt::from_ptr(root_pte.as_ptr()));
     assert_eq!(
-        Page::containing(nodes(&path)[size::from(PAGE_TABLE_ROOT_LEVEL)]),
-        page_table_root,
+        page, page_table_root,
         "PTE at PAGE_TABLE_ROOT_LEVEL should be the inside the root page table in any Path",
     );
 
     assert!(
-        nodes(&path).iter().is_partitioned(|&pte| pte == Virt::default()),
+        nodes(&path).iter().is_partitioned(Option::is_none),
         "only lower PTEs can be absent in a Path",
     );
 
@@ -142,13 +136,12 @@ fn check_path(
     }
 
     for (&child, &parent) in nodes(&path).iter().zip(nodes(&path)[1 ..].iter()) {
-        if child != Virt::default() {
-            let child_page = Page::containing(child);
+        if let Some(child) = child {
+            let child_page = Page::containing(Virt::from_ptr(child.as_ptr()));
             let phys2virt_start_page =
                 Page::containing(phys2virt(address_space).map(Phys::default()).unwrap());
             let child_frame_index = (child_page - phys2virt_start_page).unwrap();
-            let parent_points_to =
-                unsafe { parent.try_into_ref::<PageTableEntry>().unwrap().frame().unwrap() };
+            let parent_points_to = unsafe { parent.unwrap().as_ref().frame().unwrap() };
             assert_eq!(child_frame_index, parent_points_to.index());
         }
     }

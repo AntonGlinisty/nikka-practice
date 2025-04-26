@@ -66,12 +66,12 @@ pub trait Translate {
     ///
     /// Возвращает максимально длинный отображённый в память префикс пути в дереве трансляции,
     /// соответствующий входному виртуальному адресу `virt`.
-    /// То есть, последний из узлов [`Path::nodes`], который не равен [`Virt::default()`],
+    /// То есть, последний из узлов [`Path::nodes`], который не равен [`None`],
     /// может указывать на [`PageTableEntry`] со сброшенным флагом [`PageTableFlags::PRESENT`],
     /// но сама эта [`PageTableEntry`] присутствует в памяти.
     /// Если же `virt` отображён в память, то либо это 4KiB-ая страница и
-    /// тогда все элементы [`Path::nodes`] не равны [`Virt::default()`],
-    /// либо последний не равный [`Virt::default()`], элемент соответствует
+    /// тогда все элементы [`Path::nodes`] не равны [`None`],
+    /// либо последний не равный [`None`], элемент соответствует
     /// [`PageTableEntry`] с установленным флагом [`PageTableFlags::HUGE`].
     fn path(
         &mut self,
@@ -390,14 +390,14 @@ pub struct Path<'a> {
     mapping: &'a mut Mapping,
 
     /// Узлы на пути в дереве отображения,
-    /// задаваемые как адреса соответствующих [`PageTableEntry`].
-    /// Элемент с индексом [`PAGE_TABLE_LEAF_LEVEL`] задаёт адрес [`PageTableEntry`],
+    /// задаваемые как указатели на соответствующие [`PageTableEntry`].
+    /// Элемент с индексом [`PAGE_TABLE_LEAF_LEVEL`] задаёт указатель на [`PageTableEntry`],
     /// отображающей виртуальную страницу адреса [`Path::virt`] на его физическую страницу.
-    /// Элемент с индексом [`PAGE_TABLE_ROOT_LEVEL`] задаёт адрес [`PageTableEntry`],
-    /// находящейся в корневой таблице страниц.
+    /// Элемент с индексом [`PAGE_TABLE_ROOT_LEVEL`] задаёт указатель на [`PageTableEntry`],
+    /// находящуюся в корневой таблице страниц.
     /// Если какой-то из узлов не отображён в память,
-    /// соответствующий элемент равен [`Virt::default()`].
-    nodes: [Virt; PAGE_TABLE_LEVEL_COUNT],
+    /// соответствующий элемент равен [`None`].
+    nodes: [Option<NonNull<PageTableEntry>>; PAGE_TABLE_LEVEL_COUNT],
 
     /// Адрес, для которого построен путь отображения.
     virt: Virt,
@@ -418,7 +418,7 @@ impl<'a> Path<'a> {
     ///   возвращают разные значения.
     fn new(
         mapping: &'a mut Mapping,
-        nodes: [Virt; PAGE_TABLE_LEVEL_COUNT],
+        nodes: [Option<NonNull<PageTableEntry>>; PAGE_TABLE_LEVEL_COUNT],
         virt: Virt,
     ) -> Self {
         let path = Self {
@@ -462,7 +462,7 @@ impl<'a> Path<'a> {
         flags: PageTableFlags,
     ) -> Result<()> {
         for (level, node) in self.nodes.iter().enumerate() {
-            let pte = unsafe { node.try_into_mut::<PageTableEntry>().map_err(|_| NoPage)? };
+            let pte = unsafe { node.ok_or(NoPage)?.as_mut() };
             if !pte.is_present() {
                 return Err(NoPage);
             }
@@ -571,17 +571,13 @@ impl<'a> Path<'a> {
     #[allow(clippy::needless_arbitrary_self_type)]
     #[duplicate_item(
         deepest_pte_getter self_type return_type converter;
-        [deepest_pte] [&Self] [&'a PageTableEntry] [try_into_ref];
-        [deepest_pte_mut] [&mut Self] [&'a mut PageTableEntry] [try_into_mut];
+        [deepest_pte] [&Self] [&'a PageTableEntry] [as_ref];
+        [deepest_pte_mut] [&mut Self] [&'a mut PageTableEntry] [as_mut];
     )]
     fn deepest_pte_getter(self: self_type) -> (u32, return_type) {
-        let level = self
-            .nodes
-            .iter()
-            .position(|&node| node != Virt::default())
-            .expect(Self::INVALID_PATH);
+        let level = self.nodes.iter().position(Option::is_some).expect(Self::INVALID_PATH);
 
-        let pte = unsafe { self.nodes[level].converter().expect(Self::INVALID_PATH) };
+        let pte = unsafe { self.nodes[level].expect(Self::INVALID_PATH).converter() };
         let level = level.try_into().expect("unreasonable PTE level");
 
         (level, pte)
@@ -607,8 +603,8 @@ impl<'a> Path<'a> {
         let root_frame = self.mapping.page_table_root();
         let root_pte = unsafe {
             self.nodes[size::from(PAGE_TABLE_ROOT_LEVEL)]
-                .try_into_ref::<PageTableEntry>()
                 .expect(Path::INVALID_PATH)
+                .as_ref()
         };
 
         root_pte.frame() == Ok(root_frame)
@@ -630,12 +626,14 @@ impl<'a> Path<'a> {
         let (level, pte) = self.deepest_pte();
         let level = size::from(level);
 
-        assert!(self.nodes[level + 1 ..].iter().all(|pte| unsafe {
-            pte.try_into_ref::<PageTableEntry>().expect(Self::INVALID_PATH).is_present()
-        }));
+        assert!(
+            self.nodes[level + 1 ..]
+                .iter()
+                .all(|pte| unsafe { pte.expect(Self::INVALID_PATH).as_ref().is_present() }),
+        );
 
         if level > size::from(PAGE_TABLE_LEAF_LEVEL) {
-            assert!(self.nodes[.. level].iter().all(|&pte| pte == Virt::default()));
+            assert!(self.nodes[.. level].iter().all(Option::is_none));
             assert_eq!(pte.is_present(), pte.is_huge());
         }
     }
@@ -652,10 +650,8 @@ impl<'a> fmt::Display for Path<'a> {
         let mut frame = self.mapping.page_table_root();
         let mut level = PAGE_TABLE_ROOT_LEVEL;
 
-        for pte in self.nodes.iter().rev().filter(|&&pte| pte != Virt::default()) {
-            write!(formatter, "L{level}: {} / {frame}", pte)?;
-
-            let pte = unsafe { pte.try_into_ref::<PageTableEntry>().expect(Self::INVALID_PATH) };
+        for pte in self.nodes.iter().rev().flatten().map(|node| unsafe { node.as_ref() }) {
+            write!(formatter, "L{level}: {} / {frame}", Virt::from_ref(pte))?;
 
             if let Ok(next_frame) = pte.frame() {
                 frame = next_frame;
@@ -737,14 +733,13 @@ impl<'a> Iterator for MappingIterator<'a> {
 
 #[doc(hidden)]
 pub(super) mod test_scaffolding {
+    use core::ptr::NonNull;
+
     use ku::error::Result;
 
-    use super::super::{
-        Virt,
-        mmu::{
-            PAGE_TABLE_LEVEL_COUNT,
-            PageTableEntry,
-        },
+    use super::super::mmu::{
+        PAGE_TABLE_LEVEL_COUNT,
+        PageTableEntry,
     };
 
     pub use super::Path;
@@ -757,7 +752,7 @@ pub(super) mod test_scaffolding {
         path.get()
     }
 
-    pub fn nodes(path: &Path) -> [Virt; PAGE_TABLE_LEVEL_COUNT] {
+    pub fn nodes(path: &Path) -> [Option<NonNull<PageTableEntry>>; PAGE_TABLE_LEVEL_COUNT] {
         path.nodes
     }
 }
