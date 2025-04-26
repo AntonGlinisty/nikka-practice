@@ -176,6 +176,71 @@ pub fn Path::map_intermediate(
 [`ku::memory::mmu::FULL_ACCESS`](../../doc/ku/memory/mmu/constant.FULL_ACCESS.html).
 То есть, включать нужно флаги которые есть в пересечении --- `flags & FULL_ACCESS`.
 
+> Про флаг
+> [`NO_EXECUTE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.NO_EXECUTE)
+> Intel Software Developer's Manual утверждает, что:
+> > Instruction fetches from supervisor-mode addresses:
+> >
+> > ...
+> >
+> > For other paging modes with IA32_EFER.NXE = 1, instructions may be fetched from any supervisor-mode address with
+> > a translation for which the XD flag (bit 63) is 0 in every paging-structure entry controlling the translation;
+> > instructions may not be fetched from any supervisor-mode address with a translation for which the XD flag is 1
+> > in any paging-structure entry controlling the translation.
+> >
+> > --- <cite>Section 5.6.1, Volume 3A</cite>
+>
+> Для чтения инструкций по
+> [`USER_ACCESSIBLE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.USER_ACCESSIBLE)
+> адресам из кода ядра и кода пользователя там же описаны аналогичные условия. То есть для вычисления эффективного
+> значения флага
+> [`NO_EXECUTE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.NO_EXECUTE)
+> берется логическое `ИЛИ` всех
+> [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html),
+> которые участвуют в трансляции виртуального адреса в физический.
+>
+> Про флаги
+> [`NO_CACHE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.NO_CACHE)
+> (Page Cache Disable) и
+> [`WRITE_THROUGH`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.WRITE_THROUGH)
+> (Page Write Through) Intel Software Developer's Manual утверждает, что:
+> > For any access to a physical address, the table combines the memory type specified for that physical address by the
+> > MTRRs with a memory type selected from the PAT. ... Specifically, it comes from entry i of the PAT, where i is
+> > defined as follows:
+> >
+> > ...
+> >
+> > For an access to the physical address that is the translation of a linear address, \\( i = 4 \times PAT + 2 \times PCD + PWT \\), where
+> > the PAT, PCD, and PWT values come from the relevant PTE.
+> >
+> > --- <cite>Section 5.9.2, Volume 3A</cite>
+>
+> В Nikka используются значения PAT по умолчанию, которые обеспечивают поведение совместимое со старыми процессорами,
+> а именно эффективное значение флагов
+> [`NO_CACHE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.NO_CACHE)
+> и
+> [`WRITE_THROUGH`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.WRITE_THROUGH)
+> берется из последней, листовой
+> [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html).
+>
+> Поэтому в Nikka мы будем выставлять флаги
+> [`NO_CACHE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.NO_CACHE),
+> [`WRITE_THROUGH`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.WRITE_THROUGH)
+> и
+> [`NO_EXECUTE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.NO_EXECUTE)
+> только в листовые
+> [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html) --- выставлять
+> [`NO_CACHE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.NO_CACHE)
+> и
+> [`WRITE_THROUGH`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.WRITE_THROUGH)
+> в промежуточные
+> [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html)
+> не имеет смысла, а выставлять флаг
+> [`NO_EXECUTE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.NO_EXECUTE)
+> в промежуточные
+> [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html)
+> опасно --- можно случайно запретить исполнение части кода ядра или пользователя.
+
 Выделение физического фрейма под отсутствующую промежуточную таблицу
 [`PageTable`](../../doc/ku/memory/mmu/type.PageTable.html)
 и его зануление
