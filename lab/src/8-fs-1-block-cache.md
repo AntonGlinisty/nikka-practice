@@ -70,10 +70,10 @@
 
 #### Обращение к блоку в блочном кэше
 
-Реализуйте [метод](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.block_impl)
+Реализуйте [метод](../../doc/kernel/fs/block_cache/struct.Cache.html#method.block)
 
 ```rust
-{{#include ../../kernel/src/fs/block_cache.rs:block_impl}}
+{{#include ../../kernel/src/fs/block_cache.rs:block}}
 ```
 
 Он возвращает блок памяти блочного кэша,

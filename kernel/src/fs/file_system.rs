@@ -95,7 +95,8 @@ impl FileSystem {
         let superblock = Superblock::new()?;
 
         let inodes = unsafe {
-            BlockCache::block(superblock.inode_table().start)?
+            BlockCache::cache()?
+                .block(superblock.inode_table().start)
                 .start_address()
                 .try_into_mut_slice::<Inode>(superblock.inodes().end)?
         };
@@ -131,7 +132,8 @@ impl FileSystem {
         Bitmap::format(superblock.inode_bitmap().start, superblock.inodes())?;
 
         let inodes = unsafe {
-            BlockCache::block(superblock.inode_table().start)?
+            BlockCache::cache()?
+                .block(superblock.inode_table().start)
                 .start_address()
                 .try_into_mut_slice::<Inode>(superblock.inodes().end)?
         };

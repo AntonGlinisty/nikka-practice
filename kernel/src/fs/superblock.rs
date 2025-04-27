@@ -69,7 +69,8 @@ impl Superblock {
         inode_count: usize,
     ) -> Result<&'static Self> {
         unsafe {
-            BlockCache::block(Self::SUPERBLOCK_BLOCK)?
+            BlockCache::cache()?
+                .block(Self::SUPERBLOCK_BLOCK)
                 .try_into_mut_slice::<usize>()
                 .unwrap()
                 .fill(0);
@@ -158,8 +159,9 @@ impl Superblock {
     /// Создаёт [`Superblock`], не проверяя корректность его данных на диске.
     fn new_unchecked() -> &'static mut Self {
         unsafe {
-            BlockCache::block(Self::SUPERBLOCK_BLOCK)
+            BlockCache::cache()
                 .unwrap()
+                .block(Self::SUPERBLOCK_BLOCK)
                 .try_into_mut::<Self>()
                 .unwrap()
         }

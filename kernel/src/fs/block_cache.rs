@@ -43,7 +43,7 @@ use super::{
 #[derive(Clone, Debug)]
 pub struct BlockCache {
     /// Диапазон памяти для кэширования блоков.
-    cache: Block<Page>,
+    cache: Cache,
 
     /// Диск, обращения к которому кэшируются.
     disk: Disk,
@@ -76,11 +76,10 @@ impl BlockCache {
         unimplemented!();
     }
 
-    /// Возвращает блок памяти блочного кэша [`struct@BLOCK_CACHE`],
-    /// который отвечает блоку `block_number` диска.
-    pub(super) fn block(block_number: usize) -> Result<Block<Virt>> {
+    /// Диапазон памяти для кэширования блоков.
+    pub(super) fn cache() -> Result<Cache> {
         if let Some(block_cache) = BLOCK_CACHE.lock().as_mut() {
-            block_cache.block_impl(block_number)
+            Ok(block_cache.cache)
         } else {
             Err(NoDisk)
         }
@@ -136,18 +135,6 @@ impl BlockCache {
         }
     }
 
-    // ANCHOR: block_impl
-    /// Возвращает блок памяти блочного кэша,
-    /// который отвечает блоку `block_number` диска.
-    pub(super) fn block_impl(
-        &self,
-        block_number: usize,
-    ) -> Result<Block<Virt>> {
-        // ANCHOR_END: block_impl
-        // TODO: your code here.
-        unimplemented!();
-    }
-
     // ANCHOR: flush_block_impl
     /// Записывает блок `block_number` на диск, если:
     ///
@@ -180,11 +167,29 @@ impl BlockCache {
 
 impl Drop for BlockCache {
     fn drop(&mut self) {
-        let block_count = self.cache.count() * Page::SIZE / BLOCK_SIZE;
+        let block_count = self.cache.0.count() * Page::SIZE / BLOCK_SIZE;
 
         for block_number in 0 .. block_count {
             self.flush_block_impl(block_number).expect("failed to flush the block cache");
         }
+    }
+}
+
+/// Диапазон памяти для кэширования блоков.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct Cache(Block<Page>);
+
+impl Cache {
+    // ANCHOR: block
+    /// Возвращает блок памяти блочного кэша,
+    /// который отвечает блоку `block_number` диска.
+    pub(super) fn block(
+        &self,
+        block_number: usize,
+    ) -> Block<Virt> {
+        // ANCHOR_END: block
+        // TODO: your code here.
+        unimplemented!();
     }
 }
 
@@ -246,7 +251,7 @@ pub mod test_scaffolding {
     }
 
     pub fn cache() -> Result<Block<Page>> {
-        Ok(BLOCK_CACHE.lock().as_ref().ok_or(NoDisk)?.cache)
+        Ok(BLOCK_CACHE.lock().as_ref().ok_or(NoDisk)?.cache.0)
     }
 
     pub fn flush_block(block_number: usize) -> Result<()> {

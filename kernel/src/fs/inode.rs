@@ -41,7 +41,10 @@ use ku::{
 use super::{
     BLOCK_SIZE,
     bitmap::Bitmap,
-    block_cache::BlockCache,
+    block_cache::{
+        BlockCache,
+        Cache,
+    },
     directory_entry::DirectoryEntry,
 };
 
@@ -249,6 +252,7 @@ impl Inode {
             Ok(Iter {
                 block: Block::default(),
                 block_number: 0,
+                cache: BlockCache::cache()?,
                 entry: 0,
                 inode: self,
             })
@@ -275,6 +279,7 @@ impl Inode {
         &mut self,
         inode_block_number: usize,
         block_bitmap: Option<&mut Bitmap>,
+        cache: Cache,
     ) -> Result<&mut usize> {
         // ANCHOR_END: block_entry
         // TODO: your code here.
@@ -287,10 +292,11 @@ impl Inode {
     fn block(
         &mut self,
         inode_block_number: usize,
+        cache: Cache,
     ) -> Result<Block<Virt>> {
         // ANCHOR_END: block
         assert!(inode_block_number < self.size.div_ceil(BLOCK_SIZE));
-        BlockCache::block(*self.block_entry(inode_block_number, None)?)
+        Ok(cache.block(*self.block_entry(inode_block_number, None, cache)?))
     }
 }
 
@@ -319,6 +325,9 @@ pub(super) struct Iter<'a> {
     /// Номер блока внутри данных [`Inode`] для текущей позиции итератора.
     block_number: usize,
 
+    /// Диапазон памяти для кэширования блоков.
+    cache: Cache,
+
     /// Индекс [`DirectoryEntry`] внутри блока для текущей позиции итератора.
     entry: usize,
 
@@ -337,7 +346,7 @@ impl<'a> Iter<'a> {
 
         self.inode.set_size(self.inode.size() + BLOCK_SIZE, block_bitmap)?;
 
-        let block = self.inode.block(block_number)?;
+        let block = self.inode.block(block_number, self.cache)?;
 
         let entries = unsafe {
             MaybeUninit::slice_assume_init_mut(
@@ -435,6 +444,7 @@ fn traverse<'a>(
     forest: &'a mut Forest,
     leaf_coordinates: LeafCoordinates,
     mut block_bitmap: Option<&mut Bitmap>,
+    cache: Cache,
 ) -> Result<&'a mut usize> {
     // ANCHOR_END: traverse
     // TODO: your code here.
@@ -448,6 +458,7 @@ fn traverse<'a>(
 fn next_level<'a>(
     node: &'a mut usize,
     block_bitmap: &mut Option<&mut Bitmap>,
+    cache: Cache,
 ) -> Result<&'a mut [usize]> {
     // ANCHOR_END: next_level
     // TODO: your code here.
@@ -482,7 +493,10 @@ const NO_BLOCK: usize = 0;
 pub mod test_scaffolding {
     use ku::error::Result;
 
-    use super::super::test_scaffolding::Bitmap;
+    use super::super::{
+        block_cache::BlockCache,
+        test_scaffolding::Bitmap,
+    };
 
     use super::Kind;
 
@@ -502,7 +516,11 @@ pub mod test_scaffolding {
             inode_block_number: usize,
             block_bitmap: &mut Bitmap,
         ) -> Result<&mut usize> {
-            self.0.block_entry(inode_block_number, Some(&mut block_bitmap.0))
+            self.0.block_entry(
+                inode_block_number,
+                Some(&mut block_bitmap.0),
+                BlockCache::cache()?,
+            )
         }
     }
 }

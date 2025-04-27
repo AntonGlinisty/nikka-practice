@@ -196,8 +196,9 @@ impl Bitmap {
         elements: Range<usize>,
     ) -> &'static mut [u64] {
         unsafe {
-            BlockCache::block(block)
+            BlockCache::cache()
                 .unwrap()
+                .block(block)
                 .start_address()
                 .try_into_mut_slice::<u64>(elements.end.div_ceil(Self::BITS_PER_ENTRY))
                 .unwrap()
