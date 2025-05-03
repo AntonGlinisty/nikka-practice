@@ -9,7 +9,9 @@ use x86_64::structures::gdt::SegmentSelector;
 
 use ku::process::{
     MiniContext,
+    Pid,
     RFlags,
+    ResultCode,
 };
 
 use crate::{
@@ -17,6 +19,13 @@ use crate::{
     gdt::Gdt,
     memory::Virt,
     smp::KERNEL_RSP_OFFSET_IN_CPU,
+};
+
+// Used in docs.
+#[allow(unused)]
+use {
+    crate::process,
+    ku::ProcessInfo,
 };
 
 /// Состояние регистров пользовательского процесса.
@@ -44,19 +53,28 @@ pub(crate) struct Registers {
 
 impl Registers {
     /// Создаёт регистры процесса с заданным начальным минимальным `context` и передаёт ему
-    /// аргументы `rax`, `rdi` и `rsi` в соответствующих регистрах.
+    /// аргументы `rax`, `rdi` и `rsi` в соответствующих регистрах:
+    ///   - Регистр `rax` содержит [`ResultCode::Ok`].
+    ///   - Регистр `rdi` содержит [`Pid::Current`].
+    ///   - Регистр `rsi` содержит адрес [`ProcessInfo`] процесса.
+    ///
     /// Остальные регистры заполняет нулями.
+    ///
+    /// Значения в `rax` и `rdi` соответствуют результату,
+    /// который возвращается потомку в случае успешного `syscall::exofork()`.
+    /// Значение в `rsi` --- информация для процесса, созданного с нуля через
+    /// [`process::create_process()`].
+    /// Для единообразия, эти регистры имеют такие значения при любом варианте запуска процесса,
+    /// даже если они не будут им использованы.
     pub(super) fn new(
         context: MiniContext,
-        rax: usize,
-        rdi: usize,
-        rsi: usize,
+        process_info: Virt,
     ) -> Self {
         Self {
-            rax,
+            rax: ResultCode::Ok.into(),
             gpr1: [0; 3],
-            rdi,
-            rsi,
+            rdi: Pid::Current.into_usize(),
+            rsi: process_info.into_usize(),
             gpr2: [0; 9],
             user_context: ModeContext::user_context(context),
         }

@@ -106,12 +106,7 @@ impl Process {
         let (info, log, rsp) =
             Process::init_address_space(&mut address_space, &BASE_ADDRESS_SPACE, Block::default())?;
         let pid = Pid::Current;
-        let registers = Registers::new(
-            MiniContext::new(entry, rsp),
-            ResultCode::Ok.into(),
-            pid.into_usize(),
-            info.start_address().into_usize(),
-        );
+        let registers = Registers::new(MiniContext::new(entry, rsp), info.start_address());
 
         address_space.dump();
 
