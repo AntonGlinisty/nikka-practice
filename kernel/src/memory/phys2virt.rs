@@ -4,7 +4,6 @@ use core::{
     num::NonZeroUsize,
 };
 
-use bootloader::BootInfo;
 use itertools::Itertools;
 
 use ku::{
@@ -80,16 +79,6 @@ impl Phys2Virt {
         Self::new_impl(physical_memory, start, None)
     }
 
-    /// Возвращает индекс первой страницы за концом [`Phys2Virt`]
-    /// или [`None`] для пустого [`Phys2Virt`].
-    pub(super) fn last_page_index(&self) -> Option<usize> {
-        if self.mapping.is_empty() {
-            None
-        } else {
-            self.mapping.end().checked_sub(1)
-        }
-    }
-
     /// Для заданного физического адреса `phys` возвращает виртуальный адрес
     /// внутри специальной области [`Phys2Virt`],
     /// в которую линейно отображена вся физическая память.
@@ -145,7 +134,12 @@ impl Phys2Virt {
         }
 
         // TODO: your code here.
-        unimplemented!();
+        let root = unsafe { Self::node(recursive_mapping, recursive_mapping).try_into_mut_slice::<PageTableEntry>()? }; // TODO: remove before flight.
+        let root_entry = Self::find_empty_root_entries(1, recursive_mapping)?; // TODO: remove before flight.
+        Self::allocate_root_entry(root_entry, recursive_mapping)?; // TODO: remove before flight.
+        let node = unsafe { Self::node(root_entry, recursive_mapping).try_into_mut_slice::<PageTableEntry>()? }; // TODO: remove before flight.
+        node[0].set_frame(Frame::default(), KERNEL_RW | PageTableFlags::HUGE); // TODO: remove before flight.
+        Self::new_impl(physical_memory, Page::higher_half(), NonZeroUsize::new(1)) // TODO: remove before flight.
     }
 
     /// Находит во второй половине корневого узла страниц. То есть, в верхней
@@ -163,8 +157,10 @@ impl Phys2Virt {
         root_entry_count: usize,
         recursive_mapping: usize,
     ) -> Result<usize> {
+        let lower_half_entries = PAGE_TABLE_ENTRY_COUNT / 2;
+
         // TODO: your code here.
-        unimplemented!();
+        Ok(lower_half_entries) // TODO: remove before flight.
     }
 
     /// Инициализирует записи 1 GiB страниц для отображения [`Phys2Virt`].
@@ -203,8 +199,25 @@ impl Phys2Virt {
         root_entry: usize,
         recursive_mapping: usize,
     ) -> Result<()> {
-        // TODO: your code here.
-        unimplemented!();
+        let root = unsafe {
+            Self::node(recursive_mapping, recursive_mapping).try_into_mut::<PageTable>()?
+        };
+        let pte = &mut root[root_entry];
+
+        if !pte.is_present() {
+            let frame = FrameGuard::allocate()?;
+            frame.store(pte, KERNEL_RW);
+
+            let node = unsafe {
+                Self::node(root_entry, recursive_mapping)
+                    .try_into_mut_slice::<MaybeUninit<PageTableEntry>>()?
+            };
+            MaybeUninit::fill(node, PageTableEntry::default());
+
+            Ok(())
+        } else {
+            Err(NoPage)
+        }
     }
 
     /// Возвращает узел таблицы страниц,
@@ -222,8 +235,19 @@ impl Phys2Virt {
         index: usize,
         recursive_mapping: usize,
     ) -> Block<Page> {
-        // TODO: your code here.
-        unimplemented!();
+        let mut address = 0;
+        for _ in PAGE_TABLE_LEAF_LEVEL .. PAGE_TABLE_ROOT_LEVEL {
+            address = (address << PAGE_TABLE_INDEX_BITS) | recursive_mapping;
+        }
+        address = (address << PAGE_TABLE_INDEX_BITS) | index;
+        address <<= PAGE_OFFSET_BITS;
+
+        let message = "wrong calculations through recursive entry";
+
+        let virt = Virt::canonize(address);
+        let page = Page::new(virt).expect(message);
+
+        Block::new(page, (page + 1).expect(message)).expect(message)
     }
 
     /// Создаёт [`Phys2Virt`] по его начальной странице `start` и
@@ -273,21 +297,6 @@ impl fmt::Display for Phys2Virt {
 
         Ok(())
     }
-}
-
-/// Возвращает виртуальную страницу, с которой начинается линейное отображение
-/// всей физической памяти в виртуальную [`Phys2Virt`].
-#[cfg(feature = "bootloader-phys2virt")]
-pub(crate) fn phys2virt(boot_info: &BootInfo) -> Page {
-    Virt::new_u64(boot_info.physical_memory_offset)
-        .and_then(Page::new)
-        .expect("invalid phys2virt in BootInfo")
-}
-
-/// Возвращает нулевую виртуальную страницу.
-#[cfg(not(feature = "bootloader-phys2virt"))]
-pub(crate) fn phys2virt(_boot_info: &BootInfo) -> Page {
-    Page::default()
 }
 
 /// Для простоты работы с ней, физическая память целиком отображена в некоторую область виртуальной.

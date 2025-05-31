@@ -27,11 +27,6 @@ ku = { path = "../../../ku" }
 pic8259 = { path = "../../../pic8259" }
 text = { path = "../../../text" }
 
-[features]
-bootloader-phys2virt = ["bootloader/map_physical_memory"]
-
-default = ["bootloader-phys2virt"]
-
 [package.metadata.bootimage]
 # Отвечает за `cargo run`.
 run-args = [
@@ -46,6 +41,3 @@ run-args = [
     "-vga",
     "std",
 ]
-
-[package.metadata.bootloader]
-physical-memory-offset = "0xFFFFF00000000000"

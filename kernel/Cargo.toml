@@ -47,10 +47,6 @@ xmas-elf = "*"
 # Отключает sentinel frame
 conservative-backtraces = ["ku/conservative-backtraces"]
 
-bootloader-phys2virt = ["bootloader/map_physical_memory"]
-
-default = ["bootloader-phys2virt"]
-
 [package.metadata.bootimage]
 # Отвечает за `cargo run`.
 run-args = [
@@ -89,6 +85,3 @@ test-args = [
 
 test-success-exit-code = 3
 test-timeout = 600
-
-[package.metadata.bootloader]
-physical-memory-offset = "0xFFFFF00000000000"

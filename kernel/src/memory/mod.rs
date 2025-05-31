@@ -166,11 +166,7 @@ pub(super) fn init(
             CurrentFrameAllocator::Boot(BootFrameAllocator::new(&boot_info.memory_map));
     }
 
-    let phys2virt = if cfg!(feature = "bootloader-phys2virt") {
-        Phys2Virt::new(physical_memory, phys2virt::phys2virt(boot_info))
-    } else {
-        Phys2Virt::make(physical_memory, size::from(boot_info.recursive_index()))
-    }?;
+    let phys2virt = Phys2Virt::make(physical_memory, size::from(boot_info.recursive_index()))?;
 
     info!(%phys2virt);
 
@@ -196,12 +192,10 @@ pub(super) fn init(
         ));
     }
 
-    if subsystems.contains(Subsystems::VIRT_MEMORY | Subsystems::MAIN_FRAME_ALLOCATOR) {
-        if let Err(error) = EXCEPTION_STACKS.lock().make_guard_zones() {
-            error!(?error, "failed to make guard zones for the trap stacks");
-        }
-
-        BASE_ADDRESS_SPACE.lock().remove_excessive_phys2virt()?;
+    if subsystems.contains(Subsystems::VIRT_MEMORY | Subsystems::MAIN_FRAME_ALLOCATOR) &&
+        let Err(error) = EXCEPTION_STACKS.lock().make_guard_zones()
+    {
+        error!(?error, "failed to make guard zones for the trap stacks");
     }
 
     info!(duration = %timer.elapsed(), "memory init");

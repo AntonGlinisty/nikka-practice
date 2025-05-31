@@ -232,43 +232,6 @@ impl Mapping {
         false // TODO: remove before flight.
     }
 
-    /// Удаляет ненужную часть --- находящуюся за пределами [`Mapping::phys2virt`] ---
-    /// линейного отображения физической памяти, которое сделал [`bootloader`].
-    pub(super) fn remove_excessive_phys2virt(&mut self) -> Result<()> {
-        let last_page = Page::from_index(self.phys2virt.last_page_index().ok_or(NoPage)?)?;
-        let mut cleared_pte_count = 0;
-
-        for mut path in self.range_mut(last_page ..).skip(1) {
-            let (_, pte) = path.deepest_pte_mut();
-
-            if pte.is_huge() {
-                pte.clear();
-                cleared_pte_count += 1;
-            } else {
-                break;
-            }
-        }
-
-        let start_free_frame_count = FRAME_ALLOCATOR.lock().count();
-
-        self.drop_subtree(self.page_table_root(), PAGE_TABLE_ROOT_LEVEL, false);
-
-        let freed_frame_count = FRAME_ALLOCATOR.lock().count() - start_free_frame_count;
-
-        debug!(
-            freed_frame_count,
-            cleared_pte_count,
-            "removed excessive phys2virt{}",
-            if freed_frame_count == 0 {
-                ", but the frames it used are still used or reserved"
-            } else {
-                ""
-            },
-        );
-
-        Ok(())
-    }
-
     /// Возвращает физический фрейм корневого узла текущего отображения
     /// виртуальной памяти в физическую.
     pub(super) fn current_page_table_root() -> Frame {
