@@ -5,17 +5,13 @@ use std::{
         Layout,
     },
     ffi::c_void,
-    fs::File,
-    num::NonZeroUsize,
     ptr::NonNull,
     result,
 };
 
-use nix::sys::mman::{
-    self,
-    MapFlags,
-    ProtFlags,
-};
+use ku::allocator::BigAllocator;
+
+use super::Big;
 
 pub struct Fallback;
 
@@ -27,17 +23,15 @@ unsafe impl Allocator for Fallback {
         let ptr = if layout.size() == 0 {
             layout.align() as *mut u8
         } else {
+            let mut big = Big::new();
+            let block = big.reserve(layout).map_err(|_| AllocError)?;
+            let flags = big.flags();
+
             unsafe {
-                mman::mmap::<File>(
-                    None,
-                    NonZeroUsize::new(layout.size()).unwrap(),
-                    ProtFlags::PROT_READ | ProtFlags::PROT_WRITE,
-                    MapFlags::MAP_ANONYMOUS | MapFlags::MAP_PRIVATE,
-                    None,
-                    0,
-                )
-                .unwrap() as *mut u8
+                big.map(block, flags).map_err(|_| AllocError)?;
             }
+
+            big.last().start_address().try_into_mut_ptr().unwrap()
         };
 
         NonNull::new(ptr)
@@ -50,12 +44,10 @@ unsafe impl Allocator for Fallback {
         mut ptr: NonNull<u8>,
         layout: Layout,
     ) {
-        if layout.size() == 0 {
-            return;
-        }
-
         unsafe {
-            mman::munmap(ptr.as_mut() as *mut u8 as *mut c_void, layout.size()).unwrap();
+            let block =
+                super::block(ptr.as_mut() as *mut u8 as *mut c_void, layout.size()).unwrap();
+            Big::new().unmap(block).unwrap();
         }
     }
 }

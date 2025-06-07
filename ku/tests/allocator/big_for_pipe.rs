@@ -1,34 +1,21 @@
-use std::{
-    alloc::Layout,
-    ffi::c_void,
-    fs::File,
-    num::NonZeroUsize,
-};
+use std::alloc::Layout;
 
-use nix::sys::mman::{
-    self,
-    MRemapFlags,
-    MapFlags,
-    ProtFlags,
-};
+use nix::sys::mman;
 
 use ku::{
     allocator::BigAllocator,
-    error::{
-        Error::PermissionDenied,
-        Result,
-    },
+    error::Result,
     memory::{
         Block,
         Page,
-        USER_RW,
-        Virt,
         mmu::PageTableFlags,
     },
 };
 
+use super::Big;
+
 pub struct BigForPipe {
-    flags: PageTableFlags,
+    big: Big,
     reserved: Block<Page>,
     buffer: Block<Page>,
     mirrored_buffer: Block<Page>,
@@ -38,7 +25,7 @@ pub struct BigForPipe {
 impl BigForPipe {
     pub fn new() -> Self {
         Self {
-            flags: USER_RW,
+            big: Big::new(),
             reserved: Block::default(),
             buffer: Block::default(),
             mirrored_buffer: Block::default(),
@@ -60,33 +47,19 @@ impl BigForPipe {
         }
     }
 
-    fn block(
-        ptr: *mut c_void,
-        len: usize,
-    ) -> Result<Block<Page>> {
-        let virt = Virt::from_ptr(ptr);
-        Block::new(Page::new(virt)?, Page::new((virt + len)?)?)
-    }
-
-    pub const GARBAGE: u8 = 0xFF;
+    pub const GARBAGE: u8 = Big::GARBAGE;
 }
 
 unsafe impl BigAllocator for BigForPipe {
     fn flags(&self) -> PageTableFlags {
-        self.flags
+        self.big.flags()
     }
 
     fn set_flags(
         &mut self,
         flags: PageTableFlags,
     ) -> Result<()> {
-        if flags.is_user() {
-            self.flags = flags;
-
-            Ok(())
-        } else {
-            Err(PermissionDenied)
-        }
+        self.big.set_flags(flags)
     }
 
     fn reserve(
@@ -97,19 +70,7 @@ unsafe impl BigAllocator for BigForPipe {
         assert_eq!(layout.size() % (2 * Page::SIZE), 0);
         assert_eq!(layout.align() % Page::SIZE, 0);
 
-        let ptr = unsafe {
-            mman::mmap::<File>(
-                None,
-                NonZeroUsize::new(layout.size()).expect("useless call to map an empty block"),
-                ProtFlags::PROT_NONE,
-                MapFlags::MAP_ANONYMOUS | MapFlags::MAP_PRIVATE,
-                None,
-                0,
-            )
-            .unwrap()
-        };
-
-        self.reserved = Self::block(ptr, layout.size())?;
+        self.reserved = self.big.reserve(layout)?;
 
         Ok(self.reserved)
     }
@@ -145,28 +106,11 @@ unsafe impl BigAllocator for BigForPipe {
         assert_eq!(block.size(), self.reserved.size() / 2);
         assert!(self.reserved.contains_block(block));
 
-        let mut prot_flags = ProtFlags::PROT_READ;
-        if flags.is_writable() {
-            prot_flags |= ProtFlags::PROT_WRITE;
-        }
-
-        let ptr = unsafe {
-            mman::mmap::<File>(
-                NonZeroUsize::new(block.start_address().into_usize()),
-                NonZeroUsize::new(block.size()).unwrap(),
-                prot_flags,
-                MapFlags::MAP_ANONYMOUS | MapFlags::MAP_SHARED | MapFlags::MAP_FIXED,
-                None,
-                0,
-            )
-            .unwrap()
-        };
-
-        self.buffer = Self::block(ptr, block.size())?;
-
         unsafe {
-            self.buffer.try_into_mut_slice()?.fill(Self::GARBAGE);
+            self.big.map(block, flags)?;
         }
+
+        self.buffer = self.big.last();
 
         Ok(())
     }
@@ -187,22 +131,13 @@ unsafe impl BigAllocator for BigForPipe {
         assert_ne!(self.buffer, Block::default());
         assert_eq!(self.mirrored_buffer, Block::default());
         assert_eq!(self.buffer, old_block);
-        assert_eq!(old_block.size(), new_block.size());
-        assert_eq!(flags, None);
         assert!(self.reserved.contains_block(new_block));
 
-        let ptr = unsafe {
-            mman::mremap(
-                old_block.start_address().try_into_mut_ptr()?,
-                0,
-                new_block.size(),
-                MRemapFlags::MREMAP_MAYMOVE | MRemapFlags::MREMAP_FIXED,
-                Some(new_block.start_address().try_into_mut_ptr()?),
-            )
-            .unwrap()
-        };
+        unsafe {
+            self.big.copy_mapping(old_block, new_block, flags)?;
+        }
 
-        self.mirrored_buffer = Self::block(ptr, new_block.size())?;
+        self.mirrored_buffer = self.big.last();
 
         Ok(())
     }
