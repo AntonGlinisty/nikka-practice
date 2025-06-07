@@ -28,3 +28,11 @@ resolver = "2"
 
 [profile.user]
 inherits = "dev"
+
+[profile.ci]
+debug = true
+debug-assertions = true
+incremental = true
+inherits = "dev"
+opt-level = 3
+overflow-checks = true

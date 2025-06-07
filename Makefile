@@ -111,7 +111,9 @@ test: install
 		for crate in $(CRATES); do \
 			cd $$crate; \
 			if [ .$$crate = .ku ]; then \
-				test_flags='-- --test-threads=1'; \
+				test_flags='--profile ci -- --test-threads=1'; \
+			elif [ .$$crate = .kernel ]; then \
+				test_flags='--profile ci'; \
 			else \
 				test_flags=''; \
 			fi; \
