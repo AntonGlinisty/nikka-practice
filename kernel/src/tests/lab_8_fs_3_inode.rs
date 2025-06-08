@@ -256,8 +256,7 @@ fn big_file() {
     remove_file(&mut fs, &file).unwrap();
 
     let end_free_block_count = fs.free_space() / BLOCK_SIZE;
-    let leaked_block_count = start_free_block_count - end_free_block_count;
-    assert_eq!(leaked_block_count, 0);
+    assert_eq!(start_free_block_count, end_free_block_count);
 
     debug!(block_cache_stats = ?BlockCache::stats());
 }

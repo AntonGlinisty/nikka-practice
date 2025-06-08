@@ -284,7 +284,7 @@ impl FileSystem {
         self.resolve_cache.remove(&(file.parent(), file.name().into()));
         self.inodes[file.parent()].find(file.name())?.set_free();
         self.inode_bitmap.set_free(file.inode());
-        self.inodes[file.inode()].remove(&mut self.block_bitmap)
+        self.remove_inode(file.inode())
     }
 
     /// Читает из файла по смещению `offset` в буфер `buffer` столько байт,
@@ -330,6 +330,14 @@ impl FileSystem {
     /// Возвращает размер занятого места файловой системы в байтах.
     pub fn used_space(&self) -> usize {
         self.superblock.blocks().count() * BLOCK_SIZE - self.free_space()
+    }
+
+    /// Удаляет `inode`.
+    pub fn remove_inode(
+        &mut self,
+        inode: usize,
+    ) -> Result<()> {
+        self.inodes[inode].remove(&mut self.block_bitmap)
     }
 }
 
@@ -428,7 +436,6 @@ pub mod test_scaffolding {
         file_system: &mut FileSystem,
         file: &File,
     ) -> Result<()> {
-        let mut block_bitmap = file_system.block_bitmap.clone();
-        file_system.inodes[file.inode()].remove(&mut block_bitmap)
+        file_system.remove_inode(file.inode())
     }
 }
