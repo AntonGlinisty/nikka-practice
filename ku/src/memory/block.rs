@@ -19,7 +19,10 @@ use serde::{
 };
 
 use crate::error::{
-    Error::InvalidArgument,
+    Error::{
+        InvalidArgument,
+        Overflow,
+    },
     Result,
 };
 
@@ -168,6 +171,38 @@ impl<T: Memory> Block<T> {
     /// Возвращает адрес следующего за последним элементом блока.
     pub fn end_address_u128(&self) -> u128 {
         u128::try_from(self.end()).unwrap() * u128::try_from(T::SIZE_OF).unwrap()
+    }
+
+    /// Возвращает адрес по смещению `offset` байт внутри блока.
+    ///
+    /// Возвращает ошибку
+    ///   - [`Error::Overflow`] если `offset` выходит за границы блока.
+    pub fn address(
+        &self,
+        offset: usize,
+    ) -> Result<T::Address> {
+        if offset < self.size() {
+            let address = T::address_into_usize(self.start_address()) + offset;
+
+            Ok(T::usize_into_address(address).expect("invalid block"))
+        } else {
+            Err(Overflow)
+        }
+    }
+
+    /// Возвращает смещение в байтах адреса `address` внутри блока.
+    ///
+    /// Возвращает ошибку
+    ///   - [`Error::Overflow`] если `address` выходит за границы блока.
+    pub fn offset(
+        &self,
+        address: T::Address,
+    ) -> Result<usize> {
+        if self.contains_address(address) {
+            Ok(T::address_into_usize(address) - T::address_into_usize(self.start_address()))
+        } else {
+            Err(Overflow)
+        }
     }
 
     /// Возвращает первый элемент в блоке.
@@ -621,7 +656,7 @@ pub trait Memory: Clone + Copy + Eq + PartialEq + SizeOf {
     /// Тип адреса для базового типа:
     ///   - [`Virt`] для [`Virt`] и [`Page`];
     ///   - [`Phys`] для [`Phys`] и [`Frame`].
-    type Address: fmt::Display + Ord;
+    type Address: fmt::Display + Ord + Clone + Copy;
 
     /// Возвращает адрес базового элемента `element`:
     ///   - `element` для `Addr`;
@@ -632,6 +667,9 @@ pub trait Memory: Clone + Copy + Eq + PartialEq + SizeOf {
     ///   - `Addr::new(index)` для `Addr`;
     ///   - `Frage::address_by_index(index)` для `Frage`.
     fn address_by_index(index: usize) -> Result<Self::Address>;
+
+    /// Возвращает битовое представление адреса.
+    fn address_into_usize(address: Self::Address) -> usize;
 
     /// Возвращает базовый элемент по его индексу `index`:
     ///   - `Addr::new(index)` для `Addr`;
@@ -651,6 +689,9 @@ pub trait Memory: Clone + Copy + Eq + PartialEq + SizeOf {
         x: Self::Address,
         y: Self::Address,
     ) -> bool;
+
+    /// Возвращает адрес по его битовому представлению `address`.
+    fn usize_into_address(address: usize) -> Result<Self::Address>;
 }
 
 impl<T: Tag> Memory for Addr<T> {
@@ -667,6 +708,10 @@ impl<T: Tag> Memory for Addr<T> {
         Self::new(index)
     }
 
+    fn address_into_usize(address: Self::Address) -> usize {
+        address.into_usize()
+    }
+
     fn from_index(index: usize) -> Result<Self> {
         Self::new(index)
     }
@@ -680,6 +725,10 @@ impl<T: Tag> Memory for Addr<T> {
         y: Self::Address,
     ) -> bool {
         T::is_same_half(x, y)
+    }
+
+    fn usize_into_address(address: usize) -> Result<Self::Address> {
+        Self::Address::new(address)
     }
 }
 
@@ -697,6 +746,10 @@ impl<T: Tag> Memory for Frage<T> {
         Self::address_by_index(index)
     }
 
+    fn address_into_usize(address: Self::Address) -> usize {
+        address.into_usize()
+    }
+
     fn from_index(index: usize) -> Result<Self> {
         Self::from_index(index)
     }
@@ -710,6 +763,10 @@ impl<T: Tag> Memory for Frage<T> {
         y: Self::Address,
     ) -> bool {
         T::is_same_half(x, y)
+    }
+
+    fn usize_into_address(address: usize) -> Result<Self::Address> {
+        Self::Address::new(address)
     }
 }
 

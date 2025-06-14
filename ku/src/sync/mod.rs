@@ -17,4 +17,7 @@ pub use panic::{
     start_panicking,
 };
 pub use sequence_lock::SequenceLock;
-pub use spinlock::Spinlock;
+pub use spinlock::{
+    Spinlock,
+    SpinlockGuard,
+};

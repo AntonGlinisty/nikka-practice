@@ -25,10 +25,8 @@ Rust предоставляет
 В качестве аллокатора нижнего уровня используем
 [`ku::allocator::fixed_size::FixedSizeAllocator`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html).
 Он выделяет блоки одинакового размера.
-Которые хранит в структуре данных, реализующей интерфейс
-[Last In, First Out](https://en.wikipedia.org/wiki/Stack_(abstract_data_type))
-на основе односвязного списка записей
-[`ku::allocator::fixed_size::Lifo`](../../doc/ku/allocator/fixed_size/struct.Lifo.html).
+Которые хранит в структуре данных
+[`ku::allocator::quarry::Quarry`](../../doc/ku/allocator/quarry/struct.Quarry.html).
 Сам
 [`FixedSizeAllocator`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html)
 не хранит размер блоков, которыми управляет.
@@ -39,9 +37,7 @@ Rust предоставляет
 и передаётся в методы
 [`FixedSizeAllocator`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html)
 явно.
-Все размеры кратны размеру и выравниванию структуры
-[`ku::allocator::fixed_size::Lifo`](../../doc/ku/allocator/fixed_size/struct.Lifo.html) ---
-константе
+Все размеры кратны константе
 [`ku::allocator::fixed_size::MIN_SIZE`](../../doc/ku/allocator/fixed_size/constant.MIN_SIZE.html).
 Поэтому при выделении памяти мы будем округлять запрошенный размер
 [`Layout::size()`](https://doc.rust-lang.org/nightly/core/alloc/struct.Layout.html#method.size)
@@ -229,102 +225,6 @@ unsafe fn Dispatcher::realloc(
 
 
 #### Реализуйте аллокатор блоков одинакового размера [`FixedSizeAllocator`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html)
-
-Реализуйте методы
-[`Lifo::pop()`](../../doc/ku/allocator/fixed_size/struct.Lifo.html#method.pop)
-и
-[`Lifo::push()`](../../doc/ku/allocator/fixed_size/struct.Lifo.html#method.push)
-в файле
-[`ku/src/allocator/fixed_size.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/allocator/fixed_size.rs):
-
-```rust
-fn Lifo::pop(
-    &mut self,
-) -> Virt
-
-fn Lifo::push(
-    &mut self,
-    virt: Virt,
-)
-```
-
-Они предназначены для работы со списком свободных блоков памяти
-[`ku::allocator::fixed_size::Lifo`](../../doc/ku/allocator/fixed_size/struct.Lifo.html).
-В случае отсутствия свободного блока, метод
-[`Lifo::pop()`](../../doc/ku/allocator/fixed_size/struct.Lifo.html#method.pop)
-возвращает нулевой адрес
-[`Virt::zero()`](../../doc/ku/memory/addr/type.Virt.html#method.zero).
-
-Реализуйте метод
-[`FixedSizeAllocator::get_pack_layout()`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html#method.get_pack_layout)
-в файле
-[`ku/src/allocator/fixed_size.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/allocator/fixed_size.rs):
-
-```rust
-fn FixedSizeAllocator::get_pack_layout(
-    size: usize,
-) -> Layout
-```
-
-Он возвращает
-[`Layout`](https://doc.rust-lang.org/nightly/core/alloc/struct.Layout.html)
-блока памяти, который удовлетворяет потенциально противоречащим друг другу требованиям:
-
-- Состоит из целого количества страниц [`Page`](../../doc/ku/memory/frage/type.Page.html).
-- Подходит для нарезки на блоки размером `size`.
-- Содержит не слишком много страниц по отношению к `size`. Если запросили 16 байт, то запасти заранее 1000 страниц по 4 KiB --- явный перерасход, если же запросили порядка 1MiB, то же количество страниц скорее адекватно.
-- Не слишком много памяти теряется на хвостик размера меньше `size`, который останется после нарезки блока страниц на блоки по `size` байт. Если хвостик порядка 2 KiB при выделении одной страницы размера 4KiB --- это слишком расточительно, но такой же по абсолютному размеру хвостик при выделении 1000 страниц вполне приемлем.
-
-Ваша задача --- самостоятельно придумать компромиссные решения для этого метода.
-
-В методе
-[`FixedSizeAllocator::stock_up()`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html#method.stock_up)
-блок с этим
-[`Layout`](https://doc.rust-lang.org/nightly/core/alloc/struct.Layout.html)
-будет нарезаться на подблоки размера `size`, которые выделяет этот аллокатор.
-
-Реализуйте метод
-[`FixedSizeAllocator::stock_up()`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html#method.stock_up):
-
-```rust
-fn FixedSizeAllocator::stock_up(
-    &mut self,
-    size: usize,
-    pack: Block<Virt>,
-)
-```
-
-Он режет блок `pack` на подблоки размера `size`, которые сохраняет себе для последующих выделений памяти.
-
-Реализуйте метод
-[`FixedSizeAllocator::allocate()`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html#method.allocate):
-
-```rust
-fn FixedSizeAllocator::allocate(
-    &mut self,
-    layout: Layout,
-    size: usize,
-) -> *mut u8
-```
-
-Он выделяет память из своего списка свободных блоков ---
-[`FixedSizeAllocator::free`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html#structfield.free).
-А запрошенный при выделении памяти
-[`Layout`](https://doc.rust-lang.org/nightly/core/alloc/struct.Layout.html)
-и реально выделяемый размер `size` понадобятся для учёта этой операции в
-[`FixedSizeAllocator::info`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html#structfield.info).
-
-Реализуйте парный ему метод
-[`FixedSizeAllocator::deallocate()`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html#method.deallocate):
-
-```rust
-fn FixedSizeAllocator::deallocate(
-    &mut self,
-    ptr: *mut u8,
-    layout: Layout,
-    size: usize,
-)
-```
 
 
 ### Проверьте себя

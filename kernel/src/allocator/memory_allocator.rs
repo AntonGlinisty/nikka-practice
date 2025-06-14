@@ -8,16 +8,31 @@ use core::{
     result,
 };
 
+use duplicate::duplicate_item;
+
 use ku::{
     allocator::{
+        BigAllocator,
+        BigAllocatorGuard,
         DryAllocator,
         Initialize,
     },
-    memory::mmu::PageTableFlags,
-    sync::spinlock::Spinlock,
+    error::Result,
+    memory::{
+        Block,
+        Page,
+        mmu::PageTableFlags,
+    },
+    sync::spinlock::{
+        Spinlock,
+        SpinlockGuard,
+    },
 };
 
-use crate::memory::AddressSpace;
+use crate::{
+    allocator::Big,
+    memory::AddressSpace,
+};
 
 /// Аллокатор памяти общего назначения внутри [`AddressSpace`].
 pub(crate) struct MemoryAllocator<'a> {
@@ -117,6 +132,96 @@ unsafe impl Allocator for MemoryAllocator<'_> {
                 .allocator(self.flags)
                 .dry_shrink(ptr, old_layout, new_layout)
                 .map_err(|_| AllocError)
+        }
+    }
+}
+
+impl<'a> BigAllocatorGuard for MemoryAllocator<'a> {
+    fn get(&self) -> impl BigAllocator {
+        MemoryAllocatorGuard {
+            address_space: self.address_space.lock(),
+            flags: self.flags,
+        }
+    }
+}
+
+/// Аллокатор памяти общего назначения внутри [`AddressSpace`].
+pub(crate) struct MemoryAllocatorGuard<'a> {
+    /// Адресное пространство, внутри которого аллокатор выделяет память.
+    address_space: SpinlockGuard<'a, AddressSpace>,
+
+    /// Флаги с которыми будет отображена выделяемая память.
+    flags: PageTableFlags,
+}
+
+impl MemoryAllocatorGuard<'_> {
+    /// Возвращает обёрнутый в [`MemoryAllocatorGuard`] постраничный аллокатор памяти.
+    fn allocator(&mut self) -> Big<'_> {
+        self.address_space.allocator(self.flags)
+    }
+}
+
+unsafe impl BigAllocator for MemoryAllocatorGuard<'_> {
+    fn flags(&self) -> PageTableFlags {
+        self.flags
+    }
+
+    fn set_flags(
+        &mut self,
+        flags: PageTableFlags,
+    ) -> Result<()> {
+        self.flags = flags;
+
+        Ok(())
+    }
+
+    #[duplicate_item(
+        method argument_type return_type;
+        [reserve] [Layout] [Block<Page>];
+        [reserve_fixed] [Block<Page>] [()];
+    )]
+    fn method(
+        &mut self,
+        argument: argument_type,
+    ) -> Result<return_type> {
+        self.allocator().method(argument)
+    }
+
+    #[duplicate_item(
+        method;
+        [unreserve];
+        [unmap];
+    )]
+    unsafe fn method(
+        &mut self,
+        block: Block<Page>,
+    ) -> Result<()> {
+        unsafe { self.allocator().method(block) }
+    }
+
+    #[duplicate_item(
+        method argument_type;
+        [rereserve] [Block<Page>];
+        [map] [PageTableFlags];
+    )]
+    unsafe fn method(
+        &mut self,
+        block: Block<Page>,
+        argument: argument_type,
+    ) -> Result<()> {
+        unsafe { self.allocator().method(block, argument) }
+    }
+
+    unsafe fn copy_mapping(
+        &mut self,
+        old_block: Block<Page>,
+        new_block: Block<Page>,
+        flags: Option<PageTableFlags>,
+    ) -> Result<()> {
+        unsafe {
+            self.address_space
+                .allocator(self.flags)
+                .copy_mapping(old_block, new_block, flags)
         }
     }
 }

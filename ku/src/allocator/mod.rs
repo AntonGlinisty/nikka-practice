@@ -16,7 +16,13 @@ mod dispatcher;
 /// Аллокатор, выделяющий память блоками одинакового размера.
 mod fixed_size;
 
-pub use big::BigAllocator;
+/// Вспомогательная структура [`Quarry`] для [`FixedSizeAllocator`].
+mod quarry;
+
+pub use big::{
+    BigAllocator,
+    BigAllocatorGuard,
+};
 pub use dispatcher::{
     DetailedInfo,
     Dispatcher,
@@ -29,3 +35,11 @@ pub use info::{
     AtomicInfo,
     Info,
 };
+
+use fixed_size::FixedSizeAllocator;
+use quarry::Quarry;
+
+#[doc(hidden)]
+pub mod test_scaffolding {
+    pub use super::quarry::test_scaffolding::*;
+}

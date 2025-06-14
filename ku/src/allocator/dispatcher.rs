@@ -13,14 +13,12 @@ use core::{
 };
 
 use crate::{
-    memory::{
-        Block,
-        Page,
-    },
+    memory::Page,
     sync::Spinlock,
 };
 
 use super::{
+    BigAllocatorGuard,
     dry::Initialize,
     fixed_size::{
         FixedSizeAllocator,
@@ -35,7 +33,7 @@ use super::{
 /// Аллокатор верхнего уровня.
 /// По запрошенному размеру определяет из какого аллокатора будет выделяться память.
 #[derive(Debug)]
-pub struct Dispatcher<T: Allocator> {
+pub struct Dispatcher<T: Allocator + BigAllocatorGuard> {
     /// Аллокатор для выделения памяти постранично, в том числе остальным аллокаторам.
     fallback: T,
 
@@ -50,7 +48,7 @@ pub struct Dispatcher<T: Allocator> {
     info: AtomicInfo,
 }
 
-impl<T: Allocator> Dispatcher<T> {
+impl<T: Allocator + BigAllocatorGuard> Dispatcher<T> {
     /// Создаёт аллокатор верхнего уровня с заданным постраничным аллокатором `fallback`.
     pub const fn new(fallback: T) -> Self {
         Self {
@@ -80,6 +78,27 @@ impl<T: Allocator> Dispatcher<T> {
         for (info, allocator) in detailed_info.fixed_size.iter_mut().zip(&self.fixed_size) {
             *info = *allocator.lock().info();
         }
+    }
+
+    /// Освобождает всю виртуальную и физическую память, выделенную аллокатором.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если остались не освобождённые блоки памяти.
+    pub fn unmap(&self) {
+        let info = self.info();
+        assert_eq!(info.allocations().balance(), 0);
+        assert_eq!(info.allocated().balance(), 0);
+        assert_eq!(info.requested().balance(), 0);
+
+        let fallback_info = self.fallback_info.load();
+        assert_eq!(fallback_info.allocations().balance(), 0);
+        assert_eq!(fallback_info.allocated().balance(), 0);
+        assert_eq!(fallback_info.requested().balance(), 0);
+
+        // TODO: your code here.
+
+        assert_eq!(self.info().pages().balance(), 0);
     }
 
     /// Находит индекс [`FixedSizeAllocator`], который отвечает за заданный `layout`.
@@ -175,7 +194,7 @@ impl<T: Allocator> Dispatcher<T> {
     }
 }
 
-unsafe impl<T: Allocator> GlobalAlloc for Dispatcher<T> {
+unsafe impl<T: Allocator + BigAllocatorGuard> GlobalAlloc for Dispatcher<T> {
     unsafe fn alloc(
         &self,
         layout: Layout,
@@ -245,6 +264,12 @@ unsafe impl<T: Allocator> GlobalAlloc for Dispatcher<T> {
         } else {
             ptr::null_mut()
         }
+    }
+}
+
+impl<T: Allocator + BigAllocatorGuard> Drop for Dispatcher<T> {
+    fn drop(&mut self) {
+        self.unmap();
     }
 }
 

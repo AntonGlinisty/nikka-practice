@@ -9,11 +9,39 @@ use std::{
     result,
 };
 
-use ku::allocator::BigAllocator;
+use duplicate::duplicate_item;
+
+use ku::{
+    allocator::{
+        BigAllocator,
+        BigAllocatorGuard,
+    },
+    error::Result,
+    memory::{
+        Block,
+        Page,
+        mmu::PageTableFlags,
+    },
+    sync::{
+        Spinlock,
+        SpinlockGuard,
+    },
+};
 
 use super::Big;
 
-pub struct Fallback;
+pub struct Fallback {
+    big: Spinlock<Big>,
+}
+
+impl Fallback {
+    #[allow(unused)]
+    pub const fn new() -> Self {
+        Self {
+            big: Spinlock::new(Big::new(false)),
+        }
+    }
+}
 
 unsafe impl Allocator for Fallback {
     fn allocate(
@@ -23,7 +51,7 @@ unsafe impl Allocator for Fallback {
         let ptr = if layout.size() == 0 {
             layout.align() as *mut u8
         } else {
-            let mut big = Big::new();
+            let mut big = self.big.lock();
             let block = big.reserve(layout).map_err(|_| AllocError)?;
             let flags = big.flags();
 
@@ -31,7 +59,7 @@ unsafe impl Allocator for Fallback {
                 big.map(block, flags).map_err(|_| AllocError)?;
             }
 
-            big.last().start_address().try_into_mut_ptr().unwrap()
+            block.start_address().try_into_mut_ptr().unwrap()
         };
 
         NonNull::new(ptr)
@@ -47,7 +75,72 @@ unsafe impl Allocator for Fallback {
         unsafe {
             let block =
                 super::block(ptr.as_mut() as *mut u8 as *mut c_void, layout.size()).unwrap();
-            Big::new().unmap(block).unwrap();
+            self.big.lock().unmap(block).unwrap();
         }
+    }
+}
+
+impl BigAllocatorGuard for Fallback {
+    fn get(&self) -> impl BigAllocator {
+        BigGuard {
+            big: self.big.lock(),
+        }
+    }
+}
+
+struct BigGuard<'a> {
+    big: SpinlockGuard<'a, Big>,
+}
+
+unsafe impl BigAllocator for BigGuard<'_> {
+    fn flags(&self) -> PageTableFlags {
+        self.big.flags()
+    }
+
+    #[duplicate_item(
+        method argument_type return_type;
+        [set_flags] [PageTableFlags] [()];
+        [reserve] [Layout] [Block<Page>];
+        [reserve_fixed] [Block<Page>] [()];
+    )]
+    fn method(
+        &mut self,
+        argument: argument_type,
+    ) -> Result<return_type> {
+        self.big.method(argument)
+    }
+
+    #[duplicate_item(
+        method;
+        [unreserve];
+        [unmap];
+    )]
+    unsafe fn method(
+        &mut self,
+        argument: Block<Page>,
+    ) -> Result<()> {
+        unsafe { self.big.method(argument) }
+    }
+
+    #[duplicate_item(
+        method second_argument_type;
+        [rereserve] [Block<Page>];
+        [map] [PageTableFlags];
+    )]
+    unsafe fn method(
+        &mut self,
+        first_argument: Block<Page>,
+        second_argument: second_argument_type,
+    ) -> Result<()> {
+        unsafe { self.big.method(first_argument, second_argument) }
+    }
+
+    unsafe fn copy_mapping(
+        &mut self,
+        old_block: Block<Page>,
+        new_block: Block<Page>,
+        flags: Option<PageTableFlags>,
+    ) -> Result<()> {
+        unsafe { self.big.copy_mapping(old_block, new_block, flags) }
     }
 }

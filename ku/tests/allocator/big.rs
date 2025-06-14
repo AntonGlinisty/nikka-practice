@@ -1,5 +1,6 @@
 use std::{
     alloc::Layout,
+    ffi::c_void,
     fs::File,
     num::NonZeroUsize,
 };
@@ -26,15 +27,21 @@ use ku::{
 };
 
 pub struct Big {
+    check_leaks: bool,
     flags: PageTableFlags,
     last: Block<Page>,
+    mapped: usize,
+    reserved: usize,
 }
 
 impl Big {
-    pub fn new() -> Self {
+    pub const fn new(check_leaks: bool) -> Self {
         Self {
+            check_leaks,
             flags: USER_RW,
-            last: Block::default(),
+            last: Block::zero(),
+            mapped: 0,
+            reserved: 0,
         }
     }
 
@@ -42,10 +49,24 @@ impl Big {
         self.last
     }
 
+    fn account_mapped(
+        &mut self,
+        block: Block<Page>,
+        ptr: *mut c_void,
+    ) {
+        self.last = super::block(ptr, block.size()).unwrap();
+        assert_eq!(self.last, block);
+
+        self.mapped = self
+            .mapped
+            .checked_add(self.last.count())
+            .expect("mapped too many physical frames, can not check the balance");
+    }
+
     unsafe fn mmap(
         block: Block<Page>,
         prot_flags: ProtFlags,
-    ) -> Block<Page> {
+    ) -> *mut c_void {
         let address = NonZeroUsize::new(block.start_address().into_usize());
         let size = NonZeroUsize::new(block.size()).expect("useless call to map an empty block");
 
@@ -59,9 +80,27 @@ impl Big {
             flags |= MapFlags::MAP_FIXED;
         }
 
-        let ptr = unsafe { mman::mmap::<File>(address, size, prot_flags, flags, None, 0).unwrap() };
+        unsafe { mman::mmap::<File>(address, size, prot_flags, flags, None, 0).unwrap() }
+    }
 
-        super::block(ptr, size.into()).unwrap()
+    unsafe fn mmap_accounted(
+        &mut self,
+        block: Block<Page>,
+        prot_flags: ProtFlags,
+    ) -> Block<Page> {
+        let ptr = unsafe { Self::mmap(block, prot_flags) };
+        let result_block = super::block(ptr, block.size()).unwrap();
+
+        if prot_flags == ProtFlags::PROT_NONE {
+            self.reserved = self
+                .reserved
+                .checked_add(result_block.count())
+                .expect("reserved too many virtual pages, can not check the balance");
+        } else {
+            self.account_mapped(result_block, ptr);
+        }
+
+        result_block
     }
 
     pub(super) const GARBAGE: u8 = 0xFF;
@@ -91,7 +130,7 @@ unsafe impl BigAllocator for Big {
     ) -> Result<Block<Page>> {
         let block = Block::from_index(0, layout.pad_to_align().size()).unwrap().enclosing();
 
-        Ok(unsafe { Self::mmap(block, ProtFlags::PROT_NONE) })
+        Ok(unsafe { self.mmap_accounted(block, ProtFlags::PROT_NONE) })
     }
 
     fn reserve_fixed(
@@ -100,7 +139,7 @@ unsafe impl BigAllocator for Big {
     ) -> Result<()> {
         assert!(!block.is_empty());
 
-        let reserved_block = unsafe { Self::mmap(block, ProtFlags::PROT_NONE) };
+        let reserved_block = unsafe { self.mmap_accounted(block, ProtFlags::PROT_NONE) };
 
         assert_eq!(block, reserved_block);
 
@@ -112,6 +151,11 @@ unsafe impl BigAllocator for Big {
         block: Block<Page>,
     ) -> Result<()> {
         assert!(!block.is_empty());
+
+        self.reserved = self
+            .reserved
+            .checked_sub(block.count())
+            .expect("unreserved more virtual pages than were reserved");
 
         unsafe {
             mman::munmap(
@@ -145,7 +189,7 @@ unsafe impl BigAllocator for Big {
         }
 
         unsafe {
-            self.last = Self::mmap(block, prot_flags);
+            self.last = self.mmap_accounted(block, prot_flags);
 
             self.last.try_into_mut_slice().unwrap().fill(Self::GARBAGE);
         }
@@ -157,7 +201,19 @@ unsafe impl BigAllocator for Big {
         &mut self,
         block: Block<Page>,
     ) -> Result<()> {
-        self.reserve_fixed(block)
+        assert!(!block.is_empty());
+
+        self.mapped = self
+            .mapped
+            .checked_sub(block.count())
+            .expect("unmapped more physical frames than were mapped");
+
+        let ptr = unsafe { Self::mmap(block, ProtFlags::PROT_NONE) };
+        let reserved_block = super::block(ptr, block.size()).unwrap();
+
+        assert_eq!(block, reserved_block);
+
+        Ok(())
     }
 
     unsafe fn copy_mapping(
@@ -181,8 +237,17 @@ unsafe impl BigAllocator for Big {
             .unwrap()
         };
 
-        self.last = super::block(ptr, new_block.size()).unwrap();
+        self.account_mapped(new_block, ptr);
 
         Ok(())
+    }
+}
+
+impl Drop for Big {
+    fn drop(&mut self) {
+        if self.check_leaks {
+            assert_eq!(self.mapped, 0, "leaked some physical frames");
+            assert_eq!(self.reserved, 0, "leaked some virtual pages");
+        }
     }
 }

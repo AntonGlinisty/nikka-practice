@@ -23,9 +23,9 @@ pub struct BigForPipe {
 
 #[allow(unused)]
 impl BigForPipe {
-    pub fn new() -> Self {
+    pub fn new(check_leaks: bool) -> Self {
         Self {
-            big: Big::new(),
+            big: Big::new(check_leaks),
             reserved: Block::default(),
             buffer: Block::default(),
             mirrored_buffer: Block::default(),

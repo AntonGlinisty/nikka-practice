@@ -67,7 +67,7 @@ fn check_continuous_mapping() {
     log::init();
 
     let frame_count = 4;
-    let mut allocator = BigForPipe::new();
+    let mut allocator = BigForPipe::new(false);
 
     let (_, write_buffer) = pipe::make(frame_count, &mut allocator).unwrap();
     let block = write_buffer.block();
@@ -125,7 +125,7 @@ fn reader_close(
 
     debug!(corrupt, close_first, aborted_read_tx);
 
-    let mut allocator = BigForPipe::new();
+    let mut allocator = BigForPipe::new(false);
 
     let (mut read_buffer, mut write_buffer) = pipe::make(4, &mut allocator).unwrap();
     let chunk = [1, 2, 3];
@@ -169,7 +169,7 @@ fn writer_close(#[case] corrupt: bool) {
 
     debug!(corrupt);
 
-    let mut allocator = BigForPipe::new();
+    let mut allocator = BigForPipe::new(false);
 
     let (mut read_buffer, mut write_buffer) = pipe::make(4, &mut allocator).unwrap();
     let chunk = [1, 2, 3];
@@ -203,7 +203,7 @@ fn writer_close(#[case] corrupt: bool) {
 fn sequential() {
     log::init();
 
-    let mut allocator = BigForPipe::new();
+    let mut allocator = BigForPipe::new(false);
 
     let (mut read_buffer, mut write_buffer) = pipe::make(4, &mut allocator).unwrap();
 
@@ -254,7 +254,7 @@ fn concurrent() {
     };
 
     for iteration in 0 .. ITERATIONS {
-        let mut allocator = BigForPipe::new();
+        let mut allocator = BigForPipe::new(false);
 
         let (read_buffer, write_buffer) = pipe::make(4, &mut allocator).unwrap();
 

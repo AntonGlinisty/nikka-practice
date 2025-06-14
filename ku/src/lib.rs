@@ -11,6 +11,7 @@
 #![feature(atomic_from_mut)]
 #![feature(cell_update)]
 #![feature(const_mut_refs)]
+#![feature(const_option)]
 #![feature(const_size_of_val)]
 #![feature(let_chains)]
 #![feature(maybe_uninit_fill, maybe_uninit_slice)]

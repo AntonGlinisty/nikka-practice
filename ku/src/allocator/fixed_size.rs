@@ -1,39 +1,53 @@
 use core::{
     alloc::Layout,
-    mem,
-    ptr::NonNull,
+    cmp,
+    ptr,
 };
 
-use crate::memory::{
-    Block,
-    Page,
-    Virt,
+use crate::{
+    allocator::BigAllocatorGuard,
+    collections::DynamicBitmap,
+    error::{
+        Error::NoPage,
+        Result,
+    },
+    log::{
+        error,
+        trace,
+    },
+    memory::Virt,
 };
 
-use super::Info;
+use super::{
+    Info,
+    Quarry,
+};
 
 /// Аллокатор, выделяющий память блоками одинакового размера.
 ///
 /// Предполагает, что все блоки памяти, с которыми он работает,
 /// имеют одинаковый размер.
-/// Причём тот же размер передаётся как аргумент `size` в
-/// некоторые из его методов.
 /// Более того, этот размер и выравнивание блоков должны быть кратны [`MIN_SIZE`].
 #[derive(Debug)]
 pub(super) struct FixedSizeAllocator {
-    /// Список свободных блоков памяти.
-    free: Lifo,
+    /// [Битовая карта](https://en.wikipedia.org/wiki/Free-space_bitmap)
+    /// занятости блоков из [`field@FixedSizeAllocator::quarry`].
+    bitmap: DynamicBitmap,
 
     /// Статистика аллокатора.
     info: Info,
+
+    /// Хранилище для блоков памяти фиксированного размера.
+    quarry: Option<Quarry>,
 }
 
 impl FixedSizeAllocator {
     /// Создаёт аллокатор, выделяющий память блоками одинакового размера.
     pub(super) const fn new() -> Self {
         Self {
-            free: Lifo::new(),
+            bitmap: DynamicBitmap::new(),
             info: Info::new(),
+            quarry: None,
         }
     }
 
@@ -49,142 +63,150 @@ impl FixedSizeAllocator {
 
     /// Возвращает `true`, если у аллокатора больше нет свободных блоков.
     pub(super) fn is_empty(&self) -> bool {
-        self.free.is_empty()
+        self.bitmap.free() == 0
     }
 
-    /// Выделяет блок памяти из списка свободных.
+    /// Выделяет свободный блок памяти из [`field@FixedSizeAllocator::quarry`].
     /// Возвращает указатель на выделенный блок или
-    /// [`core::ptr::null_mut()`], если список свободных блоков пуст.
+    /// [`core::ptr::null_mut()`], если свободных блоков не осталось.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если:
+    ///   - [`FixedSizeAllocator`] не подходит для операции,
+    ///     которую описывает `layout`.
     pub(super) fn allocate(
         &mut self,
         layout: Layout,
-        size: usize,
     ) -> *mut u8 {
+        self.validate_layout(layout);
+
         // TODO: your code here.
         unimplemented!();
     }
 
-    /// Сохраняет в список свободных блок памяти по указателю `ptr`.
+    /// Освобождает выделенные ранее методом [`FixedSizeAllocator::allocate()`]
+    /// блок памяти, начинающийся по указателю `ptr`.
     ///
     /// # Safety
     ///
     /// Вызывающая сторона должна гарантировать
     /// [то же самое](https://doc.rust-lang.org/nightly/core/alloc/trait.Allocator.html#safety-1),
     /// что требуется при вызове [`core::alloc::Allocator::deallocate()`].
-    pub(super) unsafe fn deallocate(
-        &mut self,
-        ptr: *mut u8,
-        layout: Layout,
-        size: usize,
-    ) {
-        // TODO: your code here.
-        unimplemented!();
-    }
-
-    /// Возвращает [`Layout`] блока памяти,
-    /// который состоит из целого количества страниц [`Page`].
-    ///
-    /// В методе [`FixedSizeAllocator::stock_up()`] блок с этим `Layout`
-    /// будет нарезаться на подблоки размера `size`, которые выделяет этот аллокатор.
-    pub(super) fn get_pack_layout(size: usize) -> Layout {
-        // TODO: your code here.
-        unimplemented!();
-    }
-
-    /// Режет блок `pack` на подблоки размера `size`,
-    /// которые сохраняет себе для последующих аллокаций.
-    ///
-    /// # Safety
-    ///
-    /// Блок `pack` не должен пересекаться ни с какой другой памятью.
     ///
     /// # Panics
     ///
     /// Паникует, если:
-    ///   - `pack` не выровнен по границам страниц;
-    ///   - `size` не подходит под требования размера и выравнивания структуры [`Lifo`].
-    pub(super) unsafe fn stock_up(
+    ///   - Блок уже является свободным.
+    ///   - Блок не попадает в [`field@FixedSizeAllocator::quarry`].
+    ///   - [`FixedSizeAllocator`] не подходит для операции,
+    ///     которую описывает `layout`.
+    pub(super) unsafe fn deallocate(
         &mut self,
-        size: usize,
-        pack: Block<Virt>,
+        ptr: *mut u8,
+        layout: Layout,
     ) {
-        // TODO: your code here.
-        unimplemented!();
-    }
-}
+        assert!(!ptr.is_null());
+        self.validate_layout(layout);
 
-/// Список свободных блоков памяти.
-///
-/// Узел списка является этой же структурой.
-/// Фактически, узел задаёт подсписок от текущего узла до последнего.
-///
-/// На блоки памяти, сохраняемые в [`Lifo`] накладываются требования, см. метод [`Lifo::push()`]:
-///   - [`Lifo`] реализован интрузивно, поэтому сохраняемые блоки должны
-///     позволять хранить в их начале структуру [`Lifo`]. Для этого они должны иметь
-///     размер не меньше размера [`Lifo`] и выравнивание не меньше выравнивания [`Lifo`].
-///   - Сохраняемые блоки не должны пересекаться ни с какой другой памятью.
-///     В том числе, это требуется для того чтобы [`Lifo`] не имело разделяемого состояния,
-///     а значит могло быть помечено типажом [`Send`].
-///
-/// В названии используется аббревиатура LIFO
-/// ([Last In, First Out](https://en.wikipedia.org/wiki/Stack_(abstract_data_type))),
-/// а не `Stack`, чтобы не путать со стеком программы.
-#[derive(Clone, Copy, Debug)]
-struct Lifo {
-    /// Указатель на следующий свободный блок или [`None`].
-    next: Option<NonNull<Lifo>>,
-}
-
-impl Lifo {
-    /// Создаёт пустой список свободных блоков памяти.
-    const fn new() -> Self {
-        Self { next: None }
-    }
-
-    /// Возвращает `true`, если в списке больше нет свободных блоков.
-    fn is_empty(&self) -> bool {
-        self.next.is_none()
-    }
-
-    /// Выделяет блок памяти из списка свободных.
-    /// Возвращает адрес выделенного блока или
-    /// [`Virt::default()`], если список свободных блоков пуст.
-    fn pop(&mut self) -> Virt {
         // TODO: your code here.
         unimplemented!();
     }
 
-    /// Сохраняет в список свободных блок памяти с адресом `virt`.
+    /// Выделяет из `fallback` некоторое количество новых блоков размера `size`.
+    /// При необходимости, расширяет память под свои метаданные ---
+    /// [`FixedSizeAllocator::bitmap`].
     ///
-    /// # Safety
-    ///
-    /// - Сохраняемый блок должен позволять хранить в его начале структуру [`Lifo`].
-    ///   Для этого он должен иметь размер не меньше размера [`Lifo`] и
-    ///   выравнивание не меньше выравнивания [`Lifo`].
-    /// - Сохраняемый блок не должен пересекаться ни с какой другой памятью.
+    /// Возвращает количество физических фреймов,
+    /// которые пришлось выделить из `fallback` и под запрошенные блоки и под метаданные.
     ///
     /// # Panics
     ///
-    /// Паникует, если `virt` не является валидным адресом для хранения структуры [`Lifo`].
-    unsafe fn push(
+    /// Паникует, если:
+    ///   - `size` не подходит под требования размера [`FixedSizeAllocator`].
+    ///   - `size` не равен ранее передававшемуся в этот метод значению.
+    pub(super) fn stock_up(
         &mut self,
-        virt: Virt,
-    ) {
+        size: usize,
+        fallback: &impl BigAllocatorGuard,
+    ) -> Result<usize> {
+        assert_eq!(size % MIN_SIZE, 0);
+
         // TODO: your code here.
         unimplemented!();
     }
+
+    /// Освобождает как всю использованную [`FixedSizeAllocator`] физическую память,
+    /// так и всё использованное им адресное пространство.
+    /// Возвращает их в страничный аллокатор `fallback`.
+    /// Переводит [`FixedSizeAllocator::bitmap`] и [`field@FixedSizeAllocator::quarry`]
+    /// в неинициализированное состояние,
+    /// такое же как создаваемое методом [`FixedSizeAllocator::new()`].
+    /// Но накопленные статистики [`FixedSizeAllocator::info`] при этом не сбрасываются.
+    ///
+    /// Возвращает количество освобождённых физических фреймов.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если:
+    ///   - Не все блоки этого [`FixedSizeAllocator`] освобождены.
+    pub fn unmap(
+        &mut self,
+        fallback: &impl BigAllocatorGuard,
+    ) -> Result<usize> {
+        assert_eq!(self.info.allocations().balance(), 0);
+        assert_eq!(self.info.allocated().balance(), 0);
+        assert_eq!(self.info.requested().balance(), 0);
+
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    /// Возвращает хранилище блоков памяти фиксированного размера.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если:
+    ///   - [`field@FixedSizeAllocator::quarry`] ещё не инициализирован,
+    ///     то есть ещё не было сделано ни одной операции выделения или освобождения памяти.
+    fn quarry(&mut self) -> &mut Quarry {
+        self.quarry.as_mut().expect(Self::UNINITIALIZED_MESSAGE)
+    }
+
+    /// Проверяет, что [`FixedSizeAllocator`] для размера `size`
+    /// поддерживает выделение блоков памяти заданного `layout`.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если:
+    ///   - [`FixedSizeAllocator`] не подходит для операции,
+    ///     которую описывает `layout`.
+    fn validate_layout(
+        &self,
+        layout: Layout,
+    ) {
+        let size = self.quarry.as_ref().expect(Self::UNINITIALIZED_MESSAGE).size();
+        assert!(layout.size() <= size);
+        assert_eq!(size % layout.align(), 0);
+    }
+
+    /// Количество страниц в каждой из не отображённых в память защитных зон,
+    /// которыми битовая карта [`FixedSizeAllocator::bitmap`]
+    /// окружается в адресном пространстве с обоих сторон.
+    /// Это необходимо, чтобы защитить метаданные аллокатора от перезаписи неверным
+    /// использующим аллокатор кодом, обращающимся за пределы выданного ему блока памяти.
+    const BITMAP_GUARD_ZONE_PAGE_COUNT: usize = 1;
+
+    /// Сообщение для паник, когда [`FixedSizeAllocator`] ещё не инициализирован.
+    const UNINITIALIZED_MESSAGE: &str = "FixedSizeAllocator is not initialized";
 }
 
-/// Сохраняемые в [`Lifo`] блоки памяти не должны пересекаться ни с какой другой памятью.
-/// Поэтому [`Lifo`] не имеет разделяемого состояния.
-/// См. требования метода [`Lifo::push()`] и
-/// [The Rustonomicon, "Send and Sync"](https://doc.rust-lang.org/nomicon/send-and-sync.html).
-unsafe impl Send for Lifo {
+impl Drop for FixedSizeAllocator {
+    fn drop(&mut self) {
+        assert!(self.bitmap.is_empty());
+        assert!(self.quarry.is_none());
+    }
 }
 
 /// Минимальный размер и выравнивание для блоков памяти, которыми управляет [`FixedSizeAllocator`].
-pub(super) const MIN_SIZE: usize = if mem::size_of::<Lifo>() > mem::align_of::<Lifo>() {
-    mem::size_of::<Lifo>()
-} else {
-    mem::align_of::<Lifo>()
-};
+pub(super) const MIN_SIZE: usize = 4;

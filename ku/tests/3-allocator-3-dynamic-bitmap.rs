@@ -12,7 +12,7 @@ use ku::{
     },
 };
 
-use allocator::Big;
+use allocator::Fallback;
 
 mod allocator;
 mod log;
@@ -21,7 +21,7 @@ mod log;
 fn basic() {
     log::init();
 
-    let mut allocator = Big::new();
+    let allocator = Fallback::new();
     let mut bitmap = DynamicBitmap::new();
     let mut bitmap_frame_count = 0;
 
@@ -29,14 +29,14 @@ fn basic() {
     let max_page_count = 4;
     let max_len = max_page_count * elements_per_page;
 
-    bitmap.reserve(max_len, 1, &mut allocator).unwrap();
+    bitmap.reserve(max_len, 1, &allocator).unwrap();
 
     let is_free_on_map = |bit| bit % 37 != 0;
     let mut free_bits = 0;
     let gen_len = (0 ..= max_len).filter(|x| (x + 5) % elements_per_page < 10);
 
     for (prev_len, len) in gen_len.clone().zip(gen_len.skip(1)) {
-        bitmap_frame_count += bitmap.map(len, &mut allocator).unwrap();
+        bitmap_frame_count += bitmap.map(len, &allocator).unwrap();
         free_bits += len - prev_len;
         debug!(len, free_bits);
         assert_eq!(bitmap.free(), free_bits);
@@ -90,5 +90,5 @@ fn basic() {
         }
     }
 
-    assert_eq!(bitmap.unmap(&mut allocator).unwrap(), bitmap_frame_count);
+    assert_eq!(bitmap.unmap(&allocator).unwrap(), bitmap_frame_count);
 }

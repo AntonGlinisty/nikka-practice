@@ -136,7 +136,7 @@ fn continuous_ring_buffer() -> Result<()> {
 fn pipe_usage_example() -> Result<()> {
     let range = 0 .. 28;
 
-    let mut allocator = BigForPipe::new();
+    let mut allocator = BigForPipe::new(false);
 
     // ANCHOR: make
     let (mut read_buffer, mut write_buffer) = pipe::make(PIPE_FRAME_COUNT, &mut allocator)?;
@@ -435,7 +435,7 @@ fn pipe_usage_example() -> Result<()> {
 }
 
 fn tx_example() -> Result<()> {
-    let mut allocator = BigForPipe::new();
+    let mut allocator = BigForPipe::new(false);
 
     // ANCHOR: tx_example
     let (_, mut write_buffer) = pipe::make(PIPE_FRAME_COUNT, &mut allocator)?;

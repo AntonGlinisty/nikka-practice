@@ -11,6 +11,7 @@ use core::{
 use ku::{
     allocator::{
         BigAllocator,
+        BigAllocatorGuard,
         DryAllocator,
         Initialize,
     },
@@ -36,6 +37,7 @@ use crate::syscall;
 
 /// Аллокатор памяти общего назначения в пространстве пользователя, реализованный через
 /// системные вызовы [`syscall::map()`], [`syscall::unmap()`] и [`syscall::copy_mapping()`].
+#[derive(Clone)]
 pub(super) struct MapAllocator {
     /// Флаги доступа к выделяемой аллокатором памяти.
     flags: PageTableFlags,
@@ -131,6 +133,12 @@ unsafe impl BigAllocator for MapAllocator {
         flags: Option<PageTableFlags>,
     ) -> Result<()> {
         syscall::copy_mapping(Pid::Current, old_block, new_block, flags)
+    }
+}
+
+impl BigAllocatorGuard for MapAllocator {
+    fn get(&self) -> impl BigAllocator {
+        self.clone()
     }
 }
 

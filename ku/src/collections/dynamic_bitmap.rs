@@ -6,7 +6,10 @@ use derive_more::{
 };
 
 use crate::{
-    allocator::BigAllocator,
+    allocator::{
+        BigAllocator,
+        BigAllocatorGuard,
+    },
     error::{
         Error::{
             InvalidAlignment,
@@ -78,7 +81,7 @@ impl DynamicBitmap {
         &mut self,
         capacity: usize,
         guard_zone_page_count: usize,
-        allocator: &mut impl BigAllocator,
+        allocator: &impl BigAllocatorGuard,
     ) -> Result<()> {
         // TODO: your code here.
         unimplemented!();
@@ -102,7 +105,7 @@ impl DynamicBitmap {
     pub fn map(
         &mut self,
         new_len: usize,
-        allocator: &mut impl BigAllocator,
+        allocator: &impl BigAllocatorGuard,
     ) -> Result<usize> {
         // TODO: your code here.
         unimplemented!();
@@ -124,7 +127,7 @@ impl DynamicBitmap {
     ///     [`Bitmap::free()`] и [`Bitmap::len()`] различаются.
     pub fn unmap(
         &mut self,
-        allocator: &mut impl BigAllocator,
+        allocator: &impl BigAllocatorGuard,
     ) -> Result<usize> {
         assert_eq!(self.free(), self.len());
 

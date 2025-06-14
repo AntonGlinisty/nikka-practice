@@ -8,7 +8,6 @@ use std::{
     },
     cmp,
     mem,
-    sync::Arc,
     thread,
 };
 
@@ -27,6 +26,7 @@ use ku::{
     allocator::{
         DetailedInfo,
         Dispatcher,
+        Info,
     },
     log::{
         error,
@@ -48,29 +48,33 @@ mod log;
 fn single_threaded() {
     log::init();
 
-    let allocator = Dispatcher::new(Fallback);
+    static ALLOCATOR: Dispatcher<Fallback> = Dispatcher::new(Fallback::new());
 
-    let stats = stress(&allocator, SINGLE_THREADED_ITERATIONS, SEED);
+    let stats = stress(&ALLOCATOR, SINGLE_THREADED_ITERATIONS, SEED);
+
+    ALLOCATOR.unmap();
 
     let detailed_info: Spinlock<DetailedInfo> = Spinlock::new(DetailedInfo::new());
-    allocator.detailed_info(&mut detailed_info.lock());
+    ALLOCATOR.detailed_info(&mut detailed_info.lock());
 
     validate_info(stats, &detailed_info.lock());
+
+    ALLOCATOR.detailed_info(&mut detailed_info.lock());
+    validate_info(stats, &detailed_info.lock());
+    validate_info_empty(&detailed_info.lock());
 }
 
 #[test]
 fn multi_threaded() {
     log::init();
 
-    let allocator = Arc::new(Dispatcher::new(Fallback));
+    static ALLOCATOR: Dispatcher<Fallback> = Dispatcher::new(Fallback::new());
 
     let thread_count = thread::available_parallelism().unwrap().get();
 
     let threads: Vec<_> = (0 .. thread_count)
         .map(|thread| {
-            let allocator = allocator.clone();
-
-            thread::spawn(move || stress(&*allocator, MULTI_THREADED_ITERATIONS, SEED + thread))
+            thread::spawn(move || stress(&ALLOCATOR, MULTI_THREADED_ITERATIONS, SEED + thread))
         })
         .collect();
 
@@ -79,10 +83,16 @@ fn multi_threaded() {
         .map(|thread| thread.join().expect("threads should finish successfully"))
         .sum();
 
+    ALLOCATOR.unmap();
+
     let detailed_info: Spinlock<DetailedInfo> = Spinlock::new(DetailedInfo::new());
-    allocator.detailed_info(&mut detailed_info.lock());
+    ALLOCATOR.detailed_info(&mut detailed_info.lock());
 
     validate_info(stats, &detailed_info.lock());
+
+    ALLOCATOR.detailed_info(&mut detailed_info.lock());
+    validate_info(stats, &detailed_info.lock());
+    validate_info_empty(&detailed_info.lock());
 }
 
 fn validate_info(
@@ -103,6 +113,22 @@ fn validate_info(
     assert_eq!(total.requested().balance(), 0);
     assert_eq!(total.allocated().balance(), 0);
     assert!(total.pages().positive() > 0);
+}
+
+fn validate_info_empty(detailed_info: &DetailedInfo) {
+    validate_empty(detailed_info.total());
+    validate_empty(detailed_info.fallback());
+
+    for info in detailed_info.fixed_size().iter() {
+        validate_empty(info);
+    }
+
+    fn validate_empty(info: &Info) {
+        assert_eq!(info.allocations().balance(), 0);
+        assert_eq!(info.allocated().balance(), 0);
+        assert_eq!(info.requested().balance(), 0);
+        assert_eq!(info.pages().balance(), 0);
+    }
 }
 
 fn stress(
@@ -231,6 +257,8 @@ impl<'a> Allocation<'a> {
         layout: Layout,
         ptr: Virt,
     ) {
+        assert_ne!(ptr, Virt::default(), "increase slab size or count");
+
         let align_difference = ptr.into_usize() % layout.align();
         if align_difference != 0 {
             error!(?layout, %ptr, align_difference, "invalid alignment of allocated pointer");
