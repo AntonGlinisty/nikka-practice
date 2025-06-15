@@ -123,11 +123,24 @@ use super::{
 ///
 /// f(&mut spinlock);
 /// ```
+#[cfg(not(feature = "benchmark"))]
+pub use DebugSpinlock as Spinlock;
+#[cfg(feature = "benchmark")]
+pub use FastSpinlock as Spinlock;
+
+#[cfg(not(feature = "benchmark"))]
+pub use DebugSpinlockGuard as SpinlockGuard;
+#[cfg(feature = "benchmark")]
+pub use FastSpinlockGuard as SpinlockGuard;
+
+/// Реализация спин-блокировки с отладкой взаимоблокировок и сбором статистики.
+/// Подходит для отладки, но работает относительно медленно и
+/// поэтому не подходит для профилирования производительности.
 #[repr(align(128))]
-pub struct Spinlock<T, const PANIC_STRATEGY: PanicStrategy = { PanicStrategy::Halt }> {
+pub struct DebugSpinlock<T, const PANIC_STRATEGY: PanicStrategy = { PanicStrategy::Halt }> {
     /// Данные, защищаемые спин-блокировкой.
     // TODO: your code here.
-    data: spin::Mutex<T>, // TODO: remove before flight.
+    data: FastSpinlock<T>, // TODO: remove before flight.
     /// Место кода, в котором определена переменная спин-блокировки.
     /// Используется для отладочной печати.
     defined: &'static Location<'static>,
@@ -142,13 +155,13 @@ pub struct Spinlock<T, const PANIC_STRATEGY: PanicStrategy = { PanicStrategy::Ha
     stats: Stats,
 }
 
-impl<T, const PANIC_STRATEGY: PanicStrategy> Spinlock<T, PANIC_STRATEGY> {
+impl<T, const PANIC_STRATEGY: PanicStrategy> DebugSpinlock<T, PANIC_STRATEGY> {
     /// Создаёт новую спин-блокировку для защиты `data`.
     #[track_caller]
     pub const fn new(data: T) -> Self {
         Self {
             // TODO: your code here.
-            data: spin::Mutex::new(data), // TODO: remove before flight.
+            data: FastSpinlock::new(data), // TODO: remove before flight.
             defined: Location::caller(),
             locked: AtomicBool::new(false),
             owner: SequenceLock::new(Callsite::zero()),
@@ -159,14 +172,18 @@ impl<T, const PANIC_STRATEGY: PanicStrategy> Spinlock<T, PANIC_STRATEGY> {
     /// Захватывает спин-блокировку.
     /// При этом ожидает в активном цикле освобождения блокировки, если она уже захвачена.
     ///
-    /// Возвращает [`SpinlockGuard`], который:
-    ///   - Позволяет читать и писать в защищаемые [`Spinlock`] данные
+    /// Возвращает [`DebugSpinlockGuard`], который:
+    ///   - Позволяет читать и писать в защищаемые [`DebugSpinlock`] данные
     ///     с помощью типажей [`Deref`] и [`DerefMut`] соответственно.
     ///   - Автоматически освобождает блокировку в реализации типажа [`Drop`].
     #[track_caller]
-    pub fn lock(&self) -> SpinlockGuard<'_, T, PANIC_STRATEGY> {
+    pub fn lock(&self) -> DebugSpinlockGuard<'_, T, PANIC_STRATEGY> {
+        if panic::is_panicking() {
+            return self.panic_lock();
+        }
+
         // TODO: your code here.
-        SpinlockGuard { spinlock: self.data.lock() } // TODO: remove before flight.
+        DebugSpinlockGuard { spinlock: self.data.lock() } // TODO: remove before flight.
     }
 
     /// Пытается захватить спин-блокировку.
@@ -175,50 +192,60 @@ impl<T, const PANIC_STRATEGY: PanicStrategy> Spinlock<T, PANIC_STRATEGY> {
     /// Если спин-блокировка свободна и нет конкурирующих за неё потоков,
     /// гарантированно захватывает её.
     ///
-    /// При успехе возвращает [`SpinlockGuard`], который:
-    ///   - Позволяет читать и писать в защищаемые [`Spinlock`] данные
+    /// При успехе возвращает [`DebugSpinlockGuard`], который:
+    ///   - Позволяет читать и писать в защищаемые [`DebugSpinlock`] данные
     ///     с помощью типажей [`Deref`] и [`DerefMut`] соответственно.
     ///   - Автоматически освобождает блокировку в реализации типажа [`Drop`].
     #[track_caller]
-    pub fn try_lock(&self) -> Option<SpinlockGuard<'_, T, PANIC_STRATEGY>> {
+    pub fn try_lock(&self) -> Option<DebugSpinlockGuard<'_, T, PANIC_STRATEGY>> {
         // TODO: your code here.
-        Some(SpinlockGuard { spinlock: self.data.try_lock()? }) // TODO: remove before flight.
+        Some(DebugSpinlockGuard { spinlock: self.data.try_lock()? }) // TODO: remove before flight.
     }
 
     /// Пытается захватить спин-блокировку максимум `max_tries` раз.
     /// Если за это количество попыток блокировка не освободилась, возвращает [`None`].
     /// В случае успеха сохраняет `callsite` с метаданными нового владельца спин-блокировки.
     ///
-    /// При успехе возвращает [`SpinlockGuard`], который:
-    ///   - Позволяет читать и писать в защищаемые [`Spinlock`] данные
+    /// При успехе возвращает [`DebugSpinlockGuard`], который:
+    ///   - Позволяет читать и писать в защищаемые [`DebugSpinlock`] данные
     ///     с помощью типажей [`Deref`] и [`DerefMut`] соответственно.
     ///   - Автоматически освобождает блокировку в реализации типажа [`Drop`].
     fn try_lock_impl(
         &self,
         max_tries: usize,
         callsite: Callsite,
-    ) -> Option<SpinlockGuard<'_, T, PANIC_STRATEGY>> {
+    ) -> Option<DebugSpinlockGuard<'_, T, PANIC_STRATEGY>> {
         if panic::is_panicking() {
-            match PANIC_STRATEGY {
-                PanicStrategy::Halt => unsafe { crate::halt() },
-                // TODO: your code here.
-                PanicStrategy::KnockDown => loop { if let Some(guard) = self.data.try_lock() { return Some(SpinlockGuard { spinlock: guard }); } else { unsafe { self.data.force_unlock(); } } }, // TODO: remove before flight.
-            }
+            return Some(self.panic_lock());
         }
 
         // TODO: your code here.
         unimplemented!();
     }
 
-    /// Позволяет читать и писать в защищаемые [`Spinlock`] данные без блокирования в случае,
-    /// если вызывающий код эксклюзивно владеет [`Spinlock`] --- `&mut self`.
-    /// То есть, в случае когда конкурентного доступа к [`Spinlock`] быть не может.
+    /// Позволяет читать и писать в защищаемые [`DebugSpinlock`] данные без блокирования в случае,
+    /// если вызывающий код эксклюзивно владеет [`DebugSpinlock`] --- `&mut self`.
+    /// То есть, в случае когда конкурентного доступа к [`DebugSpinlock`] быть не может.
     pub fn get_mut(&mut self) -> &mut T {
         self.data.get_mut()
     }
+
+    /// В зависимости от параметра `PANIC_STRATEGY`:
+    ///   - [`PanicStrategy::Halt`] --- останавливает исполнение потока.
+    ///   - [`PanicStrategy::KnockDown`] --- принудительно захватывает спин-блокировку,
+    ///     даже если она уже захвачена.
+    fn panic_lock(&self) -> DebugSpinlockGuard<'_, T, PANIC_STRATEGY> {
+        match PANIC_STRATEGY {
+            PanicStrategy::Halt => unsafe { crate::halt() },
+            PanicStrategy::KnockDown => {
+                // TODO: your code here.
+                DebugSpinlockGuard { spinlock: self.data.lock() } // TODO: remove before flight.
+            },
+        }
+    }
 }
 
-impl<T: fmt::Debug> fmt::Debug for Spinlock<T> {
+impl<T: fmt::Debug> fmt::Debug for DebugSpinlock<T> {
     fn fmt(
         &self,
         formatter: &mut fmt::Formatter,
@@ -231,7 +258,7 @@ impl<T: fmt::Debug> fmt::Debug for Spinlock<T> {
     }
 }
 
-impl<T, const PANIC_STRATEGY: PanicStrategy> Drop for Spinlock<T, PANIC_STRATEGY> {
+impl<T, const PANIC_STRATEGY: PanicStrategy> Drop for DebugSpinlock<T, PANIC_STRATEGY> {
     fn drop(&mut self) {
         assert_eq!(
             self.stats.locks.load(Ordering::Relaxed),
@@ -241,32 +268,37 @@ impl<T, const PANIC_STRATEGY: PanicStrategy> Drop for Spinlock<T, PANIC_STRATEGY
     }
 }
 
-impl<T, const PANIC_STRATEGY: PanicStrategy> From<T> for Spinlock<T, PANIC_STRATEGY> {
+impl<T, const PANIC_STRATEGY: PanicStrategy> From<T> for DebugSpinlock<T, PANIC_STRATEGY> {
     fn from(value: T) -> Self {
-        Spinlock::new(value)
+        Self::new(value)
     }
 }
 
 /// См. [The Rustonomicon, "Send and Sync"](https://doc.rust-lang.org/nomicon/send-and-sync.html).
-unsafe impl<T: Send, const PANIC_STRATEGY: PanicStrategy> Send for Spinlock<T, PANIC_STRATEGY> {
+unsafe impl<T: Send, const PANIC_STRATEGY: PanicStrategy> Send
+    for DebugSpinlock<T, PANIC_STRATEGY>
+{
 }
 
 /// См. [The Rustonomicon, "Send and Sync"](https://doc.rust-lang.org/nomicon/send-and-sync.html).
-unsafe impl<T: Send, const PANIC_STRATEGY: PanicStrategy> Sync for Spinlock<T, PANIC_STRATEGY> {
+unsafe impl<T: Send, const PANIC_STRATEGY: PanicStrategy> Sync
+    for DebugSpinlock<T, PANIC_STRATEGY>
+{
 }
 
-/// Захваченный на запись [`Spinlock`].
+/// Захваченный на запись [`DebugSpinlock`].
 ///
-/// - Позволяет читать и писать в защищаемые [`Spinlock`] данные
+/// - Позволяет читать и писать в защищаемые [`DebugSpinlock`] данные
 ///   с помощью типажей [`Deref`] и [`DerefMut`] соответственно.
 /// - Автоматически освобождает блокировку в реализации типажа [`Drop`].
-pub struct SpinlockGuard<'a, T, const PANIC_STRATEGY: PanicStrategy = { PanicStrategy::Halt }> {
-    /// Захваченный на запись [`Spinlock`].
+pub struct DebugSpinlockGuard<'a, T, const PANIC_STRATEGY: PanicStrategy = { PanicStrategy::Halt }>
+{
+    /// Захваченный на запись [`DebugSpinlock`].
     // TODO: your code here.
-    spinlock: spin::MutexGuard<'a, T>, // TODO: remove before flight.
+    spinlock: FastSpinlockGuard<'a, T, PANIC_STRATEGY>, // TODO: remove before flight.
 }
 
-impl<T, const PANIC_STRATEGY: PanicStrategy> Deref for SpinlockGuard<'_, T, PANIC_STRATEGY> {
+impl<T, const PANIC_STRATEGY: PanicStrategy> Deref for DebugSpinlockGuard<'_, T, PANIC_STRATEGY> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -275,20 +307,23 @@ impl<T, const PANIC_STRATEGY: PanicStrategy> Deref for SpinlockGuard<'_, T, PANI
     }
 }
 
-impl<T, const PANIC_STRATEGY: PanicStrategy> DerefMut for SpinlockGuard<'_, T, PANIC_STRATEGY> {
+impl<T, const PANIC_STRATEGY: PanicStrategy> DerefMut
+    for DebugSpinlockGuard<'_, T, PANIC_STRATEGY>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         // TODO: your code here.
         self.spinlock.deref_mut() // TODO: remove before flight.
     }
 }
 
-impl<T, const PANIC_STRATEGY: PanicStrategy> Drop for SpinlockGuard<'_, T, PANIC_STRATEGY> {
+impl<T, const PANIC_STRATEGY: PanicStrategy> Drop for DebugSpinlockGuard<'_, T, PANIC_STRATEGY> {
     fn drop(&mut self) {
         // TODO: your code here.
     }
 }
 
-impl<T, const PANIC_STRATEGY: PanicStrategy> fmt::Debug for SpinlockGuard<'_, T, PANIC_STRATEGY>
+impl<T, const PANIC_STRATEGY: PanicStrategy> fmt::Debug
+    for DebugSpinlockGuard<'_, T, PANIC_STRATEGY>
 where
     T: fmt::Debug,
 {
@@ -300,7 +335,152 @@ where
     }
 }
 
-impl<T, const PANIC_STRATEGY: PanicStrategy> fmt::Display for SpinlockGuard<'_, T, PANIC_STRATEGY>
+impl<T, const PANIC_STRATEGY: PanicStrategy> fmt::Display
+    for DebugSpinlockGuard<'_, T, PANIC_STRATEGY>
+where
+    T: fmt::Display,
+{
+    fn fmt(
+        &self,
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
+        write!(formatter, "{}", self.deref())
+    }
+}
+
+/// Быстрая реализация спин-блокировки без дополнительных возможностей.
+/// Подходит для профилирования производительности.
+#[repr(align(128))]
+pub struct FastSpinlock<T, const PANIC_STRATEGY: PanicStrategy = { PanicStrategy::Halt }> {
+    /// Данные, защищаемые спин-блокировкой.
+    data: spin::Mutex<T>,
+}
+
+impl<T, const PANIC_STRATEGY: PanicStrategy> FastSpinlock<T, PANIC_STRATEGY> {
+    /// Создаёт новую спин-блокировку для защиты `data`.
+    pub const fn new(data: T) -> Self {
+        Self {
+            data: spin::Mutex::new(data),
+        }
+    }
+
+    /// Захватывает спин-блокировку.
+    /// При этом ожидает в активном цикле освобождения блокировки, если она уже захвачена.
+    ///
+    /// Возвращает [`FastSpinlockGuard`], который:
+    ///   - Позволяет читать и писать в защищаемые [`FastSpinlock`] данные
+    ///     с помощью типажей [`Deref`] и [`DerefMut`] соответственно.
+    ///   - Автоматически освобождает блокировку в реализации типажа [`Drop`].
+    pub fn lock(&self) -> FastSpinlockGuard<'_, T, PANIC_STRATEGY> {
+        if panic::is_panicking() {
+            return self.panic_lock();
+        }
+
+        FastSpinlockGuard {
+            spinlock: self.data.lock(),
+        }
+    }
+
+    /// Пытается захватить спин-блокировку.
+    /// Если она уже захвачена, возвращает [`None`].
+    ///
+    /// Если спин-блокировка свободна и нет конкурирующих за неё потоков,
+    /// гарантированно захватывает её.
+    ///
+    /// При успехе возвращает [`FastSpinlockGuard`], который:
+    ///   - Позволяет читать и писать в защищаемые [`FastSpinlock`] данные
+    ///     с помощью типажей [`Deref`] и [`DerefMut`] соответственно.
+    ///   - Автоматически освобождает блокировку в реализации типажа [`Drop`].
+    pub fn try_lock(&self) -> Option<FastSpinlockGuard<'_, T, PANIC_STRATEGY>> {
+        if panic::is_panicking() {
+            return Some(self.panic_lock());
+        }
+
+        Some(FastSpinlockGuard {
+            spinlock: self.data.try_lock()?,
+        })
+    }
+
+    /// Позволяет читать и писать в защищаемые [`FastSpinlock`] данные без блокирования в случае,
+    /// если вызывающий код эксклюзивно владеет [`FastSpinlock`] --- `&mut self`.
+    /// То есть, в случае когда конкурентного доступа к [`FastSpinlock`] быть не может.
+    pub fn get_mut(&mut self) -> &mut T {
+        self.data.get_mut()
+    }
+
+    /// В зависимости от параметра `PANIC_STRATEGY`:
+    ///   - [`PanicStrategy::Halt`] --- останавливает исполнение потока.
+    ///   - [`PanicStrategy::KnockDown`] --- принудительно захватывает спин-блокировку,
+    ///     даже если она уже захвачена.
+    fn panic_lock(&self) -> FastSpinlockGuard<'_, T, PANIC_STRATEGY> {
+        match PANIC_STRATEGY {
+            PanicStrategy::Halt => unsafe { crate::halt() },
+            PanicStrategy::KnockDown => loop {
+                if let Some(guard) = self.data.try_lock() {
+                    return FastSpinlockGuard { spinlock: guard };
+                }
+
+                unsafe {
+                    self.data.force_unlock();
+                }
+            },
+        }
+    }
+}
+
+impl<T: fmt::Debug> fmt::Debug for FastSpinlock<T> {
+    fn fmt(
+        &self,
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
+        write!(formatter, "{:?}", self.data)
+    }
+}
+
+impl<T, const PANIC_STRATEGY: PanicStrategy> From<T> for FastSpinlock<T, PANIC_STRATEGY> {
+    fn from(value: T) -> Self {
+        Self::new(value)
+    }
+}
+
+/// Захваченный на запись [`FastSpinlock`].
+///
+/// - Позволяет читать и писать в защищаемые [`FastSpinlock`] данные
+///   с помощью типажей [`Deref`] и [`DerefMut`] соответственно.
+/// - Автоматически освобождает блокировку в реализации типажа [`Drop`].
+pub struct FastSpinlockGuard<'a, T, const PANIC_STRATEGY: PanicStrategy = { PanicStrategy::Halt }> {
+    /// Захваченный на запись [`FastSpinlock`].
+    spinlock: spin::MutexGuard<'a, T>,
+}
+
+impl<T, const PANIC_STRATEGY: PanicStrategy> Deref for FastSpinlockGuard<'_, T, PANIC_STRATEGY> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.spinlock.deref()
+    }
+}
+
+impl<T, const PANIC_STRATEGY: PanicStrategy> DerefMut for FastSpinlockGuard<'_, T, PANIC_STRATEGY> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.spinlock.deref_mut()
+    }
+}
+
+impl<T, const PANIC_STRATEGY: PanicStrategy> fmt::Debug for FastSpinlockGuard<'_, T, PANIC_STRATEGY>
+where
+    T: fmt::Debug,
+{
+    fn fmt(
+        &self,
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
+        write!(formatter, "{:?}", self.deref())
+    }
+}
+
+impl<T, const PANIC_STRATEGY: PanicStrategy> fmt::Display
+    for FastSpinlockGuard<'_, T, PANIC_STRATEGY>
 where
     T: fmt::Display,
 {

@@ -121,7 +121,7 @@
 Структура
 [`SequenceLockGuard`](../../doc/ku/sync/sequence_lock/struct.SequenceLockGuard.html)
 по своему назначению и реализации похожа на структуру
-[`SpinlockGuard`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html).
+[`SpinlockGuard`](../../doc/ku/sync/spinlock/struct.DebugSpinlockGuard.html).
 Посмотрите про неё
 [в предыдущей задаче](../../lab/book/5-sync-2-spinlock.html#%D0%A1%D1%82%D1%80%D1%83%D0%BA%D1%82%D1%83%D1%80%D0%B0-spinlockguard),
 даже если не решали её.
@@ -140,9 +140,9 @@ fn SequenceLock::write_lock(&self) -> SequenceLockGuard<'_, T>
 
 Он должен захватить блокировку на запись.
 И похож на методы
-[`Spinlock::lock()`](../../doc/ku/sync/spinlock/struct.Spinlock.html#method.lock)
+[`Spinlock::lock()`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#method.lock)
 и
-[`Spinlock::try_lock_impl()`](../../doc/ku/sync/spinlock/struct.Spinlock.html#method.try_lock_impl)
+[`Spinlock::try_lock_impl()`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#method.try_lock_impl)
 из
 [предыдущей задачи](../../lab/book/5-sync-2-spinlock.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-2--%D1%80%D0%B5%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-spinlock).
 
@@ -161,10 +161,10 @@ unsafe fn SequenceLock::write(&self) -> SequenceLockGuard<'_, T>
 Это возможно в случае, когда писатель только один.
 Или в случае, когда писатели синхронизируются между собой другим примитивом синхронизации.
 При сохранении в
-[`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html)
+[`Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html)
 информации о захватившем его месте в коде, у нас как раз реализуется второй вариант ---
 писатели уже синхронизированы через сам этот
-[`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html).
+[`Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html).
 Итак, конкурирующих писателей нет, а читателей писатели в любом случае не ждут.
 Значит, в этом методе не нужен цикл активного ожидания.
 А сам метод проще чем
@@ -272,13 +272,13 @@ fn SequenceLockGuard::drop(&mut self)
 - Метод [`SequenceLock::is_locked(sequence: u64)`](../../doc/ku/sync/sequence_lock/struct.SequenceLock.html#method.is_locked). Он возвращает `true`, если значение `sequence` означает, что захвачена блокировка на запись.
 
 
-### Доработайте [`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html)
+### Доработайте [`Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html)
 
 Если вы решали предыдущую задачу, то остаётся только доработать её с помощью
 [`SequenceLock`](../../doc/ku/sync/sequence_lock/struct.SequenceLock.html).
 
 В
-[методе](../../doc/ku/sync/spinlock/struct.Spinlock.html#method.try_lock_impl)
+[методе](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#method.try_lock_impl)
 
 ```rust
 fn Spinlock::try_lock_impl(
@@ -290,17 +290,17 @@ fn Spinlock::try_lock_impl(
 
 в файле [`ku/src/sync/spinlock.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/sync/spinlock.rs)
 сохраните аргумент `callsite` в поле
-[`Spinlock::owner`](../../doc/ku/sync/spinlock/struct.Spinlock.html#structfield.owner),
+[`Spinlock::owner`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#structfield.owner),
 если
-[`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html)
+[`Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html)
 удалось захватить.
 Так как это единственное место, где оно будет записываться, и оно уже синхронизировано самим
-[`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html),
+[`Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html),
 будет достаточно метода
 [`SequenceLock::write()`](../../doc/ku/sync/sequence_lock/struct.SequenceLock.html#method.write).
 
 А в
-[методе](../../doc/ku/sync/spinlock/struct.Spinlock.html#method.lock)
+[методе](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#method.lock)
 
 ```rust
 fn Spinlock::lock(&self) -> SpinlockGuard<'_, T>
@@ -309,14 +309,14 @@ fn Spinlock::lock(&self) -> SpinlockGuard<'_, T>
 в файле
 [`ku/src/sync/spinlock.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/sync/spinlock.rs)
 добавьте в сообщение паники данные о владельце
-[`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html),
+[`Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html),
 прочитав их из поля
-[`Spinlock::owner`](../../doc/ku/sync/spinlock/struct.Spinlock.html#structfield.owner).
+[`Spinlock::owner`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#structfield.owner).
 Для удобства также стоит добавить информацию о строке кода, где была определена переменная типа
-[`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html),
+[`Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html),
 на которой возникла взаимоблокировка.
 И о строке кода, которая пытаясь захватить это
-[`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html),
+[`Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html),
 создала взаимоблокировку, вместе с ведущим к ней backtrace.
 Теперь тесты ожидают, что в сообщении паники об обнаружении взаимоблокировки присутствуют
 ссылки на эти строки кода, а также подстрока `"deadlock"`.
@@ -324,7 +324,7 @@ fn Spinlock::lock(&self) -> SpinlockGuard<'_, T>
 Аналогично доработайте реализацию типажа
 [`core::fmt::Debug`](https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html)
 для
-[`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html)
+[`Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html)
 в файле
 [`ku/src/sync/spinlock.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/sync/spinlock.rs).
 Если спин-блокировка захвачена, --- распечатайте кто ей сейчас владеет.

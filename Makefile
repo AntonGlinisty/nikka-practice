@@ -124,6 +124,7 @@ test: install
 		for test in 1-time-2-once-lock 1-time-5-correlation-point; do \
 			MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test $$test; \
 		done; \
+		cargo test --profile benchmark --test 3-allocator-5-small-memory-allocator --features benchmark -- --test-threads=1; \
 		cd - >/dev/null; \
 		cd sem/rwlock; \
 		MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test -- --nocapture --test-threads=1; \

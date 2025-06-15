@@ -191,7 +191,9 @@ unsafe impl BigAllocator for Big {
         unsafe {
             self.last = self.mmap_accounted(block, prot_flags);
 
-            self.last.try_into_mut_slice().unwrap().fill(Self::GARBAGE);
+            if !cfg!(feature = "benchmark") {
+                self.last.try_into_mut_slice().unwrap().fill(Self::GARBAGE);
+            }
         }
 
         Ok(())

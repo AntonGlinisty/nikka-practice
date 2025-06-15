@@ -142,7 +142,7 @@ fn CorrelationInterval::datetime_with_resolution<const PARTS_PER_SECOND: i64>(
 Бесконечной рекурсии не происходит из-за дополнительной блокировки в журналировании --- поле
 [`kernel::log::LogCollector::log`](../../doc/kernel/log/struct.LogCollector.html#structfield.log)
 имеет тип
-[`ku::sync::Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html)`<`[`kernel::log::Log`](../../doc/kernel/log/struct.Log.html)`>`.
+[`ku::sync::Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html)`<`[`kernel::log::Log`](../../doc/kernel/log/struct.Log.html)`>`.
 Основное предназначение этой блокировки ---
 предотвратить перемешивание кусков сообщений от разных процессоров в системе.
 
@@ -387,7 +387,7 @@ static LOG_COLLECTOR: LogCollector = LogCollector::new(Format::Timeless, Level::
 ```
 
 Также иногда можно убирать
-[`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html):
+[`Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html):
 из поля
 [`kernel::log::LogCollector::log`](../../doc/kernel/log/struct.LogCollector.html#structfield.log).
 Если на нём возникает [взаимоблокировка](https://en.wikipedia.org/wiki/Deadlock),

@@ -159,7 +159,7 @@ fn Table::get(pid: Pid) -> Result<SpinlockGuard<'static, Process>>
 ```
 
 Он возвращает захваченную спин-блокировку
-[`ku::sync::SpinlockGuard`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html)
+[`ku::sync::SpinlockGuard`](../../doc/ku/sync/spinlock/struct.DebugSpinlockGuard.html)
 со структурой
 [`kernel::process::process::Process`](../../doc/kernel/process/process/struct.Process.html),
 соответствующей идентификатору `pid`.
@@ -194,9 +194,9 @@ unsafe fn forge_static_lifetime<T>(x: &T) -> &'static T
 ```
 
 Естественно, чтобы вернуть
-[`SpinlockGuard`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html),
+[`SpinlockGuard`](../../doc/ku/sync/spinlock/struct.DebugSpinlockGuard.html),
 нужно заблокировать процесс в слоте методом
-[`Spinlock::lock()`](../../doc/ku/sync/spinlock/struct.Spinlock.html#method.lock).
+[`Spinlock::lock()`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#method.lock).
 Спин-блокировка же самой
 [`TABLE`](../../doc/kernel/process/table/struct.TABLE.html)
 будет автоматически разблокирована аналогичным гардом при выходе из функции.

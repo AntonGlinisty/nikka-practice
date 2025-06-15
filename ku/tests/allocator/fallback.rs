@@ -28,7 +28,11 @@ use ku::{
     },
 };
 
+#[cfg(not(feature = "benchmark"))]
 use super::Big;
+
+#[cfg(feature = "benchmark")]
+use super::CachingBig as Big;
 
 pub struct Fallback {
     big: Spinlock<Big>,
@@ -38,7 +42,10 @@ impl Fallback {
     #[allow(unused)]
     pub const fn new() -> Self {
         Self {
+            #[cfg(not(feature = "benchmark"))]
             big: Spinlock::new(Big::new(false)),
+            #[cfg(feature = "benchmark")]
+            big: Spinlock::new(Big::new()),
         }
     }
 }

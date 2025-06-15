@@ -6,6 +6,7 @@ use core::{
     },
     cmp,
     fmt,
+    intrinsics,
     ptr::{
         self,
         NonNull,
@@ -23,6 +24,7 @@ use super::{
     fixed_size::{
         FixedSizeAllocator,
         MIN_SIZE,
+        MaxPrimitiveType,
     },
     info::{
         AtomicInfo,
@@ -147,6 +149,24 @@ impl<T: Allocator + BigAllocatorGuard> Dispatcher<T> {
         index: usize,
         layout: Layout,
     ) -> *mut u8 {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    /// Освобождает блок памяти с помощью аллокатора
+    /// по индексу `index` в массиве [`Dispatcher::fixed_size`].
+    ///
+    /// # Safety
+    ///
+    /// - `ptr` должен быть ранее выделен через [`Dispatcher::fixed_size_allocate()`]
+    ///   с теми же `index` и `layout`.
+    /// - Память, описываемая `ptr` и `layout` больше не должна использоваться.
+    unsafe fn fixed_size_deallocate(
+        &self,
+        index: usize,
+        ptr: *mut u8,
+        layout: Layout,
+    ) {
         // TODO: your code here.
         unimplemented!();
     }

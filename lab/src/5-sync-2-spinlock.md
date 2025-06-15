@@ -1,12 +1,12 @@
 ## Спин-блокировка
 
 
-### Структура [`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html)
+### Структура [`Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html)
 
 В файле
 [`ku/src/sync/spinlock.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/sync/spinlock.rs)
 определена структура
-[`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html):
+[`Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html):
 
 ```rust
 pub struct Spinlock<T, const PANIC_STRATEGY> {
@@ -20,7 +20,7 @@ pub struct Spinlock<T, const PANIC_STRATEGY> {
 
 Она параметризована произвольным типом `T`, который мы хотим защитить спин-блокировкой.
 Чтобы получить доступ к значению этого типа, имея переменную типа
-[`Spinlock<T>`](../../doc/ku/sync/spinlock/struct.Spinlock.html),
+[`Spinlock<T>`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html),
 код должен будет захватить спин-блокировку и только после этого
 сможет обратиться с содержащемуся внутри полю с защищаемыми данными типа `T`.
 Без явного захвата блокировки обратиться с защищаемому полю не получится ---
@@ -54,12 +54,12 @@ pub struct Spinlock<T, const PANIC_STRATEGY> {
 [`ku::sync::panic::is_panicking()`](../../doc/ku/sync/panic/fn.is_panicking.html).
 
 Поле
-[`Spinlock::data`](../../doc/ku/sync/spinlock/struct.Spinlock.html#structfield.data)
+[`Spinlock::data`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#structfield.data)
 хранит защищаемые данные.
 До выполнения этой задачи они обёрнуты в
 [`spin::mutex::Mutex`](../../doc/spin/mutex/struct.Mutex.html),
 а
-[`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html)
+[`Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html)
 просто перекладывает всю свою работу на него.
 Для выполнения задачи нужно будет заменить
 [`spin::mutex::Mutex`](../../doc/spin/mutex/struct.Mutex.html)
@@ -75,24 +75,24 @@ data: UnsafeCell<T>,
 обеспечивает только хранение данных типа `T`,
 но не взаимное исключения при доступе к этим данным.
 Им в свою очередь займётся
-[`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html).
+[`Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html).
 
 Поле
-[`Spinlock::locked`](../../doc/ku/sync/spinlock/struct.Spinlock.html#structfield.locked)
+[`Spinlock::locked`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#structfield.locked)
 определяет текущее состояние спин-блокировки.
 Если оно равно `true`, то блокировка захвачена.
 
 Остальные поля
-[`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html)
+[`Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html)
 служат только для отладки.
 
 - Поле
-[`Spinlock::defined`](../../doc/ku/sync/spinlock/struct.Spinlock.html#structfield.defined)
+[`Spinlock::defined`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#structfield.defined)
 содержит ссылку на строку кода, в которой была определена переменная типа
-[`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html).
+[`Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html).
 
 - Поле
-[`Spinlock::owner`](../../doc/ku/sync/spinlock/struct.Spinlock.html#structfield.owner)
+[`Spinlock::owner`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#structfield.owner)
 содержит информацию о месте кода, который последним успешно захватил спин-блокировку.
 А именно, строку кода и ведущий к ней
 [backtrace](../../lab/book/0-intro-5-gdb.html#%D0%91%D0%B5%D0%BA%D1%82%D1%80%D0%B5%D0%B9%D1%81).
@@ -102,25 +102,25 @@ data: UnsafeCell<T>,
 А в этой задаче менять его не будем.
 
 - Поле
-[`Spinlock::stats`](../../doc/ku/sync/spinlock/struct.Spinlock.html#structfield.stats)
+[`Spinlock::stats`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#structfield.stats)
 содержит статистики захвата блокировки
-[`ku::sync::spinlock::Stats`](../../doc/ku/sync/spinlock/struct.Spinlock.html).
+[`ku::sync::spinlock::Stats`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html).
 Иметь их приятно, но не обязательно. Поэтому тесты их не проверяют.
 
 
-### Структура [`SpinlockGuard`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html)
+### Структура [`SpinlockGuard`](../../doc/ku/sync/spinlock/struct.DebugSpinlockGuard.html)
 
 Структура
-[`SpinlockGuard<'a, T, PANIC_STRATEGY>`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html)
+[`SpinlockGuard<'a, T, PANIC_STRATEGY>`](../../doc/ku/sync/spinlock/struct.DebugSpinlockGuard.html)
 параметризована защищаемым типом данных `T` и временем жизни `'a`
 структуры
-[`Spinlock<T, PANIC_STRATEGY>`](../../doc/ku/sync/spinlock/struct.Spinlock.html),
+[`Spinlock<T, PANIC_STRATEGY>`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html),
 к которой она привязана.
 
 В файле
 [`ku/src/sync/spinlock.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/sync/spinlock.rs)
 после выполнения задачи её определение должно содержать ссылку на исходный
-[`Spinlock<T, PANIC_STRATEGY>`](../../doc/ku/sync/spinlock/struct.Spinlock.html):
+[`Spinlock<T, PANIC_STRATEGY>`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html):
 
 ```rust
 pub struct SpinlockGuard<'a, T, const PANIC_STRATEGY> {
@@ -129,44 +129,44 @@ pub struct SpinlockGuard<'a, T, const PANIC_STRATEGY> {
 ```
 
 Основной инвариант для
-[`SpinlockGuard`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html)
+[`SpinlockGuard`](../../doc/ku/sync/spinlock/struct.DebugSpinlockGuard.html)
 такой: её собственное время жизни совпадает со временем удержания блокировки
-[`SpinlockGuard::spinlock`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html#structfield.spinlock).
+[`SpinlockGuard::spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlockGuard.html#structfield.spinlock).
 Поэтому создаётся она в методе
-[`Spinlock::try_lock_impl()`](../../doc/ku/sync/spinlock/struct.Spinlock.html#method.try_lock_impl),
+[`Spinlock::try_lock_impl()`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#method.try_lock_impl),
 который захватывает блокировку.
 А при уничтожении
-[`SpinlockGuard`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html)
+[`SpinlockGuard`](../../doc/ku/sync/spinlock/struct.DebugSpinlockGuard.html)
 в её реализации типажа
 [`core::ops::Drop`](https://doc.rust-lang.org/nightly/core/ops/trait.Drop.html),
 то есть в методе
-[`SpinlockGuard::drop()`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html#method.drop),
+[`SpinlockGuard::drop()`](../../doc/ku/sync/spinlock/struct.DebugSpinlockGuard.html#method.drop),
 блокировка соответствующего
-[`SpinlockGuard::spinlock`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html#structfield.spinlock)
+[`SpinlockGuard::spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlockGuard.html#structfield.spinlock)
 отпускается.
 Это воплощение идиомы
 [получение ресурса есть инициализация](https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization)
 (Resource Acquisition Is Initialization, RAII).
 А метод
-[`SpinlockGuard::drop()`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html#method.drop)
+[`SpinlockGuard::drop()`](../../doc/ku/sync/spinlock/struct.DebugSpinlockGuard.html#method.drop)
 выполняет роль деструктора.
 
 
-### Задача 3 --- реализация [`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html)
+### Задача 3 --- реализация [`Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html)
 
-Изучите [примеры использования `Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html#examples).
+Изучите [примеры использования `Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#examples).
 
 Поправьте тип поля
-[`Spinlock::data`](../../doc/ku/sync/spinlock/struct.Spinlock.html#structfield.data)
+[`Spinlock::data`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#structfield.data)
 на
 [`UnsafeCell<T>`](https://doc.rust-lang.org/nightly/core/cell/struct.UnsafeCell.html)
 в определении структуры
-[`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html)
+[`Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html)
 и в методе её создания
-[`Spinlock::new()`](../../doc/ku/sync/spinlock/struct.Spinlock.html#method.new).
+[`Spinlock::new()`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#method.new).
 
 Реализуйте приватный
-[метод](../../doc/ku/sync/spinlock/struct.Spinlock.html#method.try_lock_impl)
+[метод](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#method.try_lock_impl)
 
 ```rust
 fn Spinlock::try_lock_impl(
@@ -183,15 +183,15 @@ fn Spinlock::try_lock_impl(
 возвращает
 [`core::option::Option::None`](https://doc.rust-lang.org/nightly/core/option/enum.Option.html#variant.None).
 Если же захватить блокировку получилось, то
-[`Spinlock::try_lock_impl()`](../../doc/ku/sync/spinlock/struct.Spinlock.html#method.try_lock_impl)
+[`Spinlock::try_lock_impl()`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#method.try_lock_impl)
 возвращает
 [`core::option::Option::Some`](https://doc.rust-lang.org/nightly/core/option/enum.Option.html#variant.Some),
 внутри которого находится гард
-[`SpinlockGuard`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html).
+[`SpinlockGuard`](../../doc/ku/sync/spinlock/struct.DebugSpinlockGuard.html).
 
 При попытке захвата спин-блокировки потребуется атомарно проверить что она свободна,
 то есть поле
-[`Spinlock::locked`](../../doc/ku/sync/spinlock/struct.Spinlock.html#structfield.locked)
+[`Spinlock::locked`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#structfield.locked)
 содержит `false` и одновременно поменять этот `false` на `true`.
 Сделать это поможет
 
@@ -209,16 +209,16 @@ fn Spinlock::try_lock_impl(
 Использовать аргумент `callsite` пока что не требуется.
 
 Далее, с помощью реализованного метода
-[`Spinlock::try_lock_impl()`](../../doc/ku/sync/spinlock/struct.Spinlock.html#method.try_lock_impl),
+[`Spinlock::try_lock_impl()`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#method.try_lock_impl),
 реализуйте публичный
-[метод](../../doc/ku/sync/spinlock/struct.Spinlock.html#method.try_lock)
+[метод](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#method.try_lock)
 
 ```rust
 fn Spinlock::try_lock(&self) -> Option<SpinlockGuard<'_, T, PANIC_STRATEGY>>
 ```
 
 и публичный
-[метод](../../doc/ku/sync/spinlock/struct.Spinlock.html#method.lock)
+[метод](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#method.lock)
 
 ```rust
 fn Spinlock::lock(&self) -> SpinlockGuard<'_, T, PANIC_STRATEGY>
@@ -235,26 +235,26 @@ let callsite = Callsite::new(Location::caller());
 
 с информацией о месте вызова, где блокировка захватывается.
 Кроме того, метод
-[`Spinlock::lock()`](../../doc/ku/sync/spinlock/struct.Spinlock.html#method.lock)
+[`Spinlock::lock()`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#method.lock)
 должен запаниковать, если спин-блокировку захватить не удалось.
 Для этого подойдёт макрос
 [`core::panic!()`](https://doc.rust-lang.org/nightly/core/macro.panic.html).
 В сообщение паники вставьте информацию о месте определения блокировки --- поле
-[`Spinlock::defined`](../../doc/ku/sync/spinlock/struct.Spinlock.html#structfield.defined).
+[`Spinlock::defined`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#structfield.defined).
 А также место неуспешного захвата блокировки --- `callsite`.
 Нужно будет ещё добавить информацию о месте, откуда спин-блокировка была захвачена
 в последний раз, но это отложим до реализации следующей задачи.
 
 Поправьте тип поля
-[`SpinlockGuard::spinlock`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html#structfield.spinlock)
+[`SpinlockGuard::spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlockGuard.html#structfield.spinlock)
 на
-[`&'a Spinlock<T, PANIC_STRATEGY>`](../../doc/ku/sync/spinlock/struct.Spinlock.html)
+[`&'a Spinlock<T, PANIC_STRATEGY>`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html)
 в определении структуры
-[`SpinlockGuard`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html).
+[`SpinlockGuard`](../../doc/ku/sync/spinlock/struct.DebugSpinlockGuard.html).
 А в методах
-[`SpinlockGuard::deref()`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html#method.deref)
+[`SpinlockGuard::deref()`](../../doc/ku/sync/spinlock/struct.DebugSpinlockGuard.html#method.deref)
 и
-[`SpinlockGuard::deref_mut()`](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html#method.deref_mut)
+[`SpinlockGuard::deref_mut()`](../../doc/ku/sync/spinlock/struct.DebugSpinlockGuard.html#method.deref_mut)
 замените `self.spinlock.deref()` и `self.spinlock.deref_mut()`
 на
 
@@ -270,7 +270,7 @@ unsafe { &mut *self.spinlock.data.get() }
 
 соответственно.
 Они позволяют получить неизменяемую и изменяемую ссылки на содержащиеся в
-[`Spinlock::data`](../../doc/ku/sync/spinlock/struct.Spinlock.html#structfield.data)
+[`Spinlock::data`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#structfield.data)
 данные.
 Для этого используется метод
 [`core::cell::UnsafeCell::get()`](https://doc.rust-lang.org/nightly/core/cell/struct.UnsafeCell.html#method.get),
@@ -287,7 +287,7 @@ unsafe { &mut *self.spinlock.data.get() }
 А проверяют уже тесты, а не компилятор.
 
 Реализуйте
-[метод](../../doc/ku/sync/spinlock/struct.SpinlockGuard.html#method.drop)
+[метод](../../doc/ku/sync/spinlock/struct.DebugSpinlockGuard.html#method.drop)
 
 ```rust
 fn SpinlockGuard::drop(&mut self)
@@ -300,13 +300,13 @@ fn SpinlockGuard::drop(&mut self)
 Также предлагается доработать реализацию типажа
 [`core::fmt::Debug`](https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html)
 для
-[`Spinlock`](../../doc/ku/sync/spinlock/struct.Spinlock.html).
+[`Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html).
 А именно, распечатать захвачена ли спин-блокировка в данный момент --- поле
-[`Spinlock::locked`](../../doc/ku/sync/spinlock/struct.Spinlock.html#structfield.locked).
+[`Spinlock::locked`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#structfield.locked).
 В случае, если спин-блокировка свободна, стоит также распечатать текущее значение защищаемых ею данных, --- поле
-[`Spinlock::data`](../../doc/ku/sync/spinlock/struct.Spinlock.html#structfield.data).
+[`Spinlock::data`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#structfield.data).
 Если же она захвачена, стоит распечатать текущего владельца блокировки --- поле
-[`Spinlock::owner`](../../doc/ku/sync/spinlock/struct.Spinlock.html#structfield.owner),
+[`Spinlock::owner`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#structfield.owner),
 но это отложим до реализации следующей задачи.
 
 При решении этой задачи вам могут пригодиться:

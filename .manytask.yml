@@ -296,6 +296,7 @@ deadlines:
             - cd kernel && cargo test --profile ci --test 2-mm-*
             - cd kernel && cargo test --profile ci --test 3-allocator-1-big --test 3-allocator-5-small
             - cd ku && cargo test --profile ci --test 3-allocator-5-small -- --nocapture --test-threads=1
+            - cd ku && cargo test --profile benchmark --features benchmark --test 3-allocator-5-small -- --test-threads=1
 
         - task: local-apic
           score: 50

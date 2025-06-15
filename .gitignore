@@ -12,6 +12,7 @@ fs.img
 lab/book/
 lab/src/*.svg
 last_failed_*
+perf.data*
 serial.out
 target
 target/

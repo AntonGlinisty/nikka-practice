@@ -1,6 +1,7 @@
 use core::{
     alloc::Layout,
     cmp,
+    mem,
     ptr,
 };
 
@@ -208,5 +209,10 @@ impl Drop for FixedSizeAllocator {
     }
 }
 
-/// Минимальный размер и выравнивание для блоков памяти, которыми управляет [`FixedSizeAllocator`].
-pub(super) const MIN_SIZE: usize = 4;
+/// Максимальный тип, подходящий для зануления и копирования блоков памяти,
+/// которыми управляет [`FixedSizeAllocator`].
+pub(super) type MaxPrimitiveType = u64;
+
+/// Минимальный размер и выравнивание для блоков памяти,
+/// которыми управляет [`FixedSizeAllocator`].
+pub(super) const MIN_SIZE: usize = mem::size_of::<MaxPrimitiveType>();
