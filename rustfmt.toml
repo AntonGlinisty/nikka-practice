@@ -16,7 +16,6 @@ match_block_trailing_comma = true
 newline_style = "Unix"
 normalize_comments = true
 normalize_doc_attributes = true
-reorder_imports = false
 short_array_element_width_threshold = 1
 single_line_if_else_max_width = 1
 spaces_around_ranges = true

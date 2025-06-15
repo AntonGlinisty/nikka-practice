@@ -1,6 +1,9 @@
 use core::{
     arch,
-    arch::asm,
+    arch::{
+        asm,
+        naked_asm,
+    },
     fmt,
     hint,
     mem,
@@ -323,12 +326,11 @@ impl fmt::Debug for BootStack {
 /// Все нужные структуры и значения регистров копируются с BSP.
 #[allow(named_asm_labels)]
 #[cold]
-#[naked]
 #[unsafe(link_section = ".switch_from_real_mode_to_long_mode")]
+#[unsafe(naked)]
 extern "C" fn switch_from_real_mode_to_long_mode() -> ! {
-    unsafe {
-        asm!(
-            "
+    naked_asm!(
+        "
         .code16
 
         switch_mode_start:
@@ -372,14 +374,11 @@ extern "C" fn switch_from_real_mode_to_long_mode() -> ! {
             // загрузочного кода, который должен быть скопирован.
             // Поэтому пишите код загрузки AP строго внутри них.
         switch_mode_end:
-            ",
+        ",
 
-            // TODO: your code here.
-            ap_kernel_main = sym ap_kernel_main,
-
-            options(noreturn),
-        );
-    }
+        // TODO: your code here.
+        ap_kernel_main = sym ap_kernel_main,
+    );
 }
 
 /// Завершает инициализацию Application Processor.

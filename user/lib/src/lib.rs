@@ -7,7 +7,6 @@
 #![deny(warnings)]
 #![feature(alloc_error_handler)]
 #![feature(allocator_api)]
-#![feature(naked_functions)]
 #![no_std]
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(missing_docs)]

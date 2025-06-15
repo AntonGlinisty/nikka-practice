@@ -182,7 +182,7 @@ impl Inode {
     }
 
     /// Возвращает итератор по занятым записям директории.
-    pub(super) fn list(&mut self) -> Result<List> {
+    pub(super) fn list(&mut self) -> Result<List<'_>> {
         Ok(List(self.iter()?.filter(|entry| !entry.is_free())))
     }
 
@@ -245,7 +245,7 @@ impl Inode {
     }
 
     /// Возвращает итератор по всем записям директории, --- и занятым, и свободным.
-    fn iter(&mut self) -> Result<Iter> {
+    fn iter(&mut self) -> Result<Iter<'_>> {
         if self.kind == Kind::Directory {
             assert_eq!(self.size % BLOCK_SIZE, 0);
 
@@ -349,11 +349,10 @@ impl<'a> Iter<'a> {
         let block = self.inode.block(block_number, self.cache)?;
 
         let entries = unsafe {
-            MaybeUninit::slice_assume_init_mut(
-                block
-                    .try_into_mut_slice::<MaybeUninit<DirectoryEntry>>()
-                    .expect(Self::BAD_MEMORY_BLOCK),
-            )
+            block
+                .try_into_mut_slice::<MaybeUninit<DirectoryEntry>>()
+                .expect(Self::BAD_MEMORY_BLOCK)
+                .assume_init_mut()
         };
         for entry in entries.iter_mut() {
             entry.set_free();

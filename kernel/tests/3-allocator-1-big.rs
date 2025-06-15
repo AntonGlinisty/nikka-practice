@@ -4,7 +4,6 @@
 #![feature(maybe_uninit_fill, maybe_uninit_slice)]
 #![feature(ptr_as_uninit)]
 #![feature(slice_ptr_get)]
-#![feature(strict_provenance)]
 #![no_main]
 #![no_std]
 #![reexport_test_harness_main = "test_main"]

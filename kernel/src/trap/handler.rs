@@ -1,5 +1,5 @@
 use core::{
-    arch::asm,
+    arch::naked_asm,
     mem,
 };
 
@@ -42,21 +42,17 @@ use crate::{
 /// A helper to generate the code for exception handlers.
 macro_rules! exception_with_error_code {
     ($name:ident, $trap:expr $(,)?) => {
-        #[naked]
+        #[unsafe(naked)]
         extern "C" fn $name() {
-            unsafe {
-                core::arch::asm!(
-                    "
+            core::arch::naked_asm!(
+                "
                 push {number}
                 jmp {trap_trampoline}
-                    ",
+                ",
 
-                    number = const $trap as usize,
-                    trap_trampoline = sym crate::trap::handler::trap_trampoline,
-
-                    options(noreturn),
-                )
-            }
+                number = const $trap as usize,
+                trap_trampoline = sym crate::trap::handler::trap_trampoline,
+            )
         }
     };
 
@@ -78,23 +74,19 @@ pub(super) use exception_with_error_code;
 /// A helper to generate the code for exception handlers.
 macro_rules! exception_without_error_code {
     ($name:ident, $trap:expr $(,)?) => {
-        #[naked]
+        #[unsafe(naked)]
         extern "C" fn $name() {
-            unsafe {
-                core::arch::asm!(
-                    "
+            core::arch::naked_asm!(
+                "
                 push {error_code}
                 push {number}
                 jmp {trap_trampoline}
-                    ",
+                ",
 
-                    error_code = const 0,
-                    number = const $trap as usize,
-                    trap_trampoline = sym crate::trap::handler::trap_trampoline,
-
-                    options(noreturn),
-                )
-            }
+                error_code = const 0,
+                number = const $trap as usize,
+                trap_trampoline = sym crate::trap::handler::trap_trampoline,
+            )
         }
     };
 
@@ -204,11 +196,10 @@ extern "C" fn generic_trap(
 }
 
 /// Общий трамплин для всех исключений процессора.
-#[naked]
+#[unsafe(naked)]
 pub(super) extern "C" fn trap_trampoline() {
-    unsafe {
-        asm!(
-            "
+    naked_asm!(
+        "
         // System V ABI for x86-64 caller-saved registers.
         push rax
         push rcx
@@ -246,14 +237,11 @@ pub(super) extern "C" fn trap_trampoline() {
         add rsp, {trap_number_size} + {error_code_size}
 
         iretq
-            ",
+        ",
 
-            caller_saved_registers_size = const 9 * mem::size_of::<usize>(),
-            error_code_size = const mem::size_of::<usize>(),
-            generic_trap = sym generic_trap,
-            trap_number_size = const mem::size_of::<usize>(),
-
-            options(noreturn),
-        )
-    }
+        caller_saved_registers_size = const 9 * mem::size_of::<usize>(),
+        error_code_size = const mem::size_of::<usize>(),
+        generic_trap = sym generic_trap,
+        trap_number_size = const mem::size_of::<usize>(),
+    )
 }

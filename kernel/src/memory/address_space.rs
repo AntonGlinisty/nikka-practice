@@ -163,7 +163,7 @@ impl AddressSpace {
     pub fn allocator(
         &mut self,
         flags: PageTableFlags,
-    ) -> Big {
+    ) -> Big<'_> {
         Big::new(self, flags)
     }
 
@@ -462,7 +462,7 @@ impl AddressSpace {
     ) -> Result<&'static mut [T]> {
         assert!(flags.is_writable());
         let slice = self.map_slice_uninit(len, flags)?;
-        Ok(MaybeUninit::fill_with(slice, default))
+        Ok(slice.write_with(|_| default()))
     }
 
     /// Выделяет нужное количество физических фреймов
@@ -488,7 +488,7 @@ impl AddressSpace {
             *element = MaybeUninit::zeroed();
         }
 
-        Ok(unsafe { MaybeUninit::slice_assume_init_mut(slice) })
+        Ok(unsafe { slice.assume_init_mut() })
     }
 
     /// Удаляет отображение заданного среза `slice`.
@@ -699,7 +699,7 @@ impl Translate for AddressSpace {
     fn path(
         &mut self,
         virt: Virt,
-    ) -> Path {
+    ) -> Path<'_> {
         self.mapping().expect("invalid AddressSpace").path(virt)
     }
 
@@ -815,7 +815,7 @@ pub(super) mod test_scaffolding {
         address_space.duplicate()
     }
 
-    pub fn iter_mut(address_space: &mut AddressSpace) -> MappingIterator {
+    pub fn iter_mut(address_space: &mut AddressSpace) -> MappingIterator<'_> {
         mapping_mut(address_space).iter_mut()
     }
 
@@ -831,7 +831,7 @@ pub(super) mod test_scaffolding {
     pub fn path(
         address_space: &mut AddressSpace,
         virt: Virt,
-    ) -> Path {
+    ) -> Path<'_> {
         mapping_mut(address_space).path(virt)
     }
 

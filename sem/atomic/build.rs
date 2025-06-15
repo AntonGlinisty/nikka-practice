@@ -12,7 +12,7 @@ fn main() -> Result<()> {
         Command::new("as")
             .args(["-o", &(out_dir.clone() + "/atomic.o"), "src/impl.s"])
             .status()?
-            .success()
+            .success(),
     );
 
     assert!(
@@ -23,7 +23,7 @@ fn main() -> Result<()> {
                 &(out_dir.clone() + "/atomic.o"),
             ])
             .status()?
-            .success()
+            .success(),
     );
 
     println!("cargo:rustc-link-search=native={out_dir}");

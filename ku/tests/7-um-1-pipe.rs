@@ -536,7 +536,7 @@ impl Generator {
         }
     }
 
-    fn generate_operation(&mut self) -> Operation {
+    fn generate_operation(&mut self) -> Operation<'_> {
         Operation::new(&mut self.buffer, self.quality, &mut self.rng)
     }
 }

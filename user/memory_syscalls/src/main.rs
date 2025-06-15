@@ -5,7 +5,6 @@
 #![deny(warnings)]
 #![feature(allocator_api)]
 #![feature(slice_ptr_get)]
-#![feature(strict_provenance)]
 #![no_main]
 #![no_std]
 

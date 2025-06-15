@@ -1,5 +1,8 @@
 use core::{
-    arch::asm,
+    arch::{
+        asm,
+        naked_asm,
+    },
     mem,
     ptr,
     sync::atomic::{
@@ -241,11 +244,10 @@ pub fn syscall(
 /// После выполнения установленного обработчика `trap_handler()` восстанавливает
 /// сохранённый контекст.
 #[cold]
-#[naked]
+#[unsafe(naked)]
 extern "C" fn trap_handler_trampoline() -> ! {
-    unsafe {
-        asm!(
-            "
+    naked_asm!(
+        "
             // TODO: your code here.
 
             call {trap_handler_invoker}
@@ -256,14 +258,11 @@ extern "C" fn trap_handler_trampoline() -> ! {
             // This relies on that trap_handler_invoker() has called TrapInfo::prepare_for_ret()
             // to put the trap site RIP on the trap site stack.
             ret
-            ",
+        ",
 
-            // TODO: your code here.
-            trap_handler_invoker = sym trap_handler_invoker,
-
-            options(noreturn),
-        );
-    }
+        // TODO: your code here.
+        trap_handler_invoker = sym trap_handler_invoker,
+    );
 }
 
 // ANCHOR: trap_handler_invoker

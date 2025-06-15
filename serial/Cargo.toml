@@ -1,5 +1,3 @@
-cargo-features = ["edition2024"]
-
 [package]
 authors = ["Sergey V. Galtsev <sergey-v-galtsev@gitlab.com>"]
 description = "Nikka is an educational operating system"

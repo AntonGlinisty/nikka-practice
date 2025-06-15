@@ -3,22 +3,18 @@
 #![allow(unused_variables)]
 
 #![deny(warnings)]
-#![feature(naked_functions)]
 
-use core::arch::asm;
+use core::arch::naked_asm;
 
 /// Складывает регистры RSI и RDI, а результат возвращает в RAX.
-#[naked]
+#[unsafe(naked)]
 #[unsafe(no_mangle)]
 pub extern "C" fn sum() -> ! {
-    unsafe {
-        asm!(
-            "
+    naked_asm!(
+        "
         // TODO: your code here.
-            ",
-            options(noreturn),
-        );
-    }
+        ",
+    );
 }
 
 #[repr(C)]
@@ -32,17 +28,14 @@ pub struct Struct {
 ///
 /// Принимает указатель на структуру типа [`Struct`] в регистре RDI.
 /// Записывает в её поле `result` значение `x + y`.
-#[naked]
+#[unsafe(naked)]
 #[unsafe(no_mangle)]
 pub extern "C" fn sum_struct() -> ! {
-    unsafe {
-        asm!(
-            "
+    naked_asm!(
+        "
         // TODO: your code here.
-            ",
-            options(noreturn),
-        );
-    }
+        ",
+    );
 }
 
 /// Складывает элементы массива.
@@ -52,17 +45,14 @@ pub extern "C" fn sum_struct() -> ! {
 /// в регистре RSI.
 /// Возвращает сумму элементов массива в регистре RAX.
 #[allow(named_asm_labels)]
-#[naked]
+#[unsafe(naked)]
 #[unsafe(no_mangle)]
 pub extern "C" fn sum_array() -> ! {
-    unsafe {
-        asm!(
-            "
+    naked_asm!(
+        "
         // TODO: your code here.
-            ",
-            options(noreturn),
-        );
-    }
+        ",
+    );
 }
 
 /// Складывает переменное количество аргументов.
@@ -72,15 +62,12 @@ pub extern "C" fn sum_array() -> ! {
 /// Возвращает сумму элементов массива в регистре RAX.
 /// Не меняет содержимое регистра R15.
 #[allow(named_asm_labels)]
-#[naked]
+#[unsafe(naked)]
 #[unsafe(no_mangle)]
 pub extern "C" fn sum_va_arg() -> ! {
-    unsafe {
-        asm!(
-            "
+    naked_asm!(
+        "
         // TODO: your code here.
-            ",
-            options(noreturn),
-        );
-    }
+        ",
+    );
 }

@@ -212,7 +212,7 @@ impl Phys2Virt {
                 Self::node(root_entry, recursive_mapping)
                     .try_into_mut_slice::<MaybeUninit<PageTableEntry>>()?
             };
-            MaybeUninit::fill(node, PageTableEntry::default());
+            node.write_filled(PageTableEntry::default());
 
             Ok(())
         } else {

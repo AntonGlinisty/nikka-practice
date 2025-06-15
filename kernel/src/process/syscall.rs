@@ -1,6 +1,9 @@
 use alloc::vec::Vec;
 use core::{
-    arch::asm,
+    arch::{
+        asm,
+        naked_asm,
+    },
     str,
 };
 
@@ -102,21 +105,18 @@ pub(crate) fn init() {
 ///
 /// Переключает стек на стек ядра, разрешает прерывания и
 /// передаёт управление в функцию [`syscall()`].
-#[naked]
+#[unsafe(naked)]
 extern "C" fn syscall_trampoline() -> ! {
-    unsafe {
-        asm!(
-            "
+    naked_asm!(
+        "
             // TODO: your code here.
 
             call {syscall}
-            ",
+        ",
 
-            // TODO: your code here.
-            syscall = sym syscall,
-            options(noreturn),
-        );
-    }
+        // TODO: your code here.
+        syscall = sym syscall,
+    );
 }
 
 // ANCHOR: syscall
@@ -552,7 +552,7 @@ mod lock_set {
         /// Захватывает блокировки в правильном порядке для избежания
         /// [взаимоблокировки](https://en.wikipedia.org/wiki/Deadlock).
         fn new(
-            src: SpinlockGuard<Process>,
+            src: SpinlockGuard<'_, Process>,
             dst_pid: usize,
             process_set: ProcessSet,
         ) -> Result<LockSet<'_>> {

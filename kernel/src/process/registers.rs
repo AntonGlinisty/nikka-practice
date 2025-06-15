@@ -1,5 +1,8 @@
 use core::{
-    arch::asm,
+    arch::{
+        asm,
+        naked_asm,
+    },
     fmt,
     mem,
 };
@@ -187,11 +190,9 @@ impl Registers {
     /// он должен сохранить его сам в процедуре системного вызова `syscall::sched_yield()`.
     /// Возвращается в контекст ядра, из которого этот процесс был запущен.
     /// Текущий контекст ядра уничтожается.
-    #[naked]
+    #[unsafe(naked)]
     pub(super) unsafe extern "C" fn sched_yield() -> ! {
-        unsafe {
-            asm!("jmp switch_to_kernel_mode", options(noreturn));
-        }
+        naked_asm!("jmp switch_to_kernel_mode");
     }
 
     /// Вытесняет текущий исполняющийся процесс с процессора принудительно.
@@ -204,11 +205,9 @@ impl Registers {
     /// Реализация прыгает внутрь метода [`Registers::switch_to()`] на метку,
     /// с которой начинается сохранение контекста пользователя и
     /// восстановление контекста ядра.
-    #[naked]
+    #[unsafe(naked)]
     pub(super) unsafe extern "C" fn switch_from() -> ! {
-        unsafe {
-            asm!("jmp store_user_mode_context", options(noreturn));
-        }
+        naked_asm!("jmp store_user_mode_context");
     }
 }
 

@@ -506,7 +506,8 @@ impl LogCollector {
             let plan_b_failures = self.plan_b_failures.get();
             let plan_c_failures = self.plan_c_failures.get();
 
-            let total = self.lost_totally.update(|x| x + recent);
+            self.lost_totally.update(|x| x + recent);
+            let total = self.lost_totally.get();
             self.lost_recently.update(|x| x - recent);
 
             error!(
@@ -584,7 +585,8 @@ impl Collect for LogCollector {
     ) {
         let timestamp = Tsc::now();
 
-        let recursion = self.recursion.update(|x| x + 1);
+        self.recursion.update(|x| x + 1);
+        let recursion = self.recursion.get();
         let is_recursive = recursion > 1;
         defer! {
             self.recursion.update(|x| x - 1);

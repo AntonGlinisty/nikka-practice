@@ -64,7 +64,7 @@ pub struct TrapStats([Stats; COUNT]);
 
 impl TrapStats {
     /// Возвращает итератор по статистикам исключений и прерываний.
-    pub fn iter(&self) -> core::slice::Iter<Stats> {
+    pub fn iter(&self) -> core::slice::Iter<'_, Stats> {
         self.0.iter()
     }
 }

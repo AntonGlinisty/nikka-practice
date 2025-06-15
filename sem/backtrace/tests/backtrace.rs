@@ -1,5 +1,4 @@
 #![deny(warnings)]
-#![feature(strict_provenance)]
 
 use backtrace::{
     Backtrace,

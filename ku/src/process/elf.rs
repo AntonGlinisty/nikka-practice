@@ -137,7 +137,7 @@ impl<'a, T: BigAllocator> Loader<'a, T> {
     ///   флаги аллокатора [`Loader::allocator.flags()`][BigAllocator::flags].
     ///   Среди них, например, может быть [`PageTableFlags::USER`],
     ///   которого нет во флагах ELF--файла.
-    /// - Новые страницы отображения заполняет нулями с помощью [`MaybeUninit::fill()`].
+    /// - Новые страницы отображения заполняет нулями с помощью [`slice::write_filled()`].
     fn extend_mapping(
         &mut self,
         curr: &Option<VirtRange>,

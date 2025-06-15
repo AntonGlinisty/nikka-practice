@@ -171,7 +171,7 @@ impl Process {
     pub(super) fn allocator(
         &self,
         flags: PageTableFlags,
-    ) -> MemoryAllocator {
+    ) -> MemoryAllocator<'_> {
         MemoryAllocator::new(&self.address_space, flags)
     }
 

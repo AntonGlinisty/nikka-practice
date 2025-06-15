@@ -44,7 +44,7 @@ impl Big<'_> {
     pub fn new(
         address_space: &mut AddressSpace,
         flags: PageTableFlags,
-    ) -> Big {
+    ) -> Big<'_> {
         Big {
             address_space,
             flags,

@@ -49,7 +49,7 @@ impl MemoryAllocator<'_> {
     pub const fn new(
         address_space: &Spinlock<AddressSpace>,
         flags: PageTableFlags,
-    ) -> MemoryAllocator {
+    ) -> MemoryAllocator<'_> {
         MemoryAllocator {
             address_space,
             flags,

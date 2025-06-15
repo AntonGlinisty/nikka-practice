@@ -253,15 +253,17 @@ impl Step for Page {
     fn steps_between(
         start: &Self,
         end: &Self,
-    ) -> Option<usize> {
+    ) -> (usize, Option<usize>) {
         if start <= end {
-            if Self::is_lower_half(start) == Self::is_lower_half(end) {
-                Some(end.index() - start.index())
+            let steps = if Self::is_lower_half(start) == Self::is_lower_half(end) {
+                end.index() - start.index()
             } else {
-                Some(end.index() - start.index() - Self::non_canonical_range().count())
-            }
+                end.index() - start.index() - Self::non_canonical_range().count()
+            };
+
+            (steps, Some(steps))
         } else {
-            None
+            (0, None)
         }
     }
 

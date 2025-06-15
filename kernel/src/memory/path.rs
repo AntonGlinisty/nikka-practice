@@ -76,7 +76,7 @@ pub trait Translate {
     fn path(
         &mut self,
         virt: Virt,
-    ) -> Path;
+    ) -> Path<'_>;
 
     /// Принимает на вход виртуальный адрес `virt`, который нужно транслировать.
     ///
@@ -167,7 +167,7 @@ impl Mapping {
     }
 
     /// Возвращает итератор по листьям дерева отображения страниц.
-    pub(super) fn iter_mut(&mut self) -> MappingIterator {
+    pub(super) fn iter_mut(&mut self) -> MappingIterator<'_> {
         self.range_mut(..)
     }
 
@@ -176,7 +176,7 @@ impl Mapping {
     fn range_mut<R: RangeBounds<Page>>(
         &mut self,
         range: R,
-    ) -> MappingIterator {
+    ) -> MappingIterator<'_> {
         let curr = match range.start_bound() {
             Bound::Included(start) => start.index(),
             Bound::Excluded(start) => start.advance_index(1),
@@ -319,7 +319,7 @@ impl Translate for Mapping {
     fn path(
         &mut self,
         virt: Virt,
-    ) -> Path {
+    ) -> Path<'_> {
         // TODO: your code here.
         unimplemented!();
     }

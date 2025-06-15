@@ -81,9 +81,7 @@ fn duplicate_and_drop() {
             mm_helpers::check_intermediate_flags(address_space, virt, USER_R);
         }
 
-        let free_frames = FRAME_ALLOCATOR.lock().count();
-
-        free_frames
+        FRAME_ALLOCATOR.lock().count()
     }
 }
 

@@ -336,10 +336,7 @@ fn copy_mapping_same_block() {
 
     let value = 42;
     unsafe {
-        MaybeUninit::fill(
-            block.try_into_mut_slice::<MaybeUninit<usize>>().unwrap(),
-            value,
-        );
+        block.try_into_mut_slice::<MaybeUninit<usize>>().unwrap().write_filled(value);
     }
 
     unsafe {
@@ -356,11 +353,8 @@ fn copy_mapping_same_block() {
     .unwrap();
     assert!(!pte.is_writable());
 
-    let slice = unsafe {
-        MaybeUninit::slice_assume_init_mut(
-            block.try_into_mut_slice::<MaybeUninit<usize>>().unwrap(),
-        )
-    };
+    let slice =
+        unsafe { block.try_into_mut_slice::<MaybeUninit<usize>>().unwrap().assume_init_mut() };
 
     assert!(slice.iter().all(|&x| x == value));
 }
@@ -541,9 +535,7 @@ fn validate_initialization<T: Memory<Address = Virt>>(
     initialize: Initialize,
 ) {
     if initialize == Initialize::Zero {
-        let slice = unsafe {
-            MaybeUninit::slice_assume_init_ref(block.try_into_slice::<MaybeUninit<u8>>().unwrap())
-        };
+        let slice = unsafe { block.try_into_slice::<MaybeUninit<u8>>().unwrap().assume_init_ref() };
         assert!(slice.iter().all(|&x| x == 0));
     }
 }
