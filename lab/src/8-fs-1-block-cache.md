@@ -10,7 +10,7 @@
 ```
 
 Она является [синглтоном](https://en.wikipedia.org/wiki/Singleton_pattern)
-[`static ref BLOCK_CACHE: Mutex<Option<BlockCache>>`](../../doc/kernel/fs/block_cache/struct.BLOCK_CACHE.html).
+[`static ref BLOCK_CACHE: FastSpinlock<Option<BlockCache>>`](../../doc/kernel/fs/block_cache/struct.BLOCK_CACHE.html).
 
 В память блоки зачитываются по необходимости.
 Для этого, изначально все страницы помечаются недоступными.

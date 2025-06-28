@@ -24,7 +24,6 @@ postcard = "*"
 rand = { version = "*", default-features = false, features = ["small_rng"] }
 scopeguard = { version = "*", default-features = false }
 serde = { version = "*", default-features = false, features = ["alloc"] }
-spin = "*"
 static_assertions = "*"
 tracing = { git = "https://github.com/tokio-rs/tracing", version = "*", default-features = false }
 tracing-core = { git = "https://github.com/tokio-rs/tracing", version = "*", default-features = false }

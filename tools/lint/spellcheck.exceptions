@@ -1,4 +1,4 @@
-1193
+1194
 &&
 ABI
 ACPI
@@ -65,6 +65,7 @@ ExitCode
 Exokernel
 FSYSEXIT
 FSYSRET
+FastSpinlock
 FileExists
 FileRange
 FixedSizeAllocator

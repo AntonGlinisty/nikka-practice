@@ -18,6 +18,8 @@ pub use panic::{
 };
 pub use sequence_lock::SequenceLock;
 pub use spinlock::{
+    FastSpinlock,
+    FastSpinlockGuard,
     Spinlock,
     SpinlockGuard,
 };

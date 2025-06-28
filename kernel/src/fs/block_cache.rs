@@ -1,7 +1,6 @@
 use core::sync::atomic::Ordering;
 
 use lazy_static::lazy_static;
-use spin::Mutex;
 
 use ku::{
     collections::Lru,
@@ -21,6 +20,7 @@ use ku::{
         },
     },
     process::Info,
+    sync::FastSpinlock,
 };
 
 use crate::memory::{
@@ -212,7 +212,7 @@ pub struct Stats {
 lazy_static! {
     /// Блочный кэш для ускорения работы с диском
     /// за счёт кэширования блоков файловой системы в памяти.
-    pub(super) static ref BLOCK_CACHE: Mutex<Option<BlockCache>> = Mutex::new(None);
+    pub(super) static ref BLOCK_CACHE: FastSpinlock<Option<BlockCache>> = FastSpinlock::new(None);
 }
 
 /// Количество секторов диска в одном блоке файловой системы.
