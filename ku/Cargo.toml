@@ -47,6 +47,7 @@ serde_json = { version = "*", default-features = false, features = ["alloc"] }
 tracing-subscriber = { git = "https://github.com/tokio-rs/tracing", features = ["env-filter"] }
 
 [features]
+allocator-statistics = []
 benchmark = ["tcmalloc-better"]
 # Отключает sentinel frame
 conservative-backtraces = []

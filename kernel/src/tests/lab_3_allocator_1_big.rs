@@ -24,6 +24,7 @@ use ku::{
     allocator::{
         BigAllocator,
         DryAllocator,
+        Info,
         Initialize,
     },
     error::{

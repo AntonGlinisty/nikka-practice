@@ -15,12 +15,15 @@ use core::{
     mem,
 };
 
-use ku::memory::{
-    Page,
-    Virt,
-    size::{
-        MiB,
-        Size,
+use ku::{
+    allocator::Info,
+    memory::{
+        Page,
+        Virt,
+        size::{
+            MiB,
+            Size,
+        },
     },
 };
 

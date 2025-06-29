@@ -183,7 +183,7 @@ fs-dump:
 
 doc: FORCE
 	@( \
-		cargo doc --document-private-items; \
+		cargo doc --document-private-items --features allocator-statistics; \
 		rm --force $$(grep --files-with-matches 'compose::begin_private' $$(find target/doc/src -name \*.rs.html) ); \
 		rm --force --recursive doc; \
 		mv target/doc .; \

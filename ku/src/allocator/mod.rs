@@ -7,6 +7,7 @@ pub mod big;
 pub mod dry;
 
 /// Статистика аллокатора общего назначения.
+#[cfg_attr(not(feature = "allocator-statistics"), path = "dummy_info.rs")]
 mod info;
 
 /// Аллокатор верхнего уровня.

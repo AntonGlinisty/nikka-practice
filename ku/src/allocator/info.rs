@@ -150,6 +150,10 @@ impl Info {
     ) {
         self.pages.decrease(allocated_pages);
     }
+
+    /// Поддерживается ли статистика аллокатора общего назначения.
+    /// Равно `true`, если включена опция `allocator-statistics`.
+    pub const IS_SUPPORTED: bool = true;
 }
 
 impl Sub<Info> for Info {

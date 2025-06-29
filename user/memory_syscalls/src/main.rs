@@ -28,6 +28,7 @@ use core::{
 };
 
 use ku::{
+    allocator::Info,
     log::{
         debug,
         error,

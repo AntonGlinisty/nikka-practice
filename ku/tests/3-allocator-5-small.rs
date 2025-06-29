@@ -149,7 +149,7 @@ fn multi_threaded() {
             nikka_allocator_stats,
             tcmalloc_stats,
             system_allocator_stats,
-            Some(10.0),
+            Some(4.0),
         );
     }
 
@@ -185,6 +185,10 @@ fn validate_info(
     detailed_info: &DetailedInfo,
 ) {
     assert_eq!(stats.allocation.count, stats.deallocation.count);
+
+    if !cfg!(feature = "allocator-statistics") {
+        return;
+    }
 
     info!(total = %detailed_info.total());
     println!("{detailed_info:#}");

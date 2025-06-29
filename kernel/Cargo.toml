@@ -41,6 +41,7 @@ introsort = { version = "*", default-features = false }
 xmas-elf = "*"
 
 [features]
+allocator-statistics = ["ku/allocator-statistics"]
 # Отключает sentinel frame
 conservative-backtraces = ["ku/conservative-backtraces"]
 

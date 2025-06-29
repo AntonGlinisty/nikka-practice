@@ -1,6 +1,8 @@
 fn memory_allocator_basic() {
     let start_info = allocator::info();
-    debug!(%start_info);
+    if Info::IS_SUPPORTED {
+        debug!(%start_info);
+    }
 
     {
         let mut a = Box::new(1_i64);
@@ -11,30 +13,35 @@ fn memory_allocator_basic() {
         debug!(box_contents = *a);
         my_assert!(*a == 2);
 
-        let info = allocator::info();
-        let requested = mem::size_of_val(&*a);
-        let info_diff = (info - start_info).unwrap();
-        debug!(%info);
-        debug!(%info_diff);
+        if Info::IS_SUPPORTED {
+            let info = allocator::info();
+            let requested = mem::size_of_val(&*a);
+            let info_diff = (info - start_info).unwrap();
 
-        my_assert!(info_diff.allocations().positive() == 1);
-        my_assert!(info_diff.allocations().negative() == 0);
-        my_assert!(info_diff.allocated().balance() >= requested);
-        my_assert!(info.pages().positive() > 0);
-        my_assert!(info.pages().balance() > 0);
+            debug!(%info);
+            debug!(%info_diff);
+
+            my_assert!(info_diff.allocations().positive() == 1);
+            my_assert!(info_diff.allocations().negative() == 0);
+            my_assert!(info_diff.allocated().balance() >= requested);
+            my_assert!(info.pages().positive() > 0);
+            my_assert!(info.pages().balance() > 0);
+        }
     }
 
-    let end_info = allocator::info();
-    let end_info_diff = (end_info - start_info).unwrap();
-    debug!(%end_info);
-    debug!(%end_info_diff);
+    if Info::IS_SUPPORTED {
+        let end_info = allocator::info();
+        let end_info_diff = (end_info - start_info).unwrap();
+        debug!(%end_info);
+        debug!(%end_info_diff);
 
-    my_assert!(end_info_diff.allocations().positive() == 1);
-    my_assert!(end_info_diff.allocations().negative() == 1);
-    my_assert!(end_info_diff.requested().balance() == 0);
-    my_assert!(end_info_diff.allocated().balance() == 0);
-    my_assert!(end_info.pages().positive() > 0);
-    my_assert!(end_info_diff.fragmentation_loss() < MiB);
+        my_assert!(end_info_diff.allocations().positive() == 1);
+        my_assert!(end_info_diff.allocations().negative() == 1);
+        my_assert!(end_info_diff.requested().balance() == 0);
+        my_assert!(end_info_diff.allocated().balance() == 0);
+        my_assert!(end_info.pages().positive() > 0);
+        my_assert!(end_info_diff.fragmentation_loss() < MiB);
+    }
 }
 
 fn memory_allocator_alignment() {
@@ -63,7 +70,9 @@ fn memory_allocator_alignment() {
 
 fn memory_allocator_grow_and_shrink() {
     let start_info = allocator::info();
-    debug!(%start_info);
+    if Info::IS_SUPPORTED {
+        debug!(%start_info);
+    }
 
     let mut vec = Vec::new();
     let mut push_sum = 0;
@@ -78,11 +87,13 @@ fn memory_allocator_grow_and_shrink() {
     debug!(contents_sum, push_sum);
     my_assert!(contents_sum == push_sum);
 
-    let info = allocator::info();
-    let info_diff = (info - start_info).unwrap();
-    debug!(%info);
-    debug!(%info_diff);
-    my_assert!(info_diff.fragmentation_loss() < MiB);
+    if Info::IS_SUPPORTED {
+        let info = allocator::info();
+        let info_diff = (info - start_info).unwrap();
+        debug!(%info);
+        debug!(%info_diff);
+        my_assert!(info_diff.fragmentation_loss() < MiB);
+    }
 
     let mut pop_sum = 0;
 
@@ -96,12 +107,14 @@ fn memory_allocator_grow_and_shrink() {
     debug!(contents_sum, pop_sum);
     my_assert!(contents_sum == pop_sum);
 
-    let end_info = allocator::info();
-    let end_info_diff = (end_info - start_info).unwrap();
-    debug!(%end_info);
-    debug!(%end_info_diff);
-    my_assert!(end_info_diff.allocations().balance() == 0);
-    my_assert!(end_info_diff.fragmentation_loss() < MiB);
+    if Info::IS_SUPPORTED {
+        let end_info = allocator::info();
+        let end_info_diff = (end_info - start_info).unwrap();
+        debug!(%end_info);
+        debug!(%end_info_diff);
+        my_assert!(end_info_diff.allocations().balance() == 0);
+        my_assert!(end_info_diff.fragmentation_loss() < MiB);
+    }
 }
 
 fn memory_allocator_stress(
@@ -109,7 +122,9 @@ fn memory_allocator_stress(
     max_fragmentation_loss: fn(usize) -> usize,
 ) -> usize {
     let start_info = allocator::info();
-    debug!(%start_info);
+    if Info::IS_SUPPORTED {
+        debug!(%start_info);
+    }
 
     let mut vec = Vec::new();
     let mut push_sum = 0;
@@ -124,23 +139,27 @@ fn memory_allocator_stress(
         my_assert!(vec.len() == a + 1);
         push_sum += a * a;
 
-        let current_info_diff = (allocator::info() - start_info).unwrap();
-        let fragmentation_loss = Size::bytes(current_info_diff.fragmentation_loss());
-        let max_fragmentation_loss = Size::bytes(max_fragmentation_loss(vec.len()));
-        if vec.len() % (values / 20) == 0 || fragmentation_loss > max_fragmentation_loss {
-            debug!(vector_length = vec.len(), %fragmentation_loss, %max_fragmentation_loss);
+        if Info::IS_SUPPORTED {
+            let current_info_diff = (allocator::info() - start_info).unwrap();
+            let fragmentation_loss = Size::bytes(current_info_diff.fragmentation_loss());
+            let max_fragmentation_loss = Size::bytes(max_fragmentation_loss(vec.len()));
+            if vec.len() % (values / 20) == 0 || fragmentation_loss > max_fragmentation_loss {
+                debug!(vector_length = vec.len(), %fragmentation_loss, %max_fragmentation_loss);
+            }
+            my_assert!(fragmentation_loss <= max_fragmentation_loss);
         }
-        my_assert!(fragmentation_loss <= max_fragmentation_loss);
     }
 
     let contents_sum = vec.iter().map(|x| **x).sum::<usize>();
     debug!(contents_sum, push_sum);
     my_assert!(contents_sum == push_sum);
 
-    let info = allocator::info();
-    let info_diff = (info - start_info).unwrap();
-    debug!(%info);
-    debug!(%info_diff);
+    if Info::IS_SUPPORTED {
+        let info = allocator::info();
+        let info_diff = (info - start_info).unwrap();
+        debug!(%info);
+        debug!(%info_diff);
+    }
 
     let mut pop_sum = 0;
 
@@ -150,13 +169,15 @@ fn memory_allocator_stress(
             vec.shrink_to_fit();
         }
 
-        let current_info_diff = (allocator::info() - start_info).unwrap();
-        let fragmentation_loss = Size::bytes(current_info_diff.fragmentation_loss());
-        let max_fragmentation_loss = Size::bytes(max_fragmentation_loss(vec.len()));
-        if vec.len() % (values / 20) == 0 || fragmentation_loss > max_fragmentation_loss {
-            debug!(vector_length = vec.len(), %fragmentation_loss, %max_fragmentation_loss);
+        if Info::IS_SUPPORTED {
+            let current_info_diff = (allocator::info() - start_info).unwrap();
+            let fragmentation_loss = Size::bytes(current_info_diff.fragmentation_loss());
+            let max_fragmentation_loss = Size::bytes(max_fragmentation_loss(vec.len()));
+            if vec.len() % (values / 20) == 0 || fragmentation_loss > max_fragmentation_loss {
+                debug!(vector_length = vec.len(), %fragmentation_loss, %max_fragmentation_loss);
+            }
+            my_assert!(fragmentation_loss <= max_fragmentation_loss);
         }
-        my_assert!(fragmentation_loss <= max_fragmentation_loss);
     }
 
     debug!(contents_sum, pop_sum);
@@ -165,15 +186,17 @@ fn memory_allocator_stress(
     let pages_for_values = pages.len();
     drop(pages);
 
-    let end_info = allocator::info();
-    let end_info_diff = (end_info - start_info).unwrap();
-    let fragmentation_loss = Size::bytes(end_info_diff.fragmentation_loss());
-    let max_fragmentation_loss = Size::bytes(max_fragmentation_loss(vec.len()));
-    debug!(%end_info);
-    debug!(%end_info_diff);
-    debug!(vector_length = vec.len(), %fragmentation_loss, %max_fragmentation_loss);
-    my_assert!(end_info_diff.allocations().balance() == 0);
-    my_assert!(fragmentation_loss <= max_fragmentation_loss);
+    if Info::IS_SUPPORTED {
+        let end_info = allocator::info();
+        let end_info_diff = (end_info - start_info).unwrap();
+        let fragmentation_loss = Size::bytes(end_info_diff.fragmentation_loss());
+        let max_fragmentation_loss = Size::bytes(max_fragmentation_loss(vec.len()));
+        debug!(%end_info);
+        debug!(%end_info_diff);
+        debug!(vector_length = vec.len(), %fragmentation_loss, %max_fragmentation_loss);
+        my_assert!(end_info_diff.allocations().balance() == 0);
+        my_assert!(fragmentation_loss <= max_fragmentation_loss);
+    }
 
     pages_for_values
 }
