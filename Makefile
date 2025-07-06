@@ -241,3 +241,47 @@ nikka.pdf: FORCE
 		--output=/dev/stdout \
 		$$(jj file list | grep '\.rs$$' | sort --unique) | \
 		ps2pdf /dev/stdin $@
+
+pdf: FORCE
+	rm -rf pdf
+	mkdir pdf
+	for i in $$(jj file list | grep '\.rs$$' | sort --unique); do \
+		j=$$(echo $$i | sed 's@^./@@;s@/@,@g'); \
+		trueprint \
+		--no-page-break-after-function \
+		--point-size=16 \
+		--no-holepunch \
+		--no-top-holepunch \
+		--single-sided \
+		--one-up \
+		--no-cover-sheet \
+		--function-index \
+		--landscape \
+		--no-headers \
+		--output=/dev/stdout \
+		$$i | \
+		ps2pdf /dev/stdin pdf/$$j.pdf; \
+	done
+
+nikka.enscript.pdf: FORCE
+	enscript -1rE -C -H -j -O --toc -b '$n|20$D $C|$% / $= ; $p' -T 2 -f 'Courier@12' -M A5 $$(find . -name '*.rs' | sort --unique) -o nikka.enscript.pdf
+
+src.pdf: doc FORCE
+	rm -rf doc/src.pdf
+	cp -pr doc/src doc/src.pdf
+	cargo doc --document-private-items --no-default-features
+	rm --force --recursive doc
+	mv target/doc .
+	for i in $$(find doc/src.pdf '*.html'); do \
+		echo "-------------------------------------- "$i \
+		sed -i '/^<span id="[0-9]*">[0-9]*<\/span>/d;s@<body class="rustdoc source">.*@<body>@' $$i; \
+		j=$$(echo $$i | sed 's@\.html@.pdf@'); \
+		wkhtmltopdf \
+			--enable-local-file-access \
+			--minimum-font-size 32 \
+			--orientation Landscape \
+			--page-size A5 \
+			$$i $$j; \
+		rm -f $$i; \
+	done
+	mv doc/src.pdf .
