@@ -1,4 +1,4 @@
-1194
+1210
 &&
 ABI
 ACPI
@@ -81,6 +81,7 @@ Gdt
 GiB
 GlobalAlloc
 GsBase
+HITM
 HPC
 ICR
 IDT
@@ -147,6 +148,7 @@ NonNull
 NotDirectory
 NotFile
 NumberPrefix
+OFFCORE
 OFlag
 OSDev
 OUTB
@@ -254,6 +256,7 @@ VirtTag
 WriteBuffer
 WriteTag
 WrongAlignment
+XSNP
 abc
 abi
 aborted
@@ -263,6 +266,7 @@ addr
 addressing
 adjtime
 advanced
+ahybrid
 allTargets
 alloc
 amd
@@ -286,6 +290,7 @@ breakpoint
 bsp
 bss
 bytes
+cacheable
 callee
 callsite
 cdot
@@ -322,6 +327,7 @@ env
 errno
 errors
 euclid
+evnt
 examples
 exceeded
 exceptions
@@ -393,6 +399,7 @@ localhost
 lookaside
 lru
 managarm
+mcs
 memcpy
 memoffset
 miri
@@ -417,9 +424,11 @@ partialeq
 pdflatex
 peda
 per
+perf
 pid
 png
 posix
+prefetch
 prev
 println
 processors
@@ -429,6 +438,7 @@ ptes
 pthread
 ptr
 qemu
+qspinlocks
 rax
 rbp
 rbx
@@ -629,6 +639,7 @@ yandex
 фреймов
 фреймом
 фреймы
+ы
 эксклюзивно
 ACA
 ACF
@@ -993,11 +1004,16 @@ Zmiri
 переаллокаций
 высокоуровневых
 высокоуровневыми
+Crummey
 cmd
 FILENO
 Harathi
 LWN
 LWP
+MCS
+McsLockGuard
+McsLockNode
+Mellor
 mktemp
 MTRRs
 myfile

@@ -345,6 +345,16 @@ deadlines:
             - cd sem/rwlock && cargo clean
             - cd sem/rwlock && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test -- --nocapture --test-threads=1
 
+        - task: mcs-lock
+          score: 200
+          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/mcs_lock
+          allow_list:
+            - sem/mcs_lock/src/sync.rs
+          check:
+            - cd sem/mcs_lock && cargo test -- --nocapture --test-threads=1
+            - cd sem/mcs_lock && cargo clean
+            - cd sem/mcs_lock && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test -- --nocapture --test-threads=1
+
     - group: lab-4-process
       start: 2024-10-29 18:00
       steps:

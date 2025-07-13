@@ -10,6 +10,7 @@ members = [
     "backtrace",
     "rwlock",
     "atomic",
+    "mcs_lock",
 ]
 
 resolver = "1"
