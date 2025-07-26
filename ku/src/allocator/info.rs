@@ -3,7 +3,10 @@ use core::{
     fmt,
     hint,
     mem,
-    ops::Sub,
+    ops::{
+        AddAssign,
+        Sub,
+    },
     sync::atomic::{
         AtomicUsize,
         Ordering,
@@ -154,6 +157,18 @@ impl Info {
     /// Поддерживается ли статистика аллокатора общего назначения.
     /// Равно `true`, если включена опция `allocator-statistics`.
     pub const IS_SUPPORTED: bool = true;
+}
+
+impl AddAssign for Info {
+    fn add_assign(
+        &mut self,
+        other: Info,
+    ) {
+        self.allocated += other.allocated;
+        self.allocations += other.allocations;
+        self.pages += other.pages;
+        self.requested += other.requested;
+    }
 }
 
 impl Sub<Info> for Info {
@@ -417,6 +432,16 @@ impl fmt::Display for Counter {
         } else {
             write!(formatter, "error")
         }
+    }
+}
+
+impl AddAssign for Counter {
+    fn add_assign(
+        &mut self,
+        other: Counter,
+    ) {
+        self.negative += other.negative;
+        self.positive += other.positive;
     }
 }
 

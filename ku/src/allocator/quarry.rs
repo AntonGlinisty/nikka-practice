@@ -7,10 +7,6 @@ use core::{
 use static_assertions::const_assert_eq;
 
 use crate::{
-    allocator::{
-        BigAllocator,
-        BigAllocatorGuard,
-    },
     error::Result,
     log::trace,
     memory::{
@@ -22,6 +18,11 @@ use crate::{
             Size,
         },
     },
+};
+
+use super::{
+    BigAllocator,
+    BigAllocatorGuard,
 };
 
 // Used in docs.

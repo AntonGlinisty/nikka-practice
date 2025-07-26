@@ -29,8 +29,10 @@ use rand::{
 
 use ku::{
     allocator::{
+        Clip,
         DetailedInfo,
         Dispatcher,
+        FIXED_SIZE_COUNT,
         Info,
     },
     log::{
@@ -39,18 +41,21 @@ use ku::{
         info,
     },
     memory::{
+        Size,
         Virt,
         size,
     },
     sync::Spinlock,
 };
 
-use allocator::Fallback;
+use allocator::{
+    CachingBig,
+    Fallback,
+    ThreadLocalCache,
+};
 
 #[cfg(feature = "benchmark")]
 use {
-    allocator::CachingBig,
-    ku::memory::Size,
     std::{
         alloc::System,
         env,
@@ -62,10 +67,49 @@ mod allocator;
 mod log;
 
 #[test]
+fn basic() {
+    log::init();
+
+    static ALLOCATOR: Dispatcher<ThreadLocalCache, Fallback> =
+        Dispatcher::new(ThreadLocalCache::new(), Fallback::new());
+
+    info!(
+        common_metadata = %Size::bytes(mem::size_of_val(&ALLOCATOR)),
+        per_thread_cache = %Size::bytes(mem::size_of::<Clip>() * FIXED_SIZE_COUNT),
+        "allocator metadata size",
+    );
+
+    let mut stats = Stats::default();
+
+    let layout = Layout::from_size_align(8, 8).unwrap();
+
+    let ptr = unsafe { ALLOCATOR.alloc(layout) };
+    assert!(!ptr.is_null());
+    stats.allocation.count += 1;
+    stats.allocations += 1;
+    stats.requested += layout.size();
+
+    unsafe {
+        ALLOCATOR.dealloc(ptr, layout);
+    }
+    stats.deallocation.count += 1;
+
+    ALLOCATOR.unmap();
+
+    let detailed_info: Spinlock<DetailedInfo> = Spinlock::new(DetailedInfo::new());
+    ALLOCATOR.detailed_info(&mut detailed_info.lock());
+
+    validate_info(stats, &detailed_info.lock());
+
+    assert_eq!(CachingBig::total_memory(), 0, "do you deallocate?");
+}
+
+#[test]
 fn single_threaded() {
     log::init();
 
-    static ALLOCATOR: Dispatcher<Fallback> = Dispatcher::new(Fallback::new());
+    static ALLOCATOR: Dispatcher<ThreadLocalCache, Fallback> =
+        Dispatcher::new(ThreadLocalCache::new(), Fallback::new());
 
     let nikka_allocator_stats = stress(
         "nikka allocator",
@@ -115,7 +159,8 @@ fn single_threaded() {
 fn multi_threaded() {
     log::init();
 
-    static ALLOCATOR: Dispatcher<Fallback> = Dispatcher::new(Fallback::new());
+    static ALLOCATOR: Dispatcher<ThreadLocalCache, Fallback> =
+        Dispatcher::new(ThreadLocalCache::new(), Fallback::new());
 
     let thread_count = thread::available_parallelism().unwrap().get();
 
@@ -149,7 +194,7 @@ fn multi_threaded() {
             nikka_allocator_stats,
             tcmalloc_stats,
             system_allocator_stats,
-            Some(4.0),
+            Some(1.5),
         );
     }
 

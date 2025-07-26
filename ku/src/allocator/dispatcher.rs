@@ -14,12 +14,14 @@ use core::{
 };
 
 use crate::{
+    error::Result,
     memory::Page,
     sync::Spinlock,
 };
 
 use super::{
     BigAllocatorGuard,
+    cache::Cache,
     dry::Initialize,
     fixed_size::{
         FixedSizeAllocator,
@@ -35,7 +37,10 @@ use super::{
 /// Аллокатор верхнего уровня.
 /// По запрошенному размеру определяет из какого аллокатора будет выделяться память.
 #[derive(Debug)]
-pub struct Dispatcher<T: Allocator + BigAllocatorGuard> {
+pub struct Dispatcher<Q: Cache, T: Allocator + BigAllocatorGuard> {
+    /// Кэш выделяемых блоков.
+    cache: Q,
+
     /// Аллокатор для выделения памяти постранично, в том числе остальным аллокаторам.
     fallback: T,
 
@@ -50,10 +55,14 @@ pub struct Dispatcher<T: Allocator + BigAllocatorGuard> {
     info: AtomicInfo,
 }
 
-impl<T: Allocator + BigAllocatorGuard> Dispatcher<T> {
+impl<Q: Cache, T: Allocator + BigAllocatorGuard> Dispatcher<Q, T> {
     /// Создаёт аллокатор верхнего уровня с заданным постраничным аллокатором `fallback`.
-    pub const fn new(fallback: T) -> Self {
+    pub const fn new(
+        cache: Q,
+        fallback: T,
+    ) -> Self {
         Self {
+            cache,
             fallback,
             fallback_info: AtomicInfo::new(),
             fixed_size: [FIXED_SIZE_DUMMY; FIXED_SIZE_COUNT],
@@ -214,7 +223,7 @@ impl<T: Allocator + BigAllocatorGuard> Dispatcher<T> {
     }
 }
 
-unsafe impl<T: Allocator + BigAllocatorGuard> GlobalAlloc for Dispatcher<T> {
+unsafe impl<Q: Cache, T: Allocator + BigAllocatorGuard> GlobalAlloc for Dispatcher<Q, T> {
     unsafe fn alloc(
         &self,
         layout: Layout,
@@ -287,7 +296,7 @@ unsafe impl<T: Allocator + BigAllocatorGuard> GlobalAlloc for Dispatcher<T> {
     }
 }
 
-impl<T: Allocator + BigAllocatorGuard> Drop for Dispatcher<T> {
+impl<Q: Cache, T: Allocator + BigAllocatorGuard> Drop for Dispatcher<Q, T> {
     fn drop(&mut self) {
         self.unmap();
     }
@@ -461,9 +470,10 @@ fn get_size(index: usize) -> usize {
     (index + 1) * MIN_SIZE
 }
 
+#[allow(rustdoc::private_intra_doc_links)]
 /// Количество аллокаторов фиксированного размера [`FixedSizeAllocator`],
 /// которыми управляет [`Dispatcher`].
-const FIXED_SIZE_COUNT: usize = (4 * Page::SIZE - 1) / MIN_SIZE;
+pub const FIXED_SIZE_COUNT: usize = (4 * Page::SIZE - 1) / MIN_SIZE;
 
 /// Вспомогательная константа для инициализации массива [`Dispatcher::fixed_size`]
 /// в константной функции [`Dispatcher::new()`].

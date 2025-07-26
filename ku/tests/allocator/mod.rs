@@ -1,5 +1,6 @@
 mod big;
 mod big_for_pipe;
+mod cache;
 mod caching_big;
 mod fallback;
 
@@ -8,6 +9,9 @@ pub use big::Big;
 
 #[allow(unused)]
 pub use big_for_pipe::BigForPipe;
+
+#[allow(unused)]
+pub use cache::ThreadLocalCache;
 
 #[allow(unused)]
 pub use caching_big::CachingBig;

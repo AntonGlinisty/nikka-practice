@@ -1,6 +1,9 @@
 use core::{
     fmt,
-    ops::Sub,
+    ops::{
+        AddAssign,
+        Sub,
+    },
 };
 
 use crate::error::Result;
@@ -112,6 +115,15 @@ impl PartialEq for Info {
         _other: &Self,
     ) -> bool {
         true
+    }
+}
+
+impl AddAssign for Info {
+    #[inline(always)]
+    fn add_assign(
+        &mut self,
+        _other: Info,
+    ) {
     }
 }
 

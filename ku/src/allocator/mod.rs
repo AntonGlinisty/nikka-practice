@@ -2,6 +2,9 @@
 /// который умеет выдавать только выровненные на границу страниц блоки памяти.
 pub mod big;
 
+/// Кэш выделяемых блоков.
+pub mod cache;
+
 /// Определяет [`DryAllocator`], который аналогичен [`core::alloc::Allocator`],
 /// и позволяет не дублировать код.
 pub mod dry;
@@ -24,9 +27,15 @@ pub use big::{
     BigAllocator,
     BigAllocatorGuard,
 };
+pub use cache::{
+    Cache,
+    Clip,
+    GlobalCache,
+};
 pub use dispatcher::{
     DetailedInfo,
     Dispatcher,
+    FIXED_SIZE_COUNT,
 };
 pub use dry::{
     DryAllocator,

@@ -8,6 +8,7 @@ use ku::{
     allocator::{
         DetailedInfo,
         Dispatcher,
+        GlobalCache,
         Info,
     },
     log::debug,
@@ -52,5 +53,7 @@ fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
 /// Глобальный аллокатор памяти общего назначения для ядра.
 /// Выделяет память и отображает её внутри [`BASE_ADDRESS_SPACE`].
 #[global_allocator]
-static GLOBAL_ALLOCATOR: Dispatcher<MemoryAllocator<'static>> =
-    Dispatcher::new(MemoryAllocator::new(&BASE_ADDRESS_SPACE, KERNEL_RW));
+static GLOBAL_ALLOCATOR: Dispatcher<GlobalCache, MemoryAllocator<'static>> = Dispatcher::new(
+    GlobalCache::new(),
+    MemoryAllocator::new(&BASE_ADDRESS_SPACE, KERNEL_RW),
+);

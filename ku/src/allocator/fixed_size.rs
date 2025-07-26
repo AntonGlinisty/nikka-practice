@@ -20,6 +20,7 @@ use crate::{
 };
 
 use super::{
+    Clip,
     Info,
     Quarry,
 };
@@ -114,6 +115,27 @@ impl FixedSizeAllocator {
         unimplemented!();
     }
 
+    /// Заполняет `clip` до тех пор, пока либо в нём не будет `len` элементов,
+    /// либо не исчерпаются свободные элементы [`FixedSizeAllocator`].
+    pub(super) fn fill_clip(
+        &mut self,
+        clip: &mut Clip,
+        len: usize,
+    ) {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    /// Освобождает `clip`, пока в нём не останется не более `len` блоков.
+    pub(super) fn unfill_clip(
+        &mut self,
+        clip: &mut Clip,
+        len: usize,
+    ) {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
     /// Выделяет из `fallback` некоторое количество новых блоков размера `size`.
     /// При необходимости, расширяет память под свои метаданные ---
     /// [`FixedSizeAllocator::bitmap`].
@@ -158,6 +180,30 @@ impl FixedSizeAllocator {
         assert_eq!(self.info.allocations().balance(), 0);
         assert_eq!(self.info.allocated().balance(), 0);
         assert_eq!(self.info.requested().balance(), 0);
+
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    /// Освобождает выделенные ранее методом [`FixedSizeAllocator::allocate()`]
+    /// блок памяти, начинающийся по указателю `ptr`.
+    ///
+    /// # Safety
+    ///
+    /// Вызывающая сторона должна гарантировать
+    /// [то же самое](https://doc.rust-lang.org/nightly/core/alloc/trait.Allocator.html#safety-1),
+    /// что требуется при вызове [`core::alloc::Allocator::deallocate()`].
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если:
+    ///   - Блок уже является свободным.
+    ///   - Блок не попадает в [`field@FixedSizeAllocator::quarry`].
+    pub(super) unsafe fn deallocate_impl(
+        &mut self,
+        ptr: *mut u8,
+    ) {
+        debug_assert!(!ptr.is_null());
 
         // TODO: your code here.
         unimplemented!();
