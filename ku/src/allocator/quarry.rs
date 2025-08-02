@@ -79,13 +79,15 @@ impl Quarry {
     }
 
     /// Возвращает адрес выделяемого блока памяти номер `allocation_index`.
-    /// Если `allocation_index` попадает в ещё не зарезервированный в памяти большой блок,
-    /// либо больше или равен [`Quarry::capacity()`],
-    /// возвращает [`Virt::default()`].
     ///
     /// Нумерация непрерывна от `0` до [`Quarry::capacity()`] (не включительно) и
     /// последовательно пробегает выделяемые блоки памяти
     /// из каждого большого блока [`Quarry::slabs`].
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если:
+    ///   - `allocation_index` больше или равен [`Quarry::capacity()`].
     pub(super) fn allocation(
         &mut self,
         allocation_index: usize,
@@ -97,6 +99,11 @@ impl Quarry {
     /// Обратная операция к [`Quarry::allocation()`].
     /// Возвращает номер выделяемого блока памяти по его адресу `address` или [`None`]
     /// если выделяемого блока памяти с таким адресом в [`Quarry`] нет.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если:
+    ///   - Смещение `address` от начала его [`Quarry::slab()`] не выровнено на [`Quarry::size()`].
     pub(super) fn allocation_index(
         &mut self,
         address: Virt,
@@ -223,11 +230,7 @@ impl Quarry {
         &self,
         slab_index: usize,
     ) -> Block<Page> {
-        if slab_index < self.slabs.len() {
-            Self::slab_at(self.slabs[slab_index])
-        } else {
-            Block::default()
-        }
+        Self::slab_at(self.slabs[slab_index])
     }
 
     /// Возвращает блок, начинающийся со страницы `start` или [`Block::default()`],
@@ -236,9 +239,7 @@ impl Quarry {
         if start == Page::default() {
             Block::default()
         } else {
-            let end = (start + Self::SLAB_PAGE_COUNT).expect(Self::BAD_SIZE_MESSAGE);
-
-            Block::new(start, end).expect(Self::BAD_SIZE_MESSAGE)
+            unsafe { Block::from_count_unchecked(start, Self::SLAB_PAGE_COUNT) }
         }
     }
 

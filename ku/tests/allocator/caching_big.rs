@@ -96,7 +96,7 @@ unsafe impl BigAllocator for CachingBig {
                 .unwrap()
             };
 
-            self.cache = super::block(ptr, reserve_size)?;
+            self.cache = super::block(ptr, reserve_size);
         }
 
         Ok(self.cache.tail(layout.size().div_ceil(Page::SIZE)).unwrap())

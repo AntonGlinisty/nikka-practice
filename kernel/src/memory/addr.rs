@@ -75,6 +75,15 @@ impl<T: Tag> Addr<T> {
 
     /// Создаёт [`Addr`] --- [`Phys`] или [`Virt`] --- по его битовому представлению `addr`.
     ///
+    /// # Safety
+    ///
+    /// Битовое представление `addr` должно являться корректным для адреса целевого типа.
+    pub unsafe fn new_unchecked(addr: usize) -> Self {
+        unsafe { T::new_unchecked(addr) }
+    }
+
+    /// Создаёт [`Addr`] --- [`Phys`] или [`Virt`] --- по его битовому представлению `addr`.
+    ///
     /// Возвращает ошибку [`Error::InvalidArgument`] если битовое представление `addr`
     /// не является корректным для адреса целевого типа.
     pub fn new_u64(addr: u64) -> Result<Self> {
@@ -250,6 +259,13 @@ pub trait Tag: Clone + Copy + Default + Eq + Ord {
     /// не является корректным для адреса целевого типа.
     fn new(addr: usize) -> Result<Addr<Self>>;
 
+    /// Создаёт [`Addr`] --- [`Phys`] или [`Virt`] --- по его битовому представлению `addr`.
+    ///
+    /// # Safety
+    ///
+    /// Битовое представление `addr` должно являться корректным для адреса целевого типа.
+    unsafe fn new_unchecked(addr: usize) -> Addr<Self>;
+
     /// Возвращает `true` если:
     ///   - Адреса `x` и `y` виртуальные и находятся в одной и той же
     ///     [половине виртуального адресного пространства](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details).
@@ -284,6 +300,10 @@ impl Tag for PhysTag {
         Phys::new_impl(addr)
     }
 
+    unsafe fn new_unchecked(addr: usize) -> Phys {
+        unsafe { Phys::new_unchecked_impl(addr) }
+    }
+
     fn is_same_half(
         _x: Phys,
         _y: Phys,
@@ -305,11 +325,15 @@ impl Tag for VirtTag {
         Virt::new_impl(addr)
     }
 
+    unsafe fn new_unchecked(addr: usize) -> Virt {
+        unsafe { Virt::new_unchecked_impl(addr) }
+    }
+
     fn is_same_half(
         x: Virt,
         y: Virt,
     ) -> bool {
-        x.is_higher_half() == y.is_higher_half()
+        ((x.into_usize() ^ y.into_usize()) >> (Addr::<Self>::BITS - 1)) == 0
     }
 
     const ADDR_NAME: &'static str = "Virt";
@@ -442,10 +466,19 @@ impl Phys {
     fn new_impl(addr: usize) -> Result<Self> {
         let zeros = addr.leading_zeros();
         if zeros >= Self::UNUSED_BITS {
-            Ok(Self(addr, PhantomData))
+            Ok(unsafe { Self::new_unchecked_impl(addr) })
         } else {
             Err(InvalidArgument)
         }
+    }
+
+    /// Создаёт физический адрес по его битовому представлению `addr`.
+    ///
+    /// # Safety
+    ///
+    /// Битовое представление `addr` должно являться корректным для физического адреса.
+    unsafe fn new_unchecked_impl(addr: usize) -> Self {
+        Self(addr, PhantomData)
     }
 
     /// Создаёт физический адрес по его битовому представлению `addr`.
@@ -455,7 +488,7 @@ impl Phys {
     pub fn new_u32(addr: u32) -> Self {
         const_assert!(u32::BITS <= Phys::BITS);
 
-        Self(size::from(addr), PhantomData)
+        unsafe { Self::new_unchecked_impl(size::from(addr)) }
     }
 
     /// Количество используемых битов в физическом адресе.
@@ -472,10 +505,19 @@ impl Virt {
     /// не является корректным для виртуального адреса.
     fn new_impl(addr: usize) -> Result<Self> {
         if addr.leading_zeros() > Self::UNUSED_BITS || addr.leading_ones() > Self::UNUSED_BITS {
-            Ok(Self(addr, PhantomData))
+            Ok(unsafe { Self::new_unchecked_impl(addr) })
         } else {
             Err(InvalidArgument)
         }
+    }
+
+    /// Создаёт виртуальный адрес по его битовому представлению `addr`.
+    ///
+    /// # Safety
+    ///
+    /// Битовое представление `addr` должно являться корректным для виртуального адреса.
+    unsafe fn new_unchecked_impl(addr: usize) -> Self {
+        Self(addr, PhantomData)
     }
 
     /// Создаёт виртуальный адрес по его битовому представлению `addr`.
@@ -487,7 +529,7 @@ impl Virt {
         if addr > !Self::NEGATIVE_SIGN_EXTEND / 2 {
             addr |= Self::NEGATIVE_SIGN_EXTEND;
         }
-        Self(addr, PhantomData)
+        unsafe { Self::new_unchecked_impl(addr) }
     }
 
     /// Размер в байтах каждой из
@@ -532,7 +574,7 @@ impl Virt {
     /// Паникует, если указатель не корректен.
     pub fn from_ptr<T: ?Sized>(ptr: *const T) -> Self {
         const_assert_eq!(mem::size_of::<*const ()>(), mem::size_of::<usize>());
-        Self::new(ptr as *const () as usize).expect("bad pointer")
+        unsafe { Self::new_unchecked_impl(ptr as *const () as usize) }
     }
 
     /// Преобразует указатель на `T` в [`Virt`].

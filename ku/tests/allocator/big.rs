@@ -54,7 +54,7 @@ impl Big {
         block: Block<Page>,
         ptr: *mut c_void,
     ) {
-        self.last = super::block(ptr, block.size()).unwrap();
+        self.last = super::block(ptr, block.size());
         assert_eq!(self.last, block);
 
         self.mapped = self
@@ -89,7 +89,7 @@ impl Big {
         prot_flags: ProtFlags,
     ) -> Block<Page> {
         let ptr = unsafe { Self::mmap(block, prot_flags) };
-        let result_block = super::block(ptr, block.size()).unwrap();
+        let result_block = super::block(ptr, block.size());
 
         if prot_flags == ProtFlags::PROT_NONE {
             self.reserved = self
@@ -211,7 +211,7 @@ unsafe impl BigAllocator for Big {
             .expect("unmapped more physical frames than were mapped");
 
         let ptr = unsafe { Self::mmap(block, ProtFlags::PROT_NONE) };
-        let reserved_block = super::block(ptr, block.size()).unwrap();
+        let reserved_block = super::block(ptr, block.size());
 
         assert_eq!(block, reserved_block);
 

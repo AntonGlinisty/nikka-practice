@@ -84,6 +84,42 @@ impl<T: Memory> Block<T> {
         Self::from_index(T::index(start), T::index(end))
     }
 
+    /// Создаёт блок для полуоткрытого интервала, начинающегося
+    /// с элемента `start` включительно и содержащий `count` элементов типа `T`.
+    /// Базовый тип `T` может быть [`Phys`], [`Virt`], [`Frame`] или [`Page`].
+    ///
+    /// # Safety
+    ///
+    /// - `start` и `count` не должны приводить к переполнениям.
+    /// - Для [`Virt`] и [`Page`] получающийся блок должен целиком лежать в одной
+    ///   [половине виртуального адресного пространства](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details).
+    pub unsafe fn from_count_unchecked(
+        start: T,
+        count: usize,
+    ) -> Self {
+        unsafe { Self::from_index_count_unchecked(T::index(start), count) }
+    }
+
+    /// Создаёт блок для полуоткрытого интервала, начинающегося
+    /// с элемента с номером `start` включительно и содержащий `count` элементов типа `T`.
+    /// Базовый тип `T` может быть [`Phys`], [`Virt`], [`Frame`] или [`Page`].
+    ///
+    /// # Safety
+    ///
+    /// - `start` и `count` не должны приводить к переполнениям.
+    /// - Для [`Virt`] и [`Page`] получающийся блок должен целиком лежать в одной
+    ///   [половине виртуального адресного пространства](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details).
+    pub unsafe fn from_index_count_unchecked(
+        start: usize,
+        count: usize,
+    ) -> Self {
+        Self {
+            start,
+            end: start + count,
+            tag: PhantomData,
+        }
+    }
+
     /// Возвращает пустой [`Block`].
     /// В отличие от [`Block::default()`] доступна в константном контексте.
     pub const fn zero() -> Self {
@@ -160,7 +196,7 @@ impl<T: Memory> Block<T> {
 
     /// Возвращает адрес первого элемента в блоке.
     pub fn start_address(&self) -> T::Address {
-        T::address_by_index(self.start).unwrap()
+        unsafe { T::address_by_index_unchecked(self.start) }
     }
 
     /// Возвращает адрес следующего за последним элементом блока.
@@ -190,6 +226,20 @@ impl<T: Memory> Block<T> {
         }
     }
 
+    /// Возвращает адрес по смещению `offset` байт внутри блока.
+    ///
+    /// # Safety
+    ///
+    /// Параметр `offset` не должен выходить за границы блока.
+    pub unsafe fn address_unchecked(
+        &self,
+        offset: usize,
+    ) -> T::Address {
+        let address = T::address_into_usize(self.start_address()).wrapping_add(offset);
+
+        unsafe { T::usize_into_address_unchecked(address) }
+    }
+
     /// Возвращает смещение в байтах адреса `address` внутри блока.
     ///
     /// Возвращает ошибку
@@ -203,6 +253,18 @@ impl<T: Memory> Block<T> {
         } else {
             Err(Overflow)
         }
+    }
+
+    /// Возвращает смещение в байтах адреса `address` внутри блока.
+    ///
+    /// # Safety
+    ///
+    /// Параметр `address` не должен выходить за границы блока.
+    pub unsafe fn offset_unchecked(
+        &self,
+        address: T::Address,
+    ) -> usize {
+        T::address_into_usize(address) - T::address_into_usize(self.start_address())
     }
 
     /// Возвращает первый элемент в блоке.
@@ -668,6 +730,15 @@ pub trait Memory: Clone + Copy + Eq + PartialEq + SizeOf {
     ///   - `Frage::address_by_index(index)` для `Frage`.
     fn address_by_index(index: usize) -> Result<Self::Address>;
 
+    /// Возвращает адрес базового элемента с индексом `index`:
+    ///   - `Addr::new(index)` для `Addr`;
+    ///   - `Frage::address_by_index(index)` для `Frage`.
+    ///
+    /// # Safety
+    ///
+    /// Параметр `address` должен задавать валидное значение адреса [`Self::Address`].
+    unsafe fn address_by_index_unchecked(index: usize) -> Self::Address;
+
     /// Возвращает битовое представление адреса.
     fn address_into_usize(address: Self::Address) -> usize;
 
@@ -692,6 +763,13 @@ pub trait Memory: Clone + Copy + Eq + PartialEq + SizeOf {
 
     /// Возвращает адрес по его битовому представлению `address`.
     fn usize_into_address(address: usize) -> Result<Self::Address>;
+
+    /// Возвращает адрес по его битовому представлению `address`.
+    ///
+    /// # Safety
+    ///
+    /// Параметр `address` должен задавать валидное значение адреса [`Self::Address`].
+    unsafe fn usize_into_address_unchecked(address: usize) -> Self::Address;
 }
 
 impl<T: Tag> Memory for Addr<T> {
@@ -706,6 +784,10 @@ impl<T: Tag> Memory for Addr<T> {
 
     fn address_by_index(index: usize) -> Result<Self::Address> {
         Self::new(index)
+    }
+
+    unsafe fn address_by_index_unchecked(index: usize) -> Self::Address {
+        unsafe { Self::new_unchecked(index) }
     }
 
     fn address_into_usize(address: Self::Address) -> usize {
@@ -730,6 +812,10 @@ impl<T: Tag> Memory for Addr<T> {
     fn usize_into_address(address: usize) -> Result<Self::Address> {
         Self::Address::new(address)
     }
+
+    unsafe fn usize_into_address_unchecked(address: usize) -> Self::Address {
+        unsafe { Self::Address::new_unchecked(address) }
+    }
 }
 
 impl<T: Tag> Memory for Frage<T> {
@@ -744,6 +830,10 @@ impl<T: Tag> Memory for Frage<T> {
 
     fn address_by_index(index: usize) -> Result<Self::Address> {
         Self::address_by_index(index)
+    }
+
+    unsafe fn address_by_index_unchecked(index: usize) -> Self::Address {
+        unsafe { Self::from_index_unchecked(index).address() }
     }
 
     fn address_into_usize(address: Self::Address) -> usize {
@@ -767,6 +857,10 @@ impl<T: Tag> Memory for Frage<T> {
 
     fn usize_into_address(address: usize) -> Result<Self::Address> {
         Self::Address::new(address)
+    }
+
+    unsafe fn usize_into_address_unchecked(address: usize) -> Self::Address {
+        unsafe { Self::Address::new_unchecked(address) }
     }
 }
 

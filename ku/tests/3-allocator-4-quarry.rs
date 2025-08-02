@@ -2,6 +2,7 @@
 #![feature(allocator_api)]
 
 use std::{
+    sync::Mutex,
     time::{
         Duration,
         Instant,
@@ -89,9 +90,6 @@ fn stress() {
             allocation_count = new_allocation_count;
 
             assert_ne!(quarry.allocation(allocation_count - 1), Virt::default());
-            if allocation_count == quarry.capacity() || allocation_count == quarry.capacity() / 2 {
-                assert_eq!(quarry.allocation(allocation_count), Virt::default());
-            }
 
             let mut allocations = Vec::new();
 
@@ -116,9 +114,6 @@ fn stress() {
                     allocation_index,
                 );
                 assert_eq!(quarry.allocation_index(Virt::from_ref(&quarry)), None);
-                if size > 1 {
-                    assert_eq!(quarry.allocation_index((allocation + 1).unwrap()), None);
-                }
             }
 
             allocations.sort();
@@ -132,6 +127,36 @@ fn stress() {
             quarry.unmap(allocation_count, &allocator).unwrap(),
             bulk_frame_count,
         );
+    }
+}
+
+#[rstest]
+#[cfg_attr(debug_assertions, should_panic)]
+fn out_of_bounds() {
+    log::init();
+
+    let mut quarry = Quarry::new(2);
+    quarry.allocation(0);
+}
+
+#[rstest]
+#[cfg_attr(debug_assertions, should_panic)]
+fn wrong_alignment() {
+    log::init();
+
+    static QUARRY: Mutex<Quarry> = Mutex::new(Quarry::new(2));
+
+    let allocator = Fallback::new();
+    let mut new_allocation_count = 16;
+    let mut quarry = QUARRY.lock().unwrap();
+    let map_result = quarry.map(0, &mut new_allocation_count, &allocator);
+
+    if map_result.is_ok() {
+        let allocation = quarry.allocation(0);
+
+        if let Ok(wrong_addr) = allocation + 1 {
+            quarry.allocation_index(wrong_addr);
+        }
     }
 }
 

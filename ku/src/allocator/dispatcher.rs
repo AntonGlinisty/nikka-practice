@@ -6,6 +6,7 @@ use core::{
     },
     cmp,
     fmt,
+    hint,
     intrinsics,
     ptr::{
         self,
@@ -186,13 +187,13 @@ impl<Q: Cache, T: Allocator + BigAllocatorGuard> Dispatcher<Q, T> {
     ///
     /// Паникует, если `layout` не поддерживается.
     fn validate_layout(layout: Layout) {
-        assert_ne!(
+        debug_assert_ne!(
             layout.size(),
             0,
             "can not handle zero-sized types requested by {layout:?}",
         );
 
-        assert!(
+        debug_assert!(
             layout.align() <= Page::SIZE,
             "can not handle alignment of {layout:?} that is greater than the page size {}",
             Page::SIZE,
@@ -466,6 +467,7 @@ enum Operation {
 
 /// Возвращает размер блоков памяти, за которые отвечает аллокатор
 /// по индексу `index` в массиве [`Dispatcher::fixed_size`].
+#[inline(always)]
 fn get_size(index: usize) -> usize {
     (index + 1) * MIN_SIZE
 }

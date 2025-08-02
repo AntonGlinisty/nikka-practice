@@ -1,6 +1,7 @@
 use core::{
     alloc::Layout,
     cmp,
+    hint,
     mem,
     ptr,
 };
@@ -233,8 +234,8 @@ impl FixedSizeAllocator {
         layout: Layout,
     ) {
         let size = self.quarry.as_ref().expect(Self::UNINITIALIZED_MESSAGE).size();
-        assert!(layout.size() <= size);
-        assert_eq!(size % layout.align(), 0);
+        debug_assert!(layout.size() <= size);
+        debug_assert_eq!(size % layout.align(), 0);
     }
 
     /// Количество страниц в каждой из не отображённых в память защитных зон,

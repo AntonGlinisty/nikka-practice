@@ -80,8 +80,7 @@ unsafe impl Allocator for Fallback {
         layout: Layout,
     ) {
         unsafe {
-            let block =
-                super::block(ptr.as_mut() as *mut u8 as *mut c_void, layout.size()).unwrap();
+            let block = super::block(ptr.as_mut() as *mut u8 as *mut c_void, layout.size());
             self.big.lock().unmap(block).unwrap();
         }
     }

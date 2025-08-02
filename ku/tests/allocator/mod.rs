@@ -21,22 +21,16 @@ pub use fallback::Fallback;
 
 use std::ffi::c_void;
 
-use ku::{
-    error::Result,
-    memory::{
-        Block,
-        Page,
-        Virt,
-    },
+use ku::memory::{
+    Block,
+    Page,
 };
 
 fn block(
     ptr: *mut c_void,
     len: usize,
-) -> Result<Block<Page>> {
-    let virt = Virt::from_ptr(ptr);
-    let start = Page::new(virt)?;
-    let end = (start + len.div_ceil(Page::SIZE))?;
-
-    Block::new(start, end)
+) -> Block<Page> {
+    unsafe {
+        Block::from_index_count_unchecked((ptr as usize) / Page::SIZE, len.div_ceil(Page::SIZE))
+    }
 }

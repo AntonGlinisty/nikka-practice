@@ -1,6 +1,9 @@
 #![allow(rustdoc::private_intra_doc_links)]
 
-use core::ops::Add;
+use core::{
+    hint,
+    ops::Add,
+};
 
 use crate::{
     error::{
@@ -107,7 +110,7 @@ impl<'a> Bitmap<'a> {
         &self,
         number: usize,
     ) -> bool {
-        assert!(number < self.len());
+        debug_assert!(number < self.len());
         !Self::bit(self.bitmap, number)
     }
 
@@ -122,8 +125,8 @@ impl<'a> Bitmap<'a> {
         &mut self,
         number: usize,
     ) {
-        assert!(number < self.len());
-        assert!(!self.is_free(number));
+        debug_assert!(number < self.len());
+        debug_assert!(!self.is_free(number));
         self.bitmap[number / Self::BITS_PER_ENTRY] &= !(1 << (number % Self::BITS_PER_ENTRY));
         self.free += 1;
     }

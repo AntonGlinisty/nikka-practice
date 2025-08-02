@@ -194,7 +194,7 @@ fn multi_threaded() {
             nikka_allocator_stats,
             tcmalloc_stats,
             system_allocator_stats,
-            Some(1.5),
+            Some(1.1),
         );
     }
 

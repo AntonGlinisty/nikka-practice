@@ -94,6 +94,16 @@ impl<T: Tag> Frage<T> {
         Ok(Self(Self::address_by_index(index)?))
     }
 
+    /// Создаёт [`Frage`] --- [`Frame`] или [`Page`] ---
+    /// по его номеру `index`.
+    ///
+    /// # Safety
+    ///
+    /// Номер `index` должен задавать допустимый [`Frage`].
+    pub unsafe fn from_index_unchecked(index: usize) -> Self {
+        Self(unsafe { Addr::new_unchecked(index * Self::SIZE) })
+    }
+
     /// Возвращает номер физического фрейма или виртуальной страницы.
     pub fn index(&self) -> usize {
         Self::index_by_address(self.address())

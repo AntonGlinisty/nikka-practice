@@ -68,18 +68,6 @@ fn basic() {
 }
 
 #[rstest]
-#[should_panic]
-fn double_free() {
-    log::init();
-
-    let mut data = [0; 1];
-    let mut bitmap = Bitmap::new(&mut data, 1, None);
-    if bitmap.len() == 1 && bitmap.free() == 1 {
-        bitmap.set_free(0);
-    }
-}
-
-#[rstest]
 fn allocation() {
     log::init();
 

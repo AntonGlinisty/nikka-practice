@@ -12,6 +12,7 @@
 #![feature(atomic_from_mut)]
 #![feature(core_intrinsics)]
 #![feature(let_chains)]
+#![feature(likely_unlikely)]
 #![feature(maybe_uninit_fill, maybe_uninit_slice)]
 #![feature(slice_ptr_get)]
 #![feature(step_trait)]
