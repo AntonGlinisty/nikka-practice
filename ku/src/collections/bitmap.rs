@@ -5,6 +5,8 @@ use core::{
     ops::Add,
 };
 
+use heapless::Vec;
+
 use crate::{
     error::{
         Error::InvalidArgument,
@@ -140,6 +142,27 @@ impl<'a> Bitmap<'a> {
     /// из которой выделен свободный элемент.
     pub fn allocate(&mut self) -> Option<usize> {
         // ANCHOR_END: allocate
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    /// Аналогична [`Bitmap::allocate()`], но выделяет за один раз несколько элементов.
+    /// Если свободных элементов не хватает, то выделенных элементов может вернуться
+    /// меньше, чем `count` --- запрошенное количество элементов.
+    ///
+    /// При поиске свободного элемента стартует с позиции [`Bitmap::cursor`] в
+    /// срезе [`Bitmap::bitmap`] и запоминает в [`Bitmap::cursor`] позицию,
+    /// из которой выделен свободный элемент.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если `count` превышает `SIZE`, --- резервируемый размер под результат.
+    pub fn bulk_allocate<const SIZE: usize>(
+        &mut self,
+        count: usize,
+    ) -> Vec<usize, SIZE> {
+        assert!(count <= SIZE);
+
         // TODO: your code here.
         unimplemented!();
     }

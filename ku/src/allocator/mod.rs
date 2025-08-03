@@ -46,6 +46,7 @@ pub use info::{
     Info,
 };
 
+use cache::CLIP_SIZE;
 use fixed_size::FixedSizeAllocator;
 use quarry::Quarry;
 

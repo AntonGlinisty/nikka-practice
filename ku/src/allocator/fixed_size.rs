@@ -21,6 +21,7 @@ use crate::{
 };
 
 use super::{
+    CLIP_SIZE,
     Clip,
     Info,
     Quarry,
@@ -78,6 +79,7 @@ impl FixedSizeAllocator {
     /// Паникует, если:
     ///   - [`FixedSizeAllocator`] не подходит для операции,
     ///     которую описывает `layout`.
+    #[allow(unused)]
     pub(super) fn allocate(
         &mut self,
         layout: Layout,
