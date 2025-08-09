@@ -157,6 +157,8 @@ pub fn init_subsystems(
 ) {
     ku::set_system_info(&SYSTEM_INFO);
 
+    smp::preinit();
+
     text::TEXT.lock().init();
     log::init();
     time::init();

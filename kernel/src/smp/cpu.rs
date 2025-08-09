@@ -157,6 +157,11 @@ impl Cpu {
     ///
     /// Пользовательские процессы выполняются независимо на разных ядрах,
     /// следовательно у каждого ядра текущий процесс должен быть своим.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если обнаруживает, что регистр `GS` этого CPU ещё не был инициализирован
+    /// методом [`Cpu::set_gs()`].
     pub(crate) fn current_process() -> Result<Pid> {
         let cpu = unsafe { Self::get() };
         cpu.current_process.ok_or(NoProcess)
@@ -166,6 +171,11 @@ impl Cpu {
     ///
     /// Пользовательские процессы выполняются независимо на разных ядрах,
     /// следовательно у каждого ядра текущий процесс должен быть своим.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если обнаруживает, что регистр `GS` этого CPU ещё не был инициализирован
+    /// методом [`Cpu::set_gs()`].
     pub(crate) fn set_current_process(process: Option<Pid>) {
         let cpu = unsafe { Self::get() };
         cpu.current_process = process;
@@ -174,6 +184,11 @@ impl Cpu {
     /// Возвращает контекст ядра для данного [`Cpu`], то есть с его стеком.
     /// В качестве `rip` использует функцию [`Registers::switch_from()`],
     /// то есть при переходе в этот контекст будет запущена именно она.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если обнаруживает, что регистр `GS` этого CPU ещё не был инициализирован
+    /// методом [`Cpu::set_gs()`].
     pub(crate) fn kernel_context() -> ModeContext {
         let cpu = unsafe { Self::get() };
         ModeContext::kernel_context(
@@ -182,6 +197,11 @@ impl Cpu {
     }
 
     /// Записывает в [`Cpu`] контекст принудительно вытесненного с этого CPU процесса.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если обнаруживает, что регистр `GS` этого CPU ещё не был инициализирован
+    /// методом [`Cpu::set_gs()`].
     pub(crate) fn set_user_context(user_context: ModeContext) {
         let cpu = unsafe { Self::get() };
         cpu.user_context = Some(user_context);
@@ -189,6 +209,11 @@ impl Cpu {
 
     /// Вытаскивает из [`Cpu`] контекст принудительно вытесненного с этого CPU процесса.
     /// После выполнения этой функции в соответствующем поле [`Cpu`] будет храниться [`None`].
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если обнаруживает, что регистр `GS` этого CPU ещё не был инициализирован
+    /// методом [`Cpu::set_gs()`].
     pub(crate) fn take_user_context() -> Option<ModeContext> {
         let cpu = unsafe { Self::get() };
         cpu.user_context.take()
@@ -207,6 +232,14 @@ impl Cpu {
         self.kernel_stack
     }
 
+    /// Зануляет регистр
+    /// [`GS`](https://wiki.osdev.org/CPU_Registers_x86-64#FS.base.2C_GS.base)
+    /// текущего CPU, чтобы отловить попытки его использования до инициализации
+    /// методом [`Cpu::set_gs()`].
+    pub(super) fn clear_gs() {
+        GsBase::write(Virt::default().into());
+    }
+
     /// Инициализация регистра
     /// [`GS`](https://wiki.osdev.org/CPU_Registers_x86-64#FS.base.2C_GS.base)
     /// текущего CPU.
@@ -223,7 +256,15 @@ impl Cpu {
     }
 
     /// Возвращает ссылку на структуру [`Cpu`] текущего процессора.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если обнаруживает, что регистр `GS` этого CPU ещё не был инициализирован
+    /// методом [`Cpu::set_gs()`].
     unsafe fn get() -> &'static mut Cpu {
+        let message = "the GS register is not initialized properly yet";
+        assert_ne!(Virt::from(GsBase::read()), Virt::default(), "{message}");
+
         // TODO: your code here.
         unimplemented!();
     }

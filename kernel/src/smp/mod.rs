@@ -45,6 +45,14 @@ pub(crate) use local_apic::{
     LocalApic,
 };
 
+/// Зануляет регистр
+/// [`GS`](https://wiki.osdev.org/CPU_Registers_x86-64#FS.base.2C_GS.base)
+/// текущего CPU, чтобы отловить попытки его использования до инициализации
+/// методом [`Cpu::set_gs()`].
+pub(super) fn preinit() {
+    Cpu::clear_gs();
+}
+
 /// Инициализация симметричной многопроцессорности
 /// ([Symmetric multiprocessing](https://en.wikipedia.org/wiki/Symmetric_multiprocessing), SMP).
 pub(super) fn init(
