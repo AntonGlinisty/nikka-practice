@@ -56,9 +56,14 @@ use allocator::{
 
 #[cfg(feature = "benchmark")]
 use {
+    ku::allocator::{
+        Cache,
+        GlobalCache,
+    },
     std::{
         alloc::System,
         env,
+        fs,
     },
     tcmalloc_better::TCMalloc,
 };
@@ -139,6 +144,27 @@ fn single_threaded() {
     #[cfg(feature = "benchmark")]
     {
         let tcmalloc_stats = stress("tcmalloc", &TCMalloc, SINGLE_THREADED_ITERATIONS, SEED);
+
+        static ALLOCATOR_GLOBAL_CACHE: Dispatcher<GlobalCache, Fallback> =
+            Dispatcher::new(GlobalCache::new(), Fallback::new());
+        let nikka_allocator_global_cache_stats = stress(
+            "nikka allocator (global cache)",
+            &ALLOCATOR_GLOBAL_CACHE,
+            SINGLE_THREADED_ITERATIONS,
+            SEED,
+        );
+        ALLOCATOR_GLOBAL_CACHE.unmap();
+
+        static ALLOCATOR_NO_CACHE: Dispatcher<NoCache, Fallback> =
+            Dispatcher::new(NoCache, Fallback::new());
+        let nikka_allocator_no_cache_stats = stress(
+            "nikka allocator (no cache)",
+            &ALLOCATOR_NO_CACHE,
+            SINGLE_THREADED_ITERATIONS,
+            SEED,
+        );
+        ALLOCATOR_NO_CACHE.unmap();
+
         let system_allocator_stats = stress(
             "system allocator",
             &System,
@@ -152,6 +178,35 @@ fn single_threaded() {
             system_allocator_stats,
             None,
         );
+
+        if env::var("UPDATE_CHARTS").is_ok() {
+            chart_duration(
+                "Single threaded allocator performance",
+                &[
+                    ("nikka allocator", &nikka_allocator_stats),
+                    ("tcmalloc", &tcmalloc_stats),
+                    (
+                        "nikka allocator (global cache)",
+                        &nikka_allocator_global_cache_stats,
+                    ),
+                    (
+                        "nikka allocator (no cache)",
+                        &nikka_allocator_no_cache_stats,
+                    ),
+                    ("system", &system_allocator_stats),
+                ],
+                "../lab/src/3-allocator-6-singlethreaded-performance.tex",
+            );
+
+            chart_ops_per_us(
+                "Single threaded allocator performance",
+                &[
+                    ("nikka allocator", &nikka_allocator_stats),
+                    ("tcmalloc", &tcmalloc_stats),
+                ],
+                "../lab/src/3-allocator-6-singlethreaded-performance-ops-per-us.tex",
+            );
+        }
     }
 }
 
@@ -187,6 +242,25 @@ fn multi_threaded() {
     #[cfg(feature = "benchmark")]
     {
         let tcmalloc_stats = multi_threaded_stress("tcmalloc", &TCMalloc, thread_count);
+
+        static ALLOCATOR_GLOBAL_CACHE: Dispatcher<GlobalCache, Fallback> =
+            Dispatcher::new(GlobalCache::new(), Fallback::new());
+        let nikka_allocator_global_cache_stats = multi_threaded_stress(
+            "nikka allocator (global cache)",
+            &ALLOCATOR_GLOBAL_CACHE,
+            thread_count,
+        );
+        ALLOCATOR_GLOBAL_CACHE.unmap();
+
+        static ALLOCATOR_NO_CACHE: Dispatcher<NoCache, Fallback> =
+            Dispatcher::new(NoCache, Fallback::new());
+        let nikka_allocator_no_cache_stats = multi_threaded_stress(
+            "nikka allocator (no cache)",
+            &ALLOCATOR_NO_CACHE,
+            thread_count,
+        );
+        ALLOCATOR_NO_CACHE.unmap();
+
         let system_allocator_stats =
             multi_threaded_stress("system allocator", &System, thread_count);
 
@@ -196,6 +270,35 @@ fn multi_threaded() {
             system_allocator_stats,
             Some(1.1),
         );
+
+        if env::var("UPDATE_CHARTS").is_ok() {
+            chart_duration(
+                "Multithreaded allocator performance",
+                &[
+                    ("nikka allocator", &nikka_allocator_stats),
+                    ("tcmalloc", &tcmalloc_stats),
+                    (
+                        "nikka allocator (global cache)",
+                        &nikka_allocator_global_cache_stats,
+                    ),
+                    (
+                        "nikka allocator (no cache)",
+                        &nikka_allocator_no_cache_stats,
+                    ),
+                    ("system", &system_allocator_stats),
+                ],
+                "../lab/src/3-allocator-6-multithreaded-performance.tex",
+            );
+
+            chart_ops_per_us(
+                "Multithreaded allocator performance",
+                &[
+                    ("nikka allocator", &nikka_allocator_stats),
+                    ("tcmalloc", &tcmalloc_stats),
+                ],
+                "../lab/src/3-allocator-6-multithreaded-performance-ops-per-us.tex",
+            );
+        }
     }
 
     fn multi_threaded_stress(
@@ -630,7 +733,11 @@ impl Stats {
     }
 
     fn pure_operations(&self) -> OperationStats {
-        self.allocation + self.deallocation
+        assert_eq!(self.allocation.count, self.deallocation.count);
+        let mut pure_operations = self.allocation + self.deallocation;
+        pure_operations.count = self.allocation.count;
+
+        pure_operations
     }
 
     #[cfg(feature = "benchmark")]
@@ -653,6 +760,9 @@ impl Stats {
 )]
 struct OperationStats {
     count: usize,
+    ops_per_us: usize,
+    ops_squared_per_us: usize,
+    ms: usize,
     duration: Duration,
 }
 
@@ -668,7 +778,15 @@ impl OperationStats {
         let noop_duration = end - start;
 
         if duration > noop_duration {
-            self.duration += duration - noop_duration;
+            let operation_duration = duration - noop_duration;
+            let old_duration = self.duration;
+            self.duration += operation_duration;
+            if old_duration.as_micros() < self.duration.as_micros() {
+                let ops_per_us = self.count - self.ops_per_us;
+                self.ops_per_us += ops_per_us;
+                self.ops_squared_per_us += ops_per_us * ops_per_us;
+                self.ms += 1;
+            }
         }
     }
 
@@ -676,7 +794,198 @@ impl OperationStats {
         u64::try_from(self.duration.as_nanos()).unwrap() as f64 /
             u64::try_from(self.count).unwrap() as f64
     }
+
+    #[cfg(feature = "benchmark")]
+    fn ops_per_us_mean(&self) -> f64 {
+        if self.ms == 0 {
+            0.0
+        } else {
+            let ms = into_f64(self.ms);
+            let ops_per_us = into_f64(self.ops_per_us);
+
+            ops_per_us / ms
+        }
+    }
+
+    #[cfg(feature = "benchmark")]
+    fn ops_per_us_standard_deviation(&self) -> f64 {
+        if self.ms == 0 {
+            0.0
+        } else {
+            let ms = into_f64(self.ms);
+            let mean = self.ops_per_us_mean();
+            let ops_squared_per_us = self.ops_squared_per_us as f64;
+
+            (ops_squared_per_us / ms - mean * mean).sqrt()
+        }
+    }
 }
+
+#[cfg(feature = "benchmark")]
+fn into_f64(x: usize) -> f64 {
+    f64::from(u32::try_from(x).unwrap())
+}
+
+#[cfg(feature = "benchmark")]
+struct NoCache;
+
+#[cfg(feature = "benchmark")]
+impl Cache for NoCache {
+    fn with_borrow_mut<F: FnOnce(&mut Clip) -> R, R>(
+        &self,
+        _index: usize,
+        _f: F,
+    ) -> R {
+        panic!("allocator cache is not available");
+    }
+
+    const CACHE_AVAILABLE: bool = false;
+}
+
+#[cfg(feature = "benchmark")]
+fn chart_duration(
+    title: &str,
+    data: &[(&str, &Stats)],
+    file: &str,
+) {
+    let mut chart = HEADER.to_owned();
+
+    chart += &format!("    title={{{title}}},\n    width={}mm,\n", 50 * data.len());
+    chart += "    ylabel={Operation duration, ns (smaller is better)},\n";
+    chart += "    symbolic x coords=";
+    chart += "{allocation,deallocation,allocation + deallocation, ,";
+    chart += "zeroed allocation,reallocation},\n]";
+
+    for (color, (_, stats)) in data.iter().enumerate() {
+        chart += &format!(
+            r##"
+    \addplot [draw=black!35!color{color}, fill=black!10!color{color}] coordinates {{
+        (allocation,{})
+        (deallocation,{})
+        (allocation + deallocation,{})
+        (zeroed allocation,{})
+        (reallocation,{})
+    }};
+"##,
+            stats.allocation.nanoseconds_per_operation(),
+            stats.deallocation.nanoseconds_per_operation(),
+            stats.pure_operations().nanoseconds_per_operation(),
+            stats.allocation_zeroed.nanoseconds_per_operation(),
+            stats.reallocation.nanoseconds_per_operation(),
+        );
+    }
+
+    chart += "\n    \\legend{";
+    let mut separator = "";
+    for (allocator_name, _) in data {
+        chart += &format!("{separator}{allocator_name}");
+        separator = ",";
+    }
+    chart += "}";
+
+    chart += TAILER;
+
+    if let Err(error) = fs::write(file, chart) {
+        error!(%error, file, "failed to write the file");
+    }
+}
+
+#[cfg(feature = "benchmark")]
+fn chart_ops_per_us(
+    title: &str,
+    data: &[(&str, &Stats)],
+    file: &str,
+) {
+    let mut chart = HEADER.to_owned();
+
+    chart += &format!("    title={{{title}}},\n    width={}mm,\n", 40 * data.len());
+    chart += "    ylabel={Operations per \\SI{}{\\micro\\second} (greater is better), ";
+    chart += "errors show standard deviation},\n";
+    chart += "    symbolic x coords=";
+    chart += "{allocation,deallocation},\n]";
+
+    for (color, (_, stats)) in data.iter().enumerate() {
+        chart += &format!(
+            r##"
+    \addplot [
+        draw=black!35!color{color},
+        fill=black!10!color{color},
+        error bars/.cd, y dir=both, y explicit,
+    ] coordinates {{
+        (allocation,{}) +- ({},{})
+        (deallocation,{}) +- ({},{})
+    }};
+"##,
+            stats.allocation.ops_per_us_mean(),
+            stats.allocation.ops_per_us_standard_deviation(),
+            stats.allocation.ops_per_us_standard_deviation(),
+            stats.deallocation.ops_per_us_mean(),
+            stats.deallocation.ops_per_us_standard_deviation(),
+            stats.deallocation.ops_per_us_standard_deviation(),
+        );
+    }
+
+    chart += "\n    \\legend{";
+    let mut separator = "";
+    for (allocator_name, _) in data {
+        chart += &format!("{separator}{allocator_name}");
+        separator = ",";
+    }
+    chart += "}";
+
+    chart += TAILER;
+
+    if let Err(error) = fs::write(file, chart) {
+        error!(%error, file, "failed to write the file");
+    }
+}
+
+#[cfg(feature = "benchmark")]
+const HEADER: &str = r##"
+\documentclass[border=2mm]{standalone}
+
+\usepackage[dvipsnames]{xcolor}
+\usepackage{pgfplots}
+\usepackage{tikz}
+\usepackage{siunitx}
+
+\usetikzlibrary{arrows.meta}
+\usetikzlibrary{decorations.pathreplacing,calligraphy}
+\usetikzlibrary{math}
+\usetikzlibrary{matrix}
+\usetikzlibrary{positioning}
+\usetikzlibrary{shapes.misc}
+
+\begin{document}
+
+\definecolor{color0}{RGB}{202, 218, 246}
+\definecolor{color1}{RGB}{221, 253, 234}
+\definecolor{color2}{RGB}{252, 244, 221}
+\definecolor{color3}{RGB}{252, 225, 228}
+\definecolor{color4}{RGB}{244, 202, 252}
+\definecolor{color5}{RGB}{202, 252, 202}
+\definecolor{color6}{RGB}{202, 202, 202}
+\definecolor{color7}{RGB}{151, 151, 202}
+
+\begin{tikzpicture}
+\begin{axis}[
+    ybar,
+    height=150mm,
+    legend cell align=left,
+    legend pos=north west,
+    nodes near coords, nodes near coords style={rotate=90,anchor=west},
+    x tick label style={rotate=30,anchor=east},
+    xtick=data,
+    ymin=0,
+"##;
+
+#[cfg(feature = "benchmark")]
+const TAILER: &str = r##"
+\end{axis}
+\end{tikzpicture}
+
+\end{document}
+"##;
 
 const BENCHMARK_CHECK_RATE: u32 = 1_000;
 const DIFFERENT_SIZES: usize = 1024;

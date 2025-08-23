@@ -1,7 +1,7 @@
 FROM rust:1.81
 
 RUN apt-get update
-RUN apt-get install sudo qemu-system-x86 llvm hunspell-ru hunspell-en-us -y
+RUN apt-get install sudo qemu-system-x86 llvm hunspell-ru hunspell-en-us texlive-science -y
 
 RUN mkdir -p /opt/shad/nikka
 COPY .gitlab-ci.yml /opt/shad/.grader-ci.yml
