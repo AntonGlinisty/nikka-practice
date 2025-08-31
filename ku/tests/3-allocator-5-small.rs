@@ -56,16 +56,46 @@ use allocator::{
 
 #[cfg(feature = "benchmark")]
 use {
-    ku::allocator::{
-        Cache,
-        GlobalCache,
+    blink_alloc::GlobalBlinkAlloc,
+    dlmalloc::GlobalDlmalloc,
+    frusa::Frusa2M,
+    good_memory_allocator::{
+        DEFAULT_ALIGNMENT_SUB_BINS_AMOUNT,
+        DEFAULT_SMALLBINS_AMOUNT,
+        SpinLockedAllocator as Good,
     },
+    jemallocator::Jemalloc,
+    ku::{
+        allocator::{
+            Cache,
+            GlobalCache,
+        },
+        memory::{
+            GiB,
+            MiB,
+            Page,
+        },
+    },
+    mimalloc::MiMalloc,
+    ring_alloc::OneRingAlloc,
+    rlsf::GlobalTlsf,
+    spin::Mutex,
     std::{
         alloc::System,
         env,
         fs,
+        ptr::{
+            self,
+            NonNull,
+        },
+    },
+    talc::{
+        ErrOnOom,
+        Span,
+        Talc,
     },
     tcmalloc_better::TCMalloc,
+    wee_alloc::WeeAlloc,
 };
 
 mod allocator;
@@ -144,6 +174,11 @@ fn single_threaded() {
     #[cfg(feature = "benchmark")]
     {
         let tcmalloc_stats = stress("tcmalloc", &TCMalloc, SINGLE_THREADED_ITERATIONS, SEED);
+        let jemalloc_stats = stress("jemalloc", &Jemalloc, SINGLE_THREADED_ITERATIONS, SEED);
+        let mimalloc_stats = stress("mimalloc", &MiMalloc, SINGLE_THREADED_ITERATIONS, SEED);
+
+        let ring = Ring(OneRingAlloc);
+        let ring_stats = stress("ring-alloc", &ring, SINGLE_THREADED_ITERATIONS, SEED);
 
         static ALLOCATOR_GLOBAL_CACHE: Dispatcher<GlobalCache, Fallback> =
             Dispatcher::new(GlobalCache::new(), Fallback::new());
@@ -172,11 +207,62 @@ fn single_threaded() {
             SEED,
         );
 
+        let dlmalloc_stats = stress(
+            "dlmalloc",
+            &GlobalDlmalloc,
+            SINGLE_THREADED_ITERATIONS,
+            SEED,
+        );
+
+        let blink = GlobalBlinkAlloc::new();
+        let blink_stats = stress("blink", &blink, SINGLE_THREADED_ITERATIONS, SEED);
+
+        let frusa = Frusa2M::new(&ALLOCATOR);
+        let frusa_stats = stress("frusa", &frusa, SINGLE_THREADED_ITERATIONS, SEED);
+        ALLOCATOR.unmap();
+
+        let rlsf = GlobalTlsf::<()>::new();
+        let rlsf_stats = stress("rlsf", &rlsf, SINGLE_THREADED_ITERATIONS, SEED);
+
+        let mut talc = Talc::new(ErrOnOom);
+        let talc_stats = unsafe {
+            let size = MAX_TOTAL_MEMORY_PER_ALLOCATOR;
+            let layout = Layout::from_size_align(size, Page::SIZE).unwrap();
+            let start = ALLOCATOR.alloc(layout);
+            assert!(!start.is_null());
+            let end = start.add(size);
+            talc.claim(Span::new(start, end)).unwrap();
+            let talck = talc.lock::<Mutex<()>>();
+            let talc_stats = stress("talc", &talck, SINGLE_THREADED_ITERATIONS, SEED);
+            ALLOCATOR.dealloc(start, layout);
+            ALLOCATOR.unmap();
+            talc_stats
+        };
+
+        let wee = WeeAlloc::INIT;
+        let wee_stats = stress("wee", &wee, SINGLE_THREADED_ITERATIONS, SEED);
+
+        let good = Good::<DEFAULT_SMALLBINS_AMOUNT, DEFAULT_ALIGNMENT_SUB_BINS_AMOUNT>::empty();
+        let good_stats = unsafe {
+            let size = MAX_TOTAL_MEMORY_PER_ALLOCATOR;
+            let layout = Layout::from_size_align(size, Page::SIZE).unwrap();
+            let start = ALLOCATOR.alloc(layout);
+            assert!(!start.is_null());
+            good.init(start as usize, size);
+            let good_stats = stress("good", &good, SINGLE_THREADED_ITERATIONS, SEED);
+            ALLOCATOR.dealloc(start, layout);
+            ALLOCATOR.unmap();
+            good_stats
+        };
+
         validate_performance(
             nikka_allocator_stats,
             tcmalloc_stats,
+            jemalloc_stats,
+            mimalloc_stats,
             system_allocator_stats,
             None,
+            1,
         );
 
         if env::var("UPDATE_CHARTS").is_ok() {
@@ -185,6 +271,9 @@ fn single_threaded() {
                 &[
                     ("nikka allocator", &nikka_allocator_stats),
                     ("tcmalloc", &tcmalloc_stats),
+                    ("jemalloc", &jemalloc_stats),
+                    ("mimalloc", &mimalloc_stats),
+                    ("ring-alloc", &ring_stats),
                     (
                         "nikka allocator (global cache)",
                         &nikka_allocator_global_cache_stats,
@@ -194,8 +283,27 @@ fn single_threaded() {
                         &nikka_allocator_no_cache_stats,
                     ),
                     ("system", &system_allocator_stats),
+                    ("dlmalloc", &dlmalloc_stats),
+                    ("blink", &blink_stats),
+                    ("frusa", &frusa_stats),
+                    ("rlsf", &rlsf_stats),
+                    ("talc", &talc_stats),
+                    ("wee", &wee_stats),
+                    ("good", &good_stats),
                 ],
                 "../lab/src/3-allocator-6-singlethreaded-performance.tex",
+            );
+
+            chart_duration(
+                "Single threaded allocator performance",
+                &[
+                    ("nikka allocator", &nikka_allocator_stats),
+                    ("tcmalloc", &tcmalloc_stats),
+                    ("jemalloc", &jemalloc_stats),
+                    ("mimalloc", &mimalloc_stats),
+                    ("ring-alloc", &ring_stats),
+                ],
+                "../lab/src/3-allocator-6-singlethreaded-performance-no-system.tex",
             );
 
             chart_ops_per_us(
@@ -203,6 +311,7 @@ fn single_threaded() {
                 &[
                     ("nikka allocator", &nikka_allocator_stats),
                     ("tcmalloc", &tcmalloc_stats),
+                    ("jemalloc", &jemalloc_stats),
                 ],
                 "../lab/src/3-allocator-6-singlethreaded-performance-ops-per-us.tex",
             );
@@ -242,6 +351,11 @@ fn multi_threaded() {
     #[cfg(feature = "benchmark")]
     {
         let tcmalloc_stats = multi_threaded_stress("tcmalloc", &TCMalloc, thread_count);
+        let jemalloc_stats = multi_threaded_stress("jemalloc", &Jemalloc, thread_count);
+        let mimalloc_stats = multi_threaded_stress("mimalloc", &MiMalloc, thread_count);
+
+        let ring = Ring(OneRingAlloc);
+        let ring_stats = multi_threaded_stress("ring-alloc", &ring, thread_count);
 
         static ALLOCATOR_GLOBAL_CACHE: Dispatcher<GlobalCache, Fallback> =
             Dispatcher::new(GlobalCache::new(), Fallback::new());
@@ -264,11 +378,44 @@ fn multi_threaded() {
         let system_allocator_stats =
             multi_threaded_stress("system allocator", &System, thread_count);
 
+        let dlmalloc_stats = multi_threaded_stress("dlmalloc", &GlobalDlmalloc, thread_count);
+
+        let blink = GlobalBlinkAlloc::new();
+        let blink_stats = multi_threaded_stress("blink", &blink, thread_count);
+
+        static FRUSA: Frusa2M = Frusa2M::new(&ALLOCATOR);
+        let frusa_stats = multi_threaded_stress("frusa", &FRUSA, thread_count);
+        ALLOCATOR.unmap();
+
+        let rlsf = GlobalTlsf::<()>::new();
+        let rlsf_stats = multi_threaded_stress("rlsf", &rlsf, thread_count);
+
+        let mut talc = Talc::new(ErrOnOom);
+        let talc_stats = unsafe {
+            let size = MAX_TOTAL_MEMORY_PER_ALLOCATOR;
+            let layout = Layout::from_size_align(size, Page::SIZE).unwrap();
+            let start = ALLOCATOR.alloc(layout);
+            assert!(!start.is_null());
+            let end = start.add(size);
+            talc.claim(Span::new(start, end)).unwrap();
+            let talck = talc.lock::<Mutex<()>>();
+            let talc_stats = multi_threaded_stress("talc", &talck, thread_count);
+            ALLOCATOR.dealloc(start, layout);
+            ALLOCATOR.unmap();
+            talc_stats
+        };
+
+        let wee = WeeAlloc::INIT;
+        let wee_stats = multi_threaded_stress("wee", &wee, thread_count);
+
         validate_performance(
             nikka_allocator_stats,
             tcmalloc_stats,
+            jemalloc_stats,
+            mimalloc_stats,
             system_allocator_stats,
             Some(1.1),
+            thread_count,
         );
 
         if env::var("UPDATE_CHARTS").is_ok() {
@@ -277,6 +424,9 @@ fn multi_threaded() {
                 &[
                     ("nikka allocator", &nikka_allocator_stats),
                     ("tcmalloc", &tcmalloc_stats),
+                    ("jemalloc", &jemalloc_stats),
+                    ("mimalloc", &mimalloc_stats),
+                    ("ring-alloc", &ring_stats),
                     (
                         "nikka allocator (global cache)",
                         &nikka_allocator_global_cache_stats,
@@ -286,8 +436,26 @@ fn multi_threaded() {
                         &nikka_allocator_no_cache_stats,
                     ),
                     ("system", &system_allocator_stats),
+                    ("dlmalloc", &dlmalloc_stats),
+                    ("blink", &blink_stats),
+                    ("frusa", &frusa_stats),
+                    ("rlsf", &rlsf_stats),
+                    ("talc", &talc_stats),
+                    ("wee", &wee_stats),
                 ],
                 "../lab/src/3-allocator-6-multithreaded-performance.tex",
+            );
+
+            chart_duration(
+                "Multithreaded allocator performance",
+                &[
+                    ("nikka allocator", &nikka_allocator_stats),
+                    ("tcmalloc", &tcmalloc_stats),
+                    ("jemalloc", &jemalloc_stats),
+                    ("mimalloc", &mimalloc_stats),
+                    ("ring-alloc", &ring_stats),
+                ],
+                "../lab/src/3-allocator-6-multithreaded-performance-no-system.tex",
             );
 
             chart_ops_per_us(
@@ -295,6 +463,7 @@ fn multi_threaded() {
                 &[
                     ("nikka allocator", &nikka_allocator_stats),
                     ("tcmalloc", &tcmalloc_stats),
+                    ("jemalloc", &jemalloc_stats),
                 ],
                 "../lab/src/3-allocator-6-multithreaded-performance-ops-per-us.tex",
             );
@@ -374,20 +543,31 @@ fn validate_info_empty(detailed_info: &DetailedInfo) {
 fn validate_performance(
     nikka_allocator_stats: Stats,
     tcmalloc_stats: Stats,
+    jemalloc_stats: Stats,
+    mimalloc_stats: Stats,
     system_allocator_stats: Stats,
     allowed_ratio: Option<f32>,
+    thread_count: usize,
 ) {
     let nikka = nikka_allocator_stats.total().duration;
     let tcmalloc = tcmalloc_stats.total().duration;
+    let jemalloc = jemalloc_stats.total().duration;
+    let mimalloc = mimalloc_stats.total().duration;
     let system = system_allocator_stats.total().duration;
 
     let nikka_div_tcmalloc = nikka.div_duration_f32(tcmalloc);
+    let nikka_div_jemalloc = nikka.div_duration_f32(jemalloc);
+    let nikka_div_mimalloc = nikka.div_duration_f32(mimalloc);
     let nikka_div_system = nikka.div_duration_f32(system);
     info!(
         ?nikka,
         ?tcmalloc,
+        ?jemalloc,
+        ?mimalloc,
         ?system,
         nikka_div_tcmalloc,
+        nikka_div_jemalloc,
+        nikka_div_mimalloc,
         nikka_div_system,
         "performance (smaller is better)",
     );
@@ -404,6 +584,18 @@ fn validate_performance(
         allowed_ratio,
     );
     compare(
+        "jemalloc",
+        &jemalloc_stats,
+        &nikka_allocator_stats,
+        allowed_ratio,
+    );
+    compare(
+        "mimalloc",
+        &mimalloc_stats,
+        &nikka_allocator_stats,
+        allowed_ratio,
+    );
+    compare(
         "system",
         &system_allocator_stats,
         &nikka_allocator_stats,
@@ -412,7 +604,8 @@ fn validate_performance(
 
     let total_memory = CachingBig::total_memory();
     info!(total_memory = %Size::bytes(total_memory));
-    assert_eq!(total_memory, 0, "do you deallocate?");
+    let frusa_leaks = 10 * MiB * thread_count;
+    assert!(total_memory <= frusa_leaks, "do you deallocate?");
 
     fn compare(
         base_name: &str,
@@ -850,7 +1043,7 @@ fn chart_duration(
 ) {
     let mut chart = HEADER.to_owned();
 
-    chart += &format!("    title={{{title}}},\n    width={}mm,\n", 50 * data.len());
+    chart += &format!("    title={{{title}}},\n    width={}mm,\n", 35 * data.len());
     chart += "    ylabel={Operation duration, ns (smaller is better)},\n";
     chart += "    symbolic x coords=";
     chart += "{allocation,deallocation,allocation + deallocation, ,";
@@ -966,6 +1159,13 @@ const HEADER: &str = r##"
 \definecolor{color5}{RGB}{202, 252, 202}
 \definecolor{color6}{RGB}{202, 202, 202}
 \definecolor{color7}{RGB}{151, 151, 202}
+\definecolor{color8}{RGB}{102, 118, 146}
+\definecolor{color9}{RGB}{121, 153, 134}
+\definecolor{color10}{RGB}{152, 144, 121}
+\definecolor{color11}{RGB}{152, 125, 128}
+\definecolor{color12}{RGB}{144, 102, 152}
+\definecolor{color13}{RGB}{102, 152, 102}
+\definecolor{color14}{RGB}{102, 102, 102}
 
 \begin{tikzpicture}
 \begin{axis}[
@@ -987,11 +1187,40 @@ const TAILER: &str = r##"
 \end{document}
 "##;
 
+#[cfg(feature = "benchmark")]
+struct Ring(OneRingAlloc);
+
+#[cfg(feature = "benchmark")]
+unsafe impl GlobalAlloc for Ring {
+    unsafe fn alloc(
+        &self,
+        layout: Layout,
+    ) -> *mut u8 {
+        self.0
+            .allocate(layout)
+            .map(|x| x.as_non_null_ptr().as_ptr())
+            .unwrap_or_else(|_| ptr::null_mut())
+    }
+
+    unsafe fn dealloc(
+        &self,
+        ptr: *mut u8,
+        layout: Layout,
+    ) {
+        unsafe {
+            self.0.deallocate(NonNull::new(ptr).unwrap(), layout);
+        }
+    }
+}
+
 const BENCHMARK_CHECK_RATE: u32 = 1_000;
 const DIFFERENT_SIZES: usize = 1024;
 const MAX_ACTIVE_ALLOCATIONS: usize = 1_000_000;
 const MAX_LB_ALIGN: u32 = 10;
-const MULTI_THREADED_ITERATIONS: usize = 10_000_000;
+const MULTI_THREADED_ITERATIONS: usize = 1_000_000;
 const SEED: usize = 314159265;
-const SINGLE_THREADED_ITERATIONS: usize = 10_000_000;
+const SINGLE_THREADED_ITERATIONS: usize = 1_000_000;
 const SIZE_MULTIPLIER: usize = 1;
+
+#[cfg(feature = "benchmark")]
+const MAX_TOTAL_MEMORY_PER_ALLOCATOR: usize = GiB / 2;

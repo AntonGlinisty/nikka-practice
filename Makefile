@@ -155,7 +155,7 @@ lab: $(RUST_PATH)/mdbook doc lab/src/*.dot lab/src/*.md lab/src/*.puml
 		cd lab/src; \
 		for i in *.dot; do dot -Tsvg $$i > $${i%dot}svg; done; \
 		for i in *.puml; do java -jar /usr/share/java/plantuml/plantuml.jar -tsvg $$i; done; \
-		for i in 6-um-1-pipe*.tex; do \
+		for i in 3-allocator-7-*.tex 6-um-1-pipe*.tex; do \
 			sed -i 's@\s*$$@@g;' $$i; \
 			pdflatex -halt-on-error $$i >/dev/null; \
 			latex_error=$$?; \

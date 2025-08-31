@@ -1,0 +1,165 @@
+
+\documentclass[border=2mm]{standalone}
+
+\usepackage[dvipsnames]{xcolor}
+\usepackage{pgfplots}
+\usepackage{tikz}
+\usepackage{siunitx}
+
+\usetikzlibrary{arrows.meta}
+\usetikzlibrary{decorations.pathreplacing,calligraphy}
+\usetikzlibrary{math}
+\usetikzlibrary{matrix}
+\usetikzlibrary{positioning}
+\usetikzlibrary{shapes.misc}
+
+\begin{document}
+
+\definecolor{color0}{RGB}{202, 218, 246}
+\definecolor{color1}{RGB}{221, 253, 234}
+\definecolor{color2}{RGB}{252, 244, 221}
+\definecolor{color3}{RGB}{252, 225, 228}
+\definecolor{color4}{RGB}{244, 202, 252}
+\definecolor{color5}{RGB}{202, 252, 202}
+\definecolor{color6}{RGB}{202, 202, 202}
+\definecolor{color7}{RGB}{151, 151, 202}
+\definecolor{color8}{RGB}{102, 118, 146}
+\definecolor{color9}{RGB}{121, 153, 134}
+\definecolor{color10}{RGB}{152, 144, 121}
+\definecolor{color11}{RGB}{152, 125, 128}
+\definecolor{color12}{RGB}{144, 102, 152}
+\definecolor{color13}{RGB}{102, 152, 102}
+\definecolor{color14}{RGB}{102, 102, 102}
+
+\begin{tikzpicture}
+\begin{axis}[
+    ybar,
+    height=150mm,
+    legend cell align=left,
+    legend pos=north west,
+    nodes near coords, nodes near coords style={rotate=90,anchor=west},
+    x tick label style={rotate=30,anchor=east},
+    xtick=data,
+    ymin=0,
+    title={Multithreaded allocator performance},
+    width=490mm,
+    ylabel={Operation duration, ns (smaller is better)},
+    symbolic x coords={allocation,deallocation,allocation + deallocation, ,zeroed allocation,reallocation},
+]
+    \addplot [draw=black!35!color0, fill=black!10!color0] coordinates {
+        (allocation,17.0157849185268)
+        (deallocation,14.751604276875842)
+        (allocation + deallocation,31.767389195402643)
+        (zeroed allocation,50.46696234056175)
+        (reallocation,57.857793248593865)
+    };
+
+    \addplot [draw=black!35!color1, fill=black!10!color1] coordinates {
+        (allocation,24.8067513411949)
+        (deallocation,17.417923655404465)
+        (allocation + deallocation,42.22467499659937)
+        (zeroed allocation,58.91736424414987)
+        (reallocation,70.61214029040032)
+    };
+
+    \addplot [draw=black!35!color2, fill=black!10!color2] coordinates {
+        (allocation,28.237355248859107)
+        (deallocation,20.1600823924914)
+        (allocation + deallocation,48.39743764135051)
+        (zeroed allocation,58.4551023988269)
+        (reallocation,80.94335551200327)
+    };
+
+    \addplot [draw=black!35!color3, fill=black!10!color3] coordinates {
+        (allocation,25.879974827838257)
+        (deallocation,16.72134387056367)
+        (allocation + deallocation,42.601318698401926)
+        (zeroed allocation,51.67729563341235)
+        (reallocation,72.48017082901123)
+    };
+
+    \addplot [draw=black!35!color4, fill=black!10!color4] coordinates {
+        (allocation,24.370045725441074)
+        (deallocation,24.73495387844118)
+        (allocation + deallocation,49.104999603882256)
+        (zeroed allocation,65.5913223010386)
+        (reallocation,79.67148117063175)
+    };
+
+    \addplot [draw=black!35!color5, fill=black!10!color5] coordinates {
+        (allocation,41.60781652423867)
+        (deallocation,35.56223607720858)
+        (allocation + deallocation,77.17005260144725)
+        (zeroed allocation,78.31510860617946)
+        (reallocation,94.58328476827153)
+    };
+
+    \addplot [draw=black!35!color6, fill=black!10!color6] coordinates {
+        (allocation,81.97742577276594)
+        (deallocation,62.72219141306411)
+        (allocation + deallocation,144.69961718583005)
+        (zeroed allocation,113.05254059143775)
+        (reallocation,152.50041289678032)
+    };
+
+    \addplot [draw=black!35!color7, fill=black!10!color7] coordinates {
+        (allocation,118.00126010287103)
+        (deallocation,48.088068186064724)
+        (allocation + deallocation,166.08932828893575)
+        (zeroed allocation,161.1519541915373)
+        (reallocation,173.99624305182098)
+    };
+
+    \addplot [draw=black!35!color8, fill=black!10!color8] coordinates {
+        (allocation,1586.7892399472041)
+        (deallocation,1410.388286574)
+        (allocation + deallocation,2997.177526521204)
+        (zeroed allocation,1699.298987481839)
+        (reallocation,1805.9073618633383)
+    };
+
+    \addplot [draw=black!35!color9, fill=black!10!color9] coordinates {
+        (allocation,108.47951024898616)
+        (deallocation,49.490265219516495)
+        (allocation + deallocation,157.96977546850266)
+        (zeroed allocation,150.95220488461672)
+        (reallocation,175.23103693719844)
+    };
+
+    \addplot [draw=black!35!color10, fill=black!10!color10] coordinates {
+        (allocation,204.93406657468762)
+        (deallocation,198.94586191484814)
+        (allocation + deallocation,403.87992848953576)
+        (zeroed allocation,229.72754220325032)
+        (reallocation,403.04762826239084)
+    };
+
+    \addplot [draw=black!35!color11, fill=black!10!color11] coordinates {
+        (allocation,818.1683321051191)
+        (deallocation,768.3674881501003)
+        (allocation + deallocation,1586.5358202552195)
+        (zeroed allocation,855.1438156626199)
+        (reallocation,894.581466672367)
+    };
+
+    \addplot [draw=black!35!color12, fill=black!10!color12] coordinates {
+        (allocation,888.2834229954574)
+        (deallocation,715.5514631692708)
+        (allocation + deallocation,1603.8348861647282)
+        (zeroed allocation,980.102182918985)
+        (reallocation,825.2402661740407)
+    };
+
+    \addplot [draw=black!35!color13, fill=black!10!color13] coordinates {
+        (allocation,1334.9672657262483)
+        (deallocation,1036.9293266147777)
+        (allocation + deallocation,2371.896592341026)
+        (zeroed allocation,1381.2269507055241)
+        (reallocation,2119.3017649180993)
+    };
+
+    \legend{nikka allocator,tcmalloc,jemalloc,mimalloc,ring-alloc,nikka allocator (global cache),nikka allocator (no cache),system,dlmalloc,blink,frusa,rlsf,talc,wee}
+\end{axis}
+\end{tikzpicture}
+
+\end{document}

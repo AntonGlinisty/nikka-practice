@@ -43,8 +43,12 @@ pub use mmu::{
 };
 pub use page_fault_info::PageFaultInfo;
 pub use size::{
+    GiB,
+    KiB,
+    MiB,
     Size,
     SizeOf,
+    TiB,
 };
 
 // Used in docs.

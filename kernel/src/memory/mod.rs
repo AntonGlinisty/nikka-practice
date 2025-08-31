@@ -57,6 +57,9 @@ use x86_64::registers::model_specific::{
 
 pub use ku::{
     memory::{
+        KiB,
+        MiB,
+        TiB,
         addr,
         block,
         frage,

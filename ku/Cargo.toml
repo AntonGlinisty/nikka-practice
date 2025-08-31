@@ -33,7 +33,17 @@ tracing-core = { git = "https://github.com/tokio-rs/tracing", version = "*", def
 x86_64 = "*"
 xmas-elf = "*"
 
+blink-alloc = { version = "*", features = ["sync"], optional = true }
+dlmalloc = { version = "*", features = ["global"], optional = true }
+frusa = { version = "*", optional = true }
+good_memory_allocator = { version = "*", optional = true }
+jemallocator = { version = "*", optional = true }
+mimalloc = { version = "*", optional = true }
+ring-alloc = { version = "*", optional = true }
+rlsf = { version = "*", optional = true }
+talc = { version = "*", optional = true }
 tcmalloc-better = { version = "*", optional = true }
+wee_alloc = { version = "*", optional = true }
 
 sentinel_frame = { path = "../sentinel_frame" }
 
@@ -48,6 +58,18 @@ tracing-subscriber = { git = "https://github.com/tokio-rs/tracing", features = [
 
 [features]
 allocator-statistics = []
-benchmark = ["tcmalloc-better"]
+benchmark = [
+    "blink-alloc",
+    "dlmalloc",
+    "frusa",
+    "good_memory_allocator",
+    "jemallocator",
+    "mimalloc",
+    "ring-alloc",
+    "rlsf",
+    "talc",
+    "tcmalloc-better",
+    "wee_alloc",
+]
 # Отключает sentinel frame
 conservative-backtraces = []
