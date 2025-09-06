@@ -17,7 +17,6 @@ use kernel::{
         Phys,
         test_scaffolding::{
             allocate_block,
-            forbid_frame_leaks,
             get_boot,
             is_managed,
             is_used,
@@ -26,12 +25,13 @@ use kernel::{
 };
 
 mod init;
+mod mm_helpers;
 
 init!(Subsystems::PHYS_MEMORY);
 
 #[test_case]
 fn t1_sanity_check() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut frame_allocator = FRAME_ALLOCATOR.lock();
     let free_frames = frame_allocator.count();

@@ -1,5 +1,6 @@
 #![deny(warnings)]
 #![feature(custom_test_frameworks)]
+#![feature(iter_is_partitioned)]
 #![feature(iterator_try_reduce)]
 #![no_main]
 #![no_std]

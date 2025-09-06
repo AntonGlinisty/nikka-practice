@@ -1,7 +1,6 @@
 use kernel::{
     Subsystems,
     log::debug,
-    memory::test_scaffolding::forbid_frame_leaks,
     process::{
         Process,
         Scheduler,
@@ -15,6 +14,7 @@ use kernel::{
 };
 
 mod init;
+mod mm_helpers;
 mod process_helpers;
 
 init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::PROCESS);
@@ -25,7 +25,7 @@ const SCHED_YIELD_ELF: &[u8] = page_aligned!("../../target/kernel/user/sched_yie
 
 #[test_case]
 fn syscall_sched_yield() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut process = process_helpers::allocate(SCHED_YIELD_ELF);
     let pid = process.pid();
@@ -77,7 +77,7 @@ fn scheduler() {
 
 #[test_case]
 fn sched_yield_reschedules() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut process = process_helpers::allocate(SCHED_YIELD_ELF);
     let pid = process.pid();

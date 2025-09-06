@@ -28,7 +28,6 @@ use ku::{
 use kernel::{
     Subsystems,
     memory::test_scaffolding::{
-        forbid_frame_leaks,
         get_pte,
         path,
         switch_to,
@@ -54,6 +53,7 @@ use kernel::{
 };
 
 mod init;
+mod mm_helpers;
 mod process_helpers;
 
 init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::PROCESS);
@@ -62,7 +62,7 @@ const MEMORY_ALLOCATOR_ELF: &[u8] = page_aligned!("../../target/kernel/user/memo
 
 #[test_case]
 fn map_syscall_group() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let process = Spinlock::new(process_helpers::make(MEMORY_ALLOCATOR_ELF));
     set_pid(&mut process.lock(), Pid::new(0));
@@ -263,7 +263,7 @@ fn map_over_kernel(
 
 #[test_case]
 fn copy_mapping_of_intersecting_blocks() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let process = Spinlock::new(process_helpers::make(MEMORY_ALLOCATOR_ELF));
     set_pid(&mut process.lock(), Pid::new(0));
@@ -361,7 +361,7 @@ fn copy_mapping_of_intersecting_blocks() {
 
 #[test_case]
 fn copy_mapping_of_enormous_blocks() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let process = Spinlock::new(process_helpers::make(MEMORY_ALLOCATOR_ELF));
     set_pid(&mut process.lock(), Pid::new(0));
@@ -401,7 +401,7 @@ fn copy_mapping_of_enormous_blocks() {
 #[test_case]
 fn user_space_memory_allocator() {
     let _trap_guard = process_helpers::forbid_traps();
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     Scheduler::enqueue(process_helpers::allocate(MEMORY_ALLOCATOR_ELF).pid());
 

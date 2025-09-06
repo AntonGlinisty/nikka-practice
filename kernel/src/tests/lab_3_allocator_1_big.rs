@@ -66,7 +66,6 @@ use kernel::{
         },
         test_scaffolding::{
             PAGES_PER_ROOT_LEVEL_ENTRY,
-            forbid_frame_leaks,
             translate,
             user_root_level_entries,
         },
@@ -74,6 +73,7 @@ use kernel::{
 };
 
 mod init;
+mod mm_helpers;
 
 init!(Subsystems::MEMORY);
 
@@ -95,7 +95,7 @@ fn grow_and_shrink_unmap_old_block() {
 }
 
 fn grow_and_shrink_unmap_old_block_and_initialize_memory(initialize: Initialize) {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 

@@ -6,7 +6,6 @@ use ku::{
 use kernel::{
     Subsystems,
     log::debug,
-    memory::test_scaffolding::forbid_frame_leaks,
     process::{
         Process,
         test_scaffolding,
@@ -18,6 +17,7 @@ use kernel::{
 };
 
 mod init;
+mod mm_helpers;
 mod process_helpers;
 
 init!(Subsystems::MEMORY | Subsystems::SMP);
@@ -27,7 +27,7 @@ const PAGE_FAULT_ELF: &[u8] = page_aligned!("../../target/kernel/user/page_fault
 #[test_case]
 fn user_mode_page_fault() {
     let _trap_guard = process_helpers::forbid_traps_except(&[Trap::PageFault]);
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let process = Spinlock::new(process_helpers::make(PAGE_FAULT_ELF));
 
@@ -47,7 +47,7 @@ fn user_mode_page_fault() {
 #[test_case]
 fn user_context_saved() {
     let _trap_guard = process_helpers::forbid_traps_except(&[Trap::PageFault]);
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let process = Spinlock::new(process_helpers::make(PAGE_FAULT_ELF));
 

@@ -22,7 +22,6 @@ use kernel::{
         Virt,
         mmu::PageTableFlags,
         test_scaffolding::{
-            forbid_frame_leaks,
             get_pte,
             iter_mut,
             path,
@@ -39,14 +38,14 @@ init!(Subsystems::PHYS_MEMORY | Subsystems::VIRT_MEMORY);
 
 #[test_case]
 fn t00_path() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     mm_helpers::test_path(&mut BASE_ADDRESS_SPACE.lock());
 }
 
 #[test_case]
 fn t01_translate() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     mm_helpers::test_translate(&mut BASE_ADDRESS_SPACE.lock());
 }
@@ -61,7 +60,7 @@ fn do_not_loose_intermediate_flags(virt: Virt) {
 
 #[test_case]
 fn t02_map_intermediate() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
     mm_helpers::check_map_intermediate(mm_helpers::unique_user_virt());
     do_not_loose_intermediate_flags(mm_helpers::unique_user_virt());
 }
@@ -73,7 +72,7 @@ fn t03_no_excessive_intermediate_flags() {
 
 #[test_case]
 fn t04_huge_page() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
@@ -93,7 +92,7 @@ fn t04_huge_page() {
 
 #[test_case]
 fn t05_no_page() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
@@ -105,7 +104,7 @@ fn t05_no_page() {
 
 #[test_case]
 fn t06_build_map() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 

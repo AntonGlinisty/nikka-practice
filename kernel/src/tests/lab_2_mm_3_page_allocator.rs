@@ -22,19 +22,19 @@ use kernel::{
         test_scaffolding::{
             LOWER_HALF_ROOT_LEVEL_ENTRY_COUNT,
             find_unused_block,
-            forbid_frame_leaks,
             page_allocator_block,
         },
     },
 };
 
 mod init;
+mod mm_helpers;
 
 init!(Subsystems::PHYS_MEMORY | Subsystems::VIRT_MEMORY);
 
 #[test_case]
 fn sanity_check() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let page_allocator_block = page_allocator_block(&BASE_ADDRESS_SPACE.lock());
 
@@ -46,7 +46,7 @@ fn sanity_check() {
 
 #[test_case]
 fn some_used_entries() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let tests: [&[usize]; 6] = [&[], &[0], &[2], &[31], &[31, 254], &[0, 2, 31, 254]];
 
@@ -78,7 +78,7 @@ fn some_used_entries() {
 
 #[test_case]
 fn allocate_block() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
@@ -103,7 +103,7 @@ fn allocate_block() {
 
 #[test_case]
 fn allocate_page() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let page = BASE_ADDRESS_SPACE
         .lock()
@@ -120,7 +120,7 @@ fn allocate_page() {
 
 #[test_case]
 fn allocate_two_pages() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 

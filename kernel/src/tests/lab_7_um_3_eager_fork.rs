@@ -21,10 +21,7 @@ use ku::{
 use kernel::{
     Subsystems,
     log::debug,
-    memory::test_scaffolding::{
-        forbid_frame_leaks,
-        switch_to,
-    },
+    memory::test_scaffolding::switch_to,
     process::{
         Process,
         Scheduler,
@@ -42,6 +39,7 @@ use kernel::{
 };
 
 mod init;
+mod mm_helpers;
 mod process_helpers;
 
 init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::PROCESS);
@@ -52,7 +50,7 @@ const EXIT_ELF: &[u8] = page_aligned!("../../target/kernel/user/exit");
 #[test_case]
 fn t1_exofork_syscall() {
     let _trap_guard = process_helpers::forbid_traps_except(&[Trap::PageFault]);
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut parent = process_helpers::allocate(EXIT_ELF);
     let parent_pid = parent.pid();
@@ -146,7 +144,7 @@ fn t2_eager_fork() {
     }
 
     {
-        let _guard = forbid_frame_leaks();
+        let _guard = mm_helpers::forbid_frame_leaks();
 
         let pid = process_helpers::allocate(EAGER_FORK_ELF).pid();
 

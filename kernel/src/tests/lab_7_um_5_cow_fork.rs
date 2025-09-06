@@ -21,7 +21,6 @@ use kernel::{
     memory::{
         FRAME_ALLOCATOR,
         FrameAllocator,
-        test_scaffolding::forbid_frame_leaks,
     },
     process::{
         Process,
@@ -35,6 +34,7 @@ use kernel::{
 };
 
 mod init;
+mod mm_helpers;
 mod process_helpers;
 
 init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::PROCESS);
@@ -80,7 +80,7 @@ fn cow_fork() {
     }
 
     {
-        let _guard = forbid_frame_leaks();
+        let _guard = mm_helpers::forbid_frame_leaks();
 
         START_FREE_FRAMES.store(FRAME_ALLOCATOR.lock().count(), Ordering::Relaxed);
         let pid = process_helpers::allocate(COW_FORK_ELF).pid();

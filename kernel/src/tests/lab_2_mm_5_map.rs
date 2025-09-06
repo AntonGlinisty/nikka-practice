@@ -30,7 +30,6 @@ use kernel::{
         mmu::PageTableFlags,
         test_scaffolding::{
             PAGES_PER_ROOT_LEVEL_ENTRY,
-            forbid_frame_leaks,
             kernel_root_level_entries,
             map_page,
             map_page_to_frame,
@@ -48,7 +47,7 @@ init!(Subsystems::PHYS_MEMORY | Subsystems::VIRT_MEMORY);
 
 #[test_case]
 fn map_slice() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
 
@@ -82,7 +81,7 @@ fn map_slice() {
 
 #[test_case]
 fn map_readable() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
@@ -103,7 +102,7 @@ fn check_map_writable(
     remap: bool,
     map_neighbour: bool,
 ) {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
@@ -147,7 +146,7 @@ fn map_writable() {
 
 #[test_case]
 fn map_twice() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let virt = mm_helpers::unique_kernel_virt();
     let page = Page::containing(virt);
@@ -179,7 +178,7 @@ fn map_twice() {
 
 #[test_case]
 fn unmap_nonmapped_page() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let virt = mm_helpers::unique_kernel_virt();
     let page = Page::containing(virt);
@@ -198,7 +197,7 @@ fn unmap_nonmapped_page() {
 
 #[test_case]
 fn kernel_and_user_are_separated() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let checks_per_root_level_entry = 16;
 

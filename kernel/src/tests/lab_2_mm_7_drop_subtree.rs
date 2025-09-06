@@ -4,10 +4,7 @@ use kernel::{
         BASE_ADDRESS_SPACE,
         FRAME_ALLOCATOR,
         FrameAllocator,
-        test_scaffolding::{
-            forbid_frame_leaks,
-            unmap_unused_intermediate,
-        },
+        test_scaffolding::unmap_unused_intermediate,
     },
 };
 
@@ -44,12 +41,12 @@ fn drop_subtree() {
     }
 
     {
-        let _guard = forbid_frame_leaks();
+        let _guard = mm_helpers::forbid_frame_leaks();
         mm_helpers::check_map_intermediate(mm_helpers::unique_user_virt());
     }
 
     {
-        let _guard = forbid_frame_leaks();
+        let _guard = mm_helpers::forbid_frame_leaks();
         mm_helpers::test_no_excessive_intermediate_flags(mm_helpers::unique_user_virt());
     }
 }

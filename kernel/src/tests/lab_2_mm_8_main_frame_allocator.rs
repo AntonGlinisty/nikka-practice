@@ -28,7 +28,6 @@ use kernel::{
         size::TiB,
         test_scaffolding::{
             duplicate,
-            forbid_frame_leaks,
             get_pte,
             map_page,
             path,
@@ -42,12 +41,13 @@ use kernel::{
 };
 
 mod init;
+mod mm_helpers;
 
 init!(Subsystems::MEMORY);
 
 #[test_case]
 fn sanity_check() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let frame_allocator = FRAME_ALLOCATOR.lock();
     let free_frames = frame_allocator.count();
@@ -63,7 +63,7 @@ fn sanity_check() {
 
 #[test_case]
 fn basic_frame_allocator_functions() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut frame_allocator = FRAME_ALLOCATOR.lock();
     let start_free_frames = frame_allocator.count();
@@ -112,7 +112,7 @@ fn basic_frame_allocator_functions() {
 
 #[test_case]
 fn allocated_frames_are_not_used() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let max_frames_for_intermediates: usize = PAGE_TABLE_ROOT_LEVEL.try_into().unwrap();
     let poison = 0xDEAD_BEEF_DEAD_BEEF_u64;
@@ -211,7 +211,7 @@ fn allocated_frames_are_not_used() {
 
 #[test_case]
 fn allocated_frames_are_unique() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
     let frame_count = init::frame_count();
@@ -258,7 +258,7 @@ fn allocated_frames_are_unique() {
 
 #[test_case]
 fn shared_memory() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let frame = FrameGuard::allocate().expect("failed to allocate a frame");
 
@@ -311,7 +311,7 @@ fn shared_memory() {
 
 #[test_case]
 fn garbage_after_unmap() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
 
@@ -347,7 +347,7 @@ fn garbage_after_unmap() {
 
 #[test_case]
 fn duplicate_and_drop_mapping() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let variable =
         unsafe { BASE_ADDRESS_SPACE.lock().map_slice_zeroed::<usize>(1, KERNEL_RW).unwrap() };
@@ -392,7 +392,7 @@ fn duplicate_and_drop_mapping() {
 fn all_frames_are_freed_on_drop() {
     const PAGES_PER_ROOT_LEVEL_ENTRY: usize = PAGE_TABLE_ENTRY_COUNT.pow(PAGE_TABLE_ROOT_LEVEL);
 
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = duplicate(&BASE_ADDRESS_SPACE.lock()).unwrap();
 
@@ -410,7 +410,7 @@ fn all_frames_are_freed_on_drop() {
 
 #[test_case]
 fn garbage_in_duplicate() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let virt = Virt::new(0x0000_0300_0000_0000).unwrap();
     let page = Page::containing(virt);
@@ -454,7 +454,7 @@ fn garbage_in_duplicate() {
 
 #[test_case]
 fn duplicate_only_kernel() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let page = BASE_ADDRESS_SPACE
         .lock()
@@ -491,7 +491,7 @@ fn duplicate_only_kernel() {
 
 #[test_case]
 fn duplicate_works() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let variable =
         unsafe { BASE_ADDRESS_SPACE.lock().map_slice_zeroed::<usize>(1, KERNEL_RW).unwrap() };
@@ -530,7 +530,7 @@ fn duplicate_works() {
 
 #[test_case]
 fn tlb_flush() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let old_mark = 1111111;
     let new_mark = 2222222;

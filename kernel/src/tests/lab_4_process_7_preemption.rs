@@ -3,7 +3,6 @@ use ku::process::State;
 use kernel::{
     Subsystems,
     log::debug,
-    memory::test_scaffolding::forbid_frame_leaks,
     process::{
         Process,
         Table,
@@ -12,6 +11,7 @@ use kernel::{
 };
 
 mod init;
+mod mm_helpers;
 mod process_helpers;
 
 init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::PROCESS);
@@ -22,7 +22,7 @@ const LOOP_ELF: &[u8] = page_aligned!("../../target/kernel/user/loop");
 #[test_case]
 fn preemption() {
     let _trap_guard = process_helpers::forbid_traps();
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let pid = process_helpers::allocate(LOOP_ELF).pid();
 
@@ -38,7 +38,7 @@ fn preemption() {
 #[test_case]
 fn flags_and_registers_are_saved() {
     let _trap_guard = process_helpers::forbid_traps();
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let message = "check that all registers including `rflags` are saved correctly when the \
                    process is preempted";

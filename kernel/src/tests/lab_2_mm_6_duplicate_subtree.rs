@@ -11,7 +11,6 @@ use kernel::{
         Virt,
         test_scaffolding::{
             duplicate,
-            forbid_frame_leaks,
             path,
             switch_to,
             translate,
@@ -26,7 +25,7 @@ init!(Subsystems::PHYS_MEMORY | Subsystems::VIRT_MEMORY);
 
 #[test_case]
 fn duplicate_and_drop() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
 
@@ -87,7 +86,7 @@ fn duplicate_and_drop() {
 
 #[test_case]
 fn duplicate_path() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space_copy = duplicate(&BASE_ADDRESS_SPACE.lock()).unwrap();
     switch_to(&address_space_copy);
@@ -97,7 +96,7 @@ fn duplicate_path() {
 
 #[test_case]
 fn duplicate_translate() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space_copy = duplicate(&BASE_ADDRESS_SPACE.lock()).unwrap();
     switch_to(&address_space_copy);

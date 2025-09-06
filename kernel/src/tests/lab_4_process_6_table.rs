@@ -5,7 +5,6 @@ use alloc::vec::Vec;
 use kernel::{
     Subsystems,
     log::debug,
-    memory::test_scaffolding::forbid_frame_leaks,
     process::test_scaffolding::{
         PROCESS_SLOT_COUNT,
         dummy_process,
@@ -13,13 +12,14 @@ use kernel::{
 };
 
 mod init;
+mod mm_helpers;
 mod process_helpers;
 
 init!(Subsystems::MEMORY | Subsystems::PROCESS);
 
 #[test_case]
 fn basic() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let pid_1 = dummy_process().unwrap();
     let pid_2 = dummy_process().unwrap();
@@ -37,7 +37,7 @@ fn full_capacity() {
     let mut pids = Vec::with_capacity(PROCESS_SLOT_COUNT);
     let mut slots = Vec::with_capacity(PROCESS_SLOT_COUNT);
 
-    let frame_leak_guard = forbid_frame_leaks();
+    let frame_leak_guard = mm_helpers::forbid_frame_leaks();
 
     while pids.len() < PROCESS_SLOT_COUNT {
         let pid = dummy_process().expect("failed to create the test process");

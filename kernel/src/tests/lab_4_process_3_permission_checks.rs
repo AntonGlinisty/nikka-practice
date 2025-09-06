@@ -14,18 +14,18 @@ use kernel::{
         test_scaffolding::{
             check_permission,
             check_permission_mut,
-            forbid_frame_leaks,
         },
     },
 };
 
 mod init;
+mod mm_helpers;
 
 init!(Subsystems::MEMORY);
 
 #[test_case]
 fn user_rw() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
     let page_count = 4;
@@ -57,7 +57,7 @@ fn user_rw() {
 
 #[test_case]
 fn non_present() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
     let address_filter = |x: &Virt| (x.into_usize() + 2) % (Page::SIZE / 4) <= 4;
@@ -93,7 +93,7 @@ fn non_present() {
 
 #[test_case]
 fn stress() {
-    let _guard = forbid_frame_leaks();
+    let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
     let address_filter = |x: &Virt| (x.into_usize() + 2) % (Page::SIZE / 4) <= 4;

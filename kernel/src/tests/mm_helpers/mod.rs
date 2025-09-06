@@ -147,6 +147,33 @@ fn check_path(
     }
 }
 
+#[must_use]
+pub(super) fn forbid_frame_leaks() -> impl Drop {
+    use kernel::memory::Translate;
+
+    BASE_ADDRESS_SPACE.lock().unmap_unused_intermediate();
+
+    scopeguard::guard(FRAME_ALLOCATOR.lock().count(), |start_free_frames| {
+        BASE_ADDRESS_SPACE.lock().unmap_unused_intermediate();
+
+        let end_free_frames = FRAME_ALLOCATOR.lock().count();
+
+        let (message, affected_frames) = if start_free_frames <= end_free_frames {
+            (
+                "freed more memory than allocated",
+                end_free_frames - start_free_frames,
+            )
+        } else {
+            ("leaked some memory", start_free_frames - end_free_frames)
+        };
+
+        if affected_frames != 0 {
+            ku::log::error!(start_free_frames, end_free_frames, affected_frames, message);
+            panic!("{}", message);
+        }
+    })
+}
+
 pub(super) fn map_intermediate(
     virt: Virt,
     flags: PageTableFlags,
