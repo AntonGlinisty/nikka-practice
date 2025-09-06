@@ -113,7 +113,7 @@ test: install
 			if [ .$$crate = .ku ]; then \
 				test_flags='--profile ci -- --test-threads=1'; \
 			elif [ .$$crate = .kernel ]; then \
-				test_flags='--profile ci'; \
+				test_flags='--profile ci --features forbid-leaks'; \
 			else \
 				test_flags=''; \
 			fi; \

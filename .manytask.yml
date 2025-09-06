@@ -172,6 +172,12 @@ deadlines:
           check:
             - cd kernel && cargo test --profile ci --test 1-hw-3-high-resolution-date
 
+        - task: no-leaks-in-memory
+          score: 50
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-8-main-frame-allocator.html
+          check:
+            - cd kernel && cargo test --profile ci --features forbid-leaks --test 2-mm-1-boot-frame-allocator --test 2-mm-2-page-allocator --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-6-duplicate-subtree --test 2-mm-8-main-frame-allocator --test 2-mm-7-drop-subtree
+
     - group: asm
       start: 2024-09-24 18:00
       steps:
@@ -320,6 +326,12 @@ deadlines:
             - cd kernel && cargo test --profile ci --test 2-mm-*
             - cd kernel && cargo test --profile ci --test 5-sync-5-ap-init
 
+        - task: no-leaks-in-process
+          score: 25
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-1-big.html
+          check:
+            - cd kernel && cargo test --profile ci --features forbid-leaks --test 4-process-3-elf --test 4-process-5-user-mode --test 4-process-7-table --test 4-process-8-preemption --test 4-process-9-scheduler
+
     - group: atomic
       start: 2024-10-22 18:00
       steps:
@@ -458,6 +470,12 @@ deadlines:
           check:
             - cd kernel && cargo test --profile ci --test 2-mm-* --test 3-smp-[134]-* --test 4-process-[123]-*
             - cd kernel && cargo test --profile ci --test 6-um-*
+
+        - task: no-leaks-in-um
+          score: 25
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-1-big.html
+          check:
+            - cd kernel && cargo test --profile ci --features forbid-leaks --test 6-um-2-memory-syscalls --test 6-um-3-eager-fork --test 6-um-4-trap-handler --test 6-um-5-cow-fork
 
     - group: lab-7-file-system
       start: 2024-11-26 18:00

@@ -381,7 +381,9 @@ fn duplicate_and_drop_mapping() {
 
     let reference_count = FRAME_ALLOCATOR.lock().reference_count(frame).unwrap();
     debug!(%virt, %frame, %reference_count, "back to one address space");
-    assert_eq!(reference_count, 1);
+    if cfg!(feature = "forbid-leaks") {
+        assert_eq!(reference_count, 1);
+    }
 
     unsafe {
         address_space.unmap_slice(variable).unwrap();

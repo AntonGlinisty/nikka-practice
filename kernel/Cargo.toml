@@ -44,6 +44,7 @@ xmas-elf = "*"
 allocator-statistics = ["ku/allocator-statistics"]
 # Отключает sentinel frame
 conservative-backtraces = ["ku/conservative-backtraces"]
+forbid-leaks = []
 
 [package.metadata.bootimage]
 # Отвечает за `cargo run`.

@@ -147,6 +147,7 @@ fn check_path(
     }
 }
 
+#[cfg(feature = "forbid-leaks")]
 #[must_use]
 pub(super) fn forbid_frame_leaks() -> impl Drop {
     use kernel::memory::Translate;
@@ -172,6 +173,12 @@ pub(super) fn forbid_frame_leaks() -> impl Drop {
             panic!("{}", message);
         }
     })
+}
+
+#[cfg(not(feature = "forbid-leaks"))]
+#[must_use]
+pub(super) fn forbid_frame_leaks() -> impl Drop {
+    scopeguard::guard(0, |_| {})
 }
 
 pub(super) fn map_intermediate(

@@ -15,6 +15,10 @@ init!(Subsystems::PHYS_MEMORY | Subsystems::VIRT_MEMORY);
 
 #[test_case]
 fn drop_subtree() {
+    if !cfg!(feature = "forbid-leaks") {
+        return;
+    }
+
     unmap_unused_intermediate(&mut BASE_ADDRESS_SPACE.lock());
 
     {
