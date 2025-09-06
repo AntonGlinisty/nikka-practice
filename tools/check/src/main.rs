@@ -21,7 +21,6 @@ use structopt::StructOpt;
 ////////////////////////////////////////////////////////////////////////////////
 
 const CONFIG_NAME: &str = ".manytask.yml";
-const REPORT_URL: &str = "https://os.manytask.org/api/report";
 const SUDO_PRESERVE_ENVS: &[&str] = &["PATH", "HOME", "CARGO_HOME", "RUSTUP_HOME"];
 const TESTER_TOKEN_ENV: &str = "TESTER_TOKEN";
 
@@ -44,6 +43,7 @@ struct Deadlines {
 struct Config {
     allow_list: Option<Vec<String>>,
     deadlines: Deadlines,
+    report_url: String,
 }
 
 impl Config {
@@ -150,13 +150,14 @@ fn submit_report(
     user_id: &str,
     task_name: &str,
     tester_token: &str,
+    report_url: &str,
 ) -> Result<()> {
     let form = reqwest::blocking::multipart::Form::new()
         .text("user_id", user_id.to_string())
         .text("task", task_name.to_string())
         .text("token", tester_token.to_string());
     reqwest::blocking::Client::new()
-        .post(REPORT_URL)
+        .post(report_url)
         .multipart(form)
         .send()?
         .error_for_status()?;
@@ -208,7 +209,8 @@ fn do_main(opts: Opts) -> Result<()> {
 
         let tester_token = env::var(TESTER_TOKEN_ENV)
             .with_context(|| format!("envirnnment variable '{}' is not set", TESTER_TOKEN_ENV))?;
-        submit_report(&opts.user_id, task_name, &tester_token).context("failed to submit report")
+        submit_report(&opts.user_id, task_name, &tester_token, &config.report_url)
+            .context("failed to submit report")
     } else {
         bail!("task {} is not defined in {}", task_name, CONFIG_NAME)
     }

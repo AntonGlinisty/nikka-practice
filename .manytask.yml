@@ -2,11 +2,14 @@ version: 1
 
 
 settings:
-  course_name: OS 2024
+  course_name: OS 2025-2026
 
   gitlab_base_url: https://gitlab.manytask.org
-  public_repo: os/public-fall-2024
-  students_group: os/students-fall-2024
+  public_repo: os/public-2025-2026
+  students_group: os/students-2025-2026
+
+
+report_url: https://app.manytask.org/api/os-2025-fall/report
 
 
 ui:
@@ -16,7 +19,31 @@ ui:
     Announcements: https://t.me/+6hudiffitLU5MTYy
     Chat: https://t.me/+PAXh6qX5Nzg1MDcy
     Zoom: https://yandex.zoom.us/j/91254022146
-    LMS: https://lk.yandexdataschool.ru/courses/2024-autumn/7.1278-arkhitektura-kompiutera-i-operatsionnye-sistemy/
+    LMS: https://lk.dataschool.yandex.ru/courses/2025-autumn/7.1555-arkhitektura-kompiutera-i-operatsionnye-sistemy
+
+
+grades:
+  grades:
+    5: [
+      {
+        "percent": 90
+      }
+    ]
+    4: [
+      {
+        "percent": 75
+      }
+    ]
+    3: [
+      {
+        "percent": 60
+      }
+    ]
+    2: [
+      {
+        "": 0
+      }
+    ]
 
 
 allow_list:
@@ -68,10 +95,10 @@ deadlines:
 
   schedule:
     - group: syscalls
-      start: 2024-09-08 18:00
+      start: 2025-09-16 18:00
       steps:
-        0.5: 2024-10-03 23:59
-      end: 2025-02-01 23:59
+        0.5: 2025-10-07 23:59
+      end: 2026-02-01 23:59
       enabled: true
       tasks:
         - task: hello_world
@@ -113,10 +140,10 @@ deadlines:
             - cd sem/jobserver && cargo build && ./test.sh
 
     - group: lab-1-time
-      start: 2024-09-17 18:00
+      start: 2025-09-30 18:00
       steps:
-        0.5: 2024-12-20 23:59
-      end: 2025-02-01 23:59
+        0.5: 2025-12-20 23:59
+      end: 2026-02-01 23:59
       enabled: true
       tasks:
         - task: rtc
@@ -172,56 +199,11 @@ deadlines:
           check:
             - cd kernel && cargo test --profile ci --test 1-hw-3-high-resolution-date
 
-        - task: no-leaks-in-memory
-          score: 50
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-8-main-frame-allocator.html
-          check:
-            - cd kernel && cargo test --profile ci --features forbid-leaks --test 2-mm-1-boot-frame-allocator --test 2-mm-2-page-allocator --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-6-duplicate-subtree --test 2-mm-8-main-frame-allocator --test 2-mm-7-drop-subtree
-
-    - group: asm
-      start: 2024-09-24 18:00
-      steps:
-        0.5: 2024-10-10 23:59
-      end: 2025-02-01 23:59
-      enabled: true
-      tasks:
-        - task: gdb
-          score: 100
-          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/gdb
-          allow_list:
-            - sem/gdb/key.txt
-          check:
-            - cd sem/gdb && ./binary.static
-
-        - task: asm
-          score: 100
-          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/asm
-          allow_list:
-            - sem/asm/src/lib.rs
-          check:
-            - cd sem/asm && cargo test
-
-        - task: rop
-          score: 100
-          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/rop
-          allow_list:
-            - sem/rop/src/ropchain.rs
-          check:
-            - cd sem/rop && cargo test
-
-        - task: asm_syscall
-          score: 100
-          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/asm_syscall
-          allow_list:
-            - sem/asm_syscall/src/lib.rs
-          check:
-            - cd sem/asm_syscall && cargo test
-
     - group: lab-2-memory
-      start: 2024-10-01 18:00
+      start: 2025-10-14 18:00
       steps:
-        0.5: 2024-10-17 23:59
-      end: 2025-02-01 23:59
+        0.5: 2025-11-05 23:59
+      end: 2026-02-01 23:59
       enabled: true
       tasks:
         - task: boot-frame-allocator
@@ -266,11 +248,56 @@ deadlines:
           check:
             - cd kernel && cargo test --profile ci --test 2-mm-*
 
-    - group: backtrace
-      start: 2024-10-08 18:00
+        - task: no-leaks-in-memory
+          score: 50
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-8-main-frame-allocator.html
+          check:
+            - cd kernel && cargo test --profile ci --features forbid-leaks --test 2-mm-1-boot-frame-allocator --test 2-mm-2-page-allocator --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-6-duplicate-subtree --test 2-mm-8-main-frame-allocator --test 2-mm-7-drop-subtree
+
+    - group: asm
+      start: 2025-10-21 18:00
       steps:
-        0.5: 2024-10-24 23:59
-      end: 2025-02-01 23:59
+        0.5: 2025-11-11 23:59
+      end: 2026-02-01 23:59
+      enabled: true
+      tasks:
+        - task: gdb
+          score: 100
+          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/gdb
+          allow_list:
+            - sem/gdb/key.txt
+          check:
+            - cd sem/gdb && ./binary.static
+
+        - task: asm
+          score: 100
+          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/asm
+          allow_list:
+            - sem/asm/src/lib.rs
+          check:
+            - cd sem/asm && cargo test
+
+        - task: rop
+          score: 100
+          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/rop
+          allow_list:
+            - sem/rop/src/ropchain.rs
+          check:
+            - cd sem/rop && cargo test
+
+        - task: asm_syscall
+          score: 100
+          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/asm_syscall
+          allow_list:
+            - sem/asm_syscall/src/lib.rs
+          check:
+            - cd sem/asm_syscall && cargo test
+
+    - group: backtrace
+      start: 2025-10-21 18:00
+      steps:
+        0.5: 2025-11-11 23:59
+      end: 2026-02-01 23:59
       enabled: true
       tasks:
         - task: backtrace
@@ -282,10 +309,10 @@ deadlines:
             - cd sem/backtrace && cargo test -- --nocapture --test-threads=1
 
     - group: lab-3-smp
-      start: 2024-10-15 18:00
+      start: 2025-11-04 18:00
       steps:
-        0.5: 2024-10-31 23:59
-      end: 2025-02-01 23:59
+        0.5: 2025-11-25 23:59
+      end: 2026-02-01 23:59
       enabled: true
       tasks:
         - task: big-allocator
@@ -326,52 +353,11 @@ deadlines:
             - cd kernel && cargo test --profile ci --test 2-mm-*
             - cd kernel && cargo test --profile ci --test 5-sync-5-ap-init
 
-        - task: no-leaks-in-process
-          score: 25
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-1-big.html
-          check:
-            - cd kernel && cargo test --profile ci --features forbid-leaks --test 4-process-3-elf --test 4-process-5-user-mode --test 4-process-7-table --test 4-process-8-preemption --test 4-process-9-scheduler
-
-    - group: atomic
-      start: 2024-10-22 18:00
-      steps:
-        0.5: 2024-11-07 23:59
-      end: 2025-02-01 23:59
-      enabled: true
-      tasks:
-        - task: atomic
-          score: 50
-          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/atomic
-          allow_list:
-            - sem/atomic/src/impl.s
-          check:
-            - cd sem/atomic && cargo test -- --nocapture --test-threads=1
-
-        - task: rwlock
-          score: 150
-          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/rwlock
-          allow_list:
-            - sem/rwlock/src/sync.rs
-          check:
-            - cd sem/rwlock && cargo test -- --nocapture --test-threads=1
-            - cd sem/rwlock && cargo clean
-            - cd sem/rwlock && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test -- --nocapture --test-threads=1
-
-        - task: mcs-lock
-          score: 200
-          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/mcs_lock
-          allow_list:
-            - sem/mcs_lock/src/sync.rs
-          check:
-            - cd sem/mcs_lock && cargo test -- --nocapture --test-threads=1
-            - cd sem/mcs_lock && cargo clean
-            - cd sem/mcs_lock && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test -- --nocapture --test-threads=1
-
     - group: lab-4-process
-      start: 2024-10-29 18:00
+      start: 2025-11-25 18:00
       steps:
-        0.5: 2024-11-14 23:59
-      end: 2025-02-01 23:59
+        0.5: 2025-12-16 23:59
+      end: 2026-02-01 23:59
       enabled: true
       tasks:
         - task: elf
@@ -427,11 +413,52 @@ deadlines:
             - cd kernel && cargo test --profile ci --test 4-process-3-elf
             - cd kernel && cargo test --profile ci --test 4-process-9-scheduler
 
-    - group: lab-6-user-memory-tricks
-      start: 2024-11-12 18:00
+        - task: no-leaks-in-process
+          score: 25
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-1-big.html
+          check:
+            - cd kernel && cargo test --profile ci --features forbid-leaks --test 4-process-3-elf --test 4-process-5-user-mode --test 4-process-7-table --test 4-process-8-preemption --test 4-process-9-scheduler
+
+    - group: locks
+      start: 2026-02-23 18:00
       steps:
-        0.5: 2024-11-28 23:59
-      end: 2025-02-01 23:59
+        0.5: 2026-03-15 23:59
+      end: 2026-06-29 23:59
+      enabled: true
+      tasks:
+        - task: atomic
+          score: 50
+          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/atomic
+          allow_list:
+            - sem/atomic/src/impl.s
+          check:
+            - cd sem/atomic && cargo test -- --nocapture --test-threads=1
+
+        - task: rwlock
+          score: 150
+          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/rwlock
+          allow_list:
+            - sem/rwlock/src/sync.rs
+          check:
+            - cd sem/rwlock && cargo test -- --nocapture --test-threads=1
+            - cd sem/rwlock && cargo clean
+            - cd sem/rwlock && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test -- --nocapture --test-threads=1
+
+        - task: mcs-lock
+          score: 200
+          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/mcs_lock
+          allow_list:
+            - sem/mcs_lock/src/sync.rs
+          check:
+            - cd sem/mcs_lock && cargo test -- --nocapture --test-threads=1
+            - cd sem/mcs_lock && cargo clean
+            - cd sem/mcs_lock && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test -- --nocapture --test-threads=1
+
+    - group: lab-6-user-memory-tricks
+      start: 2026-03-23 18:00
+      steps:
+        0.5: 2026-04-12 23:59
+      end: 2026-06-29 23:59
       enabled: true
       tasks:
         - task: pipe
@@ -478,10 +505,10 @@ deadlines:
             - cd kernel && cargo test --profile ci --features forbid-leaks --test 6-um-2-memory-syscalls --test 6-um-3-eager-fork --test 6-um-4-trap-handler --test 6-um-5-cow-fork
 
     - group: lab-7-file-system
-      start: 2024-11-26 18:00
+      start: 2026-04-13 18:00
       steps:
-        0.5: 2024-12-12 23:59
-      end: 2025-02-01 23:59
+        0.5: 2026-05-03 23:59
+      end: 2026-06-29 23:59
       enabled: true
       tasks:
         - task: block-cache

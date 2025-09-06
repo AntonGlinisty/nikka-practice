@@ -9,8 +9,8 @@ build-image:
     - docker
   stage: deploy
   script:
-    - docker build . -t cr.yandex/crp9onavos88ug32d5r2/grader/os
-    - docker push cr.yandex/crp9onavos88ug32d5r2/grader/os
+    - docker build -t gitlab.manytask.org:5050/os/public-2025-2026/nikka-public .
+    - docker push gitlab.manytask.org:5050/os/public-2025-2026/nikka-public:latest
     - docker image prune -f --filter "until=24h"
     - docker system prune -f
 
@@ -19,7 +19,7 @@ push-public:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: on_success
-  image: rust:1.81
+  image: rust:1.89
   script:
     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/sergey-v-galtsev/nikka-public
     - cargo run --manifest-path tools/compose/Cargo.toml -- --in-path . --out-path ./nikka-public --spare ./.git --spare ./nikka-public
@@ -36,6 +36,4 @@ deploy-manytask:
   script:
     - 'curl --fail --silent -X POST -H "Authorization: Bearer $TESTER_TOKEN"
         -H "Content-type: application/x-yaml" --data-binary "@.manytask.yml"
-        "https://os.manytask.org/api/update_config"'
-    - 'curl --fail --silent -X POST -H "Authorization: Bearer $TESTER_TOKEN"
-        "https://os.manytask.org/api/update_cache"'
+        "https://app.manytask.org/api/os-2025-fall/update_config"'
