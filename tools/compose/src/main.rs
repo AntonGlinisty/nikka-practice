@@ -5,6 +5,11 @@
 use std::{
     collections::HashMap,
     fs,
+    io::{
+        self,
+        Read,
+        Write,
+    },
     path::{
         Path,
         PathBuf,
@@ -273,9 +278,14 @@ impl Compose {
         in_path: &Path,
         out_path: Option<&Path>,
     ) -> Result<()> {
-        if in_path.to_str().map(|s| s.ends_with(".rs")).unwrap_or(false) {
-            let content = fs::read_to_string(in_path)
-                .with_context(|| format!("failed to read file {}", in_path.display()))?;
+        if in_path.to_str().map(|s| s.ends_with(".rs") || s == "-").unwrap_or(false) {
+            let mut content = String::new();
+            if in_path.to_str() == Some("-") {
+                io::stdin().read_to_string(&mut content)?;
+            } else {
+                content = fs::read_to_string(in_path)
+                    .with_context(|| format!("failed to read file {}", in_path.display()))?;
+            }
 
             let new_content = process_source(in_path, content)
                 .with_context(|| format!("failed to process file {}", in_path.display()))?;
@@ -287,8 +297,12 @@ impl Compose {
             }
 
             if let Some(out_file) = out_path {
-                fs::write(out_file, new_content.src)
-                    .with_context(|| format!("failed to write file {}", out_file.display()))?;
+                if out_file.to_str() == Some("-") {
+                    io::stdout().write_all(new_content.src.as_bytes())?;
+                } else {
+                    fs::write(out_file, new_content.src)
+                        .with_context(|| format!("failed to write file {}", out_file.display()))?;
+                }
             }
         } else if let Some(out_file) = out_path {
             if in_path != out_file {
@@ -310,6 +324,10 @@ impl Compose {
         in_path: &Path,
         out_path: Option<&Path>,
     ) -> Result<()> {
+        if in_path.to_str() == Some("-") {
+            return self.process_file(&in_path, out_path);
+        }
+
         let dir = fs::read_dir(in_path)
             .with_context(|| format!("failed to read dir {}", in_path.display()))?;
 

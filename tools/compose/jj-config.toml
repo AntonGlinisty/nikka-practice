@@ -1,0 +1,13 @@
+[fix.tools.compose]
+command = [
+    "cargo",
+    "run",
+    "--manifest-path",
+    "tools/compose/Cargo.toml",
+    "--",
+    "--in-path",
+    "-",
+    "--out-path",
+    "-",
+]
+patterns = ["glob:'**/*.rs'", "glob:'**/*.s'"]
