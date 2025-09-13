@@ -2,6 +2,7 @@
 #![feature(allocator_api)]
 
 use std::{
+    rc::Rc,
     sync::Mutex,
     time::{
         Duration,
@@ -54,7 +55,8 @@ fn stress() {
             log_time += Duration::from_secs(1);
         }
 
-        let mut quarry = Quarry::new(size);
+        let mut quarry_on_the_heap = Rc::new(Quarry::new(size));
+        let quarry = Rc::<Quarry>::get_mut(&mut quarry_on_the_heap).unwrap();
         let mut bulk_frame_count = 0;
         let mut allocation_count = 0;
 
@@ -113,7 +115,7 @@ fn stress() {
                     quarry.allocation_index(allocation).unwrap(),
                     allocation_index,
                 );
-                assert_eq!(quarry.allocation_index(Virt::from_ref(&quarry)), None);
+                assert_eq!(quarry.allocation_index(Virt::from_ref(quarry)), None);
             }
 
             allocations.sort();

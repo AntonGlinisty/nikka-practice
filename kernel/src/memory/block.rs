@@ -307,6 +307,14 @@ impl<T: Memory> Block<T> {
         self.start <= block.start && block.end <= self.end
     }
 
+    /// Проверяет, что элемент с заданным индексом `index` относится к блоку.
+    pub fn contains_index(
+        &self,
+        index: usize,
+    ) -> bool {
+        self.start <= index && index < self.end
+    }
+
     /// Проверяет, что заданный `block` лежит правее и является смежным с текущим.
     ///
     /// См. также [`Block::coalesce()`].
@@ -1106,6 +1114,13 @@ mod test {
             Block::<Virt>::from_index(bad_virt, bad_virt),
             Err(InvalidArgument),
         );
+    }
+
+    #[test]
+    #[cfg_attr(debug_assertions, should_panic)]
+    fn panic_on_local_variables() {
+        let a = 1;
+        let _ = Block::from_ref(&a);
     }
 
     const LOWER_HALF_FIRST: usize = 0x0;

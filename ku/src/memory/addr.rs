@@ -27,14 +27,17 @@ use static_assertions::{
 };
 use x86_64::addr::VirtAddr;
 
-use crate::error::{
-    Error::{
-        InvalidAlignment,
-        InvalidArgument,
-        Null,
-        Overflow,
+use crate::{
+    backtrace,
+    error::{
+        Error::{
+            InvalidAlignment,
+            InvalidArgument,
+            Null,
+            Overflow,
+        },
+        Result,
     },
-    Result,
 };
 
 use super::{
@@ -582,9 +585,15 @@ impl Virt {
     ///
     /// # Panics
     ///
-    /// Паникует, если указатель не корректен.
+    /// Паникует, если `ptr` похож на указатель на локальную переменную и
+    /// включены `cfg!(debug_assertions)`.
     pub fn from_ptr<T: ?Sized>(ptr: *const T) -> Self {
         const_assert_eq!(mem::size_of::<*const ()>(), mem::size_of::<usize>());
+        debug_assert!(
+            !backtrace::is_local_variable(ptr),
+            "attempted to take a Virt address of a local variable at {ptr:?} which probably does \
+             not live long enough",
+        );
         unsafe { Self::new_unchecked_impl(ptr as *const () as usize) }
     }
 
@@ -864,5 +873,12 @@ mod test {
                 delta = delta.wrapping_add(1);
             }
         }
+    }
+
+    #[test]
+    #[cfg_attr(debug_assertions, should_panic)]
+    fn panic_on_local_variables() {
+        let a = 1;
+        let _ = Virt::from_ref(&a);
     }
 }

@@ -60,7 +60,7 @@ fn block_entry() {
     for i in 0 .. check_entries {
         let entry = inode.block_entry(i, &mut block_bitmap).unwrap();
 
-        let current_entry = Virt::from_ref(entry);
+        let current_entry = Virt::new(entry as *const _ as usize).unwrap();
         let entry_order_violation = if let Some(prev_entry) = prev_entry {
             prev_entry >= current_entry
         } else {

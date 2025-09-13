@@ -322,6 +322,42 @@ impl StackFrame {
     }
 }
 
+/// Возвращает `true`, так как под
+/// [Miri](https://github.com/rust-lang/miri)
+/// не поддерживается получение значения регистра `RSP`.
+#[cfg(miri)]
+pub(crate) fn is_local_variable<T: ?Sized>(_ptr: *const T) -> bool {
+    false
+}
+
+/// Возвращает `true`, если `ptr` похож на указатель на локальную переменную,
+/// выделенную в пределах одной страницы от текущего указателя на вершину стека.
+#[cfg(not(miri))]
+pub(crate) fn is_local_variable<T: ?Sized>(ptr: *const T) -> bool {
+    return is_top_stack_page_address(ptr as *const () as usize).unwrap_or(false);
+
+    fn is_top_stack_page_address(virt: usize) -> Result<bool> {
+        let current_stack_top = Virt::new(rsp())?;
+        let top_stack_page = Block::from_element(Page::containing(current_stack_top))?;
+
+        Ok(Block::<Virt>::from(top_stack_page).contains_index(virt))
+    }
+}
+
+/// Возвращает содержимое регистра `RSP`.
+#[cfg(not(miri))]
+fn rsp() -> usize {
+    let rsp: usize;
+    unsafe {
+        asm!(
+            "mov {0}, rsp",
+            out(reg) rsp,
+        );
+    }
+
+    rsp
+}
+
 /// Возвращает содержимое регистра `RBP`.
 ///
 /// Мы указываем компилятору выполнить встраивание этой функции,

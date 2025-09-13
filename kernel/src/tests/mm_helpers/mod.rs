@@ -217,8 +217,8 @@ pub(super) fn test_no_excessive_intermediate_flags(virt: Virt) {
 }
 
 pub(super) fn test_path(address_space: &mut AddressSpace) {
-    let variable = 314159265;
-    let present_virt = Virt::from_ref(&variable);
+    static VARIABLE: AtomicUsize = AtomicUsize::new(314159265);
+    let present_virt = Virt::from_ref(&VARIABLE);
     let present_path = path(address_space, present_virt);
     let (level, pte) = deepest_pte(&present_path);
     debug!("present:");
@@ -268,10 +268,11 @@ pub(super) fn test_path(address_space: &mut AddressSpace) {
 }
 
 pub(super) fn test_translate(address_space: &mut AddressSpace) {
-    let mut variable = 314159265;
-    let write_ptr: *mut u64 = &mut variable;
+    static VARIABLE: AtomicUsize = AtomicUsize::new(314159265);
+    VARIABLE.fetch_add(1, Ordering::Relaxed);
+    let write_ptr = &VARIABLE;
 
-    let virt = Virt::from_ref(&variable);
+    let virt = Virt::from_ptr(&raw const VARIABLE);
 
     let pte = translate(address_space, virt).unwrap();
 
@@ -280,7 +281,6 @@ pub(super) fn test_translate(address_space: &mut AddressSpace) {
     let frame = pte.frame().unwrap();
     let expected_flags = PageTableFlags::PRESENT |
         PageTableFlags::WRITABLE |
-        PageTableFlags::EXECUTABLE |
         PageTableFlags::ACCESSED |
         PageTableFlags::DIRTY;
 
@@ -293,18 +293,19 @@ pub(super) fn test_translate(address_space: &mut AddressSpace) {
     let page_offset = virt.into_usize() & page_offset_mask;
     let page_virt = phys2virt.map(frame.address()).unwrap();
     let alternative_virt = (page_virt + page_offset).unwrap();
-    let read_ptr: *const u64 = alternative_virt.try_into_ptr().unwrap();
+    let read_ptr: *const AtomicUsize = alternative_virt.try_into_ptr().unwrap();
 
     debug!(?read_ptr, ?write_ptr);
     assert_ne!(read_ptr, write_ptr);
 
-    const ITERATIONS: u64 = 5;
+    const ITERATIONS: usize = 5;
 
     for write_value in 0 .. ITERATIONS {
         let read_value = unsafe {
-            write_ptr.write_volatile(write_value);
-            read_ptr.read_volatile()
+            write_ptr.store(write_value, Ordering::Relaxed);
+            read_ptr.read_volatile().load(Ordering::Relaxed)
         };
+        let variable = VARIABLE.load(Ordering::Relaxed);
         debug!(write_value, read_value, variable);
         assert_eq!(read_value, write_value);
         assert_eq!(read_value, variable);

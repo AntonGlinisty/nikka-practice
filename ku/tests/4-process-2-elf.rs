@@ -9,6 +9,7 @@ use std::{
     fs,
     ops::Range,
     panic,
+    vec,
 };
 
 use anyhow::{
@@ -161,7 +162,7 @@ fn t03_out_of_bounds() {
     file.copy_from_slice(&DATA);
     let bad_file_range = 1 .. DATA.len() + 1;
 
-    let mut target = [0; DATA.len()];
+    let mut target = vec![0; DATA.len()];
 
     let program_header = program_header_block(Block::from_slice_mut(&mut target), &bad_file_range);
 
@@ -178,11 +179,11 @@ fn t04_file_offset() {
     const DATA: [u8; 3] = [1, 2, 3];
     const OFFSET: usize = 7;
 
-    let mut file = [0; OFFSET + DATA.len()];
+    let mut file = vec![0; OFFSET + DATA.len()];
     let file_range = OFFSET .. OFFSET + DATA.len();
     file[file_range.clone()].copy_from_slice(&DATA);
 
-    let mut target = [0; DATA.len()];
+    let mut target = vec![0; DATA.len()];
 
     let program_header = program_header_block(Block::from_slice_mut(&mut target), &file_range);
 
