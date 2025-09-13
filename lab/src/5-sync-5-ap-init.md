@@ -101,10 +101,10 @@ BSP должен подготовить для AP код загрузчика, �
 [`AtomicBool`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicBool.html)
 хранится на стеке функции
 [`ap_kernel_main()`](../../doc/kernel/smp/ap_init/fn.ap_kernel_main.html).
-За ожидание на нём отвечает функция
-[`kernel::smp::ap_init::wait_initialized()`](../../doc/kernel/smp/ap_init/fn.wait_initialized.html),
-а AP сигнализирует об окончании своей загрузки с помощью функции
-[`kernel::smp::ap_init::signal_initialized()`](../../doc/kernel/smp/ap_init/fn.signal_initialized.html).
+За ожидание на нём отвечает метод
+[`kernel::smp::cpu::Cpu::wait_initialized()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.wait_initialized),
+а AP сигнализирует об окончании своей загрузки с помощью метода
+[`kernel::smp::cpu::Cpu::signal_initialized()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.signal_initialized).
 
 
 ### Задача 5 --- переключение AP в 64-битный режим

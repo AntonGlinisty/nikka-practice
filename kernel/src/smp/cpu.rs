@@ -1,9 +1,15 @@
 use alloc::vec::Vec;
 use core::{
     arch::asm,
+    hint,
     mem,
+    sync::atomic::{
+        AtomicBool,
+        Ordering,
+    },
 };
 
+use chrono::Duration;
 use memoffset::offset_of;
 use x86_64::{
     PrivilegeLevel,
@@ -15,7 +21,10 @@ use x86_64::{
 
 use crate::{
     error::{
-        Error::NoProcess,
+        Error::{
+            NoProcess,
+            Timeout,
+        },
         Result,
     },
     log::{
@@ -37,16 +46,21 @@ use crate::{
         ModeContext,
         Pid,
     },
+    time,
 };
 
 use super::{
+    BootMemory,
     CpuId,
     LocalApic,
 };
 
 // Used in docs.
 #[allow(unused)]
-use crate::process::Registers;
+use crate::{
+    error::Error,
+    process::Registers,
+};
 
 /// Инициализирует вектор структур [`Cpu`] размера `cpu_count` и
 /// регистры [`GS`](https://wiki.osdev.org/CPU_Registers_x86-64#FS.base.2C_GS.base) и
@@ -61,6 +75,7 @@ pub(super) fn init(
     let cpu = &mut cpus[usize::from(current_cpu)];
     cpu.set_gs();
     cpu.set_tss();
+    cpu.signal_initialized();
 
     Ok(cpus)
 }
@@ -94,6 +109,9 @@ pub(crate) struct Cpu {
 
     /// Идентификатор данного CPU, копия идентификатора его local APIC --- [`LocalApic::id()`].
     id: CpuId,
+
+    /// Признак инициализированности данного CPU.
+    initialized: AtomicBool,
 
     /// Стек ядра данного CPU.
     ///
@@ -133,6 +151,7 @@ impl Cpu {
 
         let mut result = Self {
             id,
+            initialized: AtomicBool::new(false),
             current_process: None,
             kernel_stack: &stacks[0],
             page_fault_stack: &stacks[1],
@@ -253,6 +272,45 @@ impl Cpu {
     pub(super) fn set_tss(&self) {
         // TODO: your code here.
         unimplemented!();
+    }
+
+    /// Сигнализирует запускающему процессору Bootstrap Processor,
+    /// что Application Processor закончил свою инициализацию.
+    pub(super) fn signal_initialized(&self) {
+        self.initialized
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Relaxed)
+            .expect("double or concurrent CPU initialization");
+    }
+
+    /// Ждёт пока запускаемый Application Processor не завершит свою инициализацию.
+    /// Если этого не произойдёт за отведённый `timeout`, возвращает ошибку [`Error::Timeout`].
+    ///
+    /// Аргумент `_boot_memory` хранит исходное состояние памяти,
+    /// которой Application Processor может пользоваться по своему усмотрению во время загрузки.
+    /// При разрушении гарда `_boot_memory`, он восстановит исходное состояние этого блока памяти.
+    /// Метод [`Cpu::wait_initialized()`] принимает `_boot_memory` во владение для того, чтобы
+    /// чётко задать границы времени в течение которого участок памяти зарезервирован за
+    /// Application Processor.
+    /// То есть:
+    ///   - Гарантировать что [`BootMemory`] не будет разрушен до того как
+    ///     Application Processor не перестанет пользоваться соответствующей памятью.
+    ///   - Как только Application Processor перестал ею пользоваться,
+    ///     разрушить [`BootMemory`] и восстановить исходное содержимое этой памяти.
+    pub(super) fn wait_initialized(
+        &self,
+        timeout: Duration,
+        _boot_memory: BootMemory,
+    ) -> Result<()> {
+        let start = time::timer();
+
+        while !start.has_passed(timeout) {
+            if self.initialized.load(Ordering::Acquire) {
+                return Ok(());
+            }
+            hint::spin_loop();
+        }
+
+        Err(Timeout)
     }
 
     /// Возвращает ссылку на структуру [`Cpu`] текущего процессора.

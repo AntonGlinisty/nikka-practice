@@ -5,12 +5,7 @@ use core::{
         naked_asm,
     },
     fmt,
-    hint,
     mem,
-    sync::atomic::{
-        AtomicBool,
-        Ordering,
-    },
 };
 
 use chrono::Duration;
@@ -33,10 +28,7 @@ use x86_64::{
 use sentinel_frame::with_sentinel_frame;
 
 use crate::{
-    error::{
-        Error::Timeout,
-        Result,
-    },
+    error::Result,
     log::{
         debug,
         error,
@@ -92,15 +84,14 @@ pub(super) fn boot_ap(
     }
 
     let timer = time::timer();
-    let initialized = AtomicBool::new(false);
 
-    let boot_memory = prepare_boot_code(phys2virt, cpu, &initialized)?;
+    let boot_memory = prepare_boot_code(phys2virt, cpu)?;
 
     LocalApic::send_init(cpu_id, boot_memory.code_frame())?;
 
     let message = "boot Application Processor";
 
-    if let Err(error) = wait_initialized(&initialized, Duration::seconds(1), boot_memory) {
+    if let Err(error) = cpu.wait_initialized(Duration::seconds(1), boot_memory) {
         error!(cpu = cpu_id, duration = %timer.elapsed(), ?error, message);
     } else {
         info!(cpu = cpu_id, duration = %timer.elapsed(), message);
@@ -115,19 +106,18 @@ pub(super) fn boot_ap(
 /// Аргумент [`phys2virt`][Phys2Virt] описывает линейное отображение
 /// физической памяти в виртуальную внутри этого страничного отображения.
 /// Аргумент `cpu` задаёт структуру [`Cpu`] для запускаемого Application Processor.
-/// Через `initialized` запускаемый Application Processor сигнализирует
+/// Через [`Cpu::initialized`] запускаемый Application Processor сигнализирует
 /// запускающему Bootstrap Processor, что инициализация AP завершена.
 fn prepare_boot_code(
     phys2virt: Phys2Virt,
     cpu: &mut Cpu,
-    initialized: &AtomicBool,
 ) -> Result<BootMemory> {
     let boot_memory = BootMemory::new(phys2virt)?;
 
     copy_switch_mode_code(boot_memory.code_data())?;
 
     let boot_stack_phys = real_mode_address(BOOT_STACK, "boot stack");
-    let boot_stack = BootStack::new(boot_stack_phys, cpu, initialized)?;
+    let boot_stack = BootStack::new(boot_stack_phys, cpu)?;
 
     debug!(?boot_stack);
 
@@ -216,11 +206,6 @@ struct BootStack {
     /// Указатель на структуру [`Cpu`] запускаемого Application Processor.
     cpu: Virt,
 
-    /// Указатель на атомарный булев флаг, через который запускаемый
-    /// Application Processor сигнализирует запускающему Bootstrap Processor,
-    /// что инициализация AP завершена.
-    initialized: Virt,
-
     /// Стек ядра для запускаемого Application Processor.
     kernel_stack: Virt,
 
@@ -236,12 +221,11 @@ impl BootStack {
     /// Подготавливает временный стек для функции [`switch_from_real_mode_to_long_mode()`].
     /// Аргумент `boot_stack_phys` указывает физический адрес, куда будет помещён этот стек.
     /// Аргумент `cpu` задаёт структуру [`Cpu`] для запускаемого Application Processor.
-    /// Через `initialized` запускаемый Application Processor сигнализирует
+    /// Через [`Cpu::initialized`] запускаемый Application Processor сигнализирует
     /// запускающему Bootstrap Processor, что инициализация AP завершена.
     fn new(
         boot_stack_phys: Phys,
         cpu: &mut Cpu,
-        initialized: &AtomicBool,
     ) -> Result<Self> {
         let switch_mode_start: usize;
         let set_cs_rip_to_64bit: usize;
@@ -283,8 +267,7 @@ impl BootStack {
             set_cs_rip_to_64bit,
             kernel_code: SmallGdt::kernel_code(),
             _padding: 0,
-            cpu: Virt::from_mut(cpu),
-            initialized: Virt::from_ref(initialized),
+            cpu: Virt::from_ref(cpu),
             kernel_stack,
             gdt,
         })
@@ -302,7 +285,7 @@ impl fmt::Debug for BootStack {
                 "{{ ",
                 "efer: {:#X}, cr4: {:#X}, cr3: {:#X}, cr0: {:#X}, ",
                 "gdt: {:?}, kernel_code: {:?}, kernel_data: {:?}, set_cs_rip_to_64bit: 0p{:04X}, ",
-                "kernel_stack: {}, cpu: {}, initialized: {} ",
+                "kernel_stack: {}, cpu: {}",
                 "}}",
             ),
             self.efer,
@@ -315,7 +298,6 @@ impl fmt::Debug for BootStack {
             self.set_cs_rip_to_64bit,
             self.kernel_stack,
             self.cpu,
-            self.initialized,
         )
     }
 }
@@ -383,14 +365,12 @@ extern "C" fn switch_from_real_mode_to_long_mode() -> ! {
 
 /// Завершает инициализацию Application Processor.
 /// Аргумент `cpu` задаёт структуру [`Cpu`] для запускаемого Application Processor.
-/// Через `initialized` запускаемый Application Processor сигнализирует
+/// Через [`Cpu::initialized`] запускаемый Application Processor сигнализирует
 /// запускающему Bootstrap Processor, что инициализация AP завершена.
 #[cfg_attr(not(feature = "conservative-backtraces"), with_sentinel_frame)]
 #[cold]
 #[inline(never)]
-extern "C" fn ap_kernel_main(
-    cpu: &mut Cpu,            // rdi
-    initialized: &AtomicBool, // rsi
+extern "C" fn ap_kernel_main(cpu: &mut Cpu, // rdi
 ) -> ! {
     GDT.lock().load();
 
@@ -404,7 +384,7 @@ extern "C" fn ap_kernel_main(
 
     syscall::init();
 
-    signal_initialized(initialized);
+    cpu.signal_initialized();
 
     info!(cpu = cpu.id(), "report for duty");
 
@@ -537,43 +517,4 @@ fn real_mode_address(
     });
 
     Phys::new_u32(address)
-}
-
-/// Сигнализирует запускающему процессору Bootstrap Processor,
-/// что Application Processor закончил свою инициализацию.
-fn signal_initialized(initialized: &AtomicBool) {
-    initialized
-        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Relaxed)
-        .expect("double or concurrent CPU initialization");
-}
-
-/// Ждёт пока запускаемый Application Processor не завершит свою инициализацию.
-/// Если этого не произойдёт за отведённый `timeout`, возвращает ошибку [`Error::Timeout`].
-///
-/// Аргумент `_boot_memory` хранит исходное состояние памяти,
-/// которой Application Processor может пользоваться по своему усмотрению во время загрузки.
-/// При разрушении гарда `_boot_memory`, он восстановит исходное состояние этого блока памяти.
-/// Функция [`wait_initialized()`] принимает `_boot_memory` во владение для того, чтобы
-/// чётко задать границы времени в течение которого участок памяти зарезервирован за
-/// Application Processor.
-/// То есть:
-///   - Гарантировать что [`BootMemory`] не будет разрушен до того как
-///     Application Processor не перестанет пользоваться соответствующей памятью.
-///   - Как только Application Processor перестал ею пользоваться,
-///     разрушить [`BootMemory`] и восстановить исходное содержимое этой памяти.
-fn wait_initialized(
-    initialized: &AtomicBool,
-    timeout: Duration,
-    _boot_memory: BootMemory,
-) -> Result<()> {
-    let start = time::timer();
-
-    while !start.has_passed(timeout) {
-        if initialized.load(Ordering::Acquire) {
-            return Ok(());
-        }
-        hint::spin_loop();
-    }
-
-    Err(Timeout)
 }

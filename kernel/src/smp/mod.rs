@@ -35,6 +35,7 @@ use crate::{
 };
 
 use acpi::Acpi;
+use ap_init::BootMemory;
 
 pub(crate) use cpu::{
     Cpu,
