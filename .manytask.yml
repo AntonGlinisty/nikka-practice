@@ -71,6 +71,9 @@ allow_list:
   - ku/src/allocator/big.rs
   - ku/src/allocator/dispatcher.rs
   - ku/src/allocator/fixed_size.rs
+  - ku/src/allocator/quarry.rs
+  - ku/src/collections/bitmap.rs
+  - ku/src/collections/dynamic_bitmap.rs
   - ku/src/collections/lru.rs
   - ku/src/memory/addr.rs
   - ku/src/memory/block.rs
@@ -312,7 +315,7 @@ deadlines:
           check:
             - cd sem/backtrace && cargo test -- --nocapture --test-threads=1
 
-    - group: lab-3-smp
+    - group: lab-3-allocator
       start: 2025-11-04 18:00
       steps:
         0.5: 2025-11-25 23:59
@@ -327,17 +330,71 @@ deadlines:
           check:
             - cd kernel && cargo test --profile ci --test 3-allocator-1-big
 
-        - task: small-allocator
-          score: 150
+        - task: no-leaks-in-allocator
+          score: 25
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-1-big.html
+          check:
+            - cd kernel && cargo test --profile ci --features forbid-leaks --test 3-allocator-1-big
+
+        - task: static-bitmap
+          score: 100
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-5-small.html
+          check:
+            - cd ku && cargo test --profile ci --test 3-allocator-2-bitmap
+
+        - task: dynamic-bitmap
+          score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-5-small.html
           prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
             - cd kernel && cargo test --profile ci --test 3-allocator-1-big
+            - cd ku && cargo test --profile ci --test 3-allocator-2-bitmap
+          check:
+            - cd ku && cargo test --profile ci --test 3-allocator-3-dynamic-bitmap
+
+        - task: quarry
+          score: 100
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-5-small.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
+          check:
+            - cd ku && cargo test --profile ci --test 3-allocator-4-quarry
+
+        - task: small-allocator
+          score: 100
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-5-small.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
+            - cd ku && cargo test --profile ci --test 3-allocator-3-dynamic-bitmap --test 3-allocator-4-quarry
           check:
             - cd kernel && cargo test --profile ci --test 3-allocator-5-small
             - cd ku && cargo test --profile ci --test 3-allocator-5-small -- --nocapture --test-threads=1
-            - cd ku && cargo test --profile benchmark --features benchmark --test 3-allocator-5-small -- --test-threads=1
 
+        - task: allocator-cache
+          score: 100
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-5-small.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 3-allocator-5-small
+            - cd ku && cargo test --profile ci --test 3-allocator-5-small -- --nocapture --test-threads=1
+          check:
+            - cd ku && ALLOWED_RATIO=1.50 cargo test --profile benchmark --features benchmark --test 3-allocator-5-small -- --test-threads=1
+
+        - task: allocator-statistics
+          is_bonus: true
+          score: 100
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-5-small.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 3-allocator-5-small
+            - cd ku && cargo test --profile ci --test 3-allocator-5-small -- --nocapture --test-threads=1
+          check:
+            - cd ku && cargo test --profile ci --features allocator-statistics --test 3-allocator-5-small -- --test-threads=1
+
+    - group: lab-4-process
+      start: 2025-11-25 18:00
+      steps:
+        0.5: 2025-12-16 23:59
+      end: 2026-02-01 23:59
+      enabled: true
+      tasks:
         - task: local-apic
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-1-local-apic.html
@@ -363,13 +420,6 @@ deadlines:
           check:
             - cd kernel && cargo test --profile ci --test 5-sync-5-ap-init
 
-    - group: lab-4-process
-      start: 2025-11-25 18:00
-      steps:
-        0.5: 2025-12-16 23:59
-      end: 2026-02-01 23:59
-      enabled: true
-      tasks:
         - task: elf
           score: 200
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-3-elf.html
@@ -581,7 +631,7 @@ deadlines:
             - cd kernel && cargo test --profile ci --test 7-fs-1-block-cache-1-write --test 7-fs-1-block-cache-2-read
 
         - task: bitmap
-          score: 100
+          score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-2-bitmap.html
           prerequisites:
             - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
