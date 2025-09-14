@@ -33,6 +33,8 @@ const TESTER_TOKEN_ENV: &str = "TESTER_TOKEN";
 #[derive(Deserialize, Clone)]
 struct Task {
     task: String,
+    score: u32,
+    is_bonus: Option<bool>,
     allow_list: Option<Vec<String>>,
     dependencies: Option<Vec<String>>,
     prerequisites: Option<Vec<String>>,
@@ -258,6 +260,27 @@ impl Config {
 
         (dependencies, external_dependencies)
     }
+
+    fn dump_score(&self) {
+        let mut mandatory_sum = 0;
+        let mut bonus_sum = 0;
+        for group in &self.deadlines.schedule {
+            for task in &group.tasks {
+                if let Some(is_bonus) = task.is_bonus &&
+                    is_bonus
+                {
+                    bonus_sum += task.score;
+                } else {
+                    mandatory_sum += task.score;
+                }
+            }
+        }
+
+        println!(
+            "100% score = {mandatory_sum}, bonus score = {bonus_sum}, max score = {}",
+            mandatory_sum + bonus_sum,
+        );
+    }
 }
 
 fn read_config(opts: &Opts) -> Result<Config> {
@@ -297,6 +320,9 @@ struct Opts {
 
     #[structopt(long = "dump-group-dependencies")]
     dump_group_dependencies: Option<String>,
+
+    #[structopt(long = "dump-score")]
+    dump_score: bool,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -381,6 +407,11 @@ fn do_main(opts: Opts) -> Result<()> {
 
     if opts.dump_group_dependencies.is_some() {
         config.dump_dependencies(opts.dump_group_dependencies);
+        return Ok(());
+    }
+
+    if opts.dump_score {
+        config.dump_score();
         return Ok(());
     }
 
