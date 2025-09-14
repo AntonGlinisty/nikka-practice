@@ -11,6 +11,7 @@ doc/
 fs.img
 lab/book/
 lab/src/*.svg
+lab/src/*-lab-dependencies.dot
 last_failed_*
 perf.data*
 serial.out

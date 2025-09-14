@@ -31,6 +31,11 @@
 - [`ku/src/process/trap_info.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/process/trap_info.rs) --- содержит структуру [`ku::process::trap_info::TrapInfo`](../../doc/ku/process/trap_info/struct.TrapInfo.html), которая передаёт из режима ядра в режим пользователя информацию о возникшем исключении. Например, Page Fault.
 
 
+### Зависимости задач этой лабораторной работы
+
+![Зависимости задач этой лабораторной работы](4-process-0-intro-lab-dependencies.svg)
+
+
 ### Ориентировочный объём работ этой лабораторки
 
 ```console

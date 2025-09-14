@@ -3,10 +3,15 @@
 #![allow(unused_variables)]
 
 use std::{
+    collections::{
+        HashMap,
+        HashSet,
+    },
     env,
     fs,
     path::PathBuf,
     process::Command,
+    vec::Vec,
 };
 
 use anyhow::{
@@ -15,6 +20,7 @@ use anyhow::{
     bail,
 };
 use glob::glob;
+use regex::Regex;
 use serde::Deserialize;
 use structopt::StructOpt;
 
@@ -28,12 +34,14 @@ const TESTER_TOKEN_ENV: &str = "TESTER_TOKEN";
 struct Task {
     task: String,
     allow_list: Option<Vec<String>>,
+    dependencies: Option<Vec<String>>,
     prerequisites: Option<Vec<String>>,
     check: Vec<String>,
 }
 
 #[derive(Deserialize, Clone)]
 struct Group {
+    group: String,
     tasks: Vec<Task>,
 }
 #[derive(Deserialize, Clone)]
@@ -61,6 +69,194 @@ impl Config {
         }
 
         None
+    }
+
+    fn task_checks(
+        &self,
+        task_name: &str,
+        prerequisites_check: bool,
+    ) -> Vec<&str> {
+        let mut dependencies = HashMap::<&str, Vec<&str>>::new();
+        let mut checks = HashMap::<&str, &Vec<String>>::new();
+
+        for group in &self.deadlines.schedule {
+            for task in &group.tasks {
+                checks.insert(&task.task, &task.check);
+                if prerequisites_check && let Some(task_dependencies) = &task.dependencies {
+                    for dependency in task_dependencies {
+                        dependencies.entry(&task.task).or_default().push(&dependency);
+                    }
+                }
+            }
+        }
+
+        let mut visited = HashSet::<&str>::new();
+        let mut topological_order = Vec::<&str>::new();
+        dfs(
+            task_name,
+            &dependencies,
+            &mut visited,
+            &mut topological_order,
+        );
+
+        let mut task_checks = Vec::<&str>::new();
+        for dependency in topological_order {
+            for check in checks.get(dependency).unwrap().iter() {
+                task_checks.push(check);
+            }
+        }
+
+        return task_checks;
+
+        fn dfs<'a>(
+            task: &'a str,
+            dependencies: &HashMap<&'a str, Vec<&'a str>>,
+            visited: &mut HashSet<&'a str>,
+            topological_order: &mut Vec<&'a str>,
+        ) {
+            if visited.contains(task) {
+                return;
+            }
+            visited.insert(task);
+
+            if let Some(transitive_dependencies) = dependencies.get(task) {
+                for transitive_dependency in transitive_dependencies {
+                    dfs(
+                        transitive_dependency,
+                        dependencies,
+                        visited,
+                        topological_order,
+                    );
+                }
+            }
+
+            topological_order.push(task);
+        }
+    }
+
+    fn dump_dependencies(
+        &self,
+        target_group: Option<String>,
+    ) {
+        println!("digraph dependencies {{");
+        println!("    ranksep = 1");
+        println!("    fontname = \"Helvetica,Arial,sans-serif\"");
+        println!("    node [shape = rectangle, style = filled, fillcolor = \"#FFFFFF\"]\n");
+
+        let external_dependencies = if let Some(target_group) = &target_group {
+            self.group_dependencies(target_group).1
+        } else {
+            HashSet::new()
+        };
+
+        for (id, group) in self.deadlines.schedule.iter().enumerate() {
+            if !group.group.starts_with("lab-") {
+                continue;
+            }
+
+            println!("    subgraph cluster_{id} {{");
+            println!("        label = \"{}\"", group.group);
+            println!("        fontsize = \"20pt\"");
+            println!("        style = \"rounded, filled\"");
+
+            if group.group.as_str() < "lab-5" {
+                println!("        fillcolor = \"#CADAF6\"");
+            } else {
+                println!("        fillcolor = \"#DDFDEA\"");
+            }
+
+            if let Some(target_group) = &target_group &&
+                *target_group != group.group
+            {
+                for task in &group.tasks {
+                    if external_dependencies.contains(task.task.as_str()) {
+                        println!("        \"{}\"", task.task);
+                    }
+                }
+            } else {
+                for task in &group.tasks {
+                    println!("        \"{}\"", task.task);
+                }
+
+                let dependencies = self.group_dependencies(&group.group).0;
+                for (prerequisite, task) in &dependencies {
+                    println!("        \"{prerequisite}\" -> \"{task}\"");
+                }
+            }
+
+            println!("    }}\n");
+        }
+
+        if target_group.is_none() {
+            println!("    \"allocator-cache\" -> \"elf\" [style = invis]");
+            println!("    \"no-leaks-in-process\" -> \"memory-syscalls\" [style = invis]");
+            println!("    \"allocator-cache\" -> \"block-cache\" [style = invis]");
+        }
+
+        println!("}}");
+    }
+
+    fn group_dependencies(
+        &self,
+        target_group: &str,
+    ) -> (HashSet<(&str, &str)>, HashSet<&str>) {
+        let re = Regex::new("--test ([^ ]*)").unwrap();
+        let mut checks = HashMap::<String, &str>::new();
+        let mut dependencies = HashSet::<(&str, &str)>::new();
+        let mut external_dependencies = HashSet::<&str>::new();
+        let mut internal_dependencies = HashSet::<&str>::new();
+
+        for group in &self.deadlines.schedule {
+            if target_group != group.group {
+                continue;
+            }
+
+            for task in &group.tasks {
+                for command in &task.check {
+                    for check in re.captures_iter(command) {
+                        let check = check.extract::<1>().1[0];
+                        if !checks.contains_key(check) {
+                            checks.insert(check.into(), &task.task);
+                        }
+                    }
+                }
+
+                internal_dependencies.insert(&task.task);
+            }
+        }
+
+        for group in &self.deadlines.schedule {
+            if target_group != group.group {
+                continue;
+            }
+
+            for task in &group.tasks {
+                if let Some(task_dependencies) = &task.dependencies {
+                    for dependency in task_dependencies {
+                        dependencies.insert((dependency, &task.task));
+                    }
+                } else if let Some(prerequisites) = &task.prerequisites {
+                    for command in prerequisites {
+                        for prerequisite in re.captures_iter(command) {
+                            let dependency = checks.get(prerequisite.extract::<1>().1[0]);
+                            if let Some(dependency) = dependency &&
+                                dependency != &task.task
+                            {
+                                dependencies.insert((dependency, &task.task));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        for (prerequisite, _) in &dependencies {
+            if !internal_dependencies.contains(prerequisite) {
+                external_dependencies.insert(prerequisite);
+            }
+        }
+
+        (dependencies, external_dependencies)
     }
 }
 
@@ -95,6 +291,12 @@ struct Opts {
 
     #[structopt(long = "no-prerequisites-check")]
     no_prerequisites_check: bool,
+
+    #[structopt(long = "dump-dependencies")]
+    dump_dependencies: bool,
+
+    #[structopt(long = "dump-group-dependencies")]
+    dump_group_dependencies: Option<String>,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -115,16 +317,9 @@ fn parse_task_name(branch: &str) -> Result<&str> {
 
 fn check_task(
     opts: &Opts,
-    task: &Task,
+    task_checks: Vec<&str>,
 ) -> Result<()> {
-    let check_commands: Vec<_> = if let Some(prerequisites) = &task.prerequisites &&
-        !opts.no_prerequisites_check
-    {
-        prerequisites.iter().chain(task.check.iter()).collect()
-    } else {
-        task.check.iter().collect()
-    };
-    for line in check_commands {
+    for line in task_checks {
         let mut cmd = if opts.sandbox {
             Command::new("sudo")
         } else {
@@ -179,6 +374,16 @@ fn do_main(opts: Opts) -> Result<()> {
     let task_name = parse_task_name(&opts.ci_branch_name).context("failed to parse task name")?;
     let config = read_config(&opts)?;
 
+    if opts.dump_dependencies {
+        config.dump_dependencies(None);
+        return Ok(());
+    }
+
+    if opts.dump_group_dependencies.is_some() {
+        config.dump_dependencies(opts.dump_group_dependencies);
+        return Ok(());
+    }
+
     if let Some(task) = config.find_task(task_name) {
         let orig_path = &opts.original_repo;
         let stud_path = &opts.student_repo;
@@ -213,7 +418,9 @@ fn do_main(opts: Opts) -> Result<()> {
             }
         }
 
-        check_task(&opts, task).context("task check failed")?;
+        let task_checks = config.task_checks(&task.task, !opts.no_prerequisites_check);
+
+        check_task(&opts, task_checks).context("task check failed")?;
         if opts.dry_run {
             return Ok(());
         }

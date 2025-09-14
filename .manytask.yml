@@ -199,6 +199,8 @@ deadlines:
           is_bonus: true
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-3-high-resolution-date.html
+          dependencies:
+            - rtc
           check:
             - cd kernel && cargo test --profile ci --test 1-hw-3-high-resolution-date
 
@@ -218,8 +220,6 @@ deadlines:
         - task: page-allocator
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-2-address-space-1-allocation.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block
           check:
             - cd kernel && cargo test --profile ci --test 2-mm-2-page-allocator
 
@@ -232,32 +232,41 @@ deadlines:
         - task: translate
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-2-address-space-2-translate.html
+          dependencies:
+            - page-allocator
           check:
             - cd kernel && cargo test --profile ci --test 2-mm-4-translate
 
         - task: map
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-2-address-space-3-map.html
+          dependencies:
+            - translate
           check:
             - cd kernel && cargo test --profile ci --test 2-mm-5-map
 
         - task: duplicate
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-2-address-space-2-translate.html
+          dependencies:
+            - translate
           check:
             - cd kernel && cargo test --profile ci --test 2-mm-6-duplicate-subtree
 
         - task: main-frame-allocator
           score: 150
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-8-main-frame-allocator.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map
+          dependencies:
+            - map
+            - duplicate
           check:
             - cd kernel && cargo test --profile ci --test 2-mm-8-main-frame-allocator
 
         - task: no-leaks-in-memory
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-8-main-frame-allocator.html
+          dependencies:
+            - main-frame-allocator
           check:
             - cd kernel && cargo test --profile ci --features forbid-leaks --test 2-mm-1-boot-frame-allocator --test 2-mm-2-page-allocator --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-6-duplicate-subtree --test 2-mm-8-main-frame-allocator --test 2-mm-7-drop-subtree
 
@@ -325,14 +334,17 @@ deadlines:
         - task: big-allocator
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-1-big.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
+          dependencies:
+            - main-frame-allocator
           check:
             - cd kernel && cargo test --profile ci --test 3-allocator-1-big
 
         - task: no-leaks-in-allocator
           score: 25
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-1-big.html
+          dependencies:
+            - no-leaks-in-memory
+            - big-allocator
           check:
             - cd kernel && cargo test --profile ci --features forbid-leaks --test 3-allocator-1-big
 
@@ -345,26 +357,21 @@ deadlines:
         - task: dynamic-bitmap
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-5-small.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
-            - cd ku && cargo test --profile ci --test 3-allocator-2-bitmap
           check:
             - cd ku && cargo test --profile ci --test 3-allocator-3-dynamic-bitmap
 
         - task: quarry
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-5-small.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
           check:
             - cd ku && cargo test --profile ci --test 3-allocator-4-quarry
 
         - task: small-allocator
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-5-small.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
-            - cd ku && cargo test --profile ci --test 3-allocator-3-dynamic-bitmap --test 3-allocator-4-quarry
+          dependencies:
+            - dynamic-bitmap
+            - quarry
           check:
             - cd kernel && cargo test --profile ci --test 3-allocator-5-small
             - cd ku && cargo test --profile ci --test 3-allocator-5-small -- --nocapture --test-threads=1
@@ -372,9 +379,6 @@ deadlines:
         - task: allocator-cache
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-5-small.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 3-allocator-5-small
-            - cd ku && cargo test --profile ci --test 3-allocator-5-small -- --nocapture --test-threads=1
           check:
             - cd ku && ALLOWED_RATIO=1.50 cargo test --profile benchmark --features benchmark --test 3-allocator-5-small -- --test-threads=1
 
@@ -382,9 +386,8 @@ deadlines:
           is_bonus: true
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-5-small.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 3-allocator-5-small
-            - cd ku && cargo test --profile ci --test 3-allocator-5-small -- --nocapture --test-threads=1
+          dependencies:
+            - small-allocator
           check:
             - cd ku && cargo test --profile ci --features allocator-statistics --test 3-allocator-5-small -- --test-threads=1
 
@@ -398,16 +401,16 @@ deadlines:
         - task: local-apic
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-1-local-apic.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
+          dependencies:
+            - big-allocator
           check:
             - cd kernel && cargo test --profile ci --test 4-process-1-local-apic
 
         - task: cpus
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-2-cpus.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
+          dependencies:
+            - big-allocator
           check:
             - cd kernel && cargo test --profile ci --test 4-process-2-cpus
 
@@ -423,10 +426,8 @@ deadlines:
         - task: elf
           score: 200
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-3-elf.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
-            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
+          dependencies:
+            - big-allocator
           check:
             - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --test 4-process-3-elf -- --test-threads=1
             - cd kernel && cargo test --profile ci --test 4-process-3-elf
@@ -434,72 +435,61 @@ deadlines:
         - task: permission-checks
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-4-permission-checks.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
-            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
+          dependencies:
+            - main-frame-allocator
           check:
             - cd kernel && cargo test --profile ci --test 4-process-4-permission-checks
 
         - task: user-mode
           score: 150
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-5-user-mode.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
-            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
+          dependencies:
+            - elf
+            - cpus
           check:
             - cd kernel && cargo test --profile ci --test 4-process-5-user-mode
 
         - task: syscall
           score: 200
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-6-syscall.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
-            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
+          dependencies:
+            - permission-checks
+            - user-mode
           check:
             - cd kernel && cargo test --profile ci --test 4-process-6-syscall --test 4-process-6-log-value
 
         - task: table
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-7-table.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
-            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
-            - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --test 4-process-3-elf -- --test-threads=1
-            - cd kernel && cargo test --profile ci --test 4-process-3-elf
+          dependencies:
+            - elf
           check:
             - cd kernel && cargo test --profile ci --test 4-process-7-table
 
         - task: preemption
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-8-preemption.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
-            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
-            - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --test 4-process-3-elf -- --test-threads=1
-            - cd kernel && cargo test --profile ci --test 4-process-3-elf
+          dependencies:
+            - local-apic
+            - table
           check:
             - cd kernel && cargo test --profile ci --test 4-process-8-preemption
 
         - task: scheduler
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-9-scheduler.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
-            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
-            - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --test 4-process-3-elf -- --test-threads=1
-            - cd kernel && cargo test --profile ci --test 4-process-3-elf
+          dependencies:
+            - preemption
+            - syscall
           check:
             - cd kernel && cargo test --profile ci --test 4-process-9-scheduler
 
         - task: no-leaks-in-process
           score: 25
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-1-big.html
+          dependencies:
+            - no-leaks-in-memory
+            - scheduler
           check:
             - cd kernel && cargo test --profile ci --features forbid-leaks --test 4-process-3-elf --test 4-process-5-user-mode --test 4-process-7-table --test 4-process-8-preemption --test 4-process-9-scheduler
 
@@ -546,14 +536,16 @@ deadlines:
       enabled: true
       tasks:
         - task: pipe
-          score: 200
+          score: 150
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/6-um-1-pipe.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
-            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
-            - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --test 4-process-3-elf -- --test-threads=1
-            - cd kernel && cargo test --profile ci --test 4-process-3-elf --test 4-process-5-user-mode
+          check:
+            - cd ku && cargo test --profile ci --test 6-um-1-pipe
+
+        - task: fast-pipe
+          score: 50
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/6-um-1-pipe.html
+          dependencies:
+            - pipe
           check:
             - cd ku && cargo test --profile ci --test 6-um-1-pipe
             - cd ku && cargo test --release --test 6-um-1-pipe
@@ -561,36 +553,26 @@ deadlines:
         - task: memory-syscalls
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/6-um-2-memory-syscalls.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
-            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
-            - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --test 4-process-3-elf -- --test-threads=1
-            - cd kernel && cargo test --profile ci --test 4-process-3-elf --test 4-process-5-user-mode
+          dependencies:
+            - syscall
           check:
             - cd kernel && cargo test --profile ci --test 6-um-2-memory-syscalls
 
         - task: eager-fork
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/6-um-3-eager-fork.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
-            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
-            - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --test 4-process-3-elf -- --test-threads=1
-            - cd kernel && cargo test --profile ci --test 4-process-3-elf --test 4-process-5-user-mode
+          dependencies:
+            - scheduler
+            - memory-syscalls
           check:
             - cd kernel && cargo test --profile ci --test 6-um-3-eager-fork
 
         - task: user-traps
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/6-um-4-trap-handler.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
-            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
-            - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --test 4-process-3-elf -- --test-threads=1
-            - cd kernel && cargo test --profile ci --test 4-process-3-elf --test 4-process-5-user-mode
+          dependencies:
+            - memory-syscalls
+            - scheduler
           check:
             - cd kernel && cargo test --profile ci --test 6-um-4-trap-handler
 
@@ -598,18 +580,18 @@ deadlines:
           is_bonus: true
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/6-um-5-cow-fork.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
-            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
-            - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --test 4-process-3-elf -- --test-threads=1
-            - cd kernel && cargo test --profile ci --test 4-process-3-elf --test 4-process-5-user-mode
+          dependencies:
+            - eager-fork
+            - user-traps
           check:
-            - cd kernel && cargo test --profile ci --test 6-um-*
+            - cd kernel && cargo test --profile ci --test 6-um-5-cow-fork
 
         - task: no-leaks-in-um
           score: 25
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-1-big.html
+          dependencies:
+            - no-leaks-in-memory
+            - cow-fork
           check:
             - cd kernel && cargo test --profile ci --features forbid-leaks --test 6-um-2-memory-syscalls --test 6-um-3-eager-fork --test 6-um-4-trap-handler --test 6-um-5-cow-fork
 
@@ -623,9 +605,8 @@ deadlines:
         - task: block-cache
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-1-block-cache.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
+          dependencies:
+            - map
           check:
             - rm --force fs.img
             - cd kernel && cargo test --profile ci --test 7-fs-1-block-cache-1-write --test 7-fs-1-block-cache-2-read
@@ -633,9 +614,9 @@ deadlines:
         - task: bitmap
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-2-bitmap.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
+          dependencies:
+            - static-bitmap
+            - block-cache
           check:
             - rm --force fs.img
             - cd kernel && cargo test --profile ci --test 7-fs-2-bitmap
@@ -643,9 +624,8 @@ deadlines:
         - task: inode
           score: 200
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-3-inode.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
+          dependencies:
+            - bitmap
           check:
             - rm --force fs.img
             - cd kernel && cargo test --profile ci --test 7-fs-3-inode
@@ -653,9 +633,9 @@ deadlines:
         - task: directory
           score: 150
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-4-directory.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
+          dependencies:
+            - big-allocator
+            - inode
           check:
             - rm --force fs.img
             - cd kernel && cargo test --profile ci --test 7-fs-4-directory
@@ -663,10 +643,8 @@ deadlines:
         - task: open
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-5-open.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
-            - cd kernel && cargo test --profile ci --test 7-fs-1-block-cache-1-write --test 7-fs-1-block-cache-2-read --test 7-fs-2-bitmap --test 7-fs-3-inode --test 7-fs-4-directory
+          dependencies:
+            - directory
           check:
             - rm --force fs.img
             - cd kernel && cargo test --profile ci --test 7-fs-5-open

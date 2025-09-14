@@ -31,6 +31,11 @@
   - [`ku/src/memory/size.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/memory/size.rs) --- абстракция размера в памяти `Size`.
 
 
+### Зависимости задач этой лабораторной работы
+
+![Зависимости задач этой лабораторной работы](2-mm-0-intro-lab-dependencies.svg)
+
+
 ### Ориентировочный объём работ этой лабораторки
 
 ```console
