@@ -215,14 +215,16 @@ deadlines:
         - task: page-allocator
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-2-address-space-1-allocation.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-2-page-allocator
+            - cd kernel && cargo test --profile ci --test 2-mm-2-page-allocator
 
         - task: phys2virt
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-2-address-space-2-phys2virt.html
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-*
+            - cd kernel && cargo test --profile ci --test 2-mm-3-phys2virt
 
         - task: translate
           score: 100
@@ -245,8 +247,10 @@ deadlines:
         - task: main-frame-allocator
           score: 150
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-8-main-frame-allocator.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-*
+            - cd kernel && cargo test --profile ci --test 2-mm-8-main-frame-allocator
 
         - task: no-leaks-in-memory
           score: 50
@@ -318,39 +322,45 @@ deadlines:
         - task: big-allocator
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-1-big.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-*
             - cd kernel && cargo test --profile ci --test 3-allocator-1-big
 
         - task: small-allocator
           score: 150
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-5-small.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
+            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-*
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big --test 3-allocator-5-small
+            - cd kernel && cargo test --profile ci --test 3-allocator-5-small
             - cd ku && cargo test --profile ci --test 3-allocator-5-small -- --nocapture --test-threads=1
             - cd ku && cargo test --profile benchmark --features benchmark --test 3-allocator-5-small -- --test-threads=1
 
         - task: local-apic
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-1-local-apic.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-*
             - cd kernel && cargo test --profile ci --test 4-process-1-local-apic
 
         - task: cpus
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-2-cpus.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-*
             - cd kernel && cargo test --profile ci --test 4-process-2-cpus
 
         - task: ap-init
           is_bonus: true
           score: 150
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-5-ap-init.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-*
             - cd kernel && cargo test --profile ci --test 5-sync-5-ap-init
 
     - group: lab-4-process
@@ -363,54 +373,78 @@ deadlines:
         - task: elf
           score: 200
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-3-elf.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
+            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
+            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
           check:
             - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --test 4-process-3-elf -- --test-threads=1
-            - cd kernel && cargo test --profile ci --test 2-mm-* --test 3-smp-[134]-*
             - cd kernel && cargo test --profile ci --test 4-process-3-elf
 
         - task: permission-checks
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-4-permission-checks.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
+            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
+            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-* --test 3-smp-[134]-*
             - cd kernel && cargo test --profile ci --test 4-process-4-permission-checks
 
         - task: user-mode
           score: 150
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-5-user-mode.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
+            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
+            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-* --test 3-smp-[134]-*
             - cd kernel && cargo test --profile ci --test 4-process-5-user-mode
 
         - task: syscall
           score: 200
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-6-syscall.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
+            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
+            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-* --test 3-smp-[134]-*
             - cd kernel && cargo test --profile ci --test 4-process-6-syscall --test 4-process-6-log-value
 
         - task: table
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-7-table.html
-          check:
-            - cd kernel && cargo test --profile ci --test 2-mm-* --test 3-smp-[134]-*
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
+            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
+            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
+            - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --test 4-process-3-elf -- --test-threads=1
             - cd kernel && cargo test --profile ci --test 4-process-3-elf
+          check:
             - cd kernel && cargo test --profile ci --test 4-process-7-table
 
         - task: preemption
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-8-preemption.html
-          check:
-            - cd kernel && cargo test --profile ci --test 2-mm-* --test 3-smp-[134]-*
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
+            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
+            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
+            - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --test 4-process-3-elf -- --test-threads=1
             - cd kernel && cargo test --profile ci --test 4-process-3-elf
+          check:
             - cd kernel && cargo test --profile ci --test 4-process-8-preemption
 
         - task: scheduler
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-9-scheduler.html
-          check:
-            - cd kernel && cargo test --profile ci --test 2-mm-* --test 3-smp-[134]-*
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
+            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
+            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
+            - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --test 4-process-3-elf -- --test-threads=1
             - cd kernel && cargo test --profile ci --test 4-process-3-elf
+          check:
             - cd kernel && cargo test --profile ci --test 4-process-9-scheduler
 
         - task: no-leaks-in-process
@@ -464,38 +498,63 @@ deadlines:
         - task: pipe
           score: 200
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/6-um-1-pipe.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
+            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
+            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
+            - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --test 4-process-3-elf -- --test-threads=1
+            - cd kernel && cargo test --profile ci --test 4-process-3-elf --test 4-process-5-user-mode
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-* --test 3-smp-[134]-* --test 4-process-[123]-*
             - cd ku && cargo test --profile ci --test 6-um-1-pipe
             - cd ku && cargo test --release --test 6-um-1-pipe
 
         - task: memory-syscalls
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/6-um-2-memory-syscalls.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
+            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
+            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
+            - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --test 4-process-3-elf -- --test-threads=1
+            - cd kernel && cargo test --profile ci --test 4-process-3-elf --test 4-process-5-user-mode
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-* --test 3-smp-[134]-* --test 4-process-[123]-*
             - cd kernel && cargo test --profile ci --test 6-um-2-memory-syscalls
 
         - task: eager-fork
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/6-um-3-eager-fork.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
+            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
+            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
+            - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --test 4-process-3-elf -- --test-threads=1
+            - cd kernel && cargo test --profile ci --test 4-process-3-elf --test 4-process-5-user-mode
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-* --test 3-smp-[134]-* --test 4-process-[123]-*
             - cd kernel && cargo test --profile ci --test 6-um-3-eager-fork
 
         - task: user-traps
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/6-um-4-trap-handler.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
+            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
+            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
+            - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --test 4-process-3-elf -- --test-threads=1
+            - cd kernel && cargo test --profile ci --test 4-process-3-elf --test 4-process-5-user-mode
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-* --test 3-smp-[134]-* --test 4-process-[123]-*
             - cd kernel && cargo test --profile ci --test 6-um-4-trap-handler
 
         - task: cow-fork
           is_bonus: true
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/6-um-5-cow-fork.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
+            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
+            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic --test 4-process-2-cpus
+            - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --test 4-process-3-elf -- --test-threads=1
+            - cd kernel && cargo test --profile ci --test 4-process-3-elf --test 4-process-5-user-mode
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-* --test 3-smp-[134]-* --test 4-process-[123]-*
             - cd kernel && cargo test --profile ci --test 6-um-*
 
         - task: no-leaks-in-um
@@ -514,42 +573,53 @@ deadlines:
         - task: block-cache
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-1-block-cache.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
+            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
           check:
             - rm --force fs.img
-            - cd kernel && cargo test --profile ci --test 2-mm-* --test 3-smp-1-*
             - cd kernel && cargo test --profile ci --test 7-fs-1-block-cache-1-write --test 7-fs-1-block-cache-2-read
 
         - task: bitmap
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-2-bitmap.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
+            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
           check:
             - rm --force fs.img
-            - cd kernel && cargo test --profile ci --test 2-mm-* --test 3-smp-1-*
             - cd kernel && cargo test --profile ci --test 7-fs-2-bitmap
 
         - task: inode
           score: 200
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-3-inode.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
+            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
           check:
             - rm --force fs.img
-            - cd kernel && cargo test --profile ci --test 2-mm-* --test 3-smp-1-*
             - cd kernel && cargo test --profile ci --test 7-fs-3-inode
 
         - task: directory
           score: 150
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-4-directory.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
+            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
           check:
             - rm --force fs.img
-            - cd kernel && cargo test --profile ci --test 2-mm-* --test 3-smp-1-*
             - cd kernel && cargo test --profile ci --test 7-fs-4-directory
 
         - task: open
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-5-open.html
+          prerequisites:
+            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
+            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
+            - cd kernel && cargo test --profile ci --test 7-fs-1-block-cache-1-write --test 7-fs-1-block-cache-2-read --test 7-fs-2-bitmap --test 7-fs-3-inode --test 7-fs-4-directory
           check:
             - rm --force fs.img
-            - cd kernel && cargo test --profile ci --test 2-mm-* --test 3-smp-1-*
-            - cd kernel && cargo test --profile ci --test 7-fs-*
+            - cd kernel && cargo test --profile ci --test 7-fs-5-open
 
         - task: lru
           score: 150

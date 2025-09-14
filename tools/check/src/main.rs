@@ -28,6 +28,7 @@ const TESTER_TOKEN_ENV: &str = "TESTER_TOKEN";
 struct Task {
     task: String,
     allow_list: Option<Vec<String>>,
+    prerequisites: Option<Vec<String>>,
     check: Vec<String>,
 }
 
@@ -91,6 +92,9 @@ struct Opts {
 
     #[structopt(long = "dry-run")]
     dry_run: bool,
+
+    #[structopt(long = "no-prerequisites-check")]
+    no_prerequisites_check: bool,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -113,7 +117,14 @@ fn check_task(
     opts: &Opts,
     task: &Task,
 ) -> Result<()> {
-    for line in &task.check {
+    let check_commands: Vec<_> = if let Some(prerequisites) = &task.prerequisites &&
+        !opts.no_prerequisites_check
+    {
+        prerequisites.iter().chain(task.check.iter()).collect()
+    } else {
+        task.check.iter().collect()
+    };
+    for line in check_commands {
         let mut cmd = if opts.sandbox {
             Command::new("sudo")
         } else {

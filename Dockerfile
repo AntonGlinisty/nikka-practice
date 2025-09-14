@@ -27,6 +27,7 @@ RUN for task in $(grep task: .manytask.yml | cut -f2 -d: | grep -v 'gdb'); do \
     --original-repo /opt/shad/nikka \
     --ci-branch-name submit/$task \
     --user-id galtsev \
+    --no-prerequisites-check \
     --dry-run || exit 1; \
 done
 
