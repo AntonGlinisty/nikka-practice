@@ -153,7 +153,7 @@ lab: $(RUST_PATH)/mdbook doc lab/src/*.dot lab/src/*.md lab/src/*.puml
 		fi; \
 		sed -i 's@/home/[a-z-]*/tmp/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/\.@/.../.@g' lab/src/*.md; \
 		cargo run --manifest-path tools/check/Cargo.toml -- --student-repo . --original-repo . --ci-branch-name submit/- --user-id - --dump-dependencies > lab/src/0-intro-1-nikka-lab-dependencies.dot; \
-		for i in 1-hw "2-memory 2-mm" 3-allocator 4-process "6-user-memory-tricks 6-um" "7-file-system 7-fs"; do \
+		for i in 1-hw "2-memory 2-mm" 3-allocator 4-process 5-sync "6-user-memory-tricks 6-um" "7-file-system 7-fs"; do \
 			lab_dot=$$(echo "$$i $$i"); \
 			lab=$$(echo "$$lab_dot" | cut -f1 -d' '); \
 			dot=$$(echo "$$lab_dot" | cut -f2 -d' '); \

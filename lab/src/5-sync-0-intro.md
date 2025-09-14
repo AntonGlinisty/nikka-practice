@@ -1,4 +1,13 @@
-## Блокировки
+## Блокировки и поддержка нескольких процессоров
+
+Будьте готовы к тому что на написание и отладку
+[задачи 5](../../lab/book/5-sync-5-ap-init.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-5--%D0%BF%D0%B5%D1%80%D0%B5%D0%BA%D0%BB%D1%8E%D1%87%D0%B5%D0%BD%D0%B8%D0%B5-ap-%D0%B2-64-%D0%B1%D0%B8%D1%82%D0%BD%D1%8B%D0%B9-%D1%80%D0%B5%D0%B6%D0%B8%D0%BC)
+может потребоваться много времени.
+Также может потребоваться изучить ассемблер различных режимов работы процессора архитектуры
+[x86-64](https://en.wikipedia.org/wiki/X86-64).
+
+
+### Блокировки
 
 Целью этого цикла задач является реализация
 [блокировки с использованием цикла активного ожидания](https://en.wikipedia.org/wiki/Spinlock).
@@ -42,7 +51,7 @@
 А со вторым пунктом нам поможет следующая задача.
 
 
-### Модель памяти, Acquire и Release, опасность SeqCst
+#### Модель памяти, Acquire и Release, опасность SeqCst
 
 Рекомендуется освоить
 [`Ordering::Acquire`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.Acquire)
@@ -187,7 +196,7 @@ thread '<unnamed>' panicked at 'there is no such thing as a release load', /rust
 > - [A Hierarchical CLH Queue Lock](https://people.csail.mit.edu/shanir/publications/CLH.pdf).
 
 
-### Theory and Practice of Concurrency
+#### Theory and Practice of Concurrency
 
 Более подробно познакомиться с конкурентностью, атомарными переменными, синхронизациями, моделями памяти и т.п.,
 вы можете на курсе Ромы Липовского "Theory and Practice of Concurrency":
@@ -199,7 +208,7 @@ thread '<unnamed>' panicked at 'there is no such thing as a release load', /rust
 - [Wiki yandex-team](https://wiki.yandex-team.ru/hr/volnoslushateli/lekcii-shad/).
 
 
-### Запуск тестов под [Miri](https://github.com/rust-lang/miri)
+#### Запуск тестов под [Miri](https://github.com/rust-lang/miri)
 
 Тесты блокировок мы будем запускать в том числе под эмулятором
 [Miri](https://github.com/rust-lang/miri)
@@ -208,7 +217,7 @@ thread '<unnamed>' panicked at 'there is no such thing as a release load', /rust
 для Rust'овского кода.
 
 
-#### Установка [Miri](https://github.com/rust-lang/miri)
+##### Установка [Miri](https://github.com/rust-lang/miri)
 
 Сначала нужно будет поставить
 [Miri](https://github.com/rust-lang/miri),
@@ -255,7 +264,7 @@ fatal error: failed to build sysroot: sysroot build failed
 ```
 
 
-#### Пример запуска теста под [Miri](https://github.com/rust-lang/miri)
+##### Пример запуска теста под [Miri](https://github.com/rust-lang/miri)
 
 Запустить тест под
 [Miri](https://github.com/rust-lang/miri)
@@ -276,7 +285,7 @@ test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 ```
 
 
-#### [Miri](https://github.com/rust-lang/miri) находит ошибки в использовании модели памяти
+##### [Miri](https://github.com/rust-lang/miri) находит ошибки в использовании модели памяти
 
 Эмулятор
 [Miri](https://github.com/rust-lang/miri)
@@ -344,4 +353,15 @@ test atomic_correlation_point ... ok
 test single_writer ... ok
 
 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.42s
+```
+
+
+### Зависимости задач этой лабораторной работы
+
+![Зависимости задач этой лабораторной работы](5-sync-0-intro-lab-dependencies.svg)
+
+
+### Ориентировочный объём работ этой лабораторки
+
+```console
 ```

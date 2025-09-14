@@ -14,11 +14,6 @@
 - [Время, прерывания и конкурентный код](1-hw-0-intro.md)
   - [Часы реального времени](1-hw-1-rtc.md)
   - [Счётчик тактов процессора](1-hw-2-tsc.md)
-  - [Блокировки](5-sync-0-intro.md)
-    - [Once lock](5-sync-1-once-lock.md)
-    - [Спин-блокировка](5-sync-2-spinlock.md)
-    - [Sequence lock](5-sync-3-sequence-lock.md)
-  - [Счётчики тиков](5-sync-4-correlation-point.md)
   - [Измерение частоты процессора и повышение разрешения часов](1-hw-3-high-resolution-date.md)
   - [Обработка прерываний RTC](1-hw-4-interrupts.md)
   - [Информация о системе](1-hw-5-info.md)
@@ -49,7 +44,6 @@
   - [Поддержка нескольких процессоров (SMP)](3-smp-2-smp-0-intro.md)
     - [Работа с local APIC](4-process-1-local-apic.md)
     - [Состояние каждого процессора](4-process-2-cpus.md)
-    - [Загрузка Application Processor](5-sync-5-ap-init.md)
 
 # Лабораторная работа №4
 
@@ -64,6 +58,15 @@
 
 # Лабораторная работа №5
 
+- [Блокировки и поддержка нескольких процессоров](5-sync-0-intro.md)
+  - [Once lock](5-sync-1-once-lock.md)
+  - [Спин-блокировка](5-sync-2-spinlock.md)
+  - [Sequence lock](5-sync-3-sequence-lock.md)
+  - [Счётчики тиков](5-sync-4-correlation-point.md)
+  - [Поддержка нескольких процессоров — Symmetric multiprocessing (SMP)](5-sync-5-ap-init.md)
+
+# Лабораторная работа №6
+
 - [Продвинутая работа с памятью в пространстве пользователя](6-um-0-intro.md)
   - [pipe на разделяемой памяти](6-um-1-pipe.md)
     - [Пример работы pipe](6-um-1-pipe-1-example.md)
@@ -73,7 +76,7 @@
   - [Обработка исключений в режиме пользователя](6-um-4-trap-handler.md)
   - [Copy-on-write fork](6-um-5-cow-fork.md)
 
-# Лабораторная работа №6
+# Лабораторная работа №7
 
 - [Файловая система](7-fs-0-intro.md)
   - [Блочный кэш](7-fs-1-block-cache.md)

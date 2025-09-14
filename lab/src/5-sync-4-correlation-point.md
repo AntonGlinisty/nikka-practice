@@ -346,9 +346,10 @@ running 2 tests
 > В этой задаче дополнительные тесты в файле
 > [`kernel/tests/5-sync-4-correlation-point.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/5-sync-4-correlation-point.rs)
 > запускаются в ядре Nikka.
-> При этом поддержку нескольких процессоров в нём мы сделаем только в
-> [будущей лабе](../../lab/book/3-smp-2-smp-0-intro.html).
-> И пока нам не доступна возможность запустить стресс--тест даже на двух процессорах в симметричной системе.
+> При этом поддержку нескольких процессоров в нём мы сделаем в
+> [следующей необязательной задаче](../../lab/book/5-sync-5-ap-init.html).
+> Чтобы не зависеть от необязательной задачи, мы не можем запустить
+> стресс--тест даже на двух процессорах в симметричной системе.
 >
 > Но можно вспомнить про то, что
 > [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)

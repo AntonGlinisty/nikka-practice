@@ -1,7 +1,31 @@
-## Загрузка Application Processor
+## Поддержка нескольких процессоров --- Symmetric multiprocessing (SMP)
 
 Эта задача не обязательная, без её выполнения дальнейший код должен работать.
 Её цель --- запустить все процессоры в системе.
+
+В [x86-64](https://en.wikipedia.org/wiki/X86-64) [многопроцессорность](https://en.wikipedia.org/wiki/Multiprocessing) выполнена либо в модели
+[SMP](https://en.wikipedia.org/wiki/Symmetric_multiprocessing) (Symmetric Multiprocessing), либо
+[NUMA](https://en.wikipedia.org/wiki/Non-uniform_memory_access) (Non-uniform memory access).
+В обоих случаях все процессоры, как правило, одинаковые и выполняют один и тот же код операционной системы.
+Тем не менее во время загрузки сперва работает только один процессор, называемый Bootstrap Processor (BP).
+Какой именно это будет процессор, определяется аппаратным обеспечением и BIOS или UEFI.
+После того как ОС загрузилась на BP, она может запустить остальные процессоры, которые именуются Application Processors (AP).
+Чтобы запустить AP, операционная система c процессора BP посылает AP прерывание с помощью
+local [Advanced Programmable Interrupt Controller](https://en.wikipedia.org/wiki/Advanced_Programmable_Interrupt_Controller) (local APIC, LAPIC).
+
+![](https://upload.wikimedia.org/wikipedia/commons/1/1c/SMP_-_Symmetric_Multiprocessor_System.svg)
+
+
+### Код работы с SMP в Nikka собран в модуль [`kernel::smp`](../../doc/kernel/smp/index.html) в директории `kernel/src/smp`
+
+- [`kernel/src/smp/mod.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/smp/mod.rs) --- корневая часть модуля [`kernel::smp`](../../doc/kernel/smp/index.html). Содержит функцию [`kernel::smp::init()`](../../doc/kernel/smp/fn.init.html), инициализирующую работу с SMP. Основную часть работы она перекладывает на внутреннюю функцию [`kernel::smp::init_smp()`](../../doc/kernel/smp/fn.init_smp.html).
+- [`kernel/src/smp/acpi.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/smp/acpi.rs) --- обвязка внешней библиотеки [`acpi`](../../doc/acpi/index.html), которая используется для получения информации о конфигурации оборудования из таблиц, предоставляемых BIOS или UEFI.
+- [`kernel/src/smp/ap_init.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/smp/ap_init.rs) --- код инициализации Application Processors.
+- [`kernel/src/smp/cpu.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/smp/cpu.rs) --- код для работы с вектором структур [`kernel::smp::cpu::Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html), каждая из которых принадлежит своему процессору системы.
+- [`kernel/src/smp/local_apic.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/smp/local_apic.rs) --- код работы с local APIC.
+
+
+### Задача 5 --- переключение AP в 64-битный режим
 
 Перед тем как приступить к запуску AP, процессор BSP должен собрать всю информацию о системе: общее число CPU, их APIC ID и адреса, по которым располагаются MMIO для LAPIC.
 Эту информацию собирает BIOS или UEFI, а ядро получает её от него в таблицах
@@ -105,9 +129,6 @@ BSP должен подготовить для AP код загрузчика, �
 [`kernel::smp::cpu::Cpu::wait_initialized()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.wait_initialized),
 а AP сигнализирует об окончании своей загрузки с помощью метода
 [`kernel::smp::cpu::Cpu::signal_initialized()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.signal_initialized).
-
-
-### Задача 5 --- переключение AP в 64-битный режим
 
 Реализуйте [функцию](../../doc/kernel/smp/ap_init/fn.switch_from_real_mode_to_long_mode.html)
 

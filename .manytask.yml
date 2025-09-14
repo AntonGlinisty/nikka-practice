@@ -158,43 +158,6 @@ deadlines:
             - cd kernel && cargo test --profile ci --test 1-hw-1-rtc -- -rtc base=2050-12-31T23:59:53
             - cd kernel && cargo test --profile ci --test 1-hw-1-rtc -- -rtc base=2050-01-01T11:59:53
 
-        - task: once-lock
-          is_bonus: true
-          score: 50
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-1-once-lock.html
-          check:
-            - cd ku && cargo test --profile ci --test 5-sync-1-once-lock -- --test-threads=1
-            - cd ku && cargo clean
-            - cd ku && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 5-sync-1-once-lock
-
-        - task: spinlock
-          is_bonus: true
-          score: 100
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-2-spinlock.html
-          check:
-            - cd ku && RUST_LOG="ku::sync::spinlock=trace" cargo test --profile ci --test 5-sync-2-spinlock -- --test-threads=1
-            - cd ku && cargo clean
-            - cd ku && MIRIFLAGS="-Zmiri-disable-isolation" RUST_LOG="ku::sync::spinlock=trace" cargo miri test --test 5-sync-2-spinlock
-
-        - task: sequence-lock
-          is_bonus: true
-          score: 100
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-3-sequence-lock.html
-          check:
-            - cd ku && RUST_LOG="ku::sync::spinlock=trace" cargo test --profile ci --test 5-sync-3-sequence-lock --test 5-sync-2-deadlock -- --test-threads=1
-            - cd ku && cargo clean
-            - cd ku && MIRIFLAGS="-Zmiri-disable-isolation" RUST_LOG="ku::sync::spinlock=trace" cargo miri test --test 5-sync-3-sequence-lock
-
-        - task: correlation-point
-          is_bonus: true
-          score: 100
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-4-correlation-point.html
-          check:
-            - cd ku && cargo test --profile ci --test 5-sync-4-correlation-point -- --test-threads=1
-            - cd ku && cargo clean
-            - cd ku && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 5-sync-4-correlation-point
-            - cd kernel && cargo test --profile ci --test 5-sync-4-correlation-point
-
         - task: high-resolution-date
           is_bonus: true
           score: 50
@@ -414,15 +377,6 @@ deadlines:
           check:
             - cd kernel && cargo test --profile ci --test 4-process-2-cpus
 
-        - task: ap-init
-          is_bonus: true
-          score: 150
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-5-ap-init.html
-          prerequisites:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-8-main-frame-allocator
-          check:
-            - cd kernel && cargo test --profile ci --test 5-sync-5-ap-init
-
         - task: elf
           score: 200
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-3-elf.html
@@ -528,6 +482,55 @@ deadlines:
             - cd sem/mcs_lock && cargo clean
             - cd sem/mcs_lock && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test -- --nocapture --test-threads=1
 
+    - group: lab-5-sync
+      start: 2026-03-02 18:00
+      steps:
+        0.5: 2026-03-22 23:59
+      end: 2026-06-29 23:59
+      enabled: true
+      tasks:
+        - task: once-lock
+          score: 50
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-1-once-lock.html
+          check:
+            - cd ku && cargo test --profile ci --test 5-sync-1-once-lock -- --test-threads=1
+            - cd ku && cargo clean
+            - cd ku && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 5-sync-1-once-lock
+
+        - task: spinlock
+          score: 100
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-2-spinlock.html
+          check:
+            - cd ku && RUST_LOG="ku::sync::spinlock=trace" cargo test --profile ci --test 5-sync-2-spinlock -- --test-threads=1
+            - cd ku && cargo clean
+            - cd ku && MIRIFLAGS="-Zmiri-disable-isolation" RUST_LOG="ku::sync::spinlock=trace" cargo miri test --test 5-sync-2-spinlock
+
+        - task: sequence-lock
+          score: 100
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-3-sequence-lock.html
+          check:
+            - cd ku && RUST_LOG="ku::sync::spinlock=trace" cargo test --profile ci --test 5-sync-3-sequence-lock --test 5-sync-2-deadlock -- --test-threads=1
+            - cd ku && cargo clean
+            - cd ku && MIRIFLAGS="-Zmiri-disable-isolation" RUST_LOG="ku::sync::spinlock=trace" cargo miri test --test 5-sync-3-sequence-lock
+
+        - task: correlation-point
+          score: 100
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-4-correlation-point.html
+          check:
+            - cd ku && cargo test --profile ci --test 5-sync-4-correlation-point -- --test-threads=1
+            - cd ku && cargo clean
+            - cd ku && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 5-sync-4-correlation-point
+            - cd kernel && cargo test --profile ci --test 5-sync-4-correlation-point
+
+        - task: ap-init
+          score: 150
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-5-ap-init.html
+          dependencies:
+            - local-apic
+            - cpus
+          check:
+            - cd kernel && cargo test --profile ci --test 5-sync-5-ap-init
+
     - group: lab-6-user-memory-tricks
       start: 2026-03-23 18:00
       steps:
@@ -577,7 +580,6 @@ deadlines:
             - cd kernel && cargo test --profile ci --test 6-um-4-trap-handler
 
         - task: cow-fork
-          is_bonus: true
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/6-um-5-cow-fork.html
           dependencies:
