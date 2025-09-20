@@ -140,7 +140,7 @@ pub use FastSpinlockGuard as SpinlockGuard;
 pub struct DebugSpinlock<T, const PANIC_STRATEGY: PanicStrategy = { PanicStrategy::Halt }> {
     /// Данные, защищаемые спин-блокировкой.
     // TODO: your code here.
-    data: FastSpinlock<T>, // TODO: remove before flight.
+    data: FastSpinlock<T, PANIC_STRATEGY>, // TODO: remove before flight.
     /// Место кода, в котором определена переменная спин-блокировки.
     /// Используется для отладочной печати.
     defined: &'static Location<'static>,
