@@ -7,10 +7,6 @@ use core::{
     },
 };
 
-use static_assertions::{
-    const_assert,
-    const_assert_eq,
-};
 use volatile::Volatile;
 
 use serial::Serial;
@@ -73,30 +69,32 @@ impl DerefMut for GlyphWrapper {
     }
 }
 
-pub(super) const COLUMN_COUNT: usize = 80;
-const ROW_COUNT: usize = 25;
-pub(super) const LEN: usize = COLUMN_COUNT * ROW_COUNT;
-
-pub(super) const TAB_WIDTH: usize = 8;
-
-const_assert!(COLUMN_COUNT > 0);
-const_assert_eq!(COLUMN_COUNT % TAB_WIDTH, 0);
-const_assert_eq!(LEN % COLUMN_COUNT, 0);
-const_assert!(LEN >= 3 * COLUMN_COUNT);
-
-pub(super) type Buffer = [Volatile<GlyphWrapper>; LEN];
+pub(super) type Buffer = [Volatile<GlyphWrapper>];
 
 pub struct Grid<'a> {
     attribute: Attribute,
     buffer: &'a mut Buffer,
     column: usize,
+    column_count: usize,
     row_start: usize,
+    tab_width: usize,
 }
 
 impl<'a> Grid<'a> {
-    pub(super) fn new(buffer: &'a mut Buffer) -> Self {
+    pub(super) fn new(
+        buffer: &'a mut Buffer,
+        column_count: usize,
+        row_count: usize,
+        tab_width: usize,
+    ) -> Self {
+        assert!(column_count >= 4);
+        assert!(row_count >= 3);
+        assert_eq!(column_count * row_count, buffer.len());
+
         Self {
             buffer,
+            column_count,
+            tab_width,
             row_start: 0,
             column: 0,
             attribute: Attribute::new(Color::GRAY, Color::BLACK),
@@ -114,6 +112,9 @@ impl<'a> Grid<'a> {
         self.attribute = attribute;
     }
 
+    pub fn column_count(&self) -> usize {
+        self.column_count
+    }
     pub fn glyph(
         &self,
         position: usize,
@@ -141,8 +142,12 @@ impl<'a> Grid<'a> {
         &mut self,
         position: usize,
     ) {
-        self.column = position % COLUMN_COUNT;
+        self.column = position % self.column_count();
         self.row_start = position - self.column;
+    }
+
+    pub fn tab_width(&self) -> usize {
+        self.tab_width
     }
 
     pub fn is_newline(&self) -> bool {
@@ -158,10 +163,10 @@ impl<'a> Grid<'a> {
 
         self.log_printed_data(serial, 0 .. position);
 
-        if self.row_start >= LEN {
+        if self.row_start >= self.len() {
             self.scroll();
         } else {
-            self.clear(position .. LEN);
+            self.clear(position .. self.len());
         }
 
         position
@@ -228,8 +233,8 @@ impl<'a> Grid<'a> {
 
             self.column += 1;
 
-            if self.column >= COLUMN_COUNT {
-                self.row_start += COLUMN_COUNT;
+            if self.column >= self.column_count() {
+                self.row_start += self.column_count();
                 self.column = 0;
                 prev_graphical = i + 1;
                 serial.send_octet(b'\n');
@@ -241,10 +246,10 @@ impl<'a> Grid<'a> {
         &self,
         cursor_position: usize,
     ) -> usize {
-        let position = cmp::min(cursor_position, LEN);
+        let position = cmp::min(cursor_position, self.len());
         let mut printed_data_end = position;
 
-        for i in position .. LEN {
+        for i in position .. self.len() {
             if is_graphical(self.buffer[i].read().character) {
                 printed_data_end = i + 1;
             }

@@ -10,6 +10,8 @@ use core::{
     mem,
 };
 
+use volatile::Volatile;
+
 use serial::Serial;
 
 use super::{
@@ -17,306 +19,388 @@ use super::{
     cursor::Cursor,
     grid::{
         Buffer,
-        COLUMN_COUNT,
+        GlyphWrapper,
         Grid,
-        LEN,
-        TAB_WIDTH,
     },
 };
 
-fn mock_buffer() -> Buffer {
+const COLUMN_COUNT: usize = 80;
+const ROW_COUNT: usize = 50;
+const LEN: usize = COLUMN_COUNT * ROW_COUNT;
+
+const TAB_WIDTH: usize = 8;
+
+fn mock_buffer() -> [Volatile<GlyphWrapper>; LEN] {
     unsafe { mem::zeroed() }
 }
 
-fn mock_grid(buffer: &mut Buffer) -> Grid<'_> {
-    Grid::new(buffer)
+fn mock_grid(
+    buffer: &mut Buffer,
+    column_count: usize,
+    row_count: usize,
+    tab_width: usize,
+) -> Grid<'_> {
+    Grid::new(buffer, column_count, row_count, tab_width)
 }
 
 #[test]
 fn out_of_bounds() {
-    let mut buffer = mock_buffer();
-    let len = buffer.len();
+    for column_count in 4 ..= 20 {
+        for row_count in 3 ..= 10 {
+            for tab_width in 1 ..= TAB_WIDTH {
+                let len = column_count * row_count;
 
-    let mut grid = mock_grid(&mut buffer);
+                let mut buffer = mock_buffer();
+                let mut grid = mock_grid(&mut buffer[.. len], column_count, row_count, tab_width);
 
-    let chars = ['\t', '\n', '\r', '*'];
+                let chars = ['\t', '\n', '\r', '*'];
 
-    for ch in chars.iter() {
-        for _ in 0 .. 2 * len {
-            grid.print_character(*ch);
+                for ch in chars.iter() {
+                    for _ in 0 .. 2 * len {
+                        grid.print_character(*ch);
+                    }
+                }
+            }
         }
     }
 }
 
 #[test]
 fn out_of_bounds_on_init() {
-    let mut buffer = mock_buffer();
-    let len = buffer.len();
+    for column_count in 4 ..= 20 {
+        for row_count in 3 ..= 10 {
+            for tab_width in 1 ..= TAB_WIDTH {
+                let len = column_count * row_count;
 
-    let mut grid = mock_grid(&mut buffer);
-    let mut serial = MockSerial::new();
+                let mut buffer = mock_buffer();
+                let mut grid = mock_grid(&mut buffer[.. len], column_count, row_count, tab_width);
+                let mut serial = MockSerial::new();
 
-    grid.init(0, &mut serial);
+                grid.init(0, &mut serial);
 
-    for _ in 0 .. len - 1 {
-        grid.print_character('*');
+                for _ in 0 .. len - 1 {
+                    grid.print_character('*');
+                }
+
+                grid.init(len - 1, &mut serial);
+
+                grid.print_character('*');
+            }
+        }
     }
-
-    grid.init(len - 1, &mut serial);
-
-    grid.print_character('*');
 }
 
 #[test]
 fn out_of_bounds_on_tab() {
-    let mut buffer = mock_buffer();
-    let len = buffer.len();
+    for column_count in 4 ..= 20 {
+        for row_count in 3 ..= 10 {
+            for tab_width in 1 ..= TAB_WIDTH {
+                if column_count < 2 * tab_width {
+                    continue;
+                }
 
-    let mut grid = mock_grid(&mut buffer);
+                let len = column_count * row_count;
 
-    while grid.position() < len - COLUMN_COUNT {
-        grid.print_character('\n');
-    }
+                let mut buffer = mock_buffer();
+                let mut grid = mock_grid(&mut buffer[.. len], column_count, row_count, tab_width);
 
-    for tabs_position in COLUMN_COUNT - 2 * TAB_WIDTH .. COLUMN_COUNT + 2 * TAB_WIDTH {
-        grid.print_character('\n');
+                while grid.position() < len - grid.column_count() {
+                    grid.print_character('\n');
+                }
 
-        assert_position(
-            &grid,
-            len - COLUMN_COUNT,
-            "That is, at the last line of the Grid.\n",
-        );
+                for tabs_position in grid.column_count() - 2 * grid.tab_width() ..
+                    grid.column_count() + 2 * grid.tab_width()
+                {
+                    grid.print_character('\n');
 
-        for _ in 0 .. tabs_position {
-            grid.print_character('*');
-        }
-        for _ in tabs_position .. COLUMN_COUNT + 2 * TAB_WIDTH {
-            grid.print_character('\t');
+                    assert_position(
+                        &grid,
+                        len - grid.column_count(),
+                        "That is, at the last line of the Grid.\n",
+                    );
+
+                    for _ in 0 .. tabs_position {
+                        grid.print_character('*');
+                    }
+                    for _ in tabs_position .. grid.column_count() + 2 * grid.tab_width() {
+                        grid.print_character('\t');
+                    }
+                }
+            }
         }
     }
 }
 
 #[test]
 fn scroll() {
-    let mut before_scroll = mock_buffer();
-    let len = before_scroll.len();
-    let position;
+    for column_count in 4 ..= 20 {
+        for row_count in 3 ..= 10 {
+            for tab_width in 1 ..= TAB_WIDTH {
+                let len = column_count * row_count;
 
-    {
-        let mut grid = mock_grid(&mut before_scroll);
-        grid.init(0, &mut MockSerial::new());
+                let mut before_scroll = mock_buffer();
+                let position;
 
-        for ch in Filler::new(LEN - 1) {
-            grid.print_character(ch);
+                {
+                    let mut grid = mock_grid(
+                        &mut before_scroll[.. len],
+                        column_count,
+                        row_count,
+                        tab_width,
+                    );
+                    grid.init(0, &mut MockSerial::new());
+
+                    for ch in Filler::new(grid.len() - 1) {
+                        grid.print_character(ch);
+                    }
+
+                    position = grid.position();
+                    assert!(
+                        position > grid.len() - grid.column_count(),
+                        concat!(
+                            "\n\nExpected that all the lines of the Grid are filled with some \
+                             text.\n",
+                            "But the current position in the Grid is the {:?}.\n",
+                            "Whilst the last line begins from the {:?}.\n\n",
+                        ),
+                        format::position(grid.column_count(), position),
+                        format::position(grid.column_count(), grid.len() - grid.column_count()),
+                    );
+                }
+
+                let mut after_scroll = mock_buffer();
+                for i in 0 .. len {
+                    after_scroll[i].write(before_scroll[i].read());
+                }
+
+                {
+                    let mut grid = mock_grid(
+                        &mut after_scroll[.. len],
+                        column_count,
+                        row_count,
+                        tab_width,
+                    );
+                    grid.init(position, &mut MockSerial::new());
+                    grid.scroll();
+                }
+
+                for new_position in 0 .. len - column_count {
+                    let old_position = new_position + column_count;
+                    let expected = before_scroll[old_position].read();
+                    let found = after_scroll[new_position].read();
+                    assert_eq!(
+                        found,
+                        expected,
+                        concat!(
+                            "\n\nExpected that the {:?}\n",
+                            "will move one row up from the {:?}\n",
+                            "to the {:?} after the Grid::scroll().\n",
+                            "But found the {:?} there.\n",
+                            "The buffer before the scroll:\n{:?}\n",
+                            "The buffer after the scroll:\n{:?}\n\n",
+                        ),
+                        expected,
+                        format::position(column_count, old_position),
+                        format::position(column_count, new_position),
+                        found,
+                        format::buffer(&before_scroll, column_count, row_count),
+                        format::buffer(&after_scroll, column_count, row_count),
+                    );
+                }
+
+                for position in len - column_count .. len {
+                    let found = after_scroll[position].read().character();
+                    assert_eq!(
+                        found,
+                        b' ',
+                        concat!(
+                            "\n\nExpected that the last row will be filled\n",
+                            "with the white space after the Grid::scroll().\n",
+                            "But found the {:?}\n",
+                            "at the {:?}.\n",
+                            "The buffer is:\n{:?}\n\n",
+                        ),
+                        format::character(found),
+                        format::position(column_count, position),
+                        format::buffer(&after_scroll, column_count, row_count),
+                    );
+                }
+            }
         }
-
-        position = grid.position();
-        assert!(
-            position > LEN - COLUMN_COUNT,
-            concat!(
-                "\n\nExpected that all the lines of the Grid are filled with some text.\n",
-                "But the current position in the Grid is the {:?}.\n",
-                "Whilst the last line begins from the {:?}.\n\n",
-            ),
-            format::position(position),
-            format::position(LEN - COLUMN_COUNT),
-        );
-    }
-
-    let mut after_scroll = mock_buffer();
-    for i in 0 .. len {
-        after_scroll[i].write(before_scroll[i].read());
-    }
-
-    {
-        let mut grid = mock_grid(&mut after_scroll);
-        grid.init(position, &mut MockSerial::new());
-        grid.scroll();
-    }
-
-    for new_position in 0 .. len - COLUMN_COUNT {
-        let old_position = new_position + COLUMN_COUNT;
-        let expected = before_scroll[old_position].read();
-        let found = after_scroll[new_position].read();
-        assert_eq!(
-            found,
-            expected,
-            concat!(
-                "\n\nExpected that the {:?}\n",
-                "will move one row up from the {:?}\n",
-                "to the {:?} after the Grid::scroll().\n",
-                "But found the {:?} there.\n",
-                "The buffer before the scroll:\n{:?}\n",
-                "The buffer after the scroll:\n{:?}\n\n",
-            ),
-            expected,
-            format::position(old_position),
-            format::position(new_position),
-            found,
-            format::buffer(&before_scroll),
-            format::buffer(&after_scroll),
-        );
-    }
-
-    for position in len - COLUMN_COUNT .. len {
-        let found = after_scroll[position].read().character();
-        assert_eq!(
-            found,
-            b' ',
-            concat!(
-                "\n\nExpected that the last row will be filled\n",
-                "with the white space after the Grid::scroll().\n",
-                "But found the {:?}\n",
-                "at the {:?}.\n",
-                "The buffer is:\n{:?}\n\n",
-            ),
-            format::character(found),
-            format::position(position),
-            format::buffer(&after_scroll),
-        );
     }
 }
 
 #[test]
 fn explicit_newline() {
-    let mut buffer = mock_buffer();
-    let mut grid = mock_grid(&mut buffer);
+    for column_count in 4 ..= 20 {
+        for row_count in 3 ..= 10 {
+            for tab_width in 1 ..= TAB_WIDTH {
+                let len = column_count * row_count;
 
-    grid.print_character('\n');
+                let mut buffer = mock_buffer();
+                let mut grid = mock_grid(&mut buffer[.. len], column_count, row_count, tab_width);
 
-    assert_position(
-        &grid,
-        COLUMN_COUNT,
-        "After printing a single '\\n' character.\n",
-    );
+                grid.print_character('\n');
 
-    grid.print_character('\n');
+                assert_position(
+                    &grid,
+                    grid.column_count(),
+                    "After printing a single '\\n' character.\n",
+                );
 
-    assert_position(
-        &grid,
-        2 * COLUMN_COUNT,
-        "After printing two '\\n' characters.\n",
-    );
+                grid.print_character('\n');
+
+                assert_position(
+                    &grid,
+                    2 * grid.column_count(),
+                    "After printing two '\\n' characters.\n",
+                );
+            }
+        }
+    }
 }
 
 #[test]
 fn explicit_newline_after_an_implicit_one() {
-    let mut buffer = mock_buffer();
-    let mut grid = mock_grid(&mut buffer);
+    for column_count in 4 ..= 20 {
+        for row_count in 4 ..= 10 {
+            for tab_width in 1 ..= TAB_WIDTH {
+                let len = column_count * row_count;
 
-    fill_line(&mut grid, '*');
+                let mut buffer = mock_buffer();
+                let mut grid = mock_grid(&mut buffer[.. len], column_count, row_count, tab_width);
 
-    assert_position(
-        &grid,
-        COLUMN_COUNT,
-        "After printing a full line - #COLUMN_COUNT of non-control characters.\n",
-    );
+                fill_line(&mut grid, '*');
 
-    grid.print_character('\n');
+                assert_position(
+                    &grid,
+                    grid.column_count(),
+                    "After printing a full line - #column_count of non-control characters.\n",
+                );
 
-    assert_position(
-        &grid,
-        2 * COLUMN_COUNT,
-        "After printing a full line - #COLUMN_COUNT of non-control characters - followed by a \
-         '\\n'.\n",
-    );
+                grid.print_character('\n');
 
-    grid.print_character('\n');
+                assert_position(
+                    &grid,
+                    2 * grid.column_count(),
+                    "After printing a full line - #column_count of non-control characters - \
+                     followed by a '\\n'.\n",
+                );
 
-    assert_position(
-        &grid,
-        3 * COLUMN_COUNT,
-        "After printing a full line - #COLUMN_COUNT of non-control characters - followed by \
-         '\\n\\n'.\n",
-    );
+                grid.print_character('\n');
+
+                assert_position(
+                    &grid,
+                    3 * grid.column_count(),
+                    "After printing a full line - #column_count of non-control characters - \
+                     followed by '\\n\\n'.\n",
+                );
+            }
+        }
+    }
 }
 
 #[test]
 fn position_is_always_less_than_size() {
-    let mut buffer = mock_buffer();
-    let len = buffer.len();
+    for column_count in 4 ..= 20 {
+        for row_count in 3 ..= 10 {
+            for tab_width in 1 ..= TAB_WIDTH {
+                let len = column_count * row_count;
 
-    let mut grid = mock_grid(&mut buffer);
+                let mut buffer = mock_buffer();
+                let mut grid = mock_grid(&mut buffer[.. len], column_count, row_count, tab_width);
 
-    for _ in 0 .. len - 1 {
-        grid.print_character('*');
+                for _ in 0 .. len - 1 {
+                    grid.print_character('*');
+                }
+
+                assert_position(
+                    &grid,
+                    len - 1,
+                    "After printing #(len - 1) of non-control characters.\n",
+                );
+
+                grid.print_character('*');
+
+                assert_position(
+                    &grid,
+                    len - grid.column_count(),
+                    concat!(
+                        "After filling the full screen with #len of non-control characters.\n",
+                        "That is, expected that the Grid::scroll() will be triggered once.\n",
+                    ),
+                );
+            }
+        }
     }
-
-    assert_position(
-        &grid,
-        len - 1,
-        "After printing #(LEN - 1) of non-control characters.\n",
-    );
-
-    grid.print_character('*');
-
-    assert_position(
-        &grid,
-        len - COLUMN_COUNT,
-        concat!(
-            "After filling the full screen with #LEN of non-control characters.\n",
-            "That is, expected that the Grid::scroll() will be triggered once.\n",
-        ),
-    );
 }
 
 #[test]
 fn carriage_return() {
-    let mut buffer = mock_buffer();
-    let mut grid = mock_grid(&mut buffer);
+    for column_count in 4 ..= 20 {
+        for row_count in 3 ..= 10 {
+            for tab_width in 1 ..= TAB_WIDTH {
+                let len = column_count * row_count;
 
-    fill(&mut grid, '*', COLUMN_COUNT / 2);
+                let mut buffer = mock_buffer();
+                let mut grid = mock_grid(&mut buffer[.. len], column_count, row_count, tab_width);
 
-    assert_position(
-        &grid,
-        COLUMN_COUNT / 2,
-        "After printing a half of a line - of #(COLUMN_COUNT / 2) non-control characters.\n",
-    );
+                fill(&mut grid, '*', column_count / 2);
 
-    grid.print_character('\r');
+                assert_position(
+                    &grid,
+                    grid.column_count() / 2,
+                    "After printing a half of a line - of #(column_count / 2) non-control \
+                     characters.\n",
+                );
 
-    assert_position(
-        &grid,
-        0,
-        "After printing a half of a line - of #(COLUMN_COUNT / 2) non-control characters - \
-         followed by a '\\r'.\n",
-    );
+                grid.print_character('\r');
 
-    fill_line(&mut grid, '#');
+                assert_position(
+                    &grid,
+                    0,
+                    "After printing a half of a line - of #(column_count / 2) non-control \
+                     characters - followed by a '\\r'.\n",
+                );
 
-    assert_position(
-        &grid,
-        COLUMN_COUNT,
-        "After printing a full line - of #COLUMN_COUNT non-control characters.\n",
-    );
+                fill_line(&mut grid, '#');
 
-    grid.print_character('\r');
+                assert_position(
+                    &grid,
+                    grid.column_count(),
+                    "After printing a full line - of #column_count non-control characters.\n",
+                );
 
-    assert_position(
-        &grid,
-        COLUMN_COUNT,
-        "After printing a full line - of #COLUMN_COUNT non-control characters - followed by a \
-         '\\r'.\n",
-    );
+                grid.print_character('\r');
 
-    assert_eq!(
-        buffer[0].read().character(),
-        b'#',
-        concat!(
-            "\n\nExpected that the first character in the buffer will be the '#'.\n",
-            "After printing a half of a line of '*', then a '\\r', and then a full line of the \
-             '#'.\n",
-            "But found it to be the {:?}.\n\n",
-        ),
-        format::character(buffer[0].read().character()),
-    );
+                assert_position(
+                    &grid,
+                    grid.column_count(),
+                    "After printing a full line - of #column_count non-control characters - \
+                     followed by a '\\r'.\n",
+                );
+
+                assert_eq!(
+                    buffer[0].read().character(),
+                    b'#',
+                    concat!(
+                        "\n\nExpected that the first character in the buffer will be the '#'.\n",
+                        "After printing a half of a line of '*', then a '\\r', and then a full \
+                         line of the '#'.\n",
+                        "But found it to be the {:?}.\n\n",
+                    ),
+                    format::character(buffer[0].read().character()),
+                );
+            }
+        }
+    }
 }
 
 fn fill_line(
     grid: &mut Grid,
     ch: char,
 ) {
-    fill(grid, ch, COLUMN_COUNT);
+    fill(grid, ch, grid.column_count());
 }
 
 fn fill(
@@ -342,104 +426,156 @@ fn assert_position(
             "{}",
             "But found it to be the {:?}.\n\n",
         ),
-        format::position(position),
+        format::position(grid.column_count(), position),
         message,
-        format::position(grid.position()),
+        format::position(grid.column_count(), grid.position()),
     );
 }
 
 #[test]
 fn printing() {
-    let test_data = [
-        Filler::new(2 * COLUMN_COUNT).start('0'),
-        Filler::new(2 * COLUMN_COUNT - 1).start('a'),
-        Filler::new(2 * COLUMN_COUNT + 1).start('A'),
-        Filler::new(2 * COLUMN_COUNT - 2).start(' '),
-        Filler::new(2 * COLUMN_COUNT + 2).start(':'),
-        Filler::new(4 * COLUMN_COUNT).start('=').enable_tabs(),
-    ];
+    for column_count in COLUMN_COUNT / 2 ..= COLUMN_COUNT {
+        for row_count in ROW_COUNT / 2 ..= ROW_COUNT {
+            for tab_width in 1 ..= TAB_WIDTH {
+                let len = column_count * row_count;
 
-    let mut buffer = mock_buffer();
-    let mut cursor_position = 0;
-    let mut restore_cursor_position = false;
+                let test_data = [
+                    Filler::new(2 * column_count).start('0'),
+                    Filler::new(2 * column_count - 1).start('a').step(3),
+                    Filler::new(2 * column_count + 1).start('A').step(5),
+                    Filler::new(2 * column_count - 2).start(' ').step(7),
+                    Filler::new(2 * column_count + 2).start(':').step(11),
+                    Filler::new(4 * column_count).start('=').step(13).enable_tabs(),
+                ];
 
-    for (part_index, part) in test_data.iter().enumerate() {
-        {
-            let cursor = MockCursor::new();
-            let mut text = Text::new(Grid::new(&mut buffer), cursor, MockSerial::new());
+                let mut buffer = mock_buffer();
 
-            if restore_cursor_position {
-                text.cursor.set(cursor_position);
-                restore_cursor_position = !restore_cursor_position;
+                let mut cursor_position = 0;
+                let mut restore_cursor_position = false;
+
+                for (part_index, part) in test_data.iter().enumerate() {
+                    {
+                        let grid =
+                            Grid::new(&mut buffer[.. len], column_count, row_count, tab_width);
+                        let cursor = MockCursor::new();
+                        let mut text = Text::new(grid, cursor, MockSerial::new());
+
+                        if restore_cursor_position {
+                            text.cursor.set(cursor_position);
+                            restore_cursor_position = !restore_cursor_position;
+                        }
+
+                        text.init();
+
+                        write!(text, "{part}").unwrap();
+
+                        cursor_position = text.cursor.get();
+                    }
+
+                    assert!(
+                        cursor_position + column_count < len,
+                        concat!(
+                            "\n\nDecrease the total length of the test data\n",
+                            "or the number of lines in it.\n",
+                            "This test requires that the Grid::scroll() is not triggered.\n",
+                            "The cursor is now at the {:?}.\n",
+                            "It is the last row of the buffer which length is {}x{} = {}.\n",
+                            "That means the Grid::scroll() could have been triggered already.\n\n",
+                        ),
+                        format::position(column_count, cursor_position),
+                        column_count,
+                        row_count,
+                        len,
+                    );
+
+                    check(
+                        &buffer,
+                        column_count,
+                        row_count,
+                        tab_width,
+                        cursor_position,
+                        &test_data[.. part_index + 1],
+                    );
+                }
             }
-
-            text.init();
-
-            write!(text, "{part}").unwrap();
-
-            cursor_position = text.cursor.get();
         }
-
-        assert!(
-            cursor_position + COLUMN_COUNT < buffer.len(),
-            concat!(
-                "\n\nDecrease the total length of the test data\n",
-                "or the number of lines in it.\n",
-                "This test requires that the Grid::scroll() is not triggered.\n",
-                "The cursor is now at the {:?}.\n",
-                "It is the last row of the buffer which length is {}.\n",
-                "That means the Grid::scroll() could have been triggered already.\n\n",
-            ),
-            format::position(cursor_position),
-            buffer.len(),
-        );
-
-        check(&buffer, cursor_position, &test_data[.. part_index + 1]);
     }
 }
 
 fn check(
     buffer: &Buffer,
+    column_count: usize,
+    row_count: usize,
+    tab_width: usize,
     cursor_position: usize,
     data: &[Filler],
 ) {
+    let len = column_count * row_count;
     let mut position = 0;
 
     for part in data {
-        if position % COLUMN_COUNT != 0 {
-            position = check_white_space(buffer, position, COLUMN_COUNT, data);
+        if position % column_count != 0 {
+            position = check_white_space(
+                buffer,
+                column_count,
+                row_count,
+                position,
+                column_count,
+                data,
+            );
         }
         if position != 0 {
-            position = check_white_space(buffer, position, COLUMN_COUNT, data);
+            position = check_white_space(
+                buffer,
+                column_count,
+                row_count,
+                position,
+                column_count,
+                data,
+            );
         }
 
         let mut implicit_newline = false;
 
         for ch in *part {
             assert!(
-                position < buffer.len(),
+                position < len,
                 concat!(
                     "\n\nThe data exceeded the buffer of length {}\n",
                     "at the {:?}.\n",
                     "The data is: {:?}.\n",
                     "The buffer is:\n{:?}\n\n",
                 ),
-                buffer.len(),
-                format::position(position),
+                len,
+                format::position(column_count, position),
                 data,
-                format::buffer(buffer),
+                format::buffer(buffer, column_count, row_count),
             );
 
             match ch {
                 '\t' => {
-                    position = check_white_space(buffer, position, TAB_WIDTH, data);
-                    implicit_newline = position % COLUMN_COUNT == 0;
+                    position = check_white_space(
+                        buffer,
+                        column_count,
+                        row_count,
+                        position,
+                        tab_width,
+                        data,
+                    );
+                    implicit_newline = position % column_count == 0;
                 },
                 '\n' =>
                     if implicit_newline {
                         implicit_newline = false;
                     } else {
-                        position = check_white_space(buffer, position, COLUMN_COUNT, data);
+                        position = check_white_space(
+                            buffer,
+                            column_count,
+                            row_count,
+                            position,
+                            column_count,
+                            data,
+                        );
                     },
                 _ => {
                     let expected = ch as u8;
@@ -451,18 +587,20 @@ fn check(
                             "\n\nExpected the {:?}\n",
                             "but found the {:?}\n",
                             "at the {:?}.\n",
+                            "Tab width is: {:?}.\n",
                             "The data is: {:?}.\n",
                             "The buffer is:\n{:?}\n\n",
                         ),
                         format::character(expected),
                         format::character(found),
-                        format::position(position),
+                        format::position(column_count, position),
+                        tab_width,
                         data,
-                        format::buffer(buffer),
+                        format::buffer(buffer, column_count, row_count),
                     );
                     position += 1;
 
-                    implicit_newline = position % COLUMN_COUNT == 0;
+                    implicit_newline = position % column_count == 0;
                 },
             }
         }
@@ -475,18 +613,27 @@ fn check(
             "\n\nExpected the cursor to be at the {:?}\n",
             "but found it at the {:?}.\n\n",
         ),
-        format::position(position),
-        format::position(cursor_position),
+        format::position(column_count, position),
+        format::position(column_count, cursor_position),
     );
 }
 
 fn check_white_space(
     buffer: &Buffer,
+    column_count: usize,
+    row_count: usize,
     begin: usize,
     alignment: usize,
     data: &[Filler],
 ) -> usize {
-    let end = cmp::min((begin + 1).next_multiple_of(alignment), buffer.len());
+    let end = cmp::min(
+        begin / column_count * column_count +
+            cmp::min(
+                (begin % column_count + 1).next_multiple_of(alignment),
+                (begin % column_count + 1).next_multiple_of(column_count),
+            ),
+        column_count * row_count,
+    );
 
     for position in begin .. end {
         let found = buffer[position].read().character();
@@ -501,13 +648,13 @@ fn check_white_space(
                 "The data is: {:?}.\n",
                 "The buffer is:\n{:?}\n\n",
             ),
-            format::position(begin),
+            format::position(column_count, begin),
             alignment,
-            format::position(end),
+            format::position(column_count, end),
             format::character(found),
-            format::position(position),
+            format::position(column_count, position),
             data,
-            format::buffer(buffer),
+            format::buffer(buffer, column_count, row_count),
         );
     }
 
@@ -563,6 +710,7 @@ struct Filler {
     remaining_len: usize,
     until_tab: usize,
     next_until_tab: usize,
+    step: u8,
 }
 
 impl Filler {
@@ -576,22 +724,32 @@ impl Filler {
             remaining_len: len,
             until_tab: len,
             next_until_tab: 0,
+            step: 1,
         }
     }
 
     fn start(
-        &mut self,
+        mut self,
         start: char,
     ) -> Self {
         self.current_octet = start as u8;
 
-        *self
+        self
     }
 
-    fn enable_tabs(&mut self) -> Self {
+    fn step(
+        mut self,
+        step: u8,
+    ) -> Self {
+        self.step = step;
+
+        self
+    }
+
+    fn enable_tabs(mut self) -> Self {
         self.schedule_next_tab();
 
-        *self
+        self
     }
 
     fn schedule_next_tab(&mut self) {
@@ -619,12 +777,18 @@ impl Iterator for Filler {
         } else {
             self.until_tab -= 1;
 
-            self.current_octet += 1;
+            self.current_octet = self.current_octet.wrapping_add(self.step);
             if self.current_octet >= Self::END {
                 self.current_octet = Self::BEGIN;
             }
 
-            Some(self.current_octet as char)
+            let current_octet = if self.remaining_len > 1 || self.current_octet != b' ' {
+                self.current_octet as char
+            } else {
+                '*'
+            };
+
+            Some(current_octet)
         }
     }
 }
@@ -675,16 +839,31 @@ mod format {
 
     use super::super::grid::{
         Buffer,
-        COLUMN_COUNT,
         is_graphical,
     };
 
     pub struct BufferFormatter<'a> {
         buffer: &'a Buffer,
+        column_count: usize,
+        row_count: usize,
     }
 
-    pub fn buffer(buffer: &Buffer) -> BufferFormatter<'_> {
-        BufferFormatter { buffer }
+    impl<'a> BufferFormatter<'a> {
+        fn len(&self) -> usize {
+            self.column_count * self.row_count
+        }
+    }
+
+    pub fn buffer(
+        buffer: &Buffer,
+        column_count: usize,
+        row_count: usize,
+    ) -> BufferFormatter<'_> {
+        BufferFormatter {
+            buffer,
+            column_count,
+            row_count,
+        }
     }
 
     impl<'a> Debug for BufferFormatter<'a> {
@@ -692,14 +871,14 @@ mod format {
             &self,
             formatter: &mut Formatter,
         ) -> Result {
-            format_header(formatter, 2, COLUMN_COUNT, 0, 0)?;
+            format_header(formatter, 2, self.column_count, 10, 5)?;
             writeln!(formatter)?;
 
-            let mut end = self.buffer.len();
+            let mut end = self.len();
             while end >= 1 && self.buffer[end - 1].read().character() == b'\0' {
                 end -= 1;
             }
-            end = cmp::min(end.next_multiple_of(COLUMN_COUNT), self.buffer.len());
+            end = cmp::min(end.next_multiple_of(self.column_count), self.len());
 
             for (index, glyph) in self.buffer[.. end].iter().enumerate() {
                 let mut ch = glyph.read().character();
@@ -707,7 +886,7 @@ mod format {
                     ch = b' ';
                 }
 
-                let position = position(index);
+                let position = position(self.column_count, index);
                 if position.column == 0 {
                     if position.row > 0 {
                         writeln!(formatter, "│")?;
@@ -722,7 +901,7 @@ mod format {
                 writeln!(formatter, "│")?;
             }
 
-            format_footer(formatter, 2, COLUMN_COUNT, 10, 5)
+            format_footer(formatter, 2, self.column_count, 10, 5)
         }
     }
 
@@ -852,10 +1031,13 @@ mod format {
         index: usize,
     }
 
-    pub fn position(index: usize) -> Position {
+    pub fn position(
+        column_count: usize,
+        index: usize,
+    ) -> Position {
         Position {
-            row: index / COLUMN_COUNT,
-            column: index % COLUMN_COUNT,
+            row: index / column_count,
+            column: index % column_count,
             index,
         }
     }

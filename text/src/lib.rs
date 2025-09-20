@@ -15,6 +15,7 @@ use derive_more::{
     DerefMut,
 };
 use lazy_static::lazy_static;
+use volatile::Volatile;
 
 use serial::{
     Com,
@@ -28,7 +29,7 @@ use ku::sync::{
 
 use cursor::VgaCursor;
 use grid::{
-    Buffer,
+    GlyphWrapper,
     Grid,
 };
 
@@ -168,8 +169,11 @@ type VgaText = Text<'static, VgaCursor, Com>;
 
 lazy_static! {
     pub static ref TEXT: Spinlock<VgaText, { PanicStrategy::KnockDown }> = {
-        let buffer = 0xB_8000 as *mut Buffer;
-        let grid = Grid::new(unsafe { &mut *buffer });
+        const COLUMN_COUNT: usize = 80;
+        const ROW_COUNT: usize = 25;
+        let buffer = 0xB_8000 as *mut [Volatile<GlyphWrapper>; COLUMN_COUNT * ROW_COUNT];
+        let tab_width = 8;
+        let grid = Grid::new(unsafe { &mut *buffer }, COLUMN_COUNT, ROW_COUNT, tab_width);
 
         let mut cursor = VgaCursor::new();
         cursor.set_height(2);
