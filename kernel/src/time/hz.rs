@@ -24,7 +24,7 @@ impl Hz {
 
     /// Возвращает содержащееся значение частоты в
     /// [Герцах](https://en.wikipedia.org/wiki/Hertz).
-    pub(super) fn get(&self) -> u64 {
+    pub fn get(&self) -> u64 {
         self.0.get()
     }
 }
