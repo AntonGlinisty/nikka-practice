@@ -36,4 +36,4 @@ RUN cargo run --manifest-path tools/compose/Cargo.toml -- \
     --out-path /opt/shad/nikka \
     --spare tools --spare Cargo.lock --spare .compose.yml
 
-RUN if grep -R 'compose::begin_private' $(find . -name \*.rs\*); then exit 1; fi
+RUN if grep -R 'compose::begin_private' $(find . -name \*.rs\* -o -name \*.s\*); then exit 1; fi

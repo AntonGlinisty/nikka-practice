@@ -49,6 +49,7 @@ struct Opts {
     stat: bool,
 }
 
+#[derive(PartialEq)]
 enum TokenKind {
     Private,
     Public,
@@ -102,21 +103,21 @@ fn parse_token(line: &str) -> Result<Option<Token>> {
     };
 
     let mut properties = vec![];
-    match kind {
-        TokenKind::Public => properties.push(TokenProperty::Stub(String::from(properties_str))),
-        _ =>
-            for (i, prop) in properties_str.split(',').enumerate() {
-                match prop {
-                    "no_hint" => properties.push(TokenProperty::NoHint),
-                    "unimplemented" => properties.push(TokenProperty::Unimplemented),
-                    s =>
-                        if i == 0 {
-                            properties.push(TokenProperty::Task(String::from(s)))
-                        } else {
-                            bail!("unknown property: {}", prop)
-                        },
-                }
-            },
+    if kind == TokenKind::Public {
+        properties.push(TokenProperty::Stub(String::from(properties_str)));
+    } else {
+        for (i, prop) in properties_str.split(',').enumerate() {
+            match prop {
+                "no_hint" => properties.push(TokenProperty::NoHint),
+                "unimplemented" => properties.push(TokenProperty::Unimplemented),
+                s =>
+                    if i == 0 {
+                        properties.push(TokenProperty::Task(String::from(s)))
+                    } else {
+                        bail!("unknown property: {}", prop)
+                    },
+            }
+        }
     }
 
     Ok(Some(Token { kind, properties }))
@@ -278,7 +279,11 @@ impl Compose {
         in_path: &Path,
         out_path: Option<&Path>,
     ) -> Result<()> {
-        if in_path.to_str().map(|s| s.ends_with(".rs") || s == "-").unwrap_or(false) {
+        if in_path
+            .to_str()
+            .map(|s| s.ends_with(".rs") || s.ends_with(".s") || s == "-")
+            .unwrap_or(false)
+        {
             let mut content = String::new();
             if in_path.to_str() == Some("-") {
                 io::stdin().read_to_string(&mut content)?;
