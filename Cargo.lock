@@ -1418,6 +1418,7 @@ name = "text"
 version = "0.5.0"
 dependencies = [
  "bitflags 2.6.0",
+ "derive_more",
  "ku",
  "lazy_static",
  "serial",

@@ -227,7 +227,9 @@ fn make_chart(
 #[inline(never)]
 #[panic_handler]
 fn panic(panic_info: &PanicInfo) -> ! {
-    text::TEXT.lock().set_attribute(Attribute::PANIC);
+    text::TEXT
+        .lock()
+        .set_attribute(Attribute::new(text::Color::WHITE, text::Color::RED));
 
     println!("{panic_info}");
 

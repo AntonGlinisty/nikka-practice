@@ -37,6 +37,7 @@ use sentinel_frame::with_sentinel_frame;
 
 use text::{
     Attribute,
+    Color,
     println,
 };
 
@@ -98,7 +99,7 @@ fn panic(panic_info: &PanicInfo) -> ! {
     if cfg!(test) {
         kernel::fail_test(panic_info)
     } else {
-        text::TEXT.lock().set_attribute(Attribute::PANIC);
+        text::TEXT.lock().set_attribute(Attribute::new(Color::WHITE, Color::RED));
 
         println!("{panic_info}");
 

@@ -13,7 +13,6 @@ use core::{
 use serial::Serial;
 
 use super::{
-    Attribute,
     Text,
     cursor::Cursor,
     grid::{
@@ -30,7 +29,7 @@ fn mock_buffer() -> Buffer {
 }
 
 fn mock_grid(buffer: &mut Buffer) -> Grid<'_> {
-    Grid::new(buffer, Attribute::NORMAL)
+    Grid::new(buffer)
 }
 
 #[test]
@@ -160,7 +159,7 @@ fn scroll() {
     }
 
     for position in len - COLUMN_COUNT .. len {
-        let found = after_scroll[position].read().character;
+        let found = after_scroll[position].read().character();
         assert_eq!(
             found,
             b' ',
@@ -301,7 +300,7 @@ fn carriage_return() {
     );
 
     assert_eq!(
-        buffer[0].read().character,
+        buffer[0].read().character(),
         b'#',
         concat!(
             "\n\nExpected that the first character in the buffer will be the '#'.\n",
@@ -309,7 +308,7 @@ fn carriage_return() {
              '#'.\n",
             "But found it to be the {:?}.\n\n",
         ),
-        format::character(buffer[0].read().character),
+        format::character(buffer[0].read().character()),
     );
 }
 
@@ -366,7 +365,8 @@ fn printing() {
 
     for (part_index, part) in test_data.iter().enumerate() {
         {
-            let mut text = Text::<MockCursor, MockSerial>::new(&mut buffer, Attribute::NORMAL);
+            let cursor = MockCursor::new();
+            let mut text = Text::new(Grid::new(&mut buffer), cursor, MockSerial::new());
 
             if restore_cursor_position {
                 text.cursor.set(cursor_position);
@@ -443,7 +443,7 @@ fn check(
                     },
                 _ => {
                     let expected = ch as u8;
-                    let found = buffer[position].read().character;
+                    let found = buffer[position].read().character();
                     assert_eq!(
                         found,
                         expected,
@@ -489,7 +489,7 @@ fn check_white_space(
     let end = cmp::min((begin + 1).next_multiple_of(alignment), buffer.len());
 
     for position in begin .. end {
-        let found = buffer[position].read().character;
+        let found = buffer[position].read().character();
         assert_eq!(
             found,
             b' ',
@@ -518,11 +518,13 @@ struct MockCursor {
     position: usize,
 }
 
-impl Cursor for MockCursor {
+impl MockCursor {
     fn new() -> Self {
         Self { position: 0 }
     }
+}
 
+impl Cursor for MockCursor {
     fn get(&self) -> usize {
         self.position
     }
@@ -532,6 +534,12 @@ impl Cursor for MockCursor {
         position: usize,
     ) {
         self.position = position;
+    }
+
+    fn set_height(
+        &mut self,
+        _height: u8,
+    ) {
     }
 }
 
@@ -688,13 +696,13 @@ mod format {
             writeln!(formatter)?;
 
             let mut end = self.buffer.len();
-            while end >= 1 && self.buffer[end - 1].read().character == b'\0' {
+            while end >= 1 && self.buffer[end - 1].read().character() == b'\0' {
                 end -= 1;
             }
             end = cmp::min(end.next_multiple_of(COLUMN_COUNT), self.buffer.len());
 
             for (index, glyph) in self.buffer[.. end].iter().enumerate() {
-                let mut ch = glyph.read().character;
+                let mut ch = glyph.read().character();
                 if !is_graphical(ch) {
                     ch = b' ';
                 }

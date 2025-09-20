@@ -4,18 +4,16 @@
 
 #![no_std]
 
-mod cursor;
-mod grid;
-
-#[cfg(test)]
-mod test;
-
 use core::fmt::{
     Result,
     Write,
 };
 
 use bitflags::bitflags;
+use derive_more::{
+    Deref,
+    DerefMut,
+};
 use lazy_static::lazy_static;
 
 use serial::{
@@ -28,11 +26,20 @@ use ku::sync::{
     Spinlock,
 };
 
-use cursor::{
-    Cursor,
-    VgaCursor,
+use cursor::VgaCursor;
+use grid::{
+    Buffer,
+    Grid,
 };
-use grid::Buffer;
+
+pub use cursor::Cursor;
+pub use grid::Glyph;
+
+mod cursor;
+mod grid;
+
+#[cfg(test)]
+mod test;
 
 bitflags! {
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -70,9 +77,6 @@ bitflags! {
 pub struct Attribute(u8);
 
 impl Attribute {
-    pub const NORMAL: Attribute = Attribute::new(Color::GRAY, Color::BLACK);
-    pub const PANIC: Attribute = Attribute::new(Color::WHITE, Color::RED);
-
     pub const fn new(
         foreground: Color,
         background: Color,
@@ -87,22 +91,40 @@ impl Attribute {
     const BACKGROUND_SHIFT: u8 = 4;
 }
 
+#[derive(Deref, DerefMut)]
 pub struct Text<'a, C: Cursor, S: Serial> {
-    grid: grid::Grid<'a>,
     cursor: C,
+
+    #[deref]
+    #[deref_mut]
+    grid: Grid<'a>,
+
     serial: S,
 }
 
 impl<'a, C: Cursor, S: Serial> Text<'a, C, S> {
     fn new(
-        buffer: &'a mut Buffer,
-        attribute: Attribute,
+        grid: Grid<'a>,
+        cursor: C,
+        serial: S,
     ) -> Self {
         Self {
-            grid: grid::Grid::new(buffer, attribute),
-            cursor: C::new(),
-            serial: S::new(),
+            grid,
+            cursor,
+            serial,
         }
+    }
+
+    pub fn cursor_mut(&mut self) -> &mut C {
+        &mut self.cursor
+    }
+
+    pub fn set_position(
+        &mut self,
+        position: usize,
+    ) {
+        self.grid.set_position(position);
+        self.cursor.set(position);
     }
 
     pub fn init(&mut self) {
@@ -118,15 +140,9 @@ impl<'a, C: Cursor, S: Serial> Text<'a, C, S> {
         }
     }
 
-    pub fn attribute(&mut self) -> Attribute {
-        self.grid.attribute()
-    }
-
-    pub fn set_attribute(
-        &mut self,
-        attribute: Attribute,
-    ) {
-        self.grid.set_attribute(attribute);
+    pub fn clear(&mut self) {
+        self.grid.clear(0 .. self.grid.len());
+        self.set_position(0);
     }
 }
 
@@ -148,22 +164,18 @@ impl<'a, C: Cursor, S: Serial> Write for Text<'a, C, S> {
     }
 }
 
-fn text_buffer() -> &'static mut Buffer {
-    const TEXT_BUFFER_ADDRESS: usize = 0xB_8000;
-
-    let buffer = TEXT_BUFFER_ADDRESS as *mut Buffer;
-
-    unsafe { &mut *buffer }
-}
-
 type VgaText = Text<'static, VgaCursor, Com>;
 
 lazy_static! {
-    pub static ref TEXT: Spinlock<VgaText, { PanicStrategy::KnockDown }> =
-        Spinlock::new(Text::<VgaCursor, Com>::new(
-            text_buffer(),
-            Attribute::NORMAL,
-        ));
+    pub static ref TEXT: Spinlock<VgaText, { PanicStrategy::KnockDown }> = {
+        let buffer = 0xB_8000 as *mut Buffer;
+        let grid = Grid::new(unsafe { &mut *buffer });
+
+        let mut cursor = VgaCursor::new();
+        cursor.set_height(2);
+
+        Spinlock::new(Text::new(grid, cursor, Serial::new()))
+    };
 }
 
 #[macro_export]

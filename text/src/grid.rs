@@ -15,69 +15,141 @@ use volatile::Volatile;
 
 use serial::Serial;
 
-use super::Attribute;
+use super::{
+    Attribute,
+    Color,
+};
 
-pub fn is_graphical(octet: u8) -> bool {
+pub(super) fn is_graphical(octet: u8) -> bool {
     (b' ' + 1 .. 0x7F).contains(&octet)
+}
+
+pub(super) fn is_printable(octet: u8) -> bool {
+    (b' ' .. 0x7F).contains(&octet)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct Glyph {
-    pub character: u8,
+    character: u8,
     attribute: Attribute,
 }
 
-impl Deref for Glyph {
-    type Target = Self;
+impl Glyph {
+    pub fn new(
+        character: u8,
+        attribute: Attribute,
+    ) -> Self {
+        Self {
+            character,
+            attribute,
+        }
+    }
 
-    fn deref(&self) -> &Self {
-        self
+    pub fn attribute(&self) -> Attribute {
+        self.attribute
+    }
+
+    pub fn character(&self) -> u8 {
+        self.character
     }
 }
 
-impl DerefMut for Glyph {
-    fn deref_mut(&mut self) -> &mut Self {
-        self
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(transparent)]
+pub(super) struct GlyphWrapper(Glyph);
+
+impl Deref for GlyphWrapper {
+    type Target = Glyph;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
-pub const COLUMN_COUNT: usize = 80;
+impl DerefMut for GlyphWrapper {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+pub(super) const COLUMN_COUNT: usize = 80;
 const ROW_COUNT: usize = 25;
-pub const LEN: usize = COLUMN_COUNT * ROW_COUNT;
+pub(super) const LEN: usize = COLUMN_COUNT * ROW_COUNT;
 
-pub const TAB_WIDTH: usize = 8;
+pub(super) const TAB_WIDTH: usize = 8;
 
 const_assert!(COLUMN_COUNT > 0);
 const_assert_eq!(COLUMN_COUNT % TAB_WIDTH, 0);
 const_assert_eq!(LEN % COLUMN_COUNT, 0);
 const_assert!(LEN >= 3 * COLUMN_COUNT);
 
-pub type Buffer = [Volatile<Glyph>; LEN];
+pub(super) type Buffer = [Volatile<GlyphWrapper>; LEN];
 
 pub struct Grid<'a> {
-    buffer: &'a mut Buffer,
-
-    row_start: usize,
-    column: usize,
-
     attribute: Attribute,
+    buffer: &'a mut Buffer,
+    column: usize,
+    row_start: usize,
 }
 
 impl<'a> Grid<'a> {
-    pub fn new(
-        buffer: &'a mut Buffer,
-        attribute: Attribute,
-    ) -> Self {
+    pub(super) fn new(buffer: &'a mut Buffer) -> Self {
         Self {
             buffer,
             row_start: 0,
             column: 0,
-            attribute,
+            attribute: Attribute::new(Color::GRAY, Color::BLACK),
         }
     }
 
-    pub fn init<S: Serial>(
+    pub fn attribute(&mut self) -> Attribute {
+        self.attribute
+    }
+
+    pub fn set_attribute(
+        &mut self,
+        attribute: Attribute,
+    ) {
+        self.attribute = attribute;
+    }
+
+    pub fn glyph(
+        &self,
+        position: usize,
+    ) -> Glyph {
+        self.buffer[position].read()
+    }
+
+    pub fn set_glyph(
+        &mut self,
+        position: usize,
+        glyph: Glyph,
+    ) {
+        self.buffer[position].write(glyph);
+    }
+
+    pub fn len(&self) -> usize {
+        self.buffer.len()
+    }
+
+    pub fn position(&self) -> usize {
+        self.row_start + self.column
+    }
+
+    pub fn set_position(
+        &mut self,
+        position: usize,
+    ) {
+        self.column = position % COLUMN_COUNT;
+        self.row_start = position - self.column;
+    }
+
+    pub fn is_newline(&self) -> bool {
+        self.column == 0
+    }
+
+    pub(super) fn init<S: Serial>(
         &mut self,
         cursor_position: usize,
         serial: &mut S,
@@ -95,41 +167,27 @@ impl<'a> Grid<'a> {
         position
     }
 
-    pub fn attribute(&mut self) -> Attribute {
-        self.attribute
-    }
-
-    pub fn set_attribute(
-        &mut self,
-        attribute: Attribute,
-    ) {
-        self.attribute = attribute;
-    }
-
-    pub fn position(&self) -> usize {
-        self.row_start + self.column
-    }
-
-    pub fn is_newline(&self) -> bool {
-        self.column == 0
-    }
-
-    pub fn clear(
+    pub(super) fn clear(
         &mut self,
         range: Range<usize>,
     ) {
         // TODO: your code here.
     }
 
-    pub fn print_character(
+    pub(super) fn print_character(
         &mut self,
         ch: char,
     ) {
         // TODO: your code here.
     }
 
-    pub fn scroll(&mut self) {
+    pub(super) fn scroll(&mut self) {
         // TODO: your code here.
+    }
+
+    fn adjust_position(&mut self) {
+        // TODO: your code here.
+        unimplemented!();
     }
 
     fn character(
@@ -146,11 +204,6 @@ impl<'a> Grid<'a> {
     }
 
     fn tab(&mut self) {
-        // TODO: your code here.
-        unimplemented!();
-    }
-
-    fn adjust_position(&mut self) {
         // TODO: your code here.
         unimplemented!();
     }
