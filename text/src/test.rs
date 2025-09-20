@@ -217,9 +217,18 @@ fn explicit_newline_after_an_implicit_one() {
 
     assert_position(
         &grid,
-        COLUMN_COUNT,
+        2 * COLUMN_COUNT,
         "After printing a full line - #COLUMN_COUNT of non-control characters - followed by a \
          '\\n'.\n",
+    );
+
+    grid.print_character('\n');
+
+    assert_position(
+        &grid,
+        3 * COLUMN_COUNT,
+        "After printing a full line - #COLUMN_COUNT of non-control characters - followed by \
+         '\\n\\n'.\n",
     );
 }
 
@@ -257,7 +266,24 @@ fn carriage_return() {
     let mut buffer = mock_buffer();
     let mut grid = mock_grid(&mut buffer);
 
-    fill_line(&mut grid, '*');
+    fill(&mut grid, '*', COLUMN_COUNT / 2);
+
+    assert_position(
+        &grid,
+        COLUMN_COUNT / 2,
+        "After printing a half of a line - of #(COLUMN_COUNT / 2) non-control characters.\n",
+    );
+
+    grid.print_character('\r');
+
+    assert_position(
+        &grid,
+        0,
+        "After printing a half of a line - of #(COLUMN_COUNT / 2) non-control characters - \
+         followed by a '\\r'.\n",
+    );
+
+    fill_line(&mut grid, '#');
 
     assert_position(
         &grid,
@@ -269,19 +295,18 @@ fn carriage_return() {
 
     assert_position(
         &grid,
-        0,
+        COLUMN_COUNT,
         "After printing a full line - of #COLUMN_COUNT non-control characters - followed by a \
          '\\r'.\n",
     );
-
-    fill_line(&mut grid, '#');
 
     assert_eq!(
         buffer[0].read().character,
         b'#',
         concat!(
             "\n\nExpected that the first character in the buffer will be the '#'.\n",
-            "After printing a full line of '*', then a '\\r', and then a full line of the '#'.\n",
+            "After printing a half of a line of '*', then a '\\r', and then a full line of the \
+             '#'.\n",
             "But found it to be the {:?}.\n\n",
         ),
         format::character(buffer[0].read().character),
@@ -292,7 +317,15 @@ fn fill_line(
     grid: &mut Grid,
     ch: char,
 ) {
-    for _ in 0 .. COLUMN_COUNT {
+    fill(grid, ch, COLUMN_COUNT);
+}
+
+fn fill(
+    grid: &mut Grid,
+    ch: char,
+    count: usize,
+) {
+    for _ in 0 .. count {
         grid.print_character(ch);
     }
 }
