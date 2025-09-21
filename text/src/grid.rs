@@ -16,22 +16,38 @@ use super::{
     Color,
 };
 
+/// Возвращает `true`, если `octet` соответствует символу
+/// [ASCII (American Standard Code for Information Interchange)](https://en.wikipedia.org/wiki/ASCII),
+/// графическое представление.
 pub(super) fn is_graphical(octet: u8) -> bool {
     (b' ' + 1 .. 0x7F).contains(&octet)
 }
 
+/// Возвращает `true`, если `octet` соответствует печатному символу
+/// [ASCII (American Standard Code for Information Interchange)](https://en.wikipedia.org/wiki/ASCII).
 pub(super) fn is_printable(octet: u8) -> bool {
     (b' ' .. 0x7F).contains(&octet)
 }
 
+/// Структура, описывающая один символ в памяти графического контроллера
+/// [Video Graphics Array (VGA)](https://en.wikipedia.org/wiki/Video_Graphics_Array)
+/// при работе в текстовом режиме.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct Glyph {
+    /// Символ
+    /// [ASCII (American Standard Code for Information Interchange)](https://en.wikipedia.org/wiki/ASCII),
+    /// отображающийся в соответствующей позиции экрана.
     character: u8,
+
+    /// Атрибуты, с которыми отображается этот символ.
     attribute: Attribute,
 }
 
 impl Glyph {
+    /// Создаёт структуру, описывающую один символ в памяти графического контроллера
+    /// [Video Graphics Array (VGA)](https://en.wikipedia.org/wiki/Video_Graphics_Array)
+    /// при работе в текстовом режиме.
     pub fn new(
         character: u8,
         attribute: Attribute,
@@ -42,15 +58,23 @@ impl Glyph {
         }
     }
 
+    /// Возвращает атрибуты, с которыми отображается этот символ.
     pub fn attribute(&self) -> Attribute {
         self.attribute
     }
 
+    /// Возвращает символ
+    /// [ASCII (American Standard Code for Information Interchange)](https://en.wikipedia.org/wiki/ASCII),
+    /// отображающийся в соответствующей позиции экрана.
     pub fn character(&self) -> u8 {
         self.character
     }
 }
 
+/// Вспомогательная структура, позволяющая обернуть [`Glyph`] в [`Volatile`].
+/// [`Volatile`] нужен для того, чтобы компилятор при оптимизации не выкинул
+/// чтения и записи символов в память графического контроллера
+/// [Video Graphics Array (VGA)](https://en.wikipedia.org/wiki/Video_Graphics_Array).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(transparent)]
 pub(super) struct GlyphWrapper(Glyph);
@@ -69,18 +93,51 @@ impl DerefMut for GlyphWrapper {
     }
 }
 
+/// Структура, описывающая содержимое экрана в памяти графического контроллера
+/// [Video Graphics Array (VGA)](https://en.wikipedia.org/wiki/Video_Graphics_Array)
+/// при работе в текстовом режиме.
 pub(super) type Buffer = [Volatile<GlyphWrapper>];
 
+/// Структура, позволяющая работать в текстовом режиме графического контроллера
+/// [Video Graphics Array (VGA)](https://en.wikipedia.org/wiki/Video_Graphics_Array).
 pub struct Grid<'a> {
+    /// Текущие атрибуты при печати, ---
+    /// они будут использованы при печати следующего символа.
     attribute: Attribute,
+
+    /// Содержимое экрана в памяти графического контроллера
+    /// [Video Graphics Array (VGA)](https://en.wikipedia.org/wiki/Video_Graphics_Array)
+    /// при работе в текстовом режиме.
     buffer: &'a mut Buffer,
+
+    /// Номер колонки текущего положения.
+    /// То есть, положения в котором находится курсор и
+    /// в котором будет напечатан следующий символ.
     column: usize,
+
+    /// Горизонтальное текстовое разрешение --- количество символов в одной строке.
     column_count: usize,
+
+    /// Индекс в [`Grid::buffer`], с которого начинается строка символов,
+    /// содержащая текущее положение.
+    /// То есть, положение в котором находится курсор и
+    /// в котором будет напечатан следующий символ.
     row_start: usize,
+
+    /// Количество пробелов в символе табуляции --- `\t`.
     tab_width: usize,
 }
 
 impl<'a> Grid<'a> {
+    /// Возвращает структуру, позволяющую работать в текстовом режиме графического контроллера
+    /// [Video Graphics Array (VGA)](https://en.wikipedia.org/wiki/Video_Graphics_Array).
+    ///
+    /// - Аргумент `buffer` задаёт ссылку на содержимое экрана в памяти графического контроллера
+    ///   [Video Graphics Array (VGA)](https://en.wikipedia.org/wiki/Video_Graphics_Array)
+    ///   при работе в текстовом режиме.
+    /// - Текстовое разрешение равно `column`x`row_count`.
+    /// - При печати табуляции --- `\t` --- будет отображено от одного до `tab_width` пробелов,
+    ///   пока текущая позиция в строке не станет кратна `tab_width`.
     pub(super) fn new(
         buffer: &'a mut Buffer,
         column_count: usize,
@@ -101,10 +158,14 @@ impl<'a> Grid<'a> {
         }
     }
 
+    /// Возвращает текущие атрибуты при печати, ---
+    /// они будут использованы при печати следующего символа.
     pub fn attribute(&mut self) -> Attribute {
         self.attribute
     }
 
+    /// Устанавливает текущие атрибуты при печати, ---
+    /// они будут использованы при печати следующего символа.
     pub fn set_attribute(
         &mut self,
         attribute: Attribute,
@@ -112,9 +173,12 @@ impl<'a> Grid<'a> {
         self.attribute = attribute;
     }
 
+    /// Возвращает горизонтальное текстовое разрешение --- количество символов в одной строке.
     pub fn column_count(&self) -> usize {
         self.column_count
     }
+
+    /// Возвращает символ в позиции `position` из памяти графического контроллера.
     pub fn glyph(
         &self,
         position: usize,
@@ -122,6 +186,7 @@ impl<'a> Grid<'a> {
         self.buffer[position].read()
     }
 
+    /// Устанавливает символ `glyph` в позиции `position` из памяти графического контроллера.
     pub fn set_glyph(
         &mut self,
         position: usize,
@@ -130,14 +195,20 @@ impl<'a> Grid<'a> {
         self.buffer[position].write(glyph);
     }
 
+    /// Возвращает количестве отображаемых символов на экране.
     pub fn len(&self) -> usize {
         self.buffer.len()
     }
 
+    /// Возвращает текущую позицию как индекс в [`Grid::buffer`].
+    /// То есть, положение в котором находится курсор и
+    /// в котором будет напечатан следующий символ.
     pub fn position(&self) -> usize {
         self.row_start + self.column
     }
 
+    /// Устанавливает текущую позицию как индекс в [`Grid::buffer`].
+    /// То есть, положение в котором будет напечатан следующий символ.
     pub fn set_position(
         &mut self,
         position: usize,
@@ -146,14 +217,21 @@ impl<'a> Grid<'a> {
         self.row_start = position - self.column;
     }
 
+    /// Возвращает количество пробелов в символе табуляции --- `\t`.
     pub fn tab_width(&self) -> usize {
         self.tab_width
     }
 
+    /// Возвращает `true`, если текущая позиция соответствует началу строки.
     pub fn is_newline(&self) -> bool {
         self.column == 0
     }
 
+    /// Инициализирует структуру по текущему содержимому экрана.
+    /// Само содержимое экрана копирует в
+    /// [последовательный порт](https://en.wikipedia.org/wiki/Serial_port)
+    /// `serial`, игнорируя атрибуты [`Glyph::attribute`].
+    /// Текущая позиция на экране задаётся позицией курсора `cursor_position`.
     pub(super) fn init<S: Serial>(
         &mut self,
         cursor_position: usize,
@@ -172,6 +250,8 @@ impl<'a> Grid<'a> {
         position
     }
 
+    /// Очищает диапазон экрана, задаваемый `range`.
+    /// Для этого заполняет его пробелами с текущими атрибутами [`Grid::attribute`].
     pub(super) fn clear(
         &mut self,
         range: Range<usize>,
@@ -179,6 +259,13 @@ impl<'a> Grid<'a> {
         // TODO: your code here.
     }
 
+    /// Отображает на экране символ `ch` в текущей позиции [`Grid::position()` и
+    /// с текущими атрибутами [`Grid::attribute`].
+    /// Специальным образом обрабатывает следующие символы:
+    /// - `\t` печатает от одного до [`Grid::tab_width()`] пробелов,
+    ///   пока текущая позиция в строке не станет кратна [`Grid::tab_width()`].
+    /// - `\r` возвращает текущую позицию в начало строки.
+    /// - `\n` переводит текущую позицию в начало следующей строки.
     pub(super) fn print_character(
         &mut self,
         ch: char,
@@ -186,15 +273,30 @@ impl<'a> Grid<'a> {
         // TODO: your code here.
     }
 
+    /// Выполняет прокрутку содержимого экрана на одну строку вверх,
+    /// и очищает нижнюю строку.
+    /// Используется в ситуации, когда весь экран заполнен текстом,
+    /// и требуется перейти на следующую строку.
     pub(super) fn scroll(&mut self) {
         // TODO: your code here.
     }
 
+    /// Корректирует значение [`Grid::column`] и значение [`Grid::row_start`],
+    /// если первое из них вышло за пределы строки.
+    /// При этом, если [`Grid::row_start`] выходит за пределы экрана,
+    /// выполняет прокрутку содержимого экрана методом [`Grid::scroll()`].
     fn adjust_position(&mut self) {
         // TODO: your code here.
         unimplemented!();
     }
 
+    /// Отображает на экране символ в текущей позиции [`Grid::position()`] и
+    /// с текущими атрибутами [`Grid::attribute()`].
+    /// После чего продвигает текущую позицию на единицу.
+    /// - Отображается `ch`, если он соответствует печатному символу
+    ///   [ASCII (American Standard Code for Information Interchange)](https://en.wikipedia.org/wiki/ASCII).
+    ///   См. функцию [`is_printable()`].
+    /// - В противном случае отображает `?`.
     fn character(
         &mut self,
         ch: char,
@@ -203,16 +305,24 @@ impl<'a> Grid<'a> {
         unimplemented!();
     }
 
+    /// Печатает на экране пробелы от текущей позиции [`Grid::position()`] и до конца строки.
     fn newline(&mut self) {
         // TODO: your code here.
         unimplemented!();
     }
 
+    /// Печатает от одного до [`Grid::tab_width()`] пробелов,
+    /// пока текущая позиция в строке не станет кратна [`Grid::tab_width()`] или
+    /// не дойдёт до конца строки.
     fn tab(&mut self) {
         // TODO: your code here.
         unimplemented!();
     }
 
+    /// Копируется в
+    /// [последовательный порт](https://en.wikipedia.org/wiki/Serial_port)
+    /// `serial` содержимое экрана в диапазоне позиций `range`.
+    /// Игнорирует атрибуты [`Glyph::attribute`].
     fn log_printed_data<S: Serial>(
         &mut self,
         serial: &mut S,
@@ -242,6 +352,9 @@ impl<'a> Grid<'a> {
         }
     }
 
+    /// Вычисляет текущую позицию на экране как максимальную из:
+    /// - Текущей позиции курсора `cursor_position`.
+    /// - И максимальной позицией, перед которой отображён печатный символов.
     fn printed_data_end(
         &self,
         cursor_position: usize,

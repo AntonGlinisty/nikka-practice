@@ -78,15 +78,11 @@ lint: install
 		rustup component add clippy; \
 		rustup component add rustfmt; \
 		nikka_root=$$(pwd); \
-		for workspace in $(WORKSPACES); do \
-			cd $$workspace; \
+		for crate in $(CRATES); do \
+			cd $$crate; \
 			cargo spellcheck --cfg $$nikka_root/tools/lint/spellcheck.toml --code 1; \
 			typos --config $$nikka_root/tools/lint/typos.toml || exit 1; \
 			cargo fmt --check || exit 1; \
-			cd - >/dev/null; \
-		done; \
-		for crate in $(CRATES); do \
-			cd $$crate; \
 			cargo clippy --all-targets || exit 1; \
 			cd - >/dev/null; \
 		done; \
