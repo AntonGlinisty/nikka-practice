@@ -57,12 +57,13 @@ use super::{
 use crate::{
     self as ku,
     error::Error,
+    memory::Port,
 };
 
 /// Базовый тип для адресов [архитектуры x86-64](https://wiki.osdev.org/X86-64), как виртуальных, так и физических.
 #[derive(Clone, Copy, Default, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[repr(transparent)]
-pub struct Addr<T>(usize, PhantomData<T>);
+pub struct Addr<T>(pub(super) usize, pub(super) PhantomData<T>);
 
 const_assert_eq!(mem::size_of::<Addr<()>>(), mem::size_of::<usize>());
 const_assert_eq!(mem::size_of::<Addr<()>>(), mem::size_of::<u64>());
@@ -256,13 +257,15 @@ impl<T: GroupedHexTrait<T>> fmt::Display for GroupedHex<T> {
 /// виртуальные адреса [`ku::memory::Virt`] и физические [`ku::memory::Phys`],
 /// а также (виртуальные) страницы [`ku::memory::Page`] и (физические) фреймы [`ku::memory::Frame`].
 pub trait Tag: Clone + Copy + Default + Eq + Ord {
-    /// Создаёт [`Addr`] --- [`Phys`] или [`Virt`] --- по его битовому представлению `addr`.
+    /// Создаёт [`Addr`] --- [`Phys`], [`Virt`] или [`Port`] ---
+    /// по его битовому представлению `addr`.
     ///
     /// Возвращает ошибку [`Error::InvalidArgument`] если битовое представление `addr`
     /// не является корректным для адреса целевого типа.
     fn new(addr: usize) -> Result<Addr<Self>>;
 
-    /// Создаёт [`Addr`] --- [`Phys`] или [`Virt`] --- по его битовому представлению `addr`.
+    /// Создаёт [`Addr`] --- [`Phys`], [`Virt`] или [`Port`] ---
+    /// по его битовому представлению `addr`.
     ///
     /// # Safety
     ///
@@ -273,6 +276,8 @@ pub trait Tag: Clone + Copy + Default + Eq + Ord {
     ///   - Адреса `x` и `y` виртуальные и находятся в одной и той же
     ///     [половине виртуального адресного пространства](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details).
     ///   - Адреса `x` и `y` физические.
+    ///   - Адреса `x` и `y` задают номера
+    ///     [портов ввода--вывода](https://en.wikipedia.org/wiki/Memory-mapped_I/O_and_port-mapped_I/O).
     fn is_same_half(
         x: Addr<Self>,
         y: Addr<Self>,
@@ -280,17 +285,23 @@ pub trait Tag: Clone + Copy + Default + Eq + Ord {
 
     /// Задаёт имя типа при печати:
     ///   - `"Phys"` для физических адресов;
-    ///   - `"Virt"` для виртуальных адресов.
+    ///   - `"Virt"` для виртуальных адресов;
+    ///   - `"Port"` для
+    ///     [портов ввода--вывода](https://en.wikipedia.org/wiki/Memory-mapped_I/O_and_port-mapped_I/O).
     const ADDR_NAME: &'static str;
 
     /// Задаёт имя типа при печати:
     ///   - `"Frame"` для физических фреймов;
-    ///   - `"Page"` для виртуальных страниц.
+    ///   - `"Page"` для виртуальных страниц;
+    ///   - `"Port"` для
+    ///     [портов ввода--вывода](https://en.wikipedia.org/wiki/Memory-mapped_I/O_and_port-mapped_I/O).
     const FRAGE_NAME: &'static str;
 
     /// Заменяет префикс `0x` при печати на:
     ///   - `0p` (**p**hysical) для физических адресов;
-    ///   - `0v` (**v**irtual) для виртуальных адресов.
+    ///   - `0v` (**v**irtual) для виртуальных адресов;
+    ///   - `0x` для номеров
+    ///     [портов ввода--вывода](https://en.wikipedia.org/wiki/Memory-mapped_I/O_and_port-mapped_I/O).
     const HEX_PREFIX: &'static str;
 }
 

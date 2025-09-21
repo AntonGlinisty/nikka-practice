@@ -30,6 +30,7 @@ spin = "*"
 static_assertions = "*"
 tracing = { git = "https://github.com/tokio-rs/tracing", version = "*", default-features = false }
 tracing-core = { git = "https://github.com/tokio-rs/tracing", version = "*", default-features = false }
+x86 = "*"
 x86_64 = "*"
 xmas-elf = "*"
 

@@ -691,6 +691,7 @@ dependencies = [
  "tracing-core",
  "tracing-subscriber",
  "wee_alloc",
+ "x86",
  "x86_64",
  "xmas-elf",
 ]
