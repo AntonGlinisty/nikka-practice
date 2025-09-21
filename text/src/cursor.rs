@@ -11,6 +11,7 @@ use super::Grid;
 /// [Video Graphics Array (VGA)](https://en.wikipedia.org/wiki/Video_Graphics_Array).
 pub trait Cursor {
     #[allow(rustdoc::private_intra_doc_links)]
+    // ANCHOR: get
     /// Возвращает позицию курсора.
     ///
     /// Эта позиция соответствует индексу в массиве [`Grid`].
@@ -18,8 +19,10 @@ pub trait Cursor {
     /// из левого верхнего угла по направлению слева направо.
     /// При достижении правой границы осуществляется переход в самую левую позицию следующей строки.
     fn get(&mut self) -> usize;
+    // ANCHOR_END: get
 
     #[allow(rustdoc::private_intra_doc_links)]
+    // ANCHOR: set
     /// Устанавливает позицию курсора.
     ///
     /// Эта позиция соответствует индексу в массиве [`Grid`].
@@ -34,14 +37,18 @@ pub trait Cursor {
         &mut self,
         position: usize,
     );
+    // ANCHOR_END: set
 
+    // ANCHOR: set_disable
     /// Включает или отключает отображение курсора.
     fn set_disable(
         &mut self,
         disable: bool,
     );
+    // ANCHOR_END: set_disable
 
     #[allow(rustdoc::private_intra_doc_links)]
+    // ANCHOR: set_height
     /// Устанавливает размер курсора.
     /// Задавать можно только высоту курсора от `0` до [`MAX_LINES`] включительно,
     /// большие значения заменяются на `MAX_LINES`.
@@ -49,6 +56,7 @@ pub trait Cursor {
         &mut self,
         height: u8,
     );
+    // ANCHOR_END: set_height
 }
 
 /// Структура для управления курсором в текстовом режиме графического контроллера

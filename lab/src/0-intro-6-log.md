@@ -58,7 +58,7 @@ $ head -n20 kernel/serial.out
 Здесь же можно поменять другие опции эмулятора `qemu`, если это понадобится.
 Для `make ...` это делается в `Makefile`.
 
-Для журналирования используйте макросы `error`, `warn`, `info`, `debug` и `trace` из файла [`kernel/src/log/mod.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/log/mod.rs).
+Для журналирования используйте макросы `error`, `warn`, `info`, `debug` и `trace` из файла [`ku/src/log/mod.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/log/mod.rs).
 Это реэкспорты макросов библиотеки [tracing](https://docs.rs/tracing/).
 
 Например, вызов

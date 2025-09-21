@@ -1,4 +1,4 @@
-1215
+1231
 &&
 ABI
 ACPI
@@ -1209,3 +1209,19 @@ nst
 маджента
 Маджента
 эмулируемых
+FreeVGA
+GlyphWrapper
+IndexDataPair
+IndexDataPortPair
+MockCursor
+Newtype
+TODO
+VgaCursor
+YRGB
+bfe
+bff
+ffff
+reprc
+newtype
+unittests
+паттерна

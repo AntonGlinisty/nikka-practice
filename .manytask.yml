@@ -85,6 +85,8 @@ allow_list:
   - ku/src/sync/spinlock.rs
   - ku/src/time/correlation_interval.rs
   - ku/src/time/correlation_point.rs
+  - text/src/cursor.rs
+  - text/src/grid.rs
   - user/cow_fork/src/main.rs
   - user/eager_fork/src/main.rs
   - user/lib/src/memory/mod.rs
@@ -142,7 +144,7 @@ deadlines:
           check:
             - cd sem/jobserver && cargo build && ./test.sh
 
-    - group: lab-1-time
+    - group: lab-1-hardware
       start: 2025-09-30 18:00
       steps:
         0.5: 2025-12-20 23:59
@@ -160,12 +162,28 @@ deadlines:
 
         - task: high-resolution-date
           is_bonus: true
-          score: 50
+          score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-3-high-resolution-date.html
           dependencies:
             - rtc
           check:
             - cd kernel && cargo test --profile ci --test 1-hw-3-high-resolution-date
+
+        - task: cursor
+          is_bonus: true
+          score: 50
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-8-cursor.html
+          check:
+            - cd text && cargo test --profile ci --lib cursor
+
+        - task: text
+          is_bonus: true
+          score: 100
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-9-grid.html
+          dependencies:
+            - cursor
+          check:
+            - cd text && cargo test --profile ci --lib
 
     - group: lab-2-memory
       start: 2025-10-14 18:00
