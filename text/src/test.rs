@@ -1,4 +1,5 @@
 use core::{
+    cell::Cell,
     cmp,
     fmt::{
         Debug,
@@ -12,11 +13,20 @@ use core::{
 
 use volatile::Volatile;
 
+use ku::memory::{
+    IndexDataPair,
+    size,
+};
+
 use serial::Serial;
 
 use super::{
     Text,
-    cursor::Cursor,
+    cursor::{
+        self,
+        Cursor,
+        VgaCursor,
+    },
     grid::{
         Buffer,
         GlyphWrapper,
@@ -458,10 +468,10 @@ fn printing() {
                         let grid =
                             Grid::new(&mut buffer[.. len], column_count, row_count, tab_width);
                         let cursor = MockCursor::new();
-                        let mut text = Text::new(grid, cursor, MockSerial::new());
+                        let mut text = Text::new(grid, cursor.get(), MockSerial::new());
 
                         if restore_cursor_position {
-                            text.cursor.set(cursor_position);
+                            cursor.get().set(cursor_position);
                             restore_cursor_position = !restore_cursor_position;
                         }
 
@@ -469,7 +479,7 @@ fn printing() {
 
                         write!(text, "{part}").unwrap();
 
-                        cursor_position = text.cursor.get();
+                        cursor_position = cursor.get().get();
                     }
 
                     assert!(
@@ -661,32 +671,104 @@ fn check_white_space(
     end
 }
 
+#[test]
+fn cursor() {
+    let cursor = MockCursor::new();
+
+    for height in 0 .. cursor::MAX_LINES {
+        cursor.get().set_height(height);
+
+        let ports = cursor.ports.get();
+        assert_eq!(ports.end_line, cursor::MAX_LINES - 1);
+        assert_eq!(ports.end_line + 1 - ports.begin_line, height);
+
+        cursor.get().set_disable(true);
+
+        let ports = cursor.ports.get();
+        assert_eq!(ports.end_line, cursor::MAX_LINES - 1);
+        assert_eq!(
+            ports.end_line + 1 - (ports.begin_line & cursor::CURSOR_LINE_MASK),
+            height,
+        );
+        assert_eq!(
+            ports.begin_line & !cursor::CURSOR_LINE_MASK,
+            cursor::CURSOR_DISABLE,
+        );
+
+        cursor.get().set_disable(false);
+
+        let ports = cursor.ports.get();
+        assert_eq!(ports.end_line, cursor::MAX_LINES - 1);
+        assert_eq!(ports.end_line + 1 - ports.begin_line, height);
+    }
+
+    for position in 0 .. COLUMN_COUNT * ROW_COUNT {
+        cursor.get().set(position);
+        assert_eq!(cursor.ports.get().position(), position);
+        assert_eq!(cursor.get().get(), position);
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+struct MockCursorPorts {
+    begin_line: u8,
+    end_line: u8,
+    position_high: u8,
+    position_low: u8,
+}
+
+impl MockCursorPorts {
+    fn port(
+        &mut self,
+        index: u8,
+    ) -> &mut u8 {
+        match index {
+            cursor::START_LINE => &mut self.begin_line,
+            cursor::END_LINE => &mut self.end_line,
+            cursor::POSITION_HIGH => &mut self.position_high,
+            cursor::POSITION_LOW => &mut self.position_low,
+            _ => panic!("wrong VGA cursor port used"),
+        }
+    }
+
+    fn position(&self) -> usize {
+        (size::from(self.position_high) << 8) | size::from(self.position_low)
+    }
+}
+
 struct MockCursor {
-    position: usize,
+    ports: Cell<MockCursorPorts>,
+}
+
+impl IndexDataPair<u8> for &MockCursor {
+    unsafe fn read(
+        &mut self,
+        index: u8,
+    ) -> u8 {
+        *self.ports.get().port(index)
+    }
+
+    unsafe fn write(
+        &mut self,
+        index: u8,
+        data: u8,
+    ) {
+        self.ports.update(|mut ports| {
+            *ports.port(index) = data;
+            ports
+        });
+    }
 }
 
 impl MockCursor {
     fn new() -> Self {
-        Self { position: 0 }
-    }
-}
-
-impl Cursor for MockCursor {
-    fn get(&self) -> usize {
-        self.position
+        Self {
+            ports: Cell::new(MockCursorPorts::default()),
+        }
     }
 
-    fn set(
-        &mut self,
-        position: usize,
-    ) {
-        self.position = position;
-    }
-
-    fn set_height(
-        &mut self,
-        _height: u8,
-    ) {
+    fn get(&self) -> VgaCursor<&MockCursor> {
+        unsafe { VgaCursor::new(self) }
     }
 }
 

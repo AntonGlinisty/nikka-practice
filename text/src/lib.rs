@@ -22,9 +22,12 @@ use serial::{
     Serial,
 };
 
-use ku::sync::{
-    PanicStrategy,
-    Spinlock,
+use ku::{
+    memory::IndexDataPortPair,
+    sync::{
+        PanicStrategy,
+        Spinlock,
+    },
 };
 
 use cursor::VgaCursor;
@@ -165,7 +168,7 @@ impl<'a, C: Cursor, S: Serial> Write for Text<'a, C, S> {
     }
 }
 
-type VgaText = Text<'static, VgaCursor, Com>;
+type VgaText = Text<'static, VgaCursor<IndexDataPortPair<u8>>, Com>;
 
 lazy_static! {
     pub static ref TEXT: Spinlock<VgaText, { PanicStrategy::KnockDown }> = {
@@ -175,7 +178,7 @@ lazy_static! {
         let tab_width = 8;
         let grid = Grid::new(unsafe { &mut *buffer }, COLUMN_COUNT, ROW_COUNT, tab_width);
 
-        let mut cursor = VgaCursor::new();
+        let mut cursor = cursor::create_vga_cursor();
         cursor.set_height(2);
 
         Spinlock::new(Text::new(grid, cursor, Serial::new()))
