@@ -43,8 +43,6 @@ mod log;
 
 #[rstest]
 fn make_diagrams() {
-    log::init();
-
     continuous_ring_buffer().unwrap();
     pipe_usage_example().unwrap();
     tx_example().unwrap();
@@ -932,6 +930,11 @@ enum Legend {
     Compact,
     Normal,
     Verbose,
+}
+
+#[ctor::ctor]
+fn init() {
+    log::init();
 }
 
 const PIPE_FRAME_COUNT: usize = 4;

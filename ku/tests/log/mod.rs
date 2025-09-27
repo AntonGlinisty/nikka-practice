@@ -1,7 +1,5 @@
 #![deny(warnings)]
 
-use spin::Lazy;
-
 use tracing_core::LevelFilter;
 use tracing_subscriber::{
     self,
@@ -10,10 +8,6 @@ use tracing_subscriber::{
 };
 
 pub fn init() {
-    *INIT;
-}
-
-static INIT: Lazy<()> = Lazy::new(|| {
     let filter = EnvFilter::from_default_env().add_directive(LevelFilter::DEBUG.into());
 
     let format = fmt::format()
@@ -28,4 +22,4 @@ static INIT: Lazy<()> = Lazy::new(|| {
         .event_format(format)
         .with_env_filter(filter)
         .init();
-});
+}

@@ -19,8 +19,6 @@ mod log;
 
 #[rstest]
 fn basic() {
-    log::init();
-
     const MAX_LEN: usize = 1024;
 
     for len in 0 ..= MAX_LEN {
@@ -69,8 +67,6 @@ fn basic() {
 
 #[rstest]
 fn allocation() {
-    log::init();
-
     const MAX_LEN: usize = 1024;
 
     for len in 33 ..= MAX_LEN {
@@ -128,8 +124,6 @@ fn allocation() {
 
 #[rstest]
 fn allocation_complexity() {
-    log::init();
-
     const BASE: usize = 10;
     const MAX_EXPONENT: u32 = 7;
     const MAX_LEN: usize = BASE.pow(MAX_EXPONENT);
@@ -169,4 +163,9 @@ fn allocation_complexity() {
         avg_time / 3 < min_time && max_time < 3 * avg_time,
         "Bitmap::allocate() should have constant amortized time complexity",
     );
+}
+
+#[ctor::ctor]
+fn init() {
+    log::init();
 }

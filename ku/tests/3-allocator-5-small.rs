@@ -103,8 +103,6 @@ mod log;
 
 #[test]
 fn basic() {
-    log::init();
-
     static ALLOCATOR: Dispatcher<ThreadLocalCache, Fallback> =
         Dispatcher::new(ThreadLocalCache::new(), Fallback::new());
 
@@ -141,8 +139,6 @@ fn basic() {
 
 #[test]
 fn single_threaded() {
-    log::init();
-
     static ALLOCATOR: Dispatcher<ThreadLocalCache, Fallback> =
         Dispatcher::new(ThreadLocalCache::new(), Fallback::new());
 
@@ -321,8 +317,6 @@ fn single_threaded() {
 
 #[test]
 fn multi_threaded() {
-    log::init();
-
     static ALLOCATOR: Dispatcher<ThreadLocalCache, Fallback> =
         Dispatcher::new(ThreadLocalCache::new(), Fallback::new());
 
@@ -1211,6 +1205,11 @@ unsafe impl GlobalAlloc for Ring {
             self.0.deallocate(NonNull::new(ptr).unwrap(), layout);
         }
     }
+}
+
+#[ctor::ctor]
+fn init() {
+    log::init();
 }
 
 const BENCHMARK_CHECK_RATE: u32 = 1_000;

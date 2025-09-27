@@ -22,8 +22,6 @@ mod log;
 #[rstest]
 #[timeout(Duration::from_secs(1))]
 fn basic_map() {
-    log::init();
-
     let size = 5;
     let mut lru = Lru::new(size);
 
@@ -51,8 +49,6 @@ fn basic_map() {
 #[rstest]
 #[timeout(Duration::from_secs(1))]
 fn basic_lru() {
-    log::init();
-
     let size = 5;
     let mut lru = Lru::new(size);
 
@@ -96,8 +92,6 @@ fn basic_lru() {
 #[rstest]
 #[timeout(Duration::from_secs(60))]
 fn stress() {
-    log::init();
-
     let size = 100;
     let mut lru = Lru::new(size);
     let mut naive_lru = HashMap::new();
@@ -147,3 +141,8 @@ fn stress() {
 }
 
 const SEED: u64 = 314159265;
+
+#[ctor::ctor]
+fn init() {
+    log::init();
+}

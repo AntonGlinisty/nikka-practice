@@ -50,6 +50,7 @@ sentinel_frame = { path = "../sentinel_frame" }
 
 [dev-dependencies]
 anyhow = "*"
+ctor = "*"
 nix = { version = "0.27.*", features = ["mman"] }
 rand = { version = "*", default-features = false, features = ["alloc", "small_rng"] }
 rstest = "*"

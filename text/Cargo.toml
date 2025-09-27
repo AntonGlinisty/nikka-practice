@@ -19,3 +19,8 @@ x86_64 = "*"
 
 ku = { path = "../ku" }
 serial = { path = "../serial" }
+
+[dev-dependencies]
+ctor = "*"
+tracing-core = { git = "https://github.com/tokio-rs/tracing", version = "*", default-features = false }
+tracing-subscriber = { git = "https://github.com/tokio-rs/tracing", features = ["env-filter"] }

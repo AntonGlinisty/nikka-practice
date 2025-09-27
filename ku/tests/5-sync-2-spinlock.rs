@@ -29,8 +29,6 @@ mod log;
 #[rstest]
 #[timeout(Duration::from_secs(1))]
 fn lock_unlock() {
-    log::init();
-
     let spinlock = Spinlock::new(0);
 
     let mut lock = spinlock.lock();
@@ -50,8 +48,6 @@ fn lock_unlock() {
 #[rstest]
 #[timeout(Duration::from_secs(1))]
 fn try_lock() {
-    log::init();
-
     let spinlock = Spinlock::new(0);
 
     let lock = spinlock.lock();
@@ -68,8 +64,6 @@ fn try_lock() {
 #[rstest]
 #[timeout(Duration::from_secs(10))]
 fn exclusive_access() {
-    log::init();
-
     let mut spinlock = Spinlock::new(0);
 
     *spinlock.get_mut() += 1;
@@ -82,8 +76,6 @@ fn exclusive_access() {
 #[rstest]
 #[timeout(Duration::from_secs(10))]
 fn deadlock() {
-    log::init();
-
     let a = Spinlock::new(0);
     let b = Spinlock::new(1);
     let barrier = AtomicUsize::new(0);
@@ -135,8 +127,6 @@ fn deadlock() {
 #[rstest]
 #[cfg_attr(not(miri), timeout(Duration::from_secs(60)))]
 fn concurrent() {
-    log::init();
-
     const ITERATION_COUNT: usize = if cfg!(miri) {
         500
     } else {
@@ -221,4 +211,9 @@ struct Stats {
     completed: usize,
     consistent: usize,
     inconsistent: usize,
+}
+
+#[ctor::ctor]
+fn init() {
+    log::init();
 }

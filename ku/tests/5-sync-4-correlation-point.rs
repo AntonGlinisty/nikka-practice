@@ -58,8 +58,6 @@ fn atomic_correlation_point() {
 #[rstest]
 #[timeout(Duration::from_secs(60))]
 fn single_writer() {
-    log::init();
-
     let run = AtomicBool::new(true);
     let point = AtomicCorrelationPoint::new();
 
@@ -157,3 +155,8 @@ struct Stats {
 
 const MIN_DIFFERENT_READS: usize = 1_000;
 const THREAD_COUNT: usize = 10;
+
+#[ctor::ctor]
+fn init() {
+    log::init();
+}

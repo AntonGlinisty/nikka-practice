@@ -38,8 +38,6 @@ mod log;
 
 #[rstest]
 fn stress() {
-    log::init();
-
     let allocator = Fallback::new();
     let map_count = 10;
     let mut log_time = Instant::now();
@@ -135,8 +133,6 @@ fn stress() {
 #[rstest]
 #[cfg_attr(debug_assertions, should_panic)]
 fn out_of_bounds() {
-    log::init();
-
     let mut quarry = Quarry::new(2);
     quarry.allocation(0);
 }
@@ -144,8 +140,6 @@ fn out_of_bounds() {
 #[rstest]
 #[cfg_attr(debug_assertions, should_panic)]
 fn wrong_alignment() {
-    log::init();
-
     static QUARRY: Mutex<Quarry> = Mutex::new(Quarry::new(2));
 
     let allocator = Fallback::new();
@@ -160,6 +154,11 @@ fn wrong_alignment() {
             quarry.allocation_index(wrong_addr);
         }
     }
+}
+
+#[ctor::ctor]
+fn init() {
+    log::init();
 }
 
 const SEED: u64 = 314159265;

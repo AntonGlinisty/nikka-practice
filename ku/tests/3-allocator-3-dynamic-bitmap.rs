@@ -19,8 +19,6 @@ mod log;
 
 #[rstest]
 fn basic() {
-    log::init();
-
     let allocator = Fallback::new();
     let mut bitmap = DynamicBitmap::new();
     let mut bitmap_frame_count = 0;
@@ -91,4 +89,9 @@ fn basic() {
     }
 
     assert_eq!(bitmap.unmap(&allocator).unwrap(), bitmap_frame_count);
+}
+
+#[ctor::ctor]
+fn init() {
+    log::init();
 }

@@ -64,8 +64,6 @@ const WINDOW_DURATION: Duration = Duration::from_millis(
 #[rstest]
 #[cfg_attr(not(miri), timeout(Duration::from_secs(1)))]
 fn check_continuous_mapping() {
-    log::init();
-
     let frame_count = 4;
     let mut allocator = BigForPipe::new(false);
 
@@ -121,8 +119,6 @@ fn reader_close(
     #[case] close_first: bool,
     #[case] aborted_read_tx: bool,
 ) {
-    log::init();
-
     debug!(corrupt, close_first, aborted_read_tx);
 
     let mut allocator = BigForPipe::new(false);
@@ -165,8 +161,6 @@ fn reader_close(
 #[case(true)]
 #[cfg_attr(not(miri), timeout(Duration::from_secs(1)))]
 fn writer_close(#[case] corrupt: bool) {
-    log::init();
-
     debug!(corrupt);
 
     let mut allocator = BigForPipe::new(false);
@@ -201,8 +195,6 @@ fn writer_close(#[case] corrupt: bool) {
 #[rstest]
 #[cfg_attr(not(miri), timeout(Duration::from_secs(60)))]
 fn sequential() {
-    log::init();
-
     let mut allocator = BigForPipe::new(false);
 
     let (mut read_buffer, mut write_buffer) = pipe::make(4, &mut allocator).unwrap();
@@ -245,8 +237,6 @@ fn sequential() {
 #[rstest]
 #[cfg_attr(not(miri), timeout(Duration::from_secs(300)))]
 fn concurrent() {
-    log::init();
-
     const ITERATIONS: u64 = if cfg!(debug_assertions) {
         20
     } else {
@@ -654,4 +644,9 @@ impl fmt::Display for RunLengthEncoding<'_> {
 enum Quality {
     Debuggable,
     Paranoid,
+}
+
+#[ctor::ctor]
+fn init() {
+    log::init();
 }

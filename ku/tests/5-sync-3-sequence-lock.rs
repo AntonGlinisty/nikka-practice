@@ -72,8 +72,6 @@ fn exclusive_access() {
 #[rstest]
 #[timeout(Duration::from_secs(60))]
 fn single_writer() {
-    log::init();
-
     let run = AtomicBool::new(true);
     let sequence_lock = SequenceLock::new((0, 0));
 
@@ -123,8 +121,6 @@ fn single_writer() {
 #[rstest]
 #[timeout(Duration::from_secs(300))]
 fn multiple_writers() {
-    log::init();
-
     let run = AtomicBool::new(true);
     let sequence_lock = SequenceLock::new((0, 0));
 
@@ -180,8 +176,6 @@ fn multiple_writers() {
 #[rstest]
 #[cfg_attr(not(miri), timeout(Duration::from_secs(60)))]
 fn multiple_exclusive_writers() {
-    log::init();
-
     let run = AtomicBool::new(true);
     let sequence_lock = SequenceLock::new((0, 0));
 
@@ -286,3 +280,8 @@ const MIN_DIFFERENT_READS: usize = if cfg!(miri) {
     50
 };
 const THREAD_COUNT: usize = 5;
+
+#[ctor::ctor]
+fn init() {
+    log::init();
+}

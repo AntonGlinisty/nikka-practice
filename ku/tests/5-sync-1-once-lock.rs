@@ -30,8 +30,6 @@ mod log;
 #[rstest]
 #[timeout(Duration::from_secs(10))]
 fn set_get() {
-    log::init();
-
     for _ in 0 .. ITERATION_COUNT {
         let once_lock = OnceLock::new();
 
@@ -46,8 +44,6 @@ fn set_get() {
 #[rstest]
 #[timeout(Duration::from_secs(10))]
 fn set_get_mut() {
-    log::init();
-
     for _ in 0 .. ITERATION_COUNT {
         let mut once_lock = OnceLock::new();
 
@@ -66,8 +62,6 @@ fn set_get_mut() {
 #[rstest]
 #[timeout(Duration::from_secs(60))]
 fn single_writer() {
-    log::init();
-
     let available_parallelism = thread::available_parallelism().unwrap();
     let thread_count = available_parallelism.get() * THREAD_COUNT_MULTIPLIER;
     debug!(available_parallelism, thread_count);
@@ -109,8 +103,6 @@ fn single_writer() {
 #[rstest]
 #[timeout(Duration::from_secs(60))]
 fn single_writer_is_not_obstructed() {
-    log::init();
-
     const MAX_AVERAGE_OBSTRUCTED_SET_DURATION: Duration = Duration::from_millis(50);
     const OBSTRUCTING_READER_THREAD_COUNT_MULTIPLIER: usize = 10;
     const OBSTRUCTION_ITERATION_COUNT: u32 = 50;
@@ -176,8 +168,6 @@ fn single_writer_is_not_obstructed() {
 #[rstest]
 #[timeout(Duration::from_secs(60))]
 fn multiple_writers() {
-    log::init();
-
     let available_parallelism = std::thread::available_parallelism().unwrap();
     let thread_count = available_parallelism.get() * THREAD_COUNT_MULTIPLIER;
     debug!(available_parallelism, thread_count);
@@ -303,3 +293,8 @@ const THREAD_COUNT_MULTIPLIER: usize = if cfg!(miri) {
 } else {
     2
 };
+
+#[ctor::ctor]
+fn init() {
+    log::init();
+}

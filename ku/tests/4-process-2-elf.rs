@@ -76,8 +76,6 @@ const SEED: u64 = 314159265;
 
 #[test]
 fn t00_flags() {
-    log::init();
-
     for (ph_flags, flags) in [
         (FLAG_R, PageTableFlags::default()),
         (FLAG_W, PageTableFlags::WRITABLE),
@@ -114,8 +112,6 @@ fn t00_flags() {
 
 #[test]
 fn t01_ranges() {
-    log::init();
-
     for start in 0 .. 5 {
         for size in 0 .. 5 {
             let memory_size = cmp::max(size, 1);
@@ -131,8 +127,6 @@ fn t01_ranges() {
 
 #[test]
 fn t02_range_errors() {
-    log::init();
-
     for (program_header, error) in [
         (
             program_header(0, Virt::higher_half().into_usize(), 0, 1),
@@ -154,8 +148,6 @@ fn t02_range_errors() {
 
 #[test]
 fn t03_out_of_bounds() {
-    log::init();
-
     const DATA: [u8; 3] = [1, 2, 3];
 
     let mut file = [0; DATA.len()];
@@ -174,8 +166,6 @@ fn t03_out_of_bounds() {
 
 #[test]
 fn t04_file_offset() {
-    log::init();
-
     const DATA: [u8; 3] = [1, 2, 3];
     const OFFSET: usize = 7;
 
@@ -197,8 +187,6 @@ fn t04_file_offset() {
 
 #[test]
 fn t05_validate_order() {
-    log::init();
-
     let a = Block::from_index(1, 2).unwrap();
     let b = Block::from_index(2, 3).unwrap();
     let c = Block::from_index(0, 2).unwrap();
@@ -223,8 +211,6 @@ struct CombineTestCase {
 
 #[test]
 fn t06_0_rerun_last_failed_test() {
-    log::init();
-
     if let Err(error) = read_file(TEST_CASE_PATH)
         .and_then(|test_case| deserialize(&test_case))
         .and_then(rerun)
@@ -253,8 +239,6 @@ fn t06_0_rerun_last_failed_test() {
 
 #[test]
 fn t06_1_stress_combine() {
-    log::init();
-
     for curr in generate_blocks(0, 0 ..= 2, -2 ..= 2) {
         assert!(!curr.is_empty());
         for next in generate_blocks(curr.end(), 0 ..= 2, -2 ..= 2) {
@@ -536,8 +520,6 @@ fn t07_initial_flags() {
 
 #[test]
 fn t08_finalize_mapping() {
-    log::init();
-
     let mut rng = SmallRng::seed_from_u64(SEED);
 
     let block_flags: Vec<_> = generate_flags().collect();
@@ -627,8 +609,6 @@ fn t08_finalize_mapping() {
 
 #[test]
 fn t09_extend_mapping() {
-    log::init();
-
     let mut rng = SmallRng::seed_from_u64(SEED);
 
     let block_flags: Vec<_> = generate_flags().collect();
@@ -699,8 +679,6 @@ fn t09_extend_mapping() {
 
 #[test]
 fn t10_load_program_header() {
-    log::init();
-
     let mut rng = SmallRng::seed_from_u64(SEED);
 
     let block_flags: Vec<_> = generate_flags().collect();
@@ -1163,6 +1141,11 @@ unsafe impl BigAllocator for DummyAllocator {
 
         Ok(())
     }
+}
+
+#[ctor::ctor]
+fn init() {
+    log::init();
 }
 
 const TEST_CASE_PATH: &str = "last_failed_t06_stress_combine.json";
