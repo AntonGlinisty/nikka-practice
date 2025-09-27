@@ -613,6 +613,6 @@ running 2 tests
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/time/rtc.rs | 70 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 62 insertions(+), 8 deletions(-)
+kernel/src/time/rtc.rs | 70 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--------
+1 file changed, 62 insertions(+), 8 deletions(-)
 ```

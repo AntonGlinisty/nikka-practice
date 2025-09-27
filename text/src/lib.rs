@@ -31,8 +31,8 @@ use serial::{
 use ku::{
     memory::IndexDataPortPair,
     sync::{
+        IrqSpinlock,
         PanicStrategy,
-        Spinlock,
     },
 };
 
@@ -263,7 +263,7 @@ lazy_static! {
     /// И одновременно выводить печатаемые символы в
     /// [последовательный порт](https://en.wikipedia.org/wiki/Serial_port)
     /// для отладочных целей.
-    pub static ref TEXT: Spinlock<VgaText, { PanicStrategy::KnockDown }> = {
+    pub static ref TEXT: IrqSpinlock<VgaText, { PanicStrategy::KnockDown }> = {
         const COLUMN_COUNT: usize = 80;
         const ROW_COUNT: usize = 25;
         let buffer = 0xB_8000 as *mut [Volatile<GlyphWrapper>; COLUMN_COUNT * ROW_COUNT];
@@ -273,7 +273,7 @@ lazy_static! {
         let mut cursor = cursor::create_vga_cursor();
         cursor.set_height(2);
 
-        Spinlock::new(Text::new(grid, cursor, Serial::new()))
+        IrqSpinlock::new(Text::new(grid, cursor, Serial::new()))
     };
 }
 
@@ -306,7 +306,7 @@ macro_rules! make_attribute {
 #[macro_export]
 macro_rules! print {
     (color($($colors:tt)*), $($arg:tt)*) => (
-        x86_64::instructions::interrupts::without_interrupts(|| {
+        {
             let mut text = $crate::TEXT.lock();
             let old_attribute = text.attribute();
             let new_attribute = $crate::make_attribute!(old_attribute; $($colors)*);
@@ -315,12 +315,10 @@ macro_rules! print {
                 text.write_str("Err").unwrap();
             }
             text.set_attribute(old_attribute);
-        })
+        }
     );
     ($($arg:tt)*) => (
-        x86_64::instructions::interrupts::without_interrupts(|| {
-            $crate::TEXT.lock().write_fmt(format_args!($($arg)*)).unwrap()
-        })
+        $crate::TEXT.lock().write_fmt(format_args!($($arg)*)).unwrap()
     );
 }
 

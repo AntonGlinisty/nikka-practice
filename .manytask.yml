@@ -169,6 +169,13 @@ deadlines:
           check:
             - cd kernel && cargo test --profile ci --test 1-hw-3-high-resolution-date
 
+        - task: interrupts
+          is_bonus: true
+          score: 50
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-4-interrupts.html
+          check:
+            - cd kernel && cargo test --profile ci --test 1-hw-4-interrupts
+
         - task: cursor
           is_bonus: true
           score: 50

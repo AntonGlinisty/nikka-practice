@@ -442,6 +442,6 @@ running 3 tests
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- ku/src/time/correlation_interval.rs | 27 +++++++++++++++++++++++++--
- 1 file changed, 25 insertions(+), 2 deletions(-)
+ku/src/time/correlation_interval.rs | 30 ++++++++++++++++++++++++++++--
+1 file changed, 28 insertions(+), 2 deletions(-)
 ```

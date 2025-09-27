@@ -1,3 +1,6 @@
+/// Примитив синхронизации [`IrqSpinlock`].
+pub mod irq_spinlock;
+
 /// Примитив синхронизации [`OnceLock`] для данных,
 /// которые один раз записываются, а потом только читаются.
 pub mod once_lock;
@@ -11,6 +14,10 @@ pub mod sequence_lock;
 /// Примитив синхронизации [`Spinlock`].
 pub mod spinlock;
 
+pub use irq_spinlock::{
+    IrqSpinlock,
+    IrqSpinlockGuard,
+};
 pub use once_lock::OnceLock;
 pub use panic::{
     PanicStrategy,

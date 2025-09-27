@@ -1,4 +1,4 @@
-1231
+1235
 &&
 ABI
 ACPI
@@ -97,6 +97,9 @@ InterruptDescriptorTable
 IntoIterator
 InvalidArgument
 InvalidData
+IrqGuard
+IrqSpinlock
+IrqSpinlockGuard
 Iter
 KiB
 KnockDown
@@ -374,6 +377,7 @@ iosize
 ipc
 iret
 iretq
+irq
 isa
 issuecomment
 issuing
