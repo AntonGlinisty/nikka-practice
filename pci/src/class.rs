@@ -28,12 +28,14 @@ pub struct Class {
 }
 
 impl Class {
+    // ANCHOR: new
     /// Читает класс PCI--устройства, адресуемого `routing_id`,
     /// из пространства конфигурации `config_space`.
     pub(super) fn new(
         config_space: &mut impl ConfigSpace,
         routing_id: RoutingId,
     ) -> Self {
+        // ANCHOR_END: new
         // TODO: your code here.
         Self::default() // TODO: remove before flight.
     }

@@ -164,16 +164,19 @@ impl Device {
         Kind::Normal { bars }
     }
 
+    // ANCHOR: read_bridge
     /// Возвращает тип [`Kind`] PCI--PCI моста, адресуемого `routing_id`,
     /// из пространства конфигурации `config_space`.
     fn read_bridge(
         config_space: &mut impl ConfigSpace,
         routing_id: RoutingId,
     ) -> Kind {
+        // ANCHOR_END: read_bridge
         // TODO: your code here.
         unimplemented!();
     }
 
+    // ANCHOR: read_bars
     /// Читает `N` регистров адресов памяти и
     /// [портов ввода--вывода](https://en.wikipedia.org/wiki/Memory-mapped_I/O_and_port-mapped_I/O)
     /// --- Base Address Registers (BARs) ---
@@ -183,6 +186,7 @@ impl Device {
         config_space: &mut impl ConfigSpace,
         routing_id: RoutingId,
     ) -> [Option<Bar>; N] {
+        // ANCHOR_END: read_bars
         // TODO: your code here.
         [None; _] // TODO: remove before flight.
     }

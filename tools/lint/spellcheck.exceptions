@@ -1,4 +1,4 @@
-1306
+1311
 &&
 ABI
 ACPI
@@ -35,9 +35,11 @@ CString
 CSyscall
 Callee
 Cheatsheet
+Chipsets
 Cloudflare
 CodeLLDB
 Concurrecy
+ConfigSpace
 CorrelationInterval
 CorrelationPoint
 CppCon
@@ -48,6 +50,7 @@ DateTime
 Debuggable
 Deref
 DerefMut
+DeviceId
 DirectoryEntry
 DisplayValue
 Drepper
@@ -160,6 +163,7 @@ OnceLock
 OnceValue
 OnceValues
 PATA
+PCIe
 POSIX
 PTE
 PageAllocator
@@ -425,6 +429,7 @@ osdev
 outb
 panics
 partialeq
+pci
 pdflatex
 peda
 per

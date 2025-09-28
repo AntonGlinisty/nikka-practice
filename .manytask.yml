@@ -85,6 +85,10 @@ allow_list:
   - ku/src/sync/spinlock.rs
   - ku/src/time/correlation_interval.rs
   - ku/src/time/correlation_point.rs
+  - pci/src/bar.rs
+  - pci/src/device.rs
+  - pci/src/device_class.rs
+  - pci/src/device_id.rs
   - text/src/cursor.rs
   - text/src/grid.rs
   - user/cow_fork/src/main.rs
@@ -191,6 +195,49 @@ deadlines:
             - cursor
           check:
             - cd text && cargo test --profile ci --lib
+
+        - task: pci-device-id
+          is_bonus: true
+          score: 50
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-10-pci.html
+          check:
+            - cd pci && cargo test --profile ci --lib device_id
+
+        - task: pci-class
+          is_bonus: true
+          score: 50
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-10-pci.html
+          check:
+            - cd pci && cargo test --profile ci --lib class
+
+        - task: pci-bar
+          is_bonus: true
+          score: 100
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-10-pci.html
+          check:
+            - cd pci && cargo test --profile ci --lib bar
+
+        - task: pci-normal
+          is_bonus: true
+          score: 50
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-10-pci.html
+          dependencies:
+            - pci-device-id
+            - pci-class
+            - pci-bar
+          check:
+            - cd pci && cargo test --profile ci --lib normal
+
+        - task: pci-bridge
+          is_bonus: true
+          score: 100
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-10-pci.html
+          dependencies:
+            - pci-device-id
+            - pci-class
+            - pci-bar
+          check:
+            - cd pci && cargo test --profile ci --lib bridge
 
     - group: lab-2-memory
       start: 2025-10-14 18:00
