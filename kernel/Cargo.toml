@@ -31,6 +31,7 @@ x86 = "*"
 x86_64 = "*"
 
 ku = { path = "../ku" }
+pci = { path = "../pci" }
 pic8259 = { path = "../pic8259" }
 sentinel_frame = { path = "../sentinel_frame" }
 text = { path = "../text" }

@@ -18,7 +18,7 @@ RUST_PATH = $(HOME)/.cargo/bin
 
 export PATH := $(RUST_PATH):$(PATH)
 
-CRATES = ku serial text kernel sem
+CRATES = ku pci pic8259 serial text kernel sem
 WORKSPACES = . sem
 
 all: test run

@@ -2,6 +2,7 @@
 members = [
     "kernel",
     "ku",
+    "pci",
     "pic8259",
     "sentinel_frame",
     "serial",
