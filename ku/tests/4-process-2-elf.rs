@@ -1,7 +1,6 @@
 #![deny(warnings)]
 #![feature(gen_blocks)]
 #![feature(int_roundings)]
-#![feature(let_chains)]
 
 use std::{
     alloc::Layout,

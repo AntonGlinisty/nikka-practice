@@ -35,7 +35,7 @@ init!(Subsystems::PHYS_MEMORY);
 
 #[test_case]
 fn basic() {
-    let mut iteration = 0;
+    let mut iteration: usize = 0;
 
     if let Some(recursive_mapping) = init::recursive_mapping() {
         for physical_memory_size in itertools::chain(
@@ -62,7 +62,7 @@ fn basic() {
             } else {
                 1000
             };
-            if iteration % log_frequency == 0 {
+            if iteration.is_multiple_of(log_frequency) {
                 debug!(iteration, %phys2virt, root_entries_start, root_entries_end, entry_count);
             }
             iteration += 1;

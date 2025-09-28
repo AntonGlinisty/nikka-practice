@@ -8,7 +8,7 @@ use derive_more::{
     DerefMut,
 };
 use heapless::Vec;
-use static_assertions::const_assert_eq;
+use static_assertions::const_assert;
 
 use crate::sync::Spinlock;
 
@@ -272,4 +272,4 @@ const CLIP_METADATA_SIZE: usize = mem::size_of::<Vec<*mut u8, 0>>() +
 /// [size and alignment](https://docs.rs/crossbeam/latest/crossbeam/utils/struct.CachePadded.html#size-and-alignment)
 const CACHE_LINE_SIZE: usize = 128;
 
-const_assert_eq!(mem::size_of::<Clip>() % CACHE_LINE_SIZE, 0);
+const_assert!(mem::size_of::<Clip>().is_multiple_of(CACHE_LINE_SIZE));

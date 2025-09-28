@@ -8,7 +8,6 @@
 //! [PCI Express (Peripheral Component Interconnect Express)](https://en.wikipedia.org/wiki/PCI_Express).
 
 #![deny(warnings)]
-#![feature(generic_arg_infer)]
 #![feature(trait_alias)]
 #![no_std]
 #![warn(clippy::missing_docs_in_private_items)]

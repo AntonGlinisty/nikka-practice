@@ -60,7 +60,7 @@ fn memory_allocator_alignment() {
                 let ptr = Global.allocate(layout).unwrap();
 
                 assert!(ptr.len() >= size);
-                assert_eq!(ptr.addr().get() % align, 0);
+                assert!(ptr.addr().get().is_multiple_of(align));
 
                 unsafe { Global.deallocate(ptr.as_non_null_ptr(), layout) };
             }
@@ -143,7 +143,8 @@ fn memory_allocator_stress(
             let current_info_diff = (allocator::info() - start_info).unwrap();
             let fragmentation_loss = Size::bytes(current_info_diff.fragmentation_loss());
             let max_fragmentation_loss = Size::bytes(max_fragmentation_loss(vec.len()));
-            if vec.len() % (values / 20) == 0 || fragmentation_loss > max_fragmentation_loss {
+            if vec.len().is_multiple_of(values / 20) || fragmentation_loss > max_fragmentation_loss
+            {
                 debug!(vector_length = vec.len(), %fragmentation_loss, %max_fragmentation_loss);
             }
             my_assert!(fragmentation_loss <= max_fragmentation_loss);
@@ -173,7 +174,8 @@ fn memory_allocator_stress(
             let current_info_diff = (allocator::info() - start_info).unwrap();
             let fragmentation_loss = Size::bytes(current_info_diff.fragmentation_loss());
             let max_fragmentation_loss = Size::bytes(max_fragmentation_loss(vec.len()));
-            if vec.len() % (values / 20) == 0 || fragmentation_loss > max_fragmentation_loss {
+            if vec.len().is_multiple_of(values / 20) || fragmentation_loss > max_fragmentation_loss
+            {
                 debug!(vector_length = vec.len(), %fragmentation_loss, %max_fragmentation_loss);
             }
             my_assert!(fragmentation_loss <= max_fragmentation_loss);

@@ -527,10 +527,10 @@ fn check(
     data: &[Filler],
 ) {
     let len = column_count * row_count;
-    let mut position = 0;
+    let mut position: usize = 0;
 
     for part in data {
-        if position % column_count != 0 {
+        if !position.is_multiple_of(column_count) {
             position = check_white_space(
                 buffer,
                 column_count,
@@ -578,7 +578,7 @@ fn check(
                         tab_width,
                         data,
                     );
-                    implicit_newline = position % column_count == 0;
+                    implicit_newline = position.is_multiple_of(column_count);
                 },
                 '\n' =>
                     if implicit_newline {
@@ -616,7 +616,7 @@ fn check(
                     );
                     position += 1;
 
-                    implicit_newline = position % column_count == 0;
+                    implicit_newline = position.is_multiple_of(column_count);
                 },
             }
         }
@@ -1040,7 +1040,7 @@ mod format {
         write!(formatter, "{}", chars.left_corner)?;
 
         for i in 0 .. width {
-            if mark_distance > 0 && i % mark_distance == 0 {
+            if mark_distance > 0 && i.is_multiple_of(mark_distance) {
                 write!(formatter, "{}", chars.mark)?;
             } else {
                 write!(formatter, "{}", chars.line)?;

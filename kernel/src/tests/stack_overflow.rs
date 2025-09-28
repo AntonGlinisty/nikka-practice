@@ -50,7 +50,7 @@ fn stack_overflow() {
 
     fn deep_recursion(iteration: usize) {
         if iteration > 0 {
-            if PREVENT_OPTIMISATION.load(Ordering::Relaxed) % 2 == 0 {
+            if PREVENT_OPTIMISATION.load(Ordering::Relaxed).is_multiple_of(2) {
                 PREVENT_OPTIMISATION.fetch_add(1, Ordering::Relaxed);
             } else {
                 PREVENT_OPTIMISATION.fetch_sub(1, Ordering::Relaxed);

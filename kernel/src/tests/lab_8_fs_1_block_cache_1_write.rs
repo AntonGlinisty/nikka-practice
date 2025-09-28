@@ -37,7 +37,7 @@ fn write() {
     }
 
     for block in 0 .. (len * mem::size_of_val(&slice[0])).div_ceil(BLOCK_SIZE) {
-        if block % 2 == 0 {
+        if block.is_multiple_of(2) {
             debug!(block, "flush");
             flush_block(block).unwrap();
         }

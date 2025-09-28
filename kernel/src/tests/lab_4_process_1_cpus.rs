@@ -45,7 +45,7 @@ fn kernel_stacks() {
 
         stacks.push(stack);
 
-        assert_eq!(stack.start_address().into_usize() % Page::SIZE, 0);
+        assert!(stack.start_address().into_usize().is_multiple_of(Page::SIZE));
 
         let mut address_space = BASE_ADDRESS_SPACE.lock();
 

@@ -160,7 +160,7 @@ fn writer(
         let i = data.0;
         lock.0 = i + 1;
 
-        if i % WRITERS == 0 {
+        if i.is_multiple_of(WRITERS) {
             thread::yield_now();
         }
 

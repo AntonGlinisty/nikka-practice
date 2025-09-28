@@ -4,7 +4,7 @@ use core::{
     str,
 };
 
-use static_assertions::const_assert_eq;
+use static_assertions::const_assert;
 
 use ku::error::{
     Error::{
@@ -136,7 +136,7 @@ impl fmt::Display for DirectoryEntry {
     }
 }
 
-const_assert_eq!(BLOCK_SIZE % mem::size_of::<DirectoryEntry>(), 0);
+const_assert!(BLOCK_SIZE.is_multiple_of(mem::size_of::<DirectoryEntry>()));
 
 // ANCHOR: max_name_len
 /// Максимальный размер имён файлов и директорий.

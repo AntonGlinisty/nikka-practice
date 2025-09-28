@@ -29,7 +29,7 @@ fn basic() {
 
     bitmap.reserve(max_len, 1, &allocator).unwrap();
 
-    let is_free_on_map = |bit| bit % 37 != 0;
+    let is_free_on_map = |bit: usize| !bit.is_multiple_of(37);
     let mut free_bits = 0;
     let gen_len = (0 ..= max_len).filter(|x| (x + 5) % elements_per_page < 10);
 

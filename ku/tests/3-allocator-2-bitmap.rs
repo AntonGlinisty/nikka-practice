@@ -72,7 +72,7 @@ fn allocation() {
     for len in 33 ..= MAX_LEN {
         let mut data = [0; MAX_LEN.div_ceil(Bitmap::BITS_PER_ENTRY)];
         let mut bitmap = Bitmap::new(&mut data, len, None);
-        let enable_log = len % 33 == 0;
+        let enable_log = len.is_multiple_of(33);
 
         let mut allocated: Vec<_> = (0 .. len).map(|_| bitmap.allocate().unwrap()).collect();
 
@@ -98,7 +98,7 @@ fn allocation() {
 
         let mut free = 0;
         for i in allocated.iter().step_by(2) {
-            if enable_log && i % 100 == 0 {
+            if enable_log && i.is_multiple_of(100) {
                 debug!(block = i, free);
             }
             assert!(!bitmap.is_free(*i));

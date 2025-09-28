@@ -7,7 +7,10 @@ use core::{
     },
 };
 
-use static_assertions::const_assert_eq;
+use static_assertions::{
+    const_assert,
+    const_assert_eq,
+};
 
 use super::{
     WriteBuffer,
@@ -49,7 +52,7 @@ pub struct ProcessInfo {
 }
 
 const_assert_eq!(mem::align_of::<ProcessInfo>(), Page::SIZE);
-const_assert_eq!(mem::size_of::<ProcessInfo>() % Page::SIZE, 0);
+const_assert!(mem::size_of::<ProcessInfo>().is_multiple_of(Page::SIZE));
 
 impl ProcessInfo {
     /// Инициализирует [`ProcessInfo`].
@@ -140,7 +143,7 @@ pub struct SystemInfo {
 }
 
 const_assert_eq!(mem::align_of::<SystemInfo>(), Page::SIZE);
-const_assert_eq!(mem::size_of::<SystemInfo>() % Page::SIZE, 0);
+const_assert!(mem::size_of::<SystemInfo>().is_multiple_of(Page::SIZE));
 
 impl SystemInfo {
     /// Инициализирует [`SystemInfo`].

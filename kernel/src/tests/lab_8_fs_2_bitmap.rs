@@ -96,7 +96,7 @@ fn allocation() {
 
     let mut free_block_count = 0;
     for i in allocated.iter().step_by(2) {
-        if i % 10_000 == 0 {
+        if i.is_multiple_of(10_000) {
             debug!(block = i, free_block_count);
         }
         assert!(!block_bitmap.is_free(*i));

@@ -46,7 +46,7 @@ impl<T: PortData> Port<T> {
     ///   - Значение `addr` должно быть выровнено на размер типа `T`.
     fn new_impl(addr: usize) -> Result<Self> {
         let zeros = addr.leading_zeros();
-        if zeros >= Self::UNUSED_BITS && addr % mem::size_of::<T>() == 0 {
+        if zeros >= Self::UNUSED_BITS && addr.is_multiple_of(mem::size_of::<T>()) {
             Ok(unsafe { Self::new_unchecked_impl(addr) })
         } else {
             Err(InvalidArgument)

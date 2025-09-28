@@ -57,7 +57,7 @@ impl PortConfigSpace {
         routing_id: RoutingId,
         offset: usize,
     ) -> u32 {
-        assert_eq!(offset % 4, 0);
+        assert!(offset.is_multiple_of(4));
         let offset = u8::try_from(offset)
             .expect("out-of-bounds access to port-based PCI configuration space");
 

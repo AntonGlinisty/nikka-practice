@@ -53,7 +53,7 @@ impl<T: Tag> Frage<T> {
     ///
     /// Возвращает ошибку [`Error::InvalidAlignment`] если `addr` не выровнен на [`Frage::SIZE`].
     pub fn new(addr: Addr<T>) -> Result<Self> {
-        if addr.into_usize() % Self::SIZE == 0 {
+        if addr.into_usize().is_multiple_of(Self::SIZE) {
             Ok(Self(addr))
         } else {
             Err(InvalidAlignment)

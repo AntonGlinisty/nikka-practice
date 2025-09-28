@@ -3,7 +3,6 @@
 #![allow(unused_variables)]
 
 #![deny(warnings)]
-#![feature(let_chains)]
 
 extern crate proc_macro;
 

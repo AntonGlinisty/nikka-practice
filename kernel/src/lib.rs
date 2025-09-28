@@ -11,7 +11,6 @@
 #![feature(alloc_error_handler)]
 #![feature(allocator_api)]
 #![feature(custom_test_frameworks)]
-#![feature(let_chains)]
 #![feature(maybe_uninit_fill, maybe_uninit_slice)]
 #![feature(slice_ptr_get)]
 #![no_std]

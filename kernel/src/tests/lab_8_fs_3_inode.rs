@@ -66,7 +66,7 @@ fn block_entry() {
         } else {
             false
         };
-        if entry_order_violation || i % 100_000 == 0 {
+        if entry_order_violation || i.is_multiple_of(100_000) {
             debug!(i, ?prev_entry, %current_entry, entry_order_violation);
         }
         assert!(!entry_order_violation);
@@ -77,7 +77,7 @@ fn block_entry() {
         }
 
         prev_entry = if i >= FIRST_ENTRY_THROUGH_NON_DIRECT_BLOCK &&
-            (i + 1 - FIRST_ENTRY_THROUGH_NON_DIRECT_BLOCK) % ENTRIES_PER_BLOCK != 0
+            !(i + 1 - FIRST_ENTRY_THROUGH_NON_DIRECT_BLOCK).is_multiple_of(ENTRIES_PER_BLOCK)
         {
             Some(current_entry)
         } else {
@@ -91,7 +91,7 @@ fn block_entry() {
 
     for i in 0 .. check_entries {
         let entry = inode.block_entry(i, &mut block_bitmap).unwrap();
-        if *entry != i || i % 100_000 == 0 {
+        if *entry != i || i.is_multiple_of(100_000) {
             debug!(i, actual = *entry, expected = i);
         }
         assert_eq!(*entry, i);

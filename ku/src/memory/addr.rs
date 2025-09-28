@@ -655,7 +655,7 @@ impl Virt {
     /// если адрес не соответствует типу `T` по выравниванию.
     pub fn try_into_ptr<T>(self) -> Result<*const T> {
         const_assert_eq!(mem::size_of::<*const ()>(), mem::size_of::<usize>());
-        if self.0 % mem::align_of::<T>() == 0 {
+        if self.0.is_multiple_of(mem::align_of::<T>()) {
             Ok(self.0 as *const T)
         } else {
             Err(InvalidAlignment)
@@ -668,7 +668,7 @@ impl Virt {
     /// если адрес не соответствует типу `T` по выравниванию.
     pub fn try_into_mut_ptr<T>(self) -> Result<*mut T> {
         const_assert_eq!(mem::size_of::<*mut ()>(), mem::size_of::<usize>());
-        if self.0 % mem::align_of::<T>() == 0 {
+        if self.0.is_multiple_of(mem::align_of::<T>()) {
             Ok(self.0 as *mut T)
         } else {
             Err(InvalidAlignment)

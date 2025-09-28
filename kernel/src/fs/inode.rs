@@ -16,7 +16,7 @@ use chrono::{
     DateTime,
     Utc,
 };
-use static_assertions::const_assert_eq;
+use static_assertions::const_assert;
 
 use ku::{
     error::{
@@ -247,7 +247,7 @@ impl Inode {
     /// Возвращает итератор по всем записям директории, --- и занятым, и свободным.
     fn iter(&mut self) -> Result<Iter<'_>> {
         if self.kind == Kind::Directory {
-            assert_eq!(self.size % BLOCK_SIZE, 0);
+            assert!(self.size.is_multiple_of(BLOCK_SIZE));
 
             Ok(Iter {
                 block: Block::default(),
@@ -474,8 +474,8 @@ struct LeafCoordinates {
     tree: usize,
 }
 
-const_assert_eq!(BLOCK_SIZE % mem::size_of::<usize>(), 0);
-const_assert_eq!(BLOCK_SIZE % mem::size_of::<Inode>(), 0);
+const_assert!(BLOCK_SIZE.is_multiple_of(mem::size_of::<usize>()));
+const_assert!(BLOCK_SIZE.is_multiple_of(mem::size_of::<Inode>()));
 
 /// Арность дерева отображения блоков.
 const INDIRECT_BLOCK_ARITY: usize = BLOCK_SIZE / mem::size_of::<usize>();

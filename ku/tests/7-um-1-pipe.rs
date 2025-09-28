@@ -71,8 +71,8 @@ fn check_continuous_mapping() {
     let block = write_buffer.block();
 
     debug!(ring_buffer_block = %block);
-    assert_eq!(block.start_address().into_usize() % Page::SIZE, 0);
-    assert_eq!(block.size() % (2 * Page::SIZE), 0);
+    assert!(block.start_address().into_usize().is_multiple_of(Page::SIZE));
+    assert!(block.size().is_multiple_of(2 * Page::SIZE));
     assert!(block.size() > 2 * Page::SIZE);
     assert!(frame_count * Page::SIZE - 16 < write_buffer.max_capacity());
     assert!(write_buffer.max_capacity() < frame_count * Page::SIZE - 1);
@@ -204,8 +204,8 @@ fn sequential() {
     let mut write_ops = read_ops.clone();
     let mut write_errors = 0;
 
-    for iteration in 0 .. 10_000 {
-        if iteration % 1_000 == 0 {
+    for iteration in 0 .. 10_000_usize {
+        if iteration.is_multiple_of(1_000) {
             debug!(
                 iteration,
                 read_stats = ?read_buffer.read_stats(),

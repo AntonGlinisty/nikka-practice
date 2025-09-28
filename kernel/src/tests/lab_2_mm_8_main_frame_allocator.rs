@@ -165,7 +165,7 @@ fn allocated_frames_are_not_used() {
         let slice = unsafe { page_block.try_into_mut_slice().unwrap() };
         slice.fill(poison);
 
-        if frames_poisoned % 1000 == 0 {
+        if frames_poisoned.is_multiple_of(1000) {
             debug!(
                 frames_poisoned,
                 %frame,

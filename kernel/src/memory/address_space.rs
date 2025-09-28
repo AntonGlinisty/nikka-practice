@@ -422,7 +422,7 @@ impl AddressSpace {
         len: usize,
         flags: PageTableFlags,
     ) -> Result<&'static mut [MaybeUninit<T>]> {
-        if Page::SIZE % mem::align_of::<T>() != 0 {
+        if !Page::SIZE.is_multiple_of(mem::align_of::<T>()) {
             warn!(
                 alignment = mem::align_of::<T>(),
                 page_size = Page::SIZE,

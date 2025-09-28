@@ -33,12 +33,12 @@ fn read_what_was_written() {
 
     for (i, actual) in slice[.. len].iter_mut().enumerate() {
         let block = i * mem::size_of_val(actual) / BLOCK_SIZE;
-        let expected = if block % 2 == 0 {
+        let expected = if block.is_multiple_of(2) {
             i
         } else {
             INVALID_DISK_PATTERN
         };
-        if *actual != expected || i % 777 == 0 {
+        if *actual != expected || i.is_multiple_of(777) {
             debug!(i, block, actual, expected);
         }
         assert_eq!(*actual, expected);

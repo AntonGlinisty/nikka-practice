@@ -112,9 +112,9 @@ fn big_directory() {
 
     let start_free_block_count = fs.free_space() / BLOCK_SIZE;
 
-    for file_count in 1 ..= 1000 {
+    for file_count in 1 ..= 1000_usize {
         fs.insert(&directory, &format!("file-{file_count}"), Kind::File).unwrap();
-        if file_count % 100 == 0 {
+        if file_count.is_multiple_of(100) {
             debug!(file_count, directory_size = %Size::bytes(fs.size(&directory)));
         }
     }

@@ -156,7 +156,7 @@ impl FixedSizeAllocator {
         size: usize,
         fallback: &impl BigAllocatorGuard,
     ) -> Result<usize> {
-        assert_eq!(size % MIN_SIZE, 0);
+        assert!(size.is_multiple_of(MIN_SIZE));
 
         // TODO: your code here.
         unimplemented!();
@@ -237,7 +237,7 @@ impl FixedSizeAllocator {
     ) {
         let size = self.quarry.as_ref().expect(Self::UNINITIALIZED_MESSAGE).size();
         debug_assert!(layout.size() <= size);
-        debug_assert_eq!(size % layout.align(), 0);
+        debug_assert!(size.is_multiple_of(layout.align()));
     }
 
     /// Количество страниц в каждой из не отображённых в память защитных зон,

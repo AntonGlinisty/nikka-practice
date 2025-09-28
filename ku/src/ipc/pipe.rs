@@ -97,7 +97,7 @@ impl<T: Tag> RingBuffer<T> {
     /// Инициализирует буфер над блоком памяти `buf`.
     fn new(block: Block<Page>) -> Self {
         assert_ne!(block.start_address(), Virt::default());
-        assert!(block.count() % 2 == 0);
+        assert!(block.count().is_multiple_of(2));
 
         let mut header_size = mem::size_of::<AtomicU8>();
         let mut real_size = block.size() / 2;

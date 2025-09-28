@@ -104,7 +104,7 @@ impl<T: Copy> SequenceLock<T> {
     /// Возвращает `true`, если значение `sequence` означает,
     /// что захвачена блокировка на запись.
     fn is_locked(sequence: u64) -> bool {
-        sequence % 2 != 0
+        !sequence.is_multiple_of(2)
     }
 }
 

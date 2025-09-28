@@ -18,7 +18,7 @@ fn block() {
             let end = start + count;
             let mut block = Block::<Virt>::from_index(start, end).unwrap();
 
-            if start % 25 == 0 && end % 33 == 0 {
+            if start.is_multiple_of(25) && end.is_multiple_of(33) {
                 debug!(start, end, %block);
             }
 

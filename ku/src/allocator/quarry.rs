@@ -4,7 +4,7 @@ use core::{
     num::NonZeroUsize,
 };
 
-use static_assertions::const_assert_eq;
+use static_assertions::const_assert;
 
 use crate::{
     error::Result,
@@ -304,7 +304,7 @@ impl Drop for Quarry {
     }
 }
 
-const_assert_eq!(Quarry::SLAB_SIZE % Page::SIZE, 0);
+const_assert!(Quarry::SLAB_SIZE.is_multiple_of(Page::SIZE));
 
 #[doc(hidden)]
 pub(super) mod test_scaffolding {

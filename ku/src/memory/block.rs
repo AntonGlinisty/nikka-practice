@@ -513,7 +513,7 @@ where
     /// что не будут нарушены инварианты управления памятью в Rust,
     /// которые не относятся к возвращаемым ошибкам.
     pub unsafe fn try_into_slice<'a, Q>(self) -> Result<&'a [Q]> {
-        if self.size() % mem::size_of::<Q>() == 0 {
+        if self.size().is_multiple_of(mem::size_of::<Q>()) {
             let start_address = self.start_address();
             let len = self.size() / mem::size_of::<Q>();
             unsafe { start_address.try_into_slice::<Q>(len) }
@@ -536,7 +536,7 @@ where
     /// что не будут нарушены инварианты управления памятью в Rust,
     /// которые не относятся к возвращаемым ошибкам.
     pub unsafe fn try_into_mut_slice<'a, Q>(self) -> Result<&'a mut [Q]> {
-        if self.size() % mem::size_of::<Q>() == 0 {
+        if self.size().is_multiple_of(mem::size_of::<Q>()) {
             let start_address = self.start_address();
             let len = self.size() / mem::size_of::<Q>();
             unsafe { start_address.try_into_mut_slice::<Q>(len) }

@@ -2,8 +2,6 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
-#![feature(let_chains)]
-
 // TODO: your code here.
 
 pub type Backtrace = Vec<*const ()>;

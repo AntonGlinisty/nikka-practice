@@ -67,8 +67,8 @@ unsafe impl BigAllocator for BigForPipe {
         layout: Layout,
     ) -> Result<Block<Page>> {
         assert_eq!(self.reserved, Block::default());
-        assert_eq!(layout.size() % (2 * Page::SIZE), 0);
-        assert_eq!(layout.align() % Page::SIZE, 0);
+        assert!(layout.size().is_multiple_of(2 * Page::SIZE));
+        assert!(layout.align().is_multiple_of(Page::SIZE));
 
         self.reserved = self.big.reserve(layout)?;
 
