@@ -46,57 +46,6 @@ grades:
     ]
 
 
-allow_list:
-  - kernel/src/allocator/big.rs
-  - kernel/src/fs/bitmap.rs
-  - kernel/src/fs/block_cache.rs
-  - kernel/src/fs/file_system.rs
-  - kernel/src/fs/inode.rs
-  - kernel/src/memory/address_space.rs
-  - kernel/src/memory/boot_frame_allocator.rs
-  - kernel/src/memory/main_frame_allocator.rs
-  - kernel/src/memory/mapping.rs
-  - kernel/src/memory/page_allocator.rs
-  - kernel/src/memory/phys2virt.rs
-  - kernel/src/process/mod.rs
-  - kernel/src/process/process.rs
-  - kernel/src/process/registers.rs
-  - kernel/src/process/scheduler.rs
-  - kernel/src/process/syscall.rs
-  - kernel/src/process/table.rs
-  - kernel/src/smp/ap_init.rs
-  - kernel/src/smp/cpu.rs
-  - kernel/src/smp/local_apic.rs
-  - kernel/src/time/rtc.rs
-  - ku/src/allocator/big.rs
-  - ku/src/allocator/dispatcher.rs
-  - ku/src/allocator/fixed_size.rs
-  - ku/src/allocator/quarry.rs
-  - ku/src/collections/bitmap.rs
-  - ku/src/collections/dynamic_bitmap.rs
-  - ku/src/collections/lru.rs
-  - ku/src/memory/addr.rs
-  - ku/src/memory/block.rs
-  - ku/src/memory/mmu.rs
-  - ku/src/process/elf.rs
-  - ku/src/sync/once_lock.rs
-  - ku/src/ipc/pipe.rs
-  - ku/src/sync/sequence_lock.rs
-  - ku/src/sync/spinlock.rs
-  - ku/src/time/correlation_interval.rs
-  - ku/src/time/correlation_point.rs
-  - pci/src/bar.rs
-  - pci/src/device.rs
-  - pci/src/device_class.rs
-  - pci/src/device_id.rs
-  - text/src/cursor.rs
-  - text/src/grid.rs
-  - user/cow_fork/src/main.rs
-  - user/eager_fork/src/main.rs
-  - user/lib/src/memory/mod.rs
-  - user/lib/src/syscall.rs
-
-
 deadlines:
   timezone: Europe/Moscow
 
@@ -323,24 +272,18 @@ deadlines:
         - task: asm
           score: 100
           url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/asm
-          allow_list:
-            - sem/asm/src/lib.rs
           check:
             - cd sem/asm && cargo test
 
         - task: rop
           score: 100
           url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/rop
-          allow_list:
-            - sem/rop/src/ropchain.rs
           check:
             - cd sem/rop && cargo test
 
         - task: asm_syscall
           score: 100
           url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/asm_syscall
-          allow_list:
-            - sem/asm_syscall/src/lib.rs
           check:
             - cd sem/asm_syscall && cargo test
 
@@ -529,16 +472,12 @@ deadlines:
         - task: atomic
           score: 50
           url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/atomic
-          allow_list:
-            - sem/atomic/src/impl.s
           check:
             - cd sem/atomic && cargo test -- --nocapture --test-threads=1
 
         - task: rwlock
           score: 150
           url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/rwlock
-          allow_list:
-            - sem/rwlock/src/sync.rs
           check:
             - cd sem/rwlock && cargo test -- --nocapture --test-threads=1
             - cd sem/rwlock && cargo clean
@@ -547,8 +486,6 @@ deadlines:
         - task: mcs-lock
           score: 200
           url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/mcs_lock
-          allow_list:
-            - sem/mcs_lock/src/sync.rs
           check:
             - cd sem/mcs_lock && cargo test -- --nocapture --test-threads=1
             - cd sem/mcs_lock && cargo clean
@@ -728,3 +665,6 @@ deadlines:
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-6-lru.html
           check:
             - cd ku && cargo test --profile ci --test 7-fs-6-lru
+
+
+allow_list:

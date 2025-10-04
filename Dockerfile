@@ -21,6 +21,12 @@ RUN cd tools && cargo build
 RUN cd ku && cargo build
 RUN cd kernel && cargo build
 
+RUN grep --files-with-matches --recursive 'compose::begin_private' \
+      $(find . -name \*.rs\* -o -name \*.s\*) | \
+      cut --fields=2- --delimiter=/ | \
+      sort --unique | \
+      sed 's@^@  - @' >> .manytask.yml
+
 RUN for task in $(grep task: .manytask.yml | cut -f2 -d: | grep -v 'gdb'); do \
     cargo run --manifest-path tools/check/Cargo.toml -- \
     --student-repo /opt/shad/nikka \
