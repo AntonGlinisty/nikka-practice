@@ -47,6 +47,33 @@ use rsh::{
 #[test]
 fn test_simple_parse() {
     assert_eq!(
+        parse("ls -la"),
+        vec!(Command {
+            command: vec!(CString::new("ls").unwrap(), CString::new("-la").unwrap()),
+            stdin: None,
+            stdout: None,
+        }),
+    );
+}
+
+#[test]
+fn test_file_parse() {
+    assert_eq!(
+        parse(">out.txt echo hello < in.txt"),
+        vec!(Command {
+            command: vec!(
+                CString::new("echo").unwrap(),
+                CString::new("hello").unwrap()
+            ),
+            stdin: Some(CString::new("in.txt").unwrap()),
+            stdout: Some(CString::new("out.txt").unwrap()),
+        }),
+    );
+}
+
+#[test]
+fn test_pipe_parse() {
+    assert_eq!(
         parse(">foo bar < zog | wc -l"),
         vec!(
             Command {
