@@ -1,5 +1,4 @@
 use core::{
-    alloc::Layout,
     fmt,
     num::NonZeroUsize,
 };

@@ -1,4 +1,5 @@
 use core::{
+    alloc::Layout,
     fmt,
     iter::Step,
     ops::{
@@ -11,6 +12,7 @@ use core::{
 use crate::error::{
     Error::{
         InvalidAlignment,
+        InvalidArgument,
         Overflow,
     },
     Result,
@@ -113,6 +115,29 @@ impl<T: Tag> Frage<T> {
     /// по адресу --- [`Phys`] или [`Virt`] соответственно.
     pub fn index_by_address(address: Addr<T>) -> usize {
         address.into_usize() / Self::SIZE
+    }
+
+    /// Возвращает требования к размещению в памяти блока
+    /// физических фреймов или виртуальных страниц,
+    /// достаточного для хранения объекта размером `size` **байт**.
+    pub fn layout(size: usize) -> Result<Layout> {
+        if size > 0 {
+            Ok(Layout::from_size_align(size, Self::SIZE)?)
+        } else {
+            Err(InvalidArgument)
+        }
+    }
+
+    /// Возвращает требования к размещению в памяти блока из `count`
+    /// физических фреймов или виртуальных страниц.
+    ///
+    /// # Panic
+    ///
+    /// Паникует, если полный размер --- `count * Self::SIZE` --- превышает `isize::MAX`.
+    /// См. требования метода [`Layout::from_size_align()`].
+    pub const fn layout_array(count: usize) -> Layout {
+        assert!(count <= (isize::MAX as usize) / Self::SIZE);
+        unsafe { Layout::from_size_align_unchecked(count * Self::SIZE, Self::SIZE) }
     }
 }
 

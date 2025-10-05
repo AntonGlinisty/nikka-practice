@@ -72,7 +72,11 @@ fn map_syscall_group() {
     let kernel_block = Block::from_slice("some kernel memory".as_bytes()).enclosing();
     map_over_kernel(&process, kernel_block);
 
-    let kernel_block = process.lock().address_space().allocate(2 * Page::SIZE, KERNEL_RW).unwrap();
+    let kernel_block = process
+        .lock()
+        .address_space()
+        .allocate(Page::layout_array(2), KERNEL_RW)
+        .unwrap();
     let mut head = kernel_block;
     let tail = head.tail(1).unwrap();
     unsafe {
@@ -84,13 +88,14 @@ fn map_syscall_group() {
     }
 
     let size = kernel_block.size();
-    let kernel_block = process.lock().address_space().allocate(size, KERNEL_RW).unwrap();
+    let layout = Page::layout(size).unwrap();
+    let kernel_block = process.lock().address_space().allocate(layout, KERNEL_RW).unwrap();
     let kernel_address = kernel_block.start_address().into_usize();
-    let new_kernel_block = process.lock().address_space().allocate(size, KERNEL_RW).unwrap();
+    let new_kernel_block = process.lock().address_space().allocate(layout, KERNEL_RW).unwrap();
     let new_kernel_address = new_kernel_block.start_address().into_usize();
-    let user_block = process.lock().address_space().allocate(size, USER_RW).unwrap();
+    let user_block = process.lock().address_space().allocate(layout, USER_RW).unwrap();
     let user_address = user_block.start_address().into_usize();
-    let new_user_block = process.lock().address_space().allocate(size, USER_RW).unwrap();
+    let new_user_block = process.lock().address_space().allocate(layout, USER_RW).unwrap();
     let new_user_address = new_user_block.start_address().into_usize();
 
     for flags in [KERNEL_R, KERNEL_RW, USER_R, USER_RW] {
@@ -245,7 +250,7 @@ fn map_over_kernel(
     );
 
     for flags in [KERNEL_R, KERNEL_RW, USER_R, USER_RW] {
-        let new_block = process.lock().address_space().allocate(block.size(), flags).unwrap();
+        let new_block = process.lock().address_space().allocate(block.layout(), flags).unwrap();
         let new_address = new_block.start_address().into_usize();
         debug!(%flags, %new_block, %new_address);
         let flags = flags.bits();
@@ -270,7 +275,7 @@ fn copy_mapping_of_intersecting_blocks() {
     let pid = process.lock().pid().into_usize();
     switch_to(process.lock().address_space());
 
-    let block = process.lock().address_space().allocate(5 * Page::SIZE, USER_RW).unwrap();
+    let block = process.lock().address_space().allocate(Page::layout_array(5), USER_RW).unwrap();
     let old = block.slice(1 .. block.count() - 1).unwrap();
     let old_address = old.start_address().into_usize();
     let size = old.size();
@@ -368,7 +373,11 @@ fn copy_mapping_of_enormous_blocks() {
     let pid = process.lock().pid().into_usize();
     switch_to(process.lock().address_space());
 
-    let mut old = process.lock().address_space().allocate(Page::SIZE << 20, USER_RW).unwrap();
+    let mut old = process
+        .lock()
+        .address_space()
+        .allocate(Page::layout_array(1 << 20), USER_RW)
+        .unwrap();
     let new = old.tail(old.count() / 2).unwrap();
 
     let old_address = old.start_address().into_usize();

@@ -192,12 +192,6 @@ impl<Q: Cache, T: Allocator + BigAllocatorGuard> Dispatcher<Q, T> {
             0,
             "can not handle zero-sized types requested by {layout:?}",
         );
-
-        debug_assert!(
-            layout.align() <= Page::SIZE,
-            "can not handle alignment of {layout:?} that is greater than the page size {}",
-            Page::SIZE,
-        );
     }
 
     /// Обновляет статистики [`Dispatcher::info`] и [`Dispatcher::fallback_info`],

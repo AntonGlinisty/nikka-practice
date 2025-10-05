@@ -1,4 +1,5 @@
 use core::{
+    alloc::LayoutError,
     fmt,
     num::TryFromIntError,
     result,
@@ -80,6 +81,12 @@ pub enum Error {
 
     /// Запрошенная функциональность не реализована.
     Unimplemented,
+}
+
+impl From<LayoutError> for Error {
+    fn from(_e: LayoutError) -> Self {
+        Error::InvalidAlignment
+    }
 }
 
 impl From<fmt::Error> for Error {

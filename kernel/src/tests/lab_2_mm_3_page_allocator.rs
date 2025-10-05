@@ -1,3 +1,5 @@
+use core::alloc::Layout;
+
 use ku::memory::{
     mmu::{
         PAGE_TABLE_ENTRY_COUNT,
@@ -84,7 +86,7 @@ fn allocate_block() {
 
     for size in (1 ..= 3 * Page::SIZE).filter(|x| (x + 3) % Page::SIZE < 6) {
         let free_page_count = page_allocator_block(&address_space).count();
-        let allocated = address_space.allocate(size, USER_R).unwrap();
+        let allocated = address_space.allocate(Page::layout(size).unwrap(), USER_R).unwrap();
         let allocated_page_count = free_page_count - page_allocator_block(&address_space).count();
 
         debug!(requested = %Size::new::<Virt>(size), %allocated, allocated_page_count);
@@ -107,7 +109,7 @@ fn allocate_page() {
 
     let page = BASE_ADDRESS_SPACE
         .lock()
-        .allocate(Page::SIZE, KERNEL_R)
+        .allocate(Page::layout_array(1), KERNEL_R)
         .unwrap()
         .into_iter()
         .next()
@@ -124,22 +126,41 @@ fn allocate_two_pages() {
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
+    let layout = Page::layout_array(1);
     let pages = [
-        address_space
-            .allocate(Page::SIZE, KERNEL_R)
-            .unwrap()
-            .into_iter()
-            .next()
-            .unwrap(),
-        address_space
-            .allocate(Page::SIZE, KERNEL_R)
-            .unwrap()
-            .into_iter()
-            .next()
-            .unwrap(),
+        address_space.allocate(layout, KERNEL_R).unwrap().into_iter().next().unwrap(),
+        address_space.allocate(layout, KERNEL_R).unwrap().into_iter().next().unwrap(),
     ];
 
     debug!(?pages);
 
     assert_ne!(pages[0], pages[1]);
+}
+
+#[test_case]
+fn alignment() {
+    let _guard = mm_helpers::forbid_frame_leaks();
+
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+
+    let min_lb_align = 10;
+    let max_lb_align = 20;
+
+    for lb_align in min_lb_align ..= max_lb_align {
+        let align = 1 << lb_align;
+        debug!(align);
+
+        for lb_size in 6 ..= (max_lb_align + 2) {
+            let min_size = (1_usize << lb_size).saturating_sub(10) + 1;
+            let max_size = (1 << lb_size) + 10;
+
+            for size in min_size ..= max_size {
+                let layout = Layout::from_size_align(size, align).unwrap();
+                let pages = address_space.allocate(layout, KERNEL_R).unwrap();
+
+                assert_eq!(pages.count(), size.div_ceil(Page::SIZE));
+                assert!(pages.start_address().into_usize().is_multiple_of(align));
+            }
+        }
+    }
 }

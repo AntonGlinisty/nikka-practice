@@ -110,10 +110,7 @@
 Реализуйте вспомогательную [функцию](../../doc/kernel/memory/page_allocator/struct.PageAllocator.html#method.find_unused_block)
 
 ```rust
-fn PageAllocator::find_unused_block(
-    page_table_root: &PageTable,
-    allowed_elements: Range<usize>,
-) -> Option<Block<Page>>
+{{#include ../../kernel/src/memory/page_allocator.rs:find_unused_block}}
 ```
 
 в файле [`kernel/src/memory/page_allocator.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/page_allocator.rs).
@@ -164,11 +161,13 @@ fn PageAllocator::find_unused_block(
 реализуйте [метод](../../doc/kernel/memory/page_allocator/struct.PageAllocator.html#method.allocate)
 
 ```rust
-fn PageAllocator::allocate(&mut self, size: usize) -> Result<Block<Page>>
+{{#include ../../kernel/src/memory/page_allocator.rs:allocate}}
 ```
 
 в файле [`kernel/src/memory/page_allocator.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/page_allocator.rs).
-Она принимает размер **в байтах** и возвращает блок свободных виртуальных страниц
+Она принимает размер и выравнивание запрошенного блока в виде структуры
+[`core::alloc::Layout`](https://doc.rust-lang.org/nightly/core/alloc/struct.Layout.html).
+И возвращает подходящий блок свободных виртуальных страниц
 [`Block<Page>`](../../doc/ku/memory/block/struct.Block.html).
 Если свободных страниц не хватает, верните ошибку
 [`kernel::error::Error::NoPage`](../../doc/kernel/error/enum.Error.html#variant.NoPage).
@@ -177,9 +176,12 @@ fn PageAllocator::allocate(&mut self, size: usize) -> Result<Block<Page>>
 [`fn Page::count_up(size: usize) -> usize`](../../doc/kernel/memory/frage/struct.Frage.html#method.count_up).
 Она реализует формулу \\( \lceil \frac{\texttt{size}}{\texttt{Page::SIZE}} \rceil \\),
 возвращая количество страниц, которое требуется для хранения `size` байт.
-Также может пригодиться метод
-[`Option::ok_or()`](https://doc.rust-lang.org/nightly/core/option/enum.Option.html#method.ok_or):
+Также могут пригодиться:
+- Метод [`Option::ok_or()`](https://doc.rust-lang.org/nightly/core/option/enum.Option.html#method.ok_or):
 `tail.ok_or(NoPage)`.
+- Размер запрошенного блока [`Layout::size()`](https://doc.rust-lang.org/nightly/core/alloc/struct.Layout.html#method.size).
+- Его выравнивание [`Layout::align()`](https://doc.rust-lang.org/nightly/core/alloc/struct.Layout.html#method.align).
+- Вычитание с проверкой переполнения [`usize::checked_sub()`](https://doc.rust-lang.org/nightly/core/primitive.usize.html#method.checked_sub).
 
 Метод
 [`PageAllocator::allocate()`](../../doc/kernel/memory/page_allocator/struct.PageAllocator.html#method.allocate)

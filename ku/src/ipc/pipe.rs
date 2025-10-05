@@ -1,7 +1,6 @@
 #![allow(rustdoc::private_intra_doc_links)]
 
 use core::{
-    alloc::Layout,
     cmp,
     marker::PhantomData,
     mem,

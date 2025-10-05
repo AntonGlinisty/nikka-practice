@@ -3,10 +3,7 @@ use core::alloc::Layout;
 use ku::{
     allocator::BigAllocator,
     error::{
-        Error::{
-            InvalidAlignment,
-            InvalidArgument,
-        },
+        Error::InvalidArgument,
         Result,
     },
     memory::{
@@ -16,13 +13,10 @@ use ku::{
     },
 };
 
-use crate::{
-    log::warn,
-    memory::{
-        AddressSpace,
-        FrameGuard,
-        Translate,
-    },
+use crate::memory::{
+    AddressSpace,
+    FrameGuard,
+    Translate,
 };
 
 // Used in docs.
@@ -69,16 +63,7 @@ unsafe impl BigAllocator for Big<'_> {
         &mut self,
         layout: Layout,
     ) -> Result<Block<Page>> {
-        if layout.align() > Page::SIZE {
-            warn!(
-                ?layout,
-                page_size = %Page::SIZE,
-                "can not handle alignments greater than the page size",
-            );
-            return Err(InvalidAlignment);
-        }
-
-        self.address_space.allocate(layout.size(), self.flags)
+        self.address_space.allocate(layout, self.flags)
     }
 
     fn reserve_fixed(

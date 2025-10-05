@@ -290,6 +290,9 @@ pub trait Tag: Clone + Copy + Default + Eq + Ord {
     ///     [портов ввода--вывода](https://en.wikipedia.org/wiki/Memory-mapped_I/O_and_port-mapped_I/O).
     const ADDR_NAME: &'static str;
 
+    /// Количество используемых битов в адресе.
+    const BITS: u32;
+
     /// Задаёт имя типа при печати:
     ///   - `"Frame"` для физических фреймов;
     ///   - `"Page"` для виртуальных страниц;
@@ -326,6 +329,7 @@ impl Tag for PhysTag {
     }
 
     const ADDR_NAME: &'static str = "Phys";
+    const BITS: u32 = Phys::BITS;
     const FRAGE_NAME: &'static str = "Frame";
     const HEX_PREFIX: &'static str = "0p";
 }
@@ -351,6 +355,7 @@ impl Tag for VirtTag {
     }
 
     const ADDR_NAME: &'static str = "Virt";
+    const BITS: u32 = Virt::BITS;
     const FRAGE_NAME: &'static str = "Page";
     const HEX_PREFIX: &'static str = "0v";
 }

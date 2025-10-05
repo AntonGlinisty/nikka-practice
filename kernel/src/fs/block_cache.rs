@@ -1,4 +1,7 @@
-use core::sync::atomic::Ordering;
+use core::{
+    alloc::Layout,
+    sync::atomic::Ordering,
+};
 
 use lazy_static::lazy_static;
 

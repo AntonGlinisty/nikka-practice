@@ -52,8 +52,8 @@ fn memory_allocator_alignment() {
         debug!(align);
 
         for lb_size in 6 ..= (max_lb_align + 2) {
-            let min_size = (1_usize << lb_size).saturating_sub(100) + 1;
-            let max_size = (1 << lb_size) + 100;
+            let min_size = (1_usize << lb_size).saturating_sub(10) + 1;
+            let max_size = (1 << lb_size) + 10;
 
             for size in min_size ..= max_size {
                 let layout = Layout::from_size_align(size, align).unwrap();

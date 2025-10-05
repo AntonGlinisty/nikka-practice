@@ -1,4 +1,5 @@
 use core::{
+    alloc::Layout,
     cmp::{
         self,
         Ordering,
@@ -177,6 +178,22 @@ impl<T: Memory> Block<T> {
     /// Возвращает количество элементов в блоке, оно равно `Block::end - Block::start`.
     pub const fn count(&self) -> usize {
         self.end - self.start
+    }
+
+    /// Возвращает требования к размещению в памяти текущего блока ---
+    /// его размер и выравнивание.
+    pub const fn layout(&self) -> Layout {
+        unsafe {
+            assert!(T::SIZE_OF > 0);
+            assert!(T::SIZE_OF.is_power_of_two());
+            assert!(T::SIZE_OF <= isize::MAX as usize);
+            assert!(T::ADDRESS_BITS < isize::BITS - 1);
+            assert!(
+                (1_usize << T::ADDRESS_BITS).next_multiple_of(T::SIZE_OF) <= isize::MAX as usize,
+            );
+
+            Layout::from_size_align_unchecked(self.size(), T::SIZE_OF)
+        }
     }
 
     /// Размер блока в байтах. Равно количеству элементов в блоке, умноженному на размер элемента.
@@ -715,6 +732,9 @@ impl<T: Memory> Iterator for IntoIter<T> {
 
 /// Описывает базовые типы для [`Block`] и их операции.
 pub trait Memory: Clone + Copy + Eq + PartialEq + SizeOf {
+    /// Количество используемых битов в адресе.
+    const ADDRESS_BITS: u32;
+
     /// Заменяет префикс `0x` при печати на:
     ///   - `0p` (**p**hysical) для физических адресов;
     ///   - `0v` (**v**irtual) для виртуальных адресов.
@@ -781,6 +801,7 @@ pub trait Memory: Clone + Copy + Eq + PartialEq + SizeOf {
 }
 
 impl<T: Tag> Memory for Addr<T> {
+    const ADDRESS_BITS: u32 = T::BITS;
     const HEX_PREFIX: &'static str = T::HEX_PREFIX;
     const NAME: &'static str = T::ADDR_NAME;
 
@@ -827,6 +848,7 @@ impl<T: Tag> Memory for Addr<T> {
 }
 
 impl<T: Tag> Memory for Frage<T> {
+    const ADDRESS_BITS: u32 = T::BITS;
     const HEX_PREFIX: &'static str = T::HEX_PREFIX;
     const NAME: &'static str = T::FRAGE_NAME;
 

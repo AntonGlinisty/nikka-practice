@@ -1,6 +1,6 @@
 use core::{
+    alloc::Layout,
     fmt,
-    mem,
 };
 
 use ku::{
@@ -430,7 +430,7 @@ impl Process {
         let system_info_frame = address_space.translate(Virt::from_ref(&SYSTEM_INFO))?.frame()?;
 
         let system_info_page = address_space
-            .allocate(mem::size_of_val(&SYSTEM_INFO), flags)?
+            .allocate(Layout::for_value(&SYSTEM_INFO), flags)?
             .into_iter()
             .next()
             .ok_or(NoPage)?;

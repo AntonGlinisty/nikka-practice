@@ -123,7 +123,7 @@ fn allocated_frames_are_not_used() {
 
     let frames = address_space.map_slice(start_free_frames, USER_RW, Frame::default).unwrap();
 
-    let page_block = address_space.allocate(Page::SIZE, KERNEL_RW).unwrap();
+    let page_block = address_space.allocate(Page::layout_array(1), KERNEL_RW).unwrap();
     let page = page_block.into_iter().next().unwrap();
 
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
@@ -266,7 +266,8 @@ fn shared_memory() {
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
-    let mut pages_iterator = address_space.allocate(2 * Page::SIZE, KERNEL_RW).unwrap().into_iter();
+    let mut pages_iterator =
+        address_space.allocate(Page::layout_array(2), KERNEL_RW).unwrap().into_iter();
 
     let pages = [
         pages_iterator.next().unwrap(),
@@ -460,7 +461,7 @@ fn duplicate_only_kernel() {
 
     let page = BASE_ADDRESS_SPACE
         .lock()
-        .allocate(Page::SIZE, USER_R)
+        .allocate(Page::layout_array(1), USER_R)
         .unwrap()
         .into_iter()
         .next()
@@ -545,7 +546,7 @@ fn tlb_flush() {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
     let page = address_space
-        .allocate(Page::SIZE, KERNEL_RW)
+        .allocate(Page::layout_array(1), KERNEL_RW)
         .unwrap()
         .into_iter()
         .next()
@@ -597,7 +598,7 @@ fn tlb_flush() {
         let mut address_space = BASE_ADDRESS_SPACE.lock();
 
         let page = address_space
-            .allocate(Page::SIZE, KERNEL_RW)
+            .allocate(Page::layout_array(1), KERNEL_RW)
             .unwrap()
             .into_iter()
             .next()

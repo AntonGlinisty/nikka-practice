@@ -223,7 +223,7 @@ fn single_threaded() {
         let mut talc = Talc::new(ErrOnOom);
         let talc_stats = unsafe {
             let size = MAX_TOTAL_MEMORY_PER_ALLOCATOR;
-            let layout = Layout::from_size_align(size, Page::SIZE).unwrap();
+            let layout = Page::layout(size).unwrap();
             let start = ALLOCATOR.alloc(layout);
             assert!(!start.is_null());
             let end = start.add(size);
@@ -241,7 +241,7 @@ fn single_threaded() {
         let good = Good::<DEFAULT_SMALLBINS_AMOUNT, DEFAULT_ALIGNMENT_SUB_BINS_AMOUNT>::empty();
         let good_stats = unsafe {
             let size = MAX_TOTAL_MEMORY_PER_ALLOCATOR;
-            let layout = Layout::from_size_align(size, Page::SIZE).unwrap();
+            let layout = Page::layout(size).unwrap();
             let start = ALLOCATOR.alloc(layout);
             assert!(!start.is_null());
             good.init(start as usize, size);
@@ -387,7 +387,7 @@ fn multi_threaded() {
         let mut talc = Talc::new(ErrOnOom);
         let talc_stats = unsafe {
             let size = MAX_TOTAL_MEMORY_PER_ALLOCATOR;
-            let layout = Layout::from_size_align(size, Page::SIZE).unwrap();
+            let layout = Page::layout(size).unwrap();
             let start = ALLOCATOR.alloc(layout);
             assert!(!start.is_null());
             let end = start.add(size);

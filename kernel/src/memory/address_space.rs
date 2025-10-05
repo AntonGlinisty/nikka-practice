@@ -1,10 +1,8 @@
 use core::{
+    alloc::Layout,
     any,
     fmt,
-    mem::{
-        self,
-        MaybeUninit,
-    },
+    mem::MaybeUninit,
     ptr,
 };
 
@@ -17,7 +15,6 @@ use crate::{
     allocator::Big,
     error::{
         Error::{
-            InvalidAlignment,
             InvalidArgument,
             NoPage,
             PermissionDenied,
@@ -28,7 +25,6 @@ use crate::{
         debug,
         info,
         trace,
-        warn,
     },
     process::Pid,
 };
@@ -197,21 +193,21 @@ impl AddressSpace {
         }
     }
 
-    /// Выделяет блок подряд идущих виртуальных страниц, достаточный для хранения объекта
-    /// размером `size` **байт**.
+    /// Выделяет блок подряд идущих виртуальных страниц для хранения объекта,
+    /// требования к размещению в памяти которого описывает `layout`.
     /// Ни выделения физической памяти, ни создания отображения станиц, не происходит.
     ///
     /// Если выделить заданный размер виртуальной памяти не удалось,
     /// возвращает ошибку [`Error::NoPage`].
     pub fn allocate(
         &mut self,
-        size: usize,
+        layout: Layout,
         flags: PageTableFlags,
     ) -> Result<Block<Page>> {
         if flags.is_user() {
-            self.user_page_allocator.allocate(size)
+            self.user_page_allocator.allocate(layout)
         } else {
-            KERNEL_PAGE_ALLOCATOR.lock().allocate(size)
+            KERNEL_PAGE_ALLOCATOR.lock().allocate(layout)
         }
     }
 
@@ -422,16 +418,7 @@ impl AddressSpace {
         len: usize,
         flags: PageTableFlags,
     ) -> Result<&'static mut [MaybeUninit<T>]> {
-        if !Page::SIZE.is_multiple_of(mem::align_of::<T>()) {
-            warn!(
-                alignment = mem::align_of::<T>(),
-                page_size = Page::SIZE,
-                "can not handle alignments greater than the page size",
-            );
-            return Err(InvalidAlignment);
-        }
-
-        let block = self.allocate(len * mem::size_of::<T>(), flags)?;
+        let block = self.allocate(Layout::array::<T>(len)?, flags)?;
 
         unsafe {
             self.map_block(block, flags)?;

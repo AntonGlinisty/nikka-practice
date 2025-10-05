@@ -150,6 +150,7 @@ pub struct PortTag<T: PortData>(PhantomData<T>);
 impl<T: PortData> Tag for PortTag<T> {
     const HEX_PREFIX: &'static str = "0x";
     const ADDR_NAME: &'static str = "Port";
+    const BITS: u32 = Port::<T>::BITS;
     const FRAGE_NAME: &'static str = "Dock";
 
     fn new(addr: usize) -> Result<Addr<Self>> {

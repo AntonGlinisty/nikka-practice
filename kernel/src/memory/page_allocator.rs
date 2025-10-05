@@ -1,4 +1,7 @@
-use core::ops::Range;
+use core::{
+    alloc::Layout,
+    ops::Range,
+};
 
 use itertools::Itertools;
 
@@ -62,9 +65,10 @@ impl PageAllocator {
             };
 
             // Detect stack overruns that corrupt memory allocated by PageAllocator.
+            let message = "failed to create guard zone for PageAllocator";
             page_allocator
-                .allocate(Stack::GUARD_ZONE_SIZE)
-                .expect("failed to create guard zone for PageAllocator");
+                .allocate(Page::layout(Stack::GUARD_ZONE_SIZE).expect(message))
+                .expect(message);
 
             page_allocator.initial_block = page_allocator.block;
 
@@ -118,16 +122,18 @@ impl PageAllocator {
         }
     }
 
-    /// Выделяет блок подряд идущих виртуальных страниц, достаточный для хранения объекта
-    /// размером `size` **байт**.
+    // ANCHOR: allocate
+    /// Выделяет блок подряд идущих виртуальных страниц для хранения объекта,
+    /// требования к размещению в памяти которого описывает `layout`.
     /// Ни выделения физической памяти, ни создания отображения станиц, не происходит.
     ///
     /// Если выделить заданный размер виртуальной памяти не удалось,
     /// возвращает ошибку [`Error::NoPage`].
     pub(super) fn allocate(
         &mut self,
-        size: usize,
+        layout: Layout,
     ) -> Result<Block<Page>> {
+        // ANCHOR_END: allocate
         // TODO: your code here.
         unimplemented!();
     }
@@ -172,6 +178,7 @@ impl PageAllocator {
         }
     }
 
+    // ANCHOR: find_unused_block
     /// Возвращает блок виртуальных страниц,
     /// соответствующий самой длинной последовательности пустых записей в
     /// диапазоне `allowed_elements` корневого узла таблицы страниц `page_table_root`.
@@ -185,6 +192,7 @@ impl PageAllocator {
         page_table_root: &PageTable,
         allowed_elements: Range<usize>,
     ) -> Option<Block<Page>> {
+        // ANCHOR_END: find_unused_block
         // TODO: your code here.
         unimplemented!();
     }

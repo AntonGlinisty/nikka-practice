@@ -101,13 +101,13 @@ fn grow_and_shrink_unmap_old_block_and_initialize_memory(initialize: Initialize)
 
     debug!(?initialize);
 
-    let small_layout = Layout::from_size_align(4 * Page::SIZE, Page::SIZE).unwrap();
+    let small_layout = Page::layout_array(4);
     let small_allocation =
         address_space.allocator(USER_RW).dry_allocate(small_layout, initialize).unwrap();
     let small_block = Block::from_slice(unsafe { small_allocation.as_uninit_slice() }).enclosing();
     validate_initialization(small_block, initialize);
 
-    let big_layout = Layout::from_size_align(8 * Page::SIZE, Page::SIZE).unwrap();
+    let big_layout = Page::layout_array(8);
     let big_allocation = unsafe {
         address_space
             .allocator(USER_RW)
@@ -128,7 +128,7 @@ fn grow_and_shrink_unmap_old_block_and_initialize_memory(initialize: Initialize)
     debug!(unmapped_pages);
     assert!(unmapped_pages <= small_block.count());
 
-    let medium_layout = Layout::from_size_align(6 * Page::SIZE, Page::SIZE).unwrap();
+    let medium_layout = Page::layout_array(6);
     let medium_allocation = unsafe {
         address_space
             .allocator(USER_RW)
@@ -186,13 +186,13 @@ fn shrink_is_not_a_noop_and_initializes_memory(initialize: Initialize) {
 
     debug!(?initialize);
 
-    let old_layout = Layout::from_size_align(4 * Page::SIZE, Page::SIZE).unwrap();
+    let old_layout = Page::layout_array(4);
     let old_allocation =
         address_space.allocator(USER_RW).dry_allocate(old_layout, initialize).unwrap();
     let old_block = Block::from_slice(unsafe { old_allocation.as_uninit_slice() });
     validate_initialization(old_block, initialize);
 
-    let new_layout = Layout::from_size_align(3 * Page::SIZE, Page::SIZE).unwrap();
+    let new_layout = Page::layout_array(3);
     let new_allocation = unsafe {
         address_space
             .allocator(USER_RW)
@@ -216,7 +216,7 @@ fn shrink_is_not_a_noop_and_initializes_memory(initialize: Initialize) {
 #[test_case]
 fn copy_mapping_frame_references() {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
-    let layout = Layout::from_size_align(3 * Page::SIZE, Page::SIZE).unwrap();
+    let layout = Page::layout_array(3);
 
     let mut old_block = Block::default();
     let mut new_block = Block::default();
@@ -327,7 +327,7 @@ fn copy_mapping_frame_references() {
 #[test_case]
 fn copy_mapping_same_block() {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
-    let layout = Layout::from_size_align(3 * Page::SIZE, Page::SIZE).unwrap();
+    let layout = Page::layout_array(3);
 
     let block = address_space.allocator(USER_RW).reserve(layout).unwrap();
 
