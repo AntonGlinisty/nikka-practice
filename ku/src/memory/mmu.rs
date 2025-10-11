@@ -34,6 +34,7 @@ use super::{
         Virt,
     },
     frage::{
+        ElasticFrame,
         Frame,
         Page,
     },
@@ -79,7 +80,14 @@ impl PageTableEntry {
     ///
     /// - [`Error::NoPage`] --- эта запись не используется,
     ///   то есть, сброшен бит [`PageTableFlags::PRESENT`].
+    ///
+    /// # Panics
+    ///
+    /// Паникует в отладочном режиме, если эта запись описывает большую страницу,
+    /// то есть в ней установлен бит [`PageTableFlags::HUGE`].
     pub fn frame(&self) -> Result<Frame> {
+        debug_assert!(!self.is_huge(), "{}", Self::HUGE_PAGE_ERROR_MESSAGE);
+
         if self.is_present() {
             Ok(Frame::new(self.phys()).unwrap())
         } else {
@@ -90,12 +98,71 @@ impl PageTableEntry {
     /// Устанавливает целевой физический фрейм `frame` и
     /// флаги доступа `flags` в данной записи.
     /// Принудительно выставляет флаг [`PageTableFlags::PRESENT`].
+    ///
+    /// # Panics
+    ///
+    /// Паникует в отладочном режиме, если `flags` описывают большую страницу,
+    /// то есть в них установлен бит [`PageTableFlags::HUGE`].
     pub fn set_frame(
         &mut self,
         frame: Frame,
         flags: PageTableFlags,
     ) {
+        debug_assert!(
+            !flags.contains(PageTableFlags::HUGE),
+            "{}",
+            Self::HUGE_PAGE_ERROR_MESSAGE,
+        );
+
         self.set_phys(frame.address(), flags | PageTableFlags::PRESENT);
+    }
+
+    /// Большой физический фрейм, на который указывает эта запись.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::NoPage`] --- эта запись не используется,
+    ///   то есть, сброшен бит [`PageTableFlags::PRESENT`].
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если:
+    /// - Эта запись описывает не большую, а обычную страницу,
+    ///   то есть в ней сброшен бит [`PageTableFlags::HUGE`].
+    /// - Значение `level` не соответствует уровню,
+    ///   на котором можно располагать большую страницу.
+    /// - Физический адрес, на который указывает эта запись не выровнен так,
+    ///   как должен был бы быть для большой страницы на уровне `level`.
+    pub fn huge_frame<const SIZE: usize>(&self) -> Result<ElasticFrame<SIZE>> {
+        assert!(self.is_huge(), "{}", Self::HUGE_PAGE_ERROR_MESSAGE);
+
+        if self.is_present() {
+            Ok(ElasticFrame::new(self.phys()).expect("bad huge frame address in PageTableEntry"))
+        } else {
+            Err(NoPage)
+        }
+    }
+
+    /// Устанавливает большой целевой физический фрейм `frame` и
+    /// флаги доступа `flags` в данной записи.
+    /// Принудительно выставляет флаги [`PageTableFlags::PRESENT`] и [`PageTableFlags::HUGE`].
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если:
+    /// - Значение `level` не соответствует уровню,
+    ///   на котором можно располагать большую страницу.
+    /// - Физический адрес `frame` не выровнен так,
+    ///   как должен был бы быть для большой страницы на уровне `level`.
+    pub fn set_huge_frame<const SIZE: usize>(
+        &mut self,
+        frame: ElasticFrame<SIZE>,
+        flags: PageTableFlags,
+    ) {
+        self.set_phys(
+            frame.address(),
+            flags | PageTableFlags::HUGE | PageTableFlags::PRESENT,
+        );
     }
 
     /// Адрес физического фрейма, на который указывает эта запись.
@@ -138,7 +205,14 @@ impl PageTableEntry {
     ///
     /// - [`Error::NoPage`] --- эта запись не используется,
     ///   то есть, сброшен бит [`PageTableFlags::PRESENT`].
+    ///
+    /// # Panics
+    ///
+    /// Паникует в отладочном режиме, если эта запись описывает большую страницу,
+    /// то есть в ней установлен бит [`PageTableFlags::HUGE`].
     pub fn take(&mut self) -> Result<Frame> {
+        debug_assert!(!self.is_huge(), "{}", Self::HUGE_PAGE_ERROR_MESSAGE);
+
         if self.is_present() {
             let phys = self.phys();
             self.clear();
@@ -150,6 +224,11 @@ impl PageTableEntry {
 
     /// Маска адреса физического фрейма, на который указывает эта запись.
     const ADDRESS_MASK: usize = ((1 << Phys::BITS) - 1) & !((1 << PAGE_OFFSET_BITS) - 1);
+
+    /// Сообщения при паниках из-за несоответствия состояния флага [`PageTableFlags::HUGE`] и
+    /// метода, который используется для доступа к физическому фрейму.
+    const HUGE_PAGE_ERROR_MESSAGE: &str =
+        "set HUGE flag if and only if the frame is huge (not 4KiB)";
 }
 
 impl fmt::Debug for PageTableEntry {
@@ -157,8 +236,11 @@ impl fmt::Debug for PageTableEntry {
         &self,
         formatter: &mut fmt::Formatter,
     ) -> fmt::Result {
-        if let Ok(frame) = self.frame() {
-            let flags = self.flags();
+        let flags = self.flags();
+
+        if self.is_huge() {
+            write!(formatter, "{} {flags}", Frame::containing(self.phys()))
+        } else if let Ok(frame) = self.frame() {
             write!(formatter, "{frame} {flags}")
         } else {
             write!(formatter, "<non-present>")

@@ -4,6 +4,7 @@ use ku::{
         Block,
         Frame,
         KERNEL_RW,
+        L2_SIZE,
         Page,
         Phys,
         Virt,
@@ -90,10 +91,8 @@ fn basic() {
                     if entry < entry_count {
                         assert!(pte.is_huge());
                         assert!(pte.flags().contains(KERNEL_RW));
-                        assert_eq!(
-                            pte.frame().unwrap().index(),
-                            entry * (PAGES_PER_ROOT_LEVEL_ENTRY / PAGE_TABLE_ENTRY_COUNT),
-                        );
+                        let l2_frame = pte.huge_frame::<L2_SIZE>().unwrap();
+                        assert_eq!(l2_frame.address().into_usize(), entry * L2_SIZE);
                     } else {
                         assert_eq!(*pte, PageTableEntry::default());
                     }

@@ -19,6 +19,7 @@ use ku::{
     memory::{
         Block,
         Frame,
+        L2Frame,
         Page,
         Phys,
         Size,
@@ -32,7 +33,6 @@ use ku::{
             PAGE_TABLE_ROOT_LEVEL,
             PageTable,
             PageTableEntry,
-            PageTableFlags,
         },
     },
 };
@@ -138,7 +138,7 @@ impl Phys2Virt {
         let root_entry = Self::find_empty_root_entries(1, recursive_mapping)?; // TODO: remove before flight.
         Self::allocate_root_entry(root_entry, recursive_mapping)?; // TODO: remove before flight.
         let node = unsafe { Self::node(root_entry, recursive_mapping).try_into_mut_slice::<PageTableEntry>()? }; // TODO: remove before flight.
-        node[0].set_frame(Frame::default(), KERNEL_RW | PageTableFlags::HUGE); // TODO: remove before flight.
+        node[0].set_huge_frame(L2Frame::default(), KERNEL_RW); // TODO: remove before flight.
         Self::new_impl(physical_memory, Page::higher_half(), NonZeroUsize::new(1)) // TODO: remove before flight.
     }
 
@@ -268,16 +268,6 @@ impl Phys2Virt {
             used_frame_count,
         })
     }
-
-    /// Номер уровня дерева отображения страниц, на котором записи отвечают за
-    /// самые большие поддерживаемые страницы виртуальной памяти (по факту за 1 GiB страницы).
-    #[allow(non_upper_case_globals)]
-    const LEVEL_FOR_1_GiB_ENTRIES: u32 = PAGE_TABLE_ROOT_LEVEL - 1;
-
-    /// Количество обычных 4 KiB страниц, помещающихся в одной виртуальной странице
-    /// самого большого поддерживаемого размера (по факту 1 GiB / 4 KiB).
-    #[allow(non_upper_case_globals)]
-    const PAGES_PER_1_GiB_ENTRY: usize = PAGE_TABLE_ENTRY_COUNT.pow(Self::LEVEL_FOR_1_GiB_ENTRIES);
 }
 
 impl fmt::Display for Phys2Virt {

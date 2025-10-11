@@ -203,7 +203,7 @@ pub(super) fn map_intermediate(
 pub(super) fn test_no_excessive_intermediate_flags(virt: Virt) {
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
 
-    let flags = PageTableFlags::all().difference(FULL_ACCESS);
+    let flags = PageTableFlags::all().difference(FULL_ACCESS | PageTableFlags::HUGE);
     map_intermediate(virt, flags).unwrap();
 
     let end_free_frames = FRAME_ALLOCATOR.lock().count();

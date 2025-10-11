@@ -35,7 +35,10 @@ use super::{
         Tag,
         Virt,
     },
-    frage::Frage,
+    frage::{
+        Frage,
+        L0_SIZE,
+    },
     size,
     size::{
         Size,
@@ -421,13 +424,13 @@ impl<T: Memory> Block<T> {
 impl<T: Tag> Block<Addr<T>> {
     /// Для заданного блока виртуальных или физических адресов
     /// возвращает минимальный содержащий его
-    /// блок виртуальных страниц или физических фреймов соответственно.
-    pub fn enclosing(&self) -> Block<Frage<T>> {
-        let start_frage = Frage::<T>::index_by_address(self.start_address());
+    /// блок виртуальных страниц [`Page`] или физических фреймов [`Frame`] соответственно.
+    pub fn enclosing(&self) -> Block<Frage<T, L0_SIZE>> {
+        let start_frage = Frage::<T, L0_SIZE>::index_by_address(self.start_address());
         let end_frage = if self.start == self.end {
             start_frage
         } else {
-            Frage::<T>::index_by_address((self.end_address().unwrap() - 1).unwrap()) + 1
+            Frage::<T, L0_SIZE>::index_by_address((self.end_address().unwrap() - 1).unwrap()) + 1
         };
 
         Block::from_index(start_frage, end_frage).unwrap()
@@ -643,11 +646,13 @@ impl Block<Virt> {
     }
 }
 
-impl<T: Tag> From<Block<Frage<T>>> for Block<Addr<T>> {
+impl<T: Tag, const SIZE: usize> From<Block<Frage<T, SIZE>>> for Block<Addr<T>> {
     /// Преобразует блок виртуальных страниц или физических фреймов
     /// в блок виртуальных или физических адресов соответственно.
-    fn from(block: Block<Frage<T>>) -> Self {
-        Self::new(block.start_address(), block.end_address().unwrap()).unwrap()
+    fn from(block: Block<Frage<T, SIZE>>) -> Self {
+        let start = block.start_address();
+        let end = block.end_address().unwrap();
+        Self::new(start, end).unwrap()
     }
 }
 
@@ -656,11 +661,15 @@ impl<T: Memory> fmt::Debug for Block<T> {
         &self,
         formatter: &mut fmt::Formatter,
     ) -> fmt::Result {
+        write!(formatter, "{}, {}", self, T::NAME)?;
+
+        if T::SIZE_OF != 1 && T::SIZE_OF != L0_SIZE {
+            write!(formatter, "<{}>", Size::bytes(T::SIZE_OF))?;
+        }
+
         write!(
             formatter,
-            "{}, {} count {}, [~{}, ",
-            self,
-            T::NAME,
+            " count {}, [~{}, ",
             self.count(),
             Size::new::<T>(self.start),
         )?;
@@ -847,7 +856,7 @@ impl<T: Tag> Memory for Addr<T> {
     }
 }
 
-impl<T: Tag> Memory for Frage<T> {
+impl<T: Tag, const SIZE: usize> Memory for Frage<T, SIZE> {
     const ADDRESS_BITS: u32 = T::BITS;
     const HEX_PREFIX: &'static str = T::HEX_PREFIX;
     const NAME: &'static str = T::FRAGE_NAME;

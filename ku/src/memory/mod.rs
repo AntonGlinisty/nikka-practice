@@ -41,7 +41,18 @@ pub use addr::{
 };
 pub use block::Block;
 pub use frage::{
+    ElasticFrame,
+    ElasticPage,
     Frame,
+    L0_SIZE,
+    L0Frame,
+    L0Page,
+    L1_SIZE,
+    L1Frame,
+    L1Page,
+    L2_SIZE,
+    L2Frame,
+    L2Page,
     Page,
 };
 pub use mmu::{

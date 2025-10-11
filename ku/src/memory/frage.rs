@@ -25,8 +25,12 @@ use super::{
         Tag,
         VirtTag,
     },
+    mmu::{
+        PAGE_OFFSET_BITS,
+        PAGE_TABLE_INDEX_BITS,
+    },
     size::{
-        KiB,
+        Size,
         SizeOf,
     },
 };
@@ -37,6 +41,11 @@ use {
     super::{
         Phys,
         Virt,
+        mmu::{
+            PAGE_TABLE_LEAF_LEVEL,
+            PageTableEntry,
+            PageTableFlags,
+        },
     },
     crate::error::Error,
 };
@@ -44,17 +53,28 @@ use {
 /// Обобщённый тип для (виртуальных) страниц памяти и (физических) фреймов.
 #[derive(Clone, Copy, Default, Eq, Ord, PartialEq, PartialOrd)]
 #[repr(transparent)]
-pub struct Frage<T: Tag>(Addr<T>);
+pub struct Frage<T: Tag, const SIZE: usize>(Addr<T>);
 
-impl<T: Tag> Frage<T> {
+impl<T: Tag, const SIZE: usize> Frage<T, SIZE> {
     /// Размер физического фрейма или виртуальной страницы.
-    pub const SIZE: usize = 4 * KiB;
+    pub const SIZE: usize = SIZE;
+
+    /// Количество физических фреймов [`L0Frame`] или виртуальных страниц [`L0Page`]
+    /// стандартного с точки зрения MMU размера,
+    /// помещающихся в этом физическом фрейме или виртуальной странице.
+    pub const L0_COUNT: usize = Self::SIZE / L0Page::SIZE;
 
     /// Создаёт [`Frage`] --- [`Frame`] или [`Page`] ---
     /// по его начальному адресу `addr` --- [`Phys`] или [`Virt`] соответственно.
     ///
     /// Возвращает ошибку [`Error::InvalidAlignment`] если `addr` не выровнен на [`Frage::SIZE`].
+    ///
+    /// # Panics
+    ///
+    /// Запрошенный размер физического фрейма или виртуальной страницы не поддерживается.
     pub fn new(addr: Addr<T>) -> Result<Self> {
+        Self::validate_size();
+
         if addr.into_usize().is_multiple_of(Self::SIZE) {
             Ok(Self(addr))
         } else {
@@ -64,7 +84,13 @@ impl<T: Tag> Frage<T> {
 
     /// Возвращает нулевой [`Frage`] --- [`Frame`] или [`Page`].
     /// В отличие от [`Frage::default()`] доступна в константном контексте.
+    ///
+    /// # Panics
+    ///
+    /// Запрошенный размер физического фрейма или виртуальной страницы не поддерживается.
     pub const fn zero() -> Self {
+        Self::validate_size();
+
         Self(Addr::zero())
     }
 
@@ -77,14 +103,26 @@ impl<T: Tag> Frage<T> {
     /// Возвращает адрес [`Frage`] по его индексу `index`.
     ///
     /// Возвращает ошибку [`Error::Overflow`], если `index` превышает максимально допустимый.
+    ///
+    /// # Panics
+    ///
+    /// Запрошенный размер физического фрейма или виртуальной страницы не поддерживается.
     pub fn address_by_index(index: usize) -> Result<Addr<T>> {
+        Self::validate_size();
+
         let address = index.checked_mul(Self::SIZE).ok_or(Overflow)?;
         Addr::new(address)
     }
 
     /// Создаёт [`Frage`] --- [`Frame`] или [`Page`] ---
     /// по находящемуся внутри адресу `addr` --- [`Phys`] или [`Virt`] соответственно.
+    ///
+    /// # Panics
+    ///
+    /// Запрошенный размер физического фрейма или виртуальной страницы не поддерживается.
     pub fn containing(addr: Addr<T>) -> Self {
+        Self::validate_size();
+
         Self(Addr::new(addr.into_usize() & !(Self::SIZE - 1)).unwrap())
     }
 
@@ -92,7 +130,13 @@ impl<T: Tag> Frage<T> {
     /// по его номеру `index`.
     ///
     /// Возвращает ошибку [`Error::Overflow`], если `index` превышает максимально допустимый.
+    ///
+    /// # Panics
+    ///
+    /// Запрошенный размер физического фрейма или виртуальной страницы не поддерживается.
     pub fn from_index(index: usize) -> Result<Self> {
+        Self::validate_size();
+
         Ok(Self(Self::address_by_index(index)?))
     }
 
@@ -102,25 +146,49 @@ impl<T: Tag> Frage<T> {
     /// # Safety
     ///
     /// Номер `index` должен задавать допустимый [`Frage`].
+    ///
+    /// # Panics
+    ///
+    /// Запрошенный размер физического фрейма или виртуальной страницы не поддерживается.
     pub unsafe fn from_index_unchecked(index: usize) -> Self {
+        Self::validate_size();
+
         Self(unsafe { Addr::new_unchecked(index * Self::SIZE) })
     }
 
     /// Возвращает номер физического фрейма или виртуальной страницы.
+    ///
+    /// # Panics
+    ///
+    /// Запрошенный размер физического фрейма или виртуальной страницы не поддерживается.
     pub fn index(&self) -> usize {
+        Self::validate_size();
+
         Self::index_by_address(self.address())
     }
 
     /// Возвращает номер физического фрейма или виртуальной страницы
     /// по адресу --- [`Phys`] или [`Virt`] соответственно.
+    ///
+    /// # Panics
+    ///
+    /// Запрошенный размер физического фрейма или виртуальной страницы не поддерживается.
     pub fn index_by_address(address: Addr<T>) -> usize {
+        Self::validate_size();
+
         address.into_usize() / Self::SIZE
     }
 
     /// Возвращает требования к размещению в памяти блока
     /// физических фреймов или виртуальных страниц,
     /// достаточного для хранения объекта размером `size` **байт**.
+    ///
+    /// # Panics
+    ///
+    /// Запрошенный размер физического фрейма или виртуальной страницы не поддерживается.
     pub fn layout(size: usize) -> Result<Layout> {
+        Self::validate_size();
+
         if size > 0 {
             Ok(Layout::from_size_align(size, Self::SIZE)?)
         } else {
@@ -133,15 +201,49 @@ impl<T: Tag> Frage<T> {
     ///
     /// # Panic
     ///
-    /// Паникует, если полный размер --- `count * Self::SIZE` --- превышает `isize::MAX`.
-    /// См. требования метода [`Layout::from_size_align()`].
+    /// Паникует, если:
+    /// - Полный размер --- `count * Self::SIZE` --- превышает `isize::MAX`.
+    ///   См. требования метода [`Layout::from_size_align()`].
+    /// - Запрошенный размер физического фрейма или виртуальной страницы не поддерживается.
     pub const fn layout_array(count: usize) -> Layout {
+        Self::validate_size();
+
         assert!(count <= (isize::MAX as usize) / Self::SIZE);
         unsafe { Layout::from_size_align_unchecked(count * Self::SIZE, Self::SIZE) }
     }
+
+    /// Возвращает адрес в текущем фрейме или странице со смещением,
+    /// равным остатку от деления заданного `address` на размер `Self::SIZE`.
+    ///
+    /// # Panics
+    ///
+    /// Запрошенный размер физического фрейма или виртуальной страницы не поддерживается.
+    pub fn offset<Q: Tag>(
+        &self,
+        address: Addr<Q>,
+    ) -> Addr<T> {
+        Self::validate_size();
+
+        (self.address() + address.into_usize() % Self::SIZE)
+            .expect("offset inside a frame is always valid")
+    }
+
+    /// Возвращает размер физического фрейма или виртуальной страницы.
+    pub const fn size(&self) -> usize {
+        Self::SIZE
+    }
+
+    /// Проверяет, что размер текущего физического фрейма или виртуальной страницы поддерживается.
+    ///
+    /// # Panics
+    ///
+    /// Запрошенный размер физического фрейма или виртуальной страницы не поддерживается.
+    const fn validate_size() {
+        assert!(SIZE == L0_SIZE || SIZE == L1_SIZE || SIZE == L2_SIZE)
+    }
 }
 
-impl<T: Tag> Add<usize> for Frage<T> {
+impl<T: Tag, const SIZE: usize> Add<usize> for Frage<T, SIZE> {
     type Output = Result<Self>;
 
     fn add(
@@ -152,7 +254,7 @@ impl<T: Tag> Add<usize> for Frage<T> {
     }
 }
 
-impl<T: Tag> Sub<usize> for Frage<T> {
+impl<T: Tag, const SIZE: usize> Sub<usize> for Frage<T, SIZE> {
     type Output = Result<Self>;
 
     fn sub(
@@ -163,7 +265,7 @@ impl<T: Tag> Sub<usize> for Frage<T> {
     }
 }
 
-impl<T: Tag> Sub<Self> for Frage<T> {
+impl<T: Tag, const SIZE: usize> Sub<Self> for Frage<T, SIZE> {
     type Output = Result<usize>;
 
     fn sub(
@@ -174,41 +276,47 @@ impl<T: Tag> Sub<Self> for Frage<T> {
     }
 }
 
-impl<T: Tag> fmt::Debug for Frage<T> {
+impl<T: Tag, const SIZE: usize> fmt::Debug for Frage<T, SIZE> {
     fn fmt(
         &self,
         formatter: &mut fmt::Formatter,
     ) -> fmt::Result {
-        write!(
-            formatter,
-            "{}({} @ {})",
-            T::FRAGE_NAME,
-            self.index(),
-            self.address(),
-        )
+        write!(formatter, "{}({}", T::FRAGE_NAME, self.index())?;
+
+        if SIZE != L0_SIZE {
+            write!(formatter, "<{}>", Size::bytes(SIZE))?;
+        }
+
+        write!(formatter, " @ {})", self.address())
     }
 }
 
-impl<T: Tag> fmt::Display for Frage<T> {
+impl<T: Tag, const SIZE: usize> fmt::Display for Frage<T, SIZE> {
     fn fmt(
         &self,
         formatter: &mut fmt::Formatter,
     ) -> fmt::Result {
-        write!(formatter, "{} @ {}", self.index(), self.address())
+        write!(formatter, "{}", self.index())?;
+
+        if SIZE != L0_SIZE {
+            write!(formatter, "<{}>", Size::bytes(SIZE))?;
+        }
+
+        write!(formatter, " @ {}", self.address())
     }
 }
 
-impl<T: Tag> SizeOf for Frage<T> {
+impl<T: Tag, const SIZE: usize> SizeOf for Frage<T, SIZE> {
     const SIZE_OF: usize = Self::SIZE;
 }
 
 /// (Физический) фрейм памяти.
-pub type Frame = Frage<PhysTag>;
+pub type ElasticFrame<const SIZE: usize> = Frage<PhysTag, SIZE>;
 
 /// (Виртуальная) страница памяти.
-pub type Page = Frage<VirtTag>;
+pub type ElasticPage<const SIZE: usize> = Frage<VirtTag, SIZE>;
 
-impl Page {
+impl<const SIZE: usize> ElasticPage<SIZE> {
     /// Возвращает индекс виртуальной страницы,
     /// которая следует через `page_count` страниц после текущей.
     /// Если такой нет, то возвращает индекс на единицу больше
@@ -284,7 +392,7 @@ impl Page {
     }
 }
 
-impl Step for Page {
+impl<const SIZE: usize> Step for ElasticPage<SIZE> {
     fn steps_between(
         start: &Self,
         end: &Self,
@@ -332,6 +440,74 @@ impl Step for Page {
     }
 }
 
+/// Обобщённый тип для (виртуальных) страниц памяти и (физических) фреймов
+/// стандартного размера с точки зрения MMU.
+pub type L0Frage<T> = Frage<T, L0_SIZE>;
+
+/// (Физический) фрейм памяти стандартного размера с точки зрения MMU.
+pub type L0Frame = ElasticFrame<L0_SIZE>;
+
+/// (Виртуальная) страница памяти стандартного размера с точки зрения MMU.
+pub type L0Page = ElasticPage<L0_SIZE>;
+
+/// Обобщённый тип для (виртуальных) страниц памяти и (физических) фреймов
+/// большого размера с точки зрения MMU.
+///
+/// А именно, соответствующий записи [`PageTableEntry`] первого уровня ---
+/// [`PAGE_TABLE_LEAF_LEVEL + 1`] --- с установленным флагом [`PageTableFlags::HUGE`].
+pub type L1Frage<T> = Frage<T, L1_SIZE>;
+
+/// (Физический) фрейм памяти большого размера с точки зрения MMU.
+///
+/// А именно, соответствующий записи [`PageTableEntry`] первого уровня ---
+/// [`PAGE_TABLE_LEAF_LEVEL + 1`] --- с установленным флагом [`PageTableFlags::HUGE`].
+pub type L1Frame = ElasticFrame<L1_SIZE>;
+
+/// (Виртуальная) страница памяти большого размера с точки зрения MMU.
+///
+/// А именно, соответствующий записи [`PageTableEntry`] первого уровня ---
+/// [`PAGE_TABLE_LEAF_LEVEL + 1`] --- с установленным флагом [`PageTableFlags::HUGE`].
+pub type L1Page = ElasticPage<L1_SIZE>;
+
+/// Обобщённый тип для (виртуальных) страниц памяти и (физических) фреймов
+/// большого размера с точки зрения MMU.
+///
+/// А именно, соответствующий записи [`PageTableEntry`] второго уровня ---
+/// [`PAGE_TABLE_LEAF_LEVEL + 2`] --- с установленным флагом [`PageTableFlags::HUGE`].
+pub type L2Frage<T> = Frage<T, L2_SIZE>;
+
+/// (Физический) фрейм памяти большого размера с точки зрения MMU.
+///
+/// А именно, соответствующий записи [`PageTableEntry`] второго уровня ---
+/// [`PAGE_TABLE_LEAF_LEVEL + 2`] --- с установленным флагом [`PageTableFlags::HUGE`].
+pub type L2Frame = ElasticFrame<L2_SIZE>;
+
+/// (Виртуальная) страница памяти большого размера с точки зрения MMU.
+///
+/// А именно, соответствующий записи [`PageTableEntry`] второго уровня ---
+/// [`PAGE_TABLE_LEAF_LEVEL + 2`] --- с установленным флагом [`PageTableFlags::HUGE`].
+pub type L2Page = ElasticPage<L2_SIZE>;
+
+/// (Физический) фрейм памяти.
+pub type Frame = L0Frame;
+
+/// (Виртуальная) страница памяти.
+pub type Page = L0Page;
+
+/// Стандартный размер (виртуальных) страниц и (физических) фреймов памяти с точки зрения MMU.
+/// Соответствует записи [`PageTableEntry`] нулевого уровня --- [`PAGE_TABLE_LEAF_LEVEL`].
+pub const L0_SIZE: usize = 1 << PAGE_OFFSET_BITS;
+
+/// Размер (виртуальных) страниц и (физических) фреймов,
+/// соответствующий записи [`PageTableEntry`] первого уровня ---
+/// [`PAGE_TABLE_LEAF_LEVEL + 1`] --- с установленным флагом [`PageTableFlags::HUGE`].
+pub const L1_SIZE: usize = 1 << (PAGE_TABLE_INDEX_BITS + PAGE_OFFSET_BITS);
+
+/// Размер (виртуальных) страниц и (физических) фреймов,
+/// соответствующий записи [`PageTableEntry`] второго уровня ---
+/// [`PAGE_TABLE_LEAF_LEVEL + 2`] --- с установленным флагом [`PageTableFlags::HUGE`].
+pub const L2_SIZE: usize = 1 << (2 * PAGE_TABLE_INDEX_BITS + PAGE_OFFSET_BITS);
+
 #[cfg(test)]
 mod test {
     use static_assertions::const_assert_eq;
@@ -344,38 +520,45 @@ mod test {
                 Tag,
                 VirtTag,
             },
-            mmu::PAGE_OFFSET_BITS,
+            mmu::{
+                PAGE_OFFSET_BITS,
+                PAGE_TABLE_INDEX_BITS,
+            },
         },
         Addr,
         Frage,
-        Page,
+        L0_SIZE,
+        L0Page,
+        L1_SIZE,
     };
 
-    const_assert_eq!(Page::SIZE, 1 << PAGE_OFFSET_BITS);
+    const_assert_eq!(L0Page::SIZE, 1 << PAGE_OFFSET_BITS);
 
-    fn frage_alignment_check<T: Tag>() {
-        for offset in 1 .. Frage::<T>::SIZE {
-            assert!(Frage::<T>::new(Addr::<T>::new(offset).unwrap()).is_err());
+    fn frage_alignment_check<T: Tag, const SIZE: usize>() {
+        for offset in 1 .. Frage::<T, SIZE>::SIZE {
+            assert!(Frage::<T, SIZE>::new(Addr::<T>::new(offset).unwrap()).is_err());
         }
     }
 
     #[test]
     fn alignment_check() {
-        frage_alignment_check::<PhysTag>();
-        frage_alignment_check::<VirtTag>();
+        frage_alignment_check::<PhysTag, L0_SIZE>();
+        frage_alignment_check::<VirtTag, L0_SIZE>();
+        frage_alignment_check::<PhysTag, L1_SIZE>();
+        frage_alignment_check::<VirtTag, L1_SIZE>();
     }
 
-    fn frage_address_and_index<T: Tag>(end_index: usize) {
+    fn frage_address_and_index<T: Tag, const SIZE: usize>(end_index: usize) {
         for index in (0 .. 10).chain(end_index - 10 .. end_index) {
-            let frage = Frage::<T>::from_index(index).unwrap();
+            let frage = Frage::<T, SIZE>::from_index(index).unwrap();
             assert_eq!(frage.index(), index);
-            assert_eq!(Frage::<T>::index_by_address(frage.address()), index);
-            assert_eq!(Frage::<T>::new(frage.address()).unwrap(), frage);
+            assert_eq!(Frage::<T, SIZE>::index_by_address(frage.address()), index);
+            assert_eq!(Frage::<T, SIZE>::new(frage.address()).unwrap(), frage);
         }
 
         let mut index = end_index;
         while index != 0 {
-            assert!(Frage::<T>::from_index(index).is_err());
+            assert!(Frage::<T, SIZE>::from_index(index).is_err());
             index <<= 1;
         }
     }
@@ -384,7 +567,13 @@ mod test {
     fn address_and_index() {
         const ADDRESS_SPACE_BITS: u32 = usize::BITS;
 
-        frage_address_and_index::<PhysTag>(1 << (Phys::BITS - PAGE_OFFSET_BITS));
-        frage_address_and_index::<VirtTag>(1 << (ADDRESS_SPACE_BITS - PAGE_OFFSET_BITS));
+        frage_address_and_index::<PhysTag, L0_SIZE>(1 << (Phys::BITS - PAGE_OFFSET_BITS));
+        frage_address_and_index::<VirtTag, L0_SIZE>(1 << (ADDRESS_SPACE_BITS - PAGE_OFFSET_BITS));
+        frage_address_and_index::<PhysTag, L1_SIZE>(
+            1 << (Phys::BITS - PAGE_OFFSET_BITS - PAGE_TABLE_INDEX_BITS),
+        );
+        frage_address_and_index::<VirtTag, L1_SIZE>(
+            1 << (ADDRESS_SPACE_BITS - PAGE_OFFSET_BITS - PAGE_TABLE_INDEX_BITS),
+        );
     }
 }

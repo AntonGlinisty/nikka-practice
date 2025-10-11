@@ -36,6 +36,8 @@ use super::{
     Virt,
     frage::{
         Frame,
+        L1_SIZE,
+        L2_SIZE,
         Page,
     },
     mapped_block::MappedBlock,
@@ -52,7 +54,10 @@ use super::{
         PageTableEntry,
         PageTableFlags,
     },
-    size,
+    size::{
+        self,
+        Size,
+    },
 };
 
 // Used in docs.
@@ -402,7 +407,11 @@ impl<'a> Path<'a> {
         let (level, pte) = self.deepest_pte();
 
         let flags = pte.flags();
-        let frame = pte.frame().unwrap_or_default();
+        let frame = if pte.is_huge() {
+            pte.huge_frame().expect(Self::INVALID_PATH)
+        } else {
+            pte.frame().unwrap_or_default()
+        };
 
         let pages = self.pages(level);
         let frames = Block::from_index(frame.index(), frame.index() + pages.count())
@@ -616,27 +625,41 @@ impl<'a> fmt::Display for Path<'a> {
         for pte in self.nodes.iter().rev().flatten().map(|node| unsafe { node.as_ref() }) {
             write!(formatter, "L{level}: {} / {frame}", Virt::from_ref(pte))?;
 
-            if let Ok(next_frame) = pte.frame() {
-                frame = next_frame;
+            if !pte.is_present() {
+                return write!(formatter, " (non-present)");
+            }
 
-                if pte.is_huge() || level == PAGE_TABLE_LEAF_LEVEL {
-                    if pte.is_huge() {
-                        write!(formatter, " (huge page)")?;
-                    }
+            let is_present = "failed to get frame for a present page";
 
-                    let offset_mask = (1 << (level * PAGE_TABLE_INDEX_BITS + PAGE_OFFSET_BITS)) - 1;
-                    let offset = self.virt.into_usize() & offset_mask;
-                    let phys =
-                        (frame.address() + offset).expect("offset inside a frame is always valid");
+            if pte.is_huge() {
+                let (phys, huge_frame_size) = match level {
+                    1 => {
+                        let huge_frame = pte.huge_frame::<L1_SIZE>().expect(is_present);
+                        (huge_frame.offset(self.virt), huge_frame.size())
+                    },
+                    2 => {
+                        let huge_frame = pte.huge_frame::<L2_SIZE>().expect(is_present);
+                        (huge_frame.offset(self.virt), huge_frame.size())
+                    },
+                    _ => panic!("unexpected page table level for a huge page - {}", level),
+                };
 
-                    write!(formatter, " => {phys}")?;
-                } else {
-                    write!(formatter, " -> ")?;
+                return write!(
+                    formatter,
+                    " ({} huge page) => {phys}",
+                    Size::bytes(huge_frame_size),
+                );
+            };
 
-                    level -= 1;
-                }
+            frame = pte.frame().expect(is_present);
+
+            if level == PAGE_TABLE_LEAF_LEVEL {
+                let phys = frame.offset(self.virt);
+                write!(formatter, " => {phys}")?;
             } else {
-                write!(formatter, " (non-present)")?;
+                write!(formatter, " -> ")?;
+
+                level -= 1;
             }
         }
 
