@@ -32,6 +32,9 @@ mod mapping;
 /// Аллокатор страниц виртуальной памяти [`PageAllocator`].
 mod page_allocator;
 
+/// Путь в дереве отображения заданного виртуального адреса.
+mod path;
+
 /// Диапазоны памяти в системе.
 mod range;
 
@@ -81,6 +84,7 @@ use crate::{
 use boot_frame_allocator::BootFrameAllocator;
 use frame_allocator::CurrentFrameAllocator;
 use mapping::Mapping;
+use path::Path;
 use range::PAGES_PER_ROOT_LEVEL_ENTRY;
 
 pub use addr::{
@@ -238,8 +242,8 @@ pub mod test_scaffolding {
     pub use super::{
         address_space::test_scaffolding::*,
         boot_frame_allocator::test_scaffolding::*,
-        mapping::test_scaffolding::*,
         page_allocator::test_scaffolding::*,
+        path::test_scaffolding::*,
         phys2virt::test_scaffolding::*,
         range::test_scaffolding::*,
     };

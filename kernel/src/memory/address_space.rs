@@ -34,6 +34,7 @@ use super::{
     FrameAllocator,
     FrameGuard,
     KERNEL_PAGE_ALLOCATOR,
+    Path,
     Phys,
     Phys2Virt,
     Translate,
@@ -43,10 +44,7 @@ use super::{
         Frame,
         Page,
     },
-    mapping::{
-        Mapping,
-        Path,
-    },
+    mapping::Mapping,
     mmu::{
         self,
         PageTableFlags,
@@ -740,12 +738,12 @@ pub(super) mod test_scaffolding {
             Block,
             FrameGuard,
             Page,
+            Path,
             Translate,
             Virt,
             mapping::{
                 Mapping,
                 MappingIterator,
-                Path,
             },
             mmu::{
                 PageTable,
