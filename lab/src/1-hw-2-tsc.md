@@ -70,7 +70,7 @@
 может быть напечатана. Например,
 
 ```rust
-{{#include ../../kernel/src/memory/main_frame_allocator.rs:log_tsc}}
+{{#include ../../kernel/src/memory/frame_allocator.rs:log_tsc}}
 ```
 
 пишет в журнал `duration = 322.017 Mtsc`:

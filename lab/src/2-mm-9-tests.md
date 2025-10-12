@@ -219,7 +219,7 @@ running 5 tests
 В случае ошибки вы увидите что-нибудь вроде
 ```console
 ...
-panicked at 'called `Result::unwrap()` on an `Err` value: NoFrame', src/memory/main_frame_allocator.rs:49:14
+panicked at 'called `Result::unwrap()` on an `Err` value: NoFrame', src/memory/frame_allocator.rs:49:14
 --------------------------------------------------- [failed]
 21:41:55 0 I exit qemu; exit_code = FAILURE
 error: test failed, to rerun pass '--bin kernel'

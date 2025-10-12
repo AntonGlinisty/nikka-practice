@@ -4,14 +4,13 @@
 [`kernel::memory::address_space::AddressSpace`](../../doc/kernel/memory/address_space/struct.AddressSpace.html).
 Её поле
 [`AddressSpace::mapping`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#structfield.mapping)
-служит для модификации отображения страниц и [реализовано вами ранее](../../lab/book/2-mm-4-translate.html).
+служит для модификации отображения страниц.
 А поле
 [`AddressSpace::page_allocator`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#structfield.page_allocator) ---
 для выделения виртуальных страниц внутри этого адресного пространства.
-И тоже [уже реализовано](../../lab/book/2-mm-2-page-allocator.html).
 
 
-### Задача 4 --- высокоуровневый интерфейс управления адресным пространством
+### Задача 5 --- высокоуровневый интерфейс управления адресным пространством
 
 #### Отображение виртуальной страницы на физический фрейм
 
@@ -38,11 +37,11 @@ unsafe fn AddressSpace::map_page_to_frame(
 Если этот флаг выключен, но `page` принадлежит пользовательской части адресного пространства ---
 тоже нужно вернуть ошибку.
 Проверить куда попадает `page` можно функцией
-[`kernel::memory::range::is_user_page()`](../../doc/kernel/memory/range/fn.is_user_page.html).
+[`kernel::memory::range::validate_page_flags()`](../../doc/kernel/memory/range/fn.validate_page_flags.html).
 
 Используйте
 [`Mapping::path()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.path),
-[`Path::map_intermediate()`](../../doc/kernel/memory/mapping/struct.Path.html#method.map_intermediate)
+[`Path::map()`](../../doc/kernel/memory/path/struct.Path.html#method.map)
 и
 [`FRAME_ALLOCATOR`](../../doc/kernel/memory/struct.FRAME_ALLOCATOR.html).
 Вам может пригодиться метод
@@ -51,7 +50,7 @@ unsafe fn AddressSpace::map_page_to_frame(
 Дело в том, что нам иногда захочется использовать
 [`AddressSpace::map_page_to_frame()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.map_page_to_frame)
 для отображения зарезервированных физических фреймов, про которые
-[`FrameAllocator`](../../doc/kernel/memory/trait.FrameAllocator.html)
+[`FrameAllocator`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html)
 ничего не знает и не отслеживает количество ссылок на них.
 Например, это делает метод
 [`kernel::smp::local_apic::LocalApic::map()`](../../doc/kernel/smp/local_apic/struct.LocalApic.html#method.map),
@@ -64,10 +63,10 @@ unsafe fn AddressSpace::map_page_to_frame(
 а старый физический фрейм освобождается,
 если на него не осталось других ссылок.
 Удалить старое отображение можно с помощью метода
-[`Path::unmap()`](../../doc/kernel/memory/mapping/struct.Path.html#method.unmap).
+[`Path::unmap()`](../../doc/kernel/memory/path/struct.Path.html#method.unmap).
 
 Используя
-[`FrameAllocator::allocate()`](../../doc/kernel/memory/trait.FrameAllocator.html#tymethod.allocate)
+[`FrameAllocator::allocate()`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#tymethod.allocate)
 из глобального
 [`FRAME_ALLOCATOR`](../../doc/kernel/memory/struct.FRAME_ALLOCATOR.html)
 и
@@ -102,37 +101,14 @@ unsafe fn AddressSpace::unmap_page(
 в файле
 [`kernel/src/memory/address_space.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/address_space.rs).
 
-А также вспомогательный
-[метод](../../doc/kernel/memory/mapping/struct.Path.html#method.unmap)
-
-```rust
-unsafe fn Path::unmap(
-    &mut self,
-) -> Result<()>
-```
-
-в файле
-[`kernel/src/memory/mapping.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/mapping.rs).
 Воспользуйтесь
-[`Mapping::path()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.path).
-
-**Важно** сбросить запись в буфере ассоциативной трансляции
-([Translation lookaside buffer](https://en.wikipedia.org/wiki/Translation_lookaside_buffer),
-[TLB](https://wiki.osdev.org/TLB))
-касающуюся `page`.
-Иначе процессор может использовать старую закэшерованную в TLB запись, когда обратится по адресу внутри `page` в следующий раз.
-А это может быть как уже совершенно другой физический фрейм, так и намеренно не отображённая на физическую память страница.
-Выглядеть с вашей точки зрения это будет так: вы обращаетесь по некоторому адресу, а там находится совсем не то что вы ожидаете.
-Даже отладчик будет показывать вам то же самое, что вы ожидаете.
-А вот процессор будет читать и писать совсем в другую физическую память.
-Это приведёт к трудно отлаживаемым
-[гейзенбагам](https://en.wikipedia.org/wiki/Heisenbug).
-Для сброса нужной записи TLB поможет функция
-[`kernel::memory::mmu::flush()`](../../doc/kernel/memory/mmu/fn.flush.html).
+[`Mapping::path()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.path)
+и
+[`Path::unmap()`](../../doc/kernel/memory/path/struct.Path.html#method.unmap).
 
 Также вам пригодятся
 
-- [`FrameAllocator::deallocate()`](../../doc/kernel/memory/trait.FrameAllocator.html#tymethod.deallocate) и
+- [`FrameAllocator::deallocate()`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#tymethod.deallocate) и
 - [`PageTableEntry::clear()`](../../doc/kernel/memory/mmu/struct.PageTableEntry.html#method.clear).
 
 
@@ -218,16 +194,47 @@ unsafe fn AddressSpace::unmap_slice<T>(
 ```console
 $ (cd kernel; cargo test --test 2-mm-5-map)
 ...
-2_mm_5_map::map_slice---------------------------------
-19:10:06 0 D slice = [0v7FFFFEFFF000, 0v7FFFFFFFF000), size 16.000 MiB, Virt[~128.000 TiB, ~128.000 TiB)
-2_mm_5_map::map_slice------------------------ [passed]
-19:10:09.133 0 I exit qemu; exit_code = SUCCESS
+running 6 tests
+
+2_mm_5_map::kernel_and_user_are_separated-------------------
+2_mm_5_map::kernel_and_user_are_separated---------- [passed]
+
+2_mm_5_map::map_readable------------------------------------
+18:36:33 0 D allocated unique virtual address; virt = 0vF80_0000_0000; is_user = false
+18:36:33 0 D page = 4160749568 @ 0vF80_0000_0000; frame = 16382 @ 0p3FF_E000
+2_mm_5_map::map_readable--------------------------- [passed]
+
+2_mm_5_map::map_slice---------------------------------------
+18:36:35.709 0 D slice = [0vF7F_FEFF_F000, 0vF7F_FFFF_F000), size 16 MiB, Virt count 16777216, [~15.500 TiB, ~15.500 TiB)
+18:36:35.729 0 D slice_frames = 4096; frame_count = 32768
+2_mm_5_map::map_slice------------------------------ [passed]
+
+2_mm_5_map::map_twice---------------------------------------
+18:36:37.871 0 D allocated unique virtual address; virt = 0vF00_0000_0000; is_user = false
+18:36:37.897 0 D old_frame = Ok(Frame(12274 @ 0p2FF_2000)); new_frame = Ok(Frame(12277 @ 0p2FF_5000))
+2_mm_5_map::map_twice------------------------------ [passed]
+
+2_mm_5_map::map_writable------------------------------------
+18:36:37.931 0 D allocated unique virtual address; virt = 0vE80_0000_0000; is_user = false
+18:36:37.961 0 D page = 3892314112 @ 0vE80_0000_0000; frame = 12277 @ 0p2FF_5000
+18:36:37.975 0 D allocated unique virtual address; virt = 0vE00_0000_0000; is_user = false
+18:36:38.005 0 D page = 3758096384 @ 0vE00_0000_0000; frame = 12277 @ 0p2FF_5000
+18:36:38.019 0 D allocated unique virtual address; virt = 0vD80_0000_0000; is_user = false
+18:36:38.049 0 D page = 3623878656 @ 0vD80_0000_0000; frame = 12286 @ 0p2FF_E000
+18:36:38.063 0 D allocated unique virtual address; virt = 0vD00_0000_0000; is_user = false
+18:36:38.093 0 D page = 3489660928 @ 0vD00_0000_0000; frame = 12289 @ 0p300_1000
+2_mm_5_map::map_writable--------------------------- [passed]
+
+2_mm_5_map::unmap_nonmapped_page----------------------------
+18:36:38.125 0 D allocated unique virtual address; virt = 0vC80_0000_0000; is_user = false
+2_mm_5_map::unmap_nonmapped_page------------------- [passed]
+18:36:38.163 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ```
 
 
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/memory/address_space.rs | 57 ++++++++++++++++++++++++++++++++++++++++++++++++---------
- 1 file changed, 48 insertions(+), 9 deletions(-)
+kernel/src/memory/address_space.rs | 35 +++++++++++++++++++++++++++++------
+1 file changed, 29 insertions(+), 6 deletions(-)
 ```

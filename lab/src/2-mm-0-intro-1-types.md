@@ -352,6 +352,26 @@ Rust поддерживает полиморфизм по возвращаемо
 если попытаться создать блок с началом и концом в разных половинах виртуального адресного пространства.
 
 
+## RAII [`kernel::memory::FrameGuard`](../../doc/kernel/memory/struct.FrameGuard.html)
+
+Это
+[RAII](https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization)
+для операции выделения одного `Frame`.
+
+При окончании его области видимости, если фрейм не был забран ранее с помощью
+метода
+[`FrameGuard::take()`](../../doc/kernel/memory/struct.FrameGuard.html#method.take),
+то автоматически вызывается
+[`FrameGuard::drop()`](../../doc/kernel/memory/struct.FrameGuard.html#method.drop).
+Который освобождает фрейм и защищает от утечки физической памяти.
+
+Полезные методы:
+- [`FrameGuard::allocate()`](../../doc/kernel/memory/struct.FrameGuard.html#method.allocate) выделяет новый фрейм из [`kernel::memory::frame_allocator::FrameAllocator`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html).
+- [`FrameGuard::reference()`](../../doc/kernel/memory/struct.FrameGuard.html#method.reference) увеличивает количество ссылок заданного фрейма в [`kernel::memory::frame_allocator::FrameAllocator`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html) и возвращает [`kernel::memory::FrameGuard`](../../doc/kernel/memory/struct.FrameGuard.html), отвечающий за новую ссылку.
+- [`FrameGuard::load()`](../../doc/kernel/memory/struct.FrameGuard.html#method.store) забирает фрейм из записи таблицы страниц [`kernel::memory::mmu::PageTableEntry`](../../doc/kernel/memory/mmu/struct.PageTableEntry.html).
+- [`FrameGuard::store()`](../../doc/kernel/memory/struct.FrameGuard.html#method.store) отдаёт фрейм в запись таблицы страниц [`kernel::memory::mmu::PageTableEntry`](../../doc/kernel/memory/mmu/struct.PageTableEntry.html).
+
+
 ## usize versus u64
 
 Для низкоуровневого хранения величин, вроде адресов, номеров и т.д. можно было бы использовать любой из этих примитивных типов:

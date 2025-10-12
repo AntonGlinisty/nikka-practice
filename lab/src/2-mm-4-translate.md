@@ -28,7 +28,8 @@
 > на которую ссылается данная
 > [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html)?
 
-Отображение виртуальных страниц на физические фреймы:
+Логически отображение виртуальных страниц на физические фреймы
+можно изобразить в виде огромной таблицы:
 
 ![](2-mm-4-virt-to-phys.svg)
 
@@ -43,10 +44,7 @@
 - [Paging Implementation](https://os.phil-opp.com/paging-implementation/), [перевод](https://habr.com/ru/post/445618/).
 
 
-### Задача 3 --- [`Mapping`](../../doc/kernel/memory/mapping/struct.Mapping.html)
-
-
-#### Отображение виртуальных страниц на физические фреймы
+### Задача 4 --- отображение виртуальных страниц на физические фреймы
 
 Страничное преобразование устроено как показано на схеме.
 Стрелки ведут из физических адресов, хранящихся в регистре
@@ -76,12 +74,19 @@ fn Mapping::path(
 в файле [`kernel/src/memory/mapping.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/mapping.rs).
 Он принимает на вход виртуальный адрес `virt`, который нужно транслировать.
 И возвращает максимально длинный отображённый в память префикс пути в дереве отображения страниц
-[`Path`](../../doc/kernel/memory/mapping/struct.Path.html),
+[`kernel::memory::path::Path`](../../doc/kernel/memory/path/struct.Path.html),
 соответствующий входному виртуальному адресу `virt`.
 Элементы
-[`Path::nodes`](../../doc/kernel/memory/mapping/struct.Path.html#structfield.nodes)
-заполняются виртуальными адресами соответствующих
-[`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html).
+[`Path::nodes`](../../doc/kernel/memory/path/struct.Path.html#structfield.nodes)
+заполняются указателями
+[`core::ptr::NonNull`](https://doc.rust-lang.org/nightly/core/ptr/struct.NonNull.html)
+на соответствующие
+[`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html):
+
+- В `nodes[i]` лежит указатель на [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html) из [`PageTable`](../../doc/ku/memory/mmu/type.PageTable.html) `i`-ого уровня. То есть из Li на картинке.
+- Если путь не ведёт до самого низа, в не задействованных элементах [`Path::nodes`](../../doc/kernel/memory/path/struct.Path.html#structfield.nodes) содержится `None`.
+- Полезно изучить инварианты [`Path`](../../doc/kernel/memory/path/struct.Path.html),
+которые проверяет метод [`Path::validate()`](../../doc/kernel/memory/path/struct.Path.html#method.validate).
 
 [`Mapping::path()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.path)
 должен пройти от корневой L3 по физическим фреймам, которые возвращает метод
@@ -95,21 +100,63 @@ fn Mapping::path(
 [`PageTableFlags::HUGE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.HUGE),
 на этом построение пути заканчивается.
 
-Реализуйте [метод](../../doc/kernel/memory/mapping/struct.Path.html#method.map_intermediate)
-```rust
-pub fn Path::map_intermediate(
-    &mut self,
-    flags: PageTableFlags,
-) -> Result<()> {
+Теперь должны проходить тесты `t00_path()` и `t01_translate()`
+из файла
+[`kernel/tests/2-mm-4-translate.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/2-mm-4-translate.rs):
+
 ```
+$ (cd kernel; cargo test --test 2-mm-4-translate)
+...
+running 8 tests
+
+2_mm_4_translate::t00_path----------------------------------
+16:50:10 0 D present:
+16:50:10 0 D     virt = 0v2F_4498
+16:50:10 0 D     path = L3: 0vFFFF_8000_0000_1000 / 1 @ 0p1000 -> L2: 0vFFFF_8000_0000_2000 / 2 @ 0p2000 -> L1: 0vFFFF_8000_0000_3008 / 3 @ 0p3000 -> L0: 0vFFFF_8000_0085_F7A0 / 2143 @ 0p85_F000 => 0p4F_1498
+16:50:10 0 D     level = 0
+16:50:10 0 D     pte = 1265 @ 0p4F_1000 -----DA---W-P(0x8000000000000063)
+16:50:10 0 D allocated unique virtual address; virt = 0v1080_0000_0000; is_user = true
+16:50:10 0 D non-present:
+16:50:10 0 D     virt = 0v1080_0000_0000
+16:50:10 0 D     path = L3: 0vFFFF_8000_0000_1108 / 1 @ 0p1000 (non-present)
+16:50:10 0 D     level = 3
+16:50:10 0 D     pte = <non-present>
+16:50:10 0 D huge:
+16:50:10 0 D     virt = 0vFFFF_8000_0070_0000
+16:50:10 0 D     path = L3: 0vFFFF_8000_0000_1800 / 1 @ 0p1000 -> L2: 0vFFFF_8000_03FF_F000 / 16383 @ 0p3FF_F000 (1 GiB huge page) => 0p70_0000
+16:50:10 0 D     level = 2
+16:50:10 0 D     pte = 0 @ 0p0 ----HDA---W-P(0x80000000000000E3)
+2_mm_4_translate::t00_path------------------------- [passed]
+
+2_mm_4_translate::t01_translate-----------------------------
+16:50:10 0 D pte = 1265 @ 0p4F_1000 -----DA---W-P(0x8000000000000063)
+16:50:10 0 D read_ptr = 0xffff8000004f1190; write_ptr = 314159266
+16:50:10 0 D write_value = 0; read_value = 0; variable = 0
+16:50:10 0 D write_value = 1; read_value = 1; variable = 1
+16:50:10 0 D write_value = 2; read_value = 2; variable = 2
+16:50:10 0 D write_value = 3; read_value = 3; variable = 3
+16:50:10 0 D write_value = 4; read_value = 4; variable = 4
+2_mm_4_translate::t01_translate-------------------- [passed]
+
+...
+```
+
+Далее реализуйте [метод](../../doc/kernel/memory/path/struct.Path.html#method.map)
+```rust
+pub fn Path::map(
+    &mut self,
+    frame: FrameGuard,
+    flags: PageTableFlags,
+) -> Result<()>
+```
+в файле [`kernel/src/memory/path.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/path.rs).
 
 Он должен достроить путь в дереве отображения страниц,
 соответствующий виртуальному адресу
-[`Path::virt`](../../doc/kernel/memory/mapping/struct.Path.html#structfield.virt),
-до листьевого уровня (L0 на схеме).
-Чтобы вызывающая функция могла потом как-либо модифицировать отображение
-[`Path::virt`](../../doc/kernel/memory/mapping/struct.Path.html#structfield.virt) ---
-изменить его флаги, поменять физический адрес.
+[`Path::virt`](../../doc/kernel/memory/path/struct.Path.html#structfield.virt),
+до листьевого уровня (L0 на схеме) и отобразить
+[`Path::virt`](../../doc/kernel/memory/path/struct.Path.html#structfield.virt)
+в физический фрейм, задаваемый `frame` с флагами `flags`.
 
 Недостающие узлы этот метод выделяет с помощью глобального
 [`FRAME_ALLOCATOR`](../../doc/kernel/memory/struct.FRAME_ALLOCATOR.html).
@@ -135,21 +182,14 @@ pub fn Path::map_intermediate(
 [размеров `4 KiB`, `2 MiB` и `1 GiB`](https://en.wikipedia.org/wiki/Page_(computer_memory)#Multiple_page_sizes).
 Мы не будем их поддерживать.
 Но они нам будут попадаться, потому что с их помощью
-[`bootloader`](../../doc/bootloader/index.html)
+[`kernel::memory::phys2virt::Phys2Virt`](../../doc/kernel/memory/phys2virt/struct.Phys2Virt.html)
 отображает всю физическую память в "окно" в виртуальной.
 Делается это для экономии физических фреймов на само отображение.
 
 Кроме того, есть ещё такой момент.
-Если вызывающая функция захочет отобразить
-[`Path::virt`](../../doc/kernel/memory/mapping/struct.Path.html#structfield.virt),
-например, с возможностью записи, и установит
-соответствующий флаг
-[`PageTableFlags::WRITABLE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.WRITABLE)
-только в том элементе
-[`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html)
-таблицы L0, которую вернёт
-[`Path::get_mut()`](../../doc/kernel/memory/mapping/struct.Path.html#method.get_mut),
-этого может оказаться недостаточно.
+Если например, во `flags` стоит флаг
+[`PageTableFlags::WRITABLE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.WRITABLE),
+и вы установите его только на уровне таблицы L0, этого может оказаться недостаточно.
 Дело в том, что процессор пересечёт флаги [`PageTableFlags::WRITABLE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.WRITABLE)
 из всех промежуточных
 [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html)
@@ -165,7 +205,7 @@ pub fn Path::map_intermediate(
 Поэтому во всех промежуточных, не только выделяемых,
 [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html)
 функция
-[`Path::map_intermediate()`](../../doc/kernel/memory/mapping/struct.Path.html#method.map_intermediate)
+[`Path::map()`](../../doc/kernel/memory/path/struct.Path.html#method.map)
 должна будет включить флаги, заданные ей в аргументе `flags`.
 И никакие флаги промежуточных
 [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html)
@@ -176,8 +216,7 @@ pub fn Path::map_intermediate(
 [`ku::memory::mmu::FULL_ACCESS`](../../doc/ku/memory/mmu/constant.FULL_ACCESS.html).
 То есть, включать нужно флаги которые есть в пересечении --- `flags & FULL_ACCESS`.
 
-> Про флаг
-> [`NO_EXECUTE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.NO_EXECUTE)
+> Про флаг `NO_EXECUTE`
 > Intel Software Developer's Manual утверждает, что:
 > > Instruction fetches from supervisor-mode addresses:
 > >
@@ -191,13 +230,28 @@ pub fn Path::map_intermediate(
 > > --- <cite>Section 5.6.1, Volume 3A</cite>
 >
 > Для чтения инструкций по
-> [`USER_ACCESSIBLE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.USER_ACCESSIBLE)
+> [`USER`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.USER)
 > адресам из кода ядра и кода пользователя там же описаны аналогичные условия. То есть для вычисления эффективного
-> значения флага
-> [`NO_EXECUTE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.NO_EXECUTE)
+> значения флага `NO_EXECUTE`
 > берется логическое `ИЛИ` всех
 > [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html),
 > которые участвуют в трансляции виртуального адреса в физический.
+>
+> Это неудобно, поэтому в
+> [`PageTableFlags`](../../doc/ku/memory/mmu/struct.PageTableFlags.html)
+> мы храним обратный флаг
+> [`EXECUTABLE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.EXECUTABLE).
+> Который ведёт себя по тем же правилам, что флаги
+> [`PageTableFlags::USER`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.USER)
+> и
+> [`PageTableFlags::WRITABLE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.WRITABLE).
+> А при чтении и записи в
+> [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html)
+> значение этого флага обращается.
+> Это происходит в методах
+> [`PageTableEntry::flags()`](file:///.../nikka/doc/ku/memory/mmu/struct.PageTableEntry.html#method.flags)
+> и
+> [`PageTableEntry::set_phys()`](file:///.../nikka/doc/ku/memory/mmu/struct.PageTableEntry.html#method.set_phys).
 >
 > Про флаги
 > [`NO_CACHE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.NO_CACHE)
@@ -224,10 +278,9 @@ pub fn Path::map_intermediate(
 > [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html).
 >
 > Поэтому в Nikka мы будем выставлять флаги
-> [`NO_CACHE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.NO_CACHE),
-> [`WRITE_THROUGH`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.WRITE_THROUGH)
+> [`NO_CACHE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.NO_CACHE)
 > и
-> [`NO_EXECUTE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.NO_EXECUTE)
+> [`WRITE_THROUGH`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.WRITE_THROUGH)
 > только в листовые
 > [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html) --- выставлять
 > [`NO_CACHE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.NO_CACHE)
@@ -235,11 +288,7 @@ pub fn Path::map_intermediate(
 > [`WRITE_THROUGH`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.WRITE_THROUGH)
 > в промежуточные
 > [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html)
-> не имеет смысла, а выставлять флаг
-> [`NO_EXECUTE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.NO_EXECUTE)
-> в промежуточные
-> [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html)
-> опасно --- можно случайно запретить исполнение части кода ядра или пользователя.
+> не имеет смысла.
 
 Выделение физического фрейма под отсутствующую промежуточную таблицу
 [`PageTable`](../../doc/ku/memory/mmu/type.PageTable.html)
@@ -254,7 +303,37 @@ fn allocate_node(
 
 в файле [`kernel/src/memory/mapping.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/mapping.rs).
 
-При реализации `Mapping::path()`, `Path::map_intermediate()` и `Mapping::allocate_node()` вам также могут пригодиться:
+Теперь реализуйте обратный
+[метод](../../doc/kernel/memory/path/struct.Path.html#method.unmap)
+```rust
+pub unsafe fn Path::unmap(&mut self) -> Result<()>
+```
+в файле [`kernel/src/memory/path.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/path.rs).
+
+Он удаляет отображение страницы по текущему пути.
+Физический фрейм освобождается, если на него не осталось других ссылок.
+Удалять промежуточные узлы не требуется, даже если они больше не используются.
+
+**Важно** сбросить запись в буфере ассоциативной трансляции
+([Translation lookaside buffer](https://en.wikipedia.org/wiki/Translation_lookaside_buffer),
+[TLB](https://wiki.osdev.org/TLB))
+касающуюся
+[`Path::virt`](../../doc/kernel/memory/path/struct.Path.html#structfield.virt).
+Иначе процессор может использовать старую закэшерованную в TLB запись,
+когда обратится по адресу внутри той же страницы в следующий раз.
+А это может быть как уже совершенно другой физический фрейм,
+так и намеренно не отображённая на физическую память страница.
+Выглядеть с вашей точки зрения это будет так: вы обращаетесь по некоторому адресу,
+а там находится совсем не то что вы ожидаете.
+Даже отладчик будет показывать вам то же самое, что вы ожидаете.
+А вот процессор будет читать и писать совсем в другую физическую память.
+Это приведёт к трудно отлаживаемым
+[гейзенбагам](https://en.wikipedia.org/wiki/Heisenbug).
+Для сброса нужной записи TLB поможет функция
+[`kernel::memory::mmu::flush()`](../../doc/kernel/memory/mmu/fn.flush.html).
+
+При реализации `Mapping::path()`, `Mapping::allocate_node()`,
+`Path::map()` и `Path::unmap()` вам также могут пригодиться:
 
 - Поле [`Mapping::page_table_root`](../../doc/kernel/memory/mapping/struct.Mapping.html#structfield.page_table_root), оно содержит адрес фрейма корневой таблицы L3, то есть фактически копию регистра [`CR3`](https://wiki.osdev.org/CPU_Registers_x86#CR3).
 - Константа [`ku::memory::mmu::PAGE_TABLE_ROOT_LEVEL`](../../doc/ku/memory/mmu/constant.PAGE_TABLE_ROOT_LEVEL.html) --- та самая 3 из обозначения L3 для корневой таблицы страниц --- третий уровень считая с нуля.
@@ -263,262 +342,102 @@ fn allocate_node(
 - Метод [`core::mem::MaybeUninit::zeroed()`](https://doc.rust-lang.org/nightly/core/mem/union.MaybeUninit.html#method.zeroed) для зануления выделенной памяти под выделяемую таблицу страниц. Нулевое значение подойдёт для [`PageTableEntry`](../../doc/ku/memory/mmu/struct.PageTableEntry.html), --- с точки зрения компилятора сгодится любое значение оборачиваемого ею типа [`usize`](https://doc.rust-lang.org/nightly/core/primitive.usize.html), а с точки зрения процессора, подойдёт любое значение, если [`PageTableFlags::PRESENT`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.PRESENT) будет сброшен.
 - Цикл, чтобы обойти уровни таблицы. Для уменьшения потенциальных возможностей совершить ошибку, можно было бы сделать таблицы страниц разных уровней не совместимыми в системе типов, [как здесь](https://os.phil-opp.com/page-tables/#some-clever-solution). Тогда компилятор не дал бы их перепутать в коде. Но такой подход, к сожалению, не даст написать обычный цикл по уровням, только рекурсию на обобщённых функциях или копипасту. Поэтому в Nikka выбор сделан в пользу одного и того же типа для узлов всех уровней.
 - Итерирование в обратном порядке: `for i in (5..10).rev()`, или же `for i in (5..=10).rev()` если `10` должно быть включительно.
-
-Теперь должна проходить первая часть теста
-
-```console
-$ (cd kernel; cargo test --test 2-mm-4-translate)
-...
-2_mm_4_translate::t0_path-----------------------------------
-18:30:23 0 D present_virt = 0v100_0020_0FFC; path = L3: 0vFFFF_F000_0000_1010 -> L2: 0vFFFF_F000_0070_7000 -> L1: 0vFFFF_F000_0070_8008 -> L0: 0vFFFF_F000_0070_F000 => 0p27_DFFC; level = 0; pte = 637 @ 0p27_D000 0--DA---WPX(0x63)
-18:30:23 0 D allocated unique user virtual address; virt = 0v1000_0000_0000
-18:30:23 0 D non_present_virt = 0v1000_0000_0000; path = L3: 0vFFFF_F000_0000_1100 (non-present); level = 3; pte = <non-present>
-18:30:23 0 D huge_virt = 0vFFFF_F000_0000_0000; path = L3: 0vFFFF_F000_0000_1F00 -> L2: 0vFFFF_F000_0071_0000 -> L1: 0vFFFF_F000_0071_1000 (huge); level = 1; pte = 0 @ 0p0 0-H-A---WPX(0xA3)
-2_mm_4_translate::t0_path-------------------------- [passed]
-
-2_mm_4_translate::t1_translate------------------------------
-18:30:23 0 D pte = 638 @ 0p27_E000 0--DA---WPX(0x63)
-18:30:23 0 D read_ptr = 0xfffff0000027e330; write_ptr = 0x10000201330
-18:30:23 0 D write_value = 0; read_value = 0; variable = 0
-18:30:23 0 D write_value = 1; read_value = 1; variable = 1
-18:30:23 0 D write_value = 2; read_value = 2; variable = 2
-18:30:23 0 D write_value = 3; read_value = 3; variable = 3
-18:30:23 0 D write_value = 4; read_value = 4; variable = 4
-2_mm_4_translate::t1_translate--------------------- [passed]
-
-2_mm_4_translate::t2_map_intermediate-----------------------
-18:30:23 0 D allocated unique user virtual address; virt = 0v1080_0000_0000
-18:30:23 0 D pte = <non-present>
-18:30:23 0 D allocated unique user virtual address; virt = 0v1100_0000_0000
-2_mm_4_translate::t2_map_intermediate-------------- [passed]
-
-2_mm_4_translate::t3_no_excessive_intermediate_flags--------
-18:30:23 0 D allocated unique user virtual address; virt = 0v1180_0000_0000
-18:30:23 0 D pte = ()
-2_mm_4_translate::t3_no_excessive_intermediate_flags [passed]
-
-2_mm_4_translate::t4_huge_page------------------------------
-2_mm_4_translate::t4_huge_page--------------------- [passed]
-
-2_mm_4_translate::t5_no_page--------------------------------
-18:30:23 0 D allocated unique user virtual address; virt = 0v1200_0000_0000
-2_mm_4_translate::t5_no_page----------------------- [passed]
-
-2_mm_4_translate::t6_build_map------------------------------
-18:30:23 0 D virtual to physical mapping
-18:30:23 0 D block = [0v1000, 0v1_6000), size 84.000 KiB -> [0p1000, 0p1_6000), size 84.000 KiB, 0-------WPX(0x3)
-18:30:23 0 D block = [0vA_0000, 0vC_0000), size 128.000 KiB -> [0pA_0000, 0pC_0000), size 128.000 KiB, 0-------WPX(0x3)
-18:30:23 0 D block = [0v20_0000, 0v21_7000), size 92.000 KiB -> [0p40_0000, 0p41_7000), size 92.000 KiB, 0--------P-(0x8000000000000001)
-18:30:23 0 D block = [0v21_7000, 0v32_9000), size 1.070 MiB -> [0p41_6000, 0p52_8000), size 1.070 MiB, 0--------PX(0x1)
-18:30:23 0 D block = [0v32_9000, 0v34_3000), size 104.000 KiB -> [0p52_7000, 0p54_1000), size 104.000 KiB, 0-------WP-(0x8000000000000003)
-18:30:23 0 D block = [0v34_3000, 0v34_4000), size 4.000 KiB -> [0p1_7000, 0p1_8000), size 4.000 KiB, 0-------WP-(0x8000000000000003)
-18:30:23 0 D block = [0v34_4000, 0v44_7000), size 1.012 MiB -> [0p54_1000, 0p64_4000), size 1.012 MiB, 0-------WP-(0x8000000000000003)
-18:30:23 0 D block = [0v44_7000, 0v44_D000), size 24.000 KiB -> [0p1_8000, 0p1_E000), size 24.000 KiB, 0-------WP-(0x8000000000000003)
-18:30:23 0 D block = [0v100_0000_0000, 0v100_0000_1000), size 4.000 KiB -> [0p1_6000, 0p1_7000), size 4.000 KiB, 0-------WPX(0x3)
-18:30:23 0 D block = [0v100_0000_2000, 0v100_0008_3000), size 516.000 KiB -> [0p1_E000, 0p9_F000), size 516.000 KiB, 0-------WPX(0x3)
-18:30:24 0 D block = [0v100_0008_3000, 0v100_0020_2000), size 1.496 MiB -> [0p10_0000, 0p27_F000), size 1.496 MiB, 0-------WPX(0x3)
-18:30:24 0 D block = [0vFFFF_F000_0000_0000, 0vFFFF_F001_0020_0000), size 4.002 GiB -> [0p0, 0p1_0020_0000), size 4.002 GiB, 0-H-----WPX(0x83)
-18:30:24 0 D virtual address space
-18:30:24 0 D block = [0v1000, 0v1_6000), size 84.000 KiB, 0-------WPX(0x3)
-18:30:24 0 D block = [0vA_0000, 0vC_0000), size 128.000 KiB, 0-------WPX(0x3)
-18:30:24 0 D block = [0v20_0000, 0v21_7000), size 92.000 KiB, 0--------P-(0x8000000000000001)
-18:30:24 0 D block = [0v21_7000, 0v32_9000), size 1.070 MiB, 0--------PX(0x1)
-18:30:24 0 D block = [0v32_9000, 0v44_D000), size 1.141 MiB, 0-------WP-(0x8000000000000003)
-18:30:24 0 D block = [0v100_0000_0000, 0v100_0000_1000), size 4.000 KiB, 0-------WPX(0x3)
-18:30:24 0 D block = [0v100_0000_2000, 0v100_0020_2000), size 2.000 MiB, 0-------WPX(0x3)
-18:30:25.195 0 D block = [0vFFFF_F000_0000_0000, 0vFFFF_F001_0020_0000), size 4.002 GiB, 0-H-----WPX(0x83)
-2_mm_4_translate::t6_build_map--------------------- [passed]
-
-2_mm_4_translate::t7_duplicate_drop-------------------------
-18:30:25.213 0 D allocated unique user virtual address; virt = 0v1280_0000_0000
-18:30:25.219 0 D allocated unique user virtual address; virt = 0v1300_0000_0000
-panicked at kernel/src/memory/mapping.rs:207:9:
-not implemented
-  ...
---------------------------------------------------- [failed]
-```
-
-
-#### Создание полной копии виртуального отображения
-
-В будущем, при создании нового процесса, нам понадобится скопировать существующий
-[`Mapping`](../../doc/kernel/memory/mapping/struct.Mapping.html)
-в новый.
-Это делает метод
-[`Mapping::duplicate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.duplicate):
-```rust
-fn duplicate(&self) -> Result<Self> {
-    let mut result = Self::new(Frame::zero(), self.phys2virt);
-    result.page_table_root = Self::duplicate_subtree(&mut result, self, self.page_table_root, PAGE_TABLE_ROOT_LEVEL)?;
-    Ok(result)
-}
-```
-Основную работу он перекладывает на рекурсивный метод
-[`Mapping::duplicate_subtree()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.duplicate_subtree),
-запуская корневой вызов рекурсии.
-
-Реализуйте [метод](../../doc/kernel/memory/mapping/struct.Mapping.html#method.duplicate_subtree)
-```rust
-fn Mapping::duplicate_subtree(
-    &self,
-    dst: &mut Mapping,
-    src_frame: Frame,
-    level: u32,
-) -> Result<Frame>
-```
-
-в файле [`kernel/src/memory/mapping.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/mapping.rs)
-сейчас, пока помните как устроено страничное отображение.
-Он принимает на вход:
-
-- Новое отображение `dst`, которое мы создаём как копию исходного.
-- Исходное отображение `self`.
-- Исходный узел `PageTable` таблицы страниц в виде содержащего его фрейма `src_frame`.
-- Уровень этого узла `level` от [`PAGE_TABLE_ROOT_LEVEL = 3`](../../doc/ku/memory/mmu/constant.PAGE_TABLE_ROOT_LEVEL.html)
-до [`PAGE_TABLE_LEAF_LEVEL = 0`](../../doc/ku/memory/mmu/constant.PAGE_TABLE_LEAF_LEVEL.html).
-
-И должен создать копию заданного `src_frame` узла.
-Возвращает он либо эту копию, либо возникшую в процессе работы ошибку.
-Этот метод копирует только страничное отображение, то есть все `PageTable` уровней L3--L0,
-но не фреймы, на которые указывает это отображение.
-То есть, должно получиться отображение,
-которое переводит те же виртуальные адреса в те же физические адреса.
-Разделяя таким образом отображённую часть физической памяти,
-но дублируя физическую память под само страничное отображение (`PageTable` уровней L3--L0).
-Если бы `PageTable` разделяли ту же физическую память, то уже после того как копирование отработало,
-модификации исходного `self` приводили бы к модификации `dst` и наоборот.
-А это не то что нам нужно.
-Это означает, что
-
-- `PageTable` уровней L3--L1 включительно нужно пересоздать, заполняя их `PageTableEntry` результатами рекурсивных вызовов `Mapping::duplicate_subtree()`.
-- А вот `PageTable` уровня L0 нужно просто скопировать как есть, их записи `PageTableEntry` должны вести в те же физические фреймы, что и в исходном отображении `self`. Но только если соответствующая запись ведёт на страницу, принадлежащую ядру. Ссылки уровня L0 на страницы, принадлежащие пользователю --- `PageTableFlags::USER`, --- копировать не нужно.
-- На этот раз `PageTableFlags::HUGE` нужно корректно обработать. Это означает, что рекурсивно спускаться в записи `PageTableEntry` для которых этот флаг включён не нужно. С этими записями нужно поступить как с записями на уровне L0, --- скопировать в точности из `self`.
-- Не используемые записи в новых [`PageTable`](../../doc/ku/memory/mmu/type.PageTable.html) нужно почистить, как и в [`Mapping::map_intermediate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.map_intermediate).
-
-Для физических фреймов, на которые указывают скопированные записи листьевого уровня L0, нужно вызвать
-[`FrameAllocator::reference()`](../../doc/kernel/memory/trait.FrameAllocator.html#tymethod.reference).
-Этот метод увеличивает число ссылок на физический фрейм.
-И позволяет понять, что физический фрейм нельзя считать свободным пока оба отображения `self` и `dst` существуют.
-А ведь именно указанные фреймы мы разделяем, используя сразу в обоих отображениях.
-Для выделения новых физических фреймов используйте
-[`FrameAllocator::allocate()`](../../doc/kernel/memory/trait.FrameAllocator.html#tymethod.allocate).
-В обоих случаях обращайтесь к глобальному
-[`FRAME_ALLOCATOR`](../../doc/kernel/memory/struct.FRAME_ALLOCATOR.html).
-
-Также вам могут пригодиться методы
-
-- [`unsafe fn Mapping::page_table_ref(&self, frame: Frame) -> &PageTable`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.page_table_ref) и
-- [`unsafe fn Mapping::page_table_mut(&mut self, frame: Frame) -> &mut PageTable`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.page_table_mut).
-
-Они позволяют интерпретировать заданный физический фрейм `frame` как узел `PageTable` таблицы страниц.
-И различаются только возможностью менять эту таблицу.
-
-Учтите, что в рекурсивный вызов передаётся изменяемая ссылка `dst: &mut Mapping`.
-А значит, в момент рекурсивного вызова не должно быть живых локальных переменных ссылающихся на `dst` прямо или косвенно.
-Rust не даст скомпилировать такой код из-за нарушения [владения](https://doc.rust-lang.ru/book/ch04-00-understanding-ownership.html) `dst`, ---
-только одна из функций, вызывающая или вызываемая, может эксклюзивно заимствовать `dst` в каждый момент времени.
-А [изменяемая ссылка и означает эксклюзивность заимствования](https://doc.rust-lang.ru/book/ch04-02-references-and-borrowing.html#%D0%98%D0%B7%D0%BC%D0%B5%D0%BD%D1%8F%D0%B5%D0%BC%D1%8B%D0%B5-%D1%81%D1%81%D1%8B%D0%BB%D0%BE%D1%87%D0%BD%D1%8B%D0%B5-%D0%BF%D0%B5%D1%80%D0%B5%D0%BC%D0%B5%D0%BD%D0%BD%D1%8B%D0%B5).
-
-
-#### Удаление виртуального отображения
-
-Раз есть способ создать новое отображение, которое расходует физические фреймы, значит должен быть и способ удалить его, вернув эти фреймы в систему.
-Это делает реализация типажа [`core::ops::Drop`](https://doc.rust-lang.org/nightly/core/ops/trait.Drop.html):
-```rust
-impl Drop for Mapping {
-    fn drop(&mut self) {
-        assert_ne!(Self::current_page_table_root(), self.page_table_root);
-
-        if self.is_valid() {
-            self.drop_subtree(self.page_table_root, PAGE_TABLE_ROOT_LEVEL);
-        }
-    }
-}
-```
-В строчке `assert_ne!(Self::current_page_table_root(), self.page_table_root)` проверяется, что мы не пытаемся удалить отображение, которое в данный момент загружено в регистр
-[`CR3`](https://wiki.osdev.org/CPU_Registers_x86#CR3)
-и является активным виртуальным пространством.
-Далее вся работа перекладывается на рекурсивный метод
-[`Mapping::drop_subtree()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.drop_subtree).
-
-Реализуйте [метод](../../doc/kernel/memory/mapping/struct.Mapping.html#method.drop_subtree)
-```rust
-fn Mapping::drop_subtree(
-    &mut self,
-    node: Frame,
-    level: u32,
-    drop_used: bool,
-) -> bool
-```
-в файле [`kernel/src/memory/mapping.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/mapping.rs).
-
-Он удаляет узлы дерева отображения.
-
-- Если `drop_used = true`, удаляются все узлы. Это как раз нужно в [`Mapping::drop()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.drop).
-- Если `drop_used = false`, удаляются только узлы, через которые не отображена ни одна страница. То есть, узлы в которых все элементы равны [`PageTableEntry::default()`](../../doc/ku/memory/mmu/struct.PageTableEntry.html#method.default), либо становятся таковыми после удаления ненужных узлов следующих уровней. Это нужно для очистки не использующейся памяти методом [`Mapping::unmap_unused_intermediate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.unmap_unused_intermediate) и корректной работы функции `forbid_frame_leaks()`, которая следит за отсутствием утечек физических фреймов в тестах. В этом режиме используется возвращаемое значение, которое говорит о том, был ли удалён текущий узел.
-
-Для освобождения фреймов используйте
-[`FrameAllocator::deallocate()`](../../doc/kernel/memory/trait.FrameAllocator.html#tymethod.deallocate),
-он уменьшит количество ссылок на фрейм и освободит его, когда ссылок не останется.
-Перед освобождением фрейма, занятого под одну из `PageTable`, то есть из записей `PageTableEntry` уровней L3--L1,
-нужно спуститься в этот фрейм, рекурсивно вызвав `Mapping::drop_subtree()`.
-Пользовательские фреймы нужно освобождать так же как и фреймы, занятые под `PageTable`.
-А вот с записями у которых включён флаг `PageTableFlags::HUGE` делать ничего не нужно --- ни освобождать, ни спускаться в них рекурсивно.
+- Методы [`FrameGuard::load()`](../../doc/kernel/memory/struct.FrameGuard.html#method.load) и [`FrameGuard::store()`](../../doc/kernel/memory/struct.FrameGuard.html#method.store).
 
 
 ### Проверьте себя
 
-Запустите тест, теперь он должен проходить полностью:
+Теперь тест `2-mm-4-translate` должен проходить полностью:
 
 ```console
 $ (cd kernel; cargo test --test 2-mm-4-translate)
 ...
-2_mm_4_translate::t1_translate------------------------------
-18:42:21 0 D pte = 638 @ 0p27_E000 0--DA---WPX(0x63)
-18:42:21 0 D read_ptr = 0xfffff0000027e330; write_ptr = 0x10000201330
-18:42:21 0 D write_value = 0; read_value = 0; variable = 0
-18:42:21 0 D write_value = 1; read_value = 1; variable = 1
-18:42:21 0 D write_value = 2; read_value = 2; variable = 2
-18:42:21 0 D write_value = 3; read_value = 3; variable = 3
-18:42:21 0 D write_value = 4; read_value = 4; variable = 4
-2_mm_4_translate::t1_translate--------------------- [passed]
+running 8 tests
 
-2_mm_4_translate::t2_map_intermediate-----------------------
-18:42:21 0 D pte = <non-present>
-2_mm_4_translate::t2_map_intermediate-------------- [passed]
+2_mm_4_translate::t00_path----------------------------------
+17:30:01 0 D present:
+17:30:01 0 D     virt = 0v2F_7498
+17:30:01 0 D     path = L3: 0vFFFF_8000_0000_1000 / 1 @ 0p1000 -> L2: 0vFFFF_8000_0000_2000 / 2 @ 0p2000 -> L1: 0vFFFF_8000_0000_3008 / 3 @ 0p3000 -> L0: 0vFFFF_8000_0086_37B8 / 2147 @ 0p86_3000 => 0p4F_4498
+17:30:01 0 D     level = 0
+17:30:01 0 D     pte = 1268 @ 0p4F_4000 -----DA---W-P(0x8000000000000063)
+17:30:01 0 D allocated unique virtual address; virt = 0v1080_0000_0000; is_user = true
+17:30:01 0 D non-present:
+17:30:01 0 D     virt = 0v1080_0000_0000
+17:30:01 0 D     path = L3: 0vFFFF_8000_0000_1108 / 1 @ 0p1000 (non-present)
+17:30:01 0 D     level = 3
+17:30:01 0 D     pte = <non-present>
+17:30:01 0 D huge:
+17:30:01 0 D     virt = 0vFFFF_8000_0070_0000
+17:30:01 0 D     path = L3: 0vFFFF_8000_0000_1800 / 1 @ 0p1000 -> L2: 0vFFFF_8000_03FF_F000 / 16383 @ 0p3FF_F000 (1 GiB huge page) => 0p70_0000
+17:30:01 0 D     level = 2
+17:30:01 0 D     pte = 0 @ 0p0 ----HDA---W-P(0x80000000000000E3)
+2_mm_4_translate::t00_path------------------------- [passed]
 
-2_mm_4_translate::t3_no_excessive_intermediate_flags--------
-18:42:21 0 D pte = ()
-2_mm_4_translate::t3_no_excessive_intermediate_flags [passed]
+2_mm_4_translate::t01_translate-----------------------------
+17:30:01 0 D pte = 1268 @ 0p4F_4000 -----DA---W-P(0x8000000000000063)
+17:30:01 0 D read_ptr = 0xffff8000004f4190; write_ptr = 314159266
+17:30:01 0 D write_value = 0; read_value = 0; variable = 0
+17:30:01 0 D write_value = 1; read_value = 1; variable = 1
+17:30:01 0 D write_value = 2; read_value = 2; variable = 2
+17:30:01 0 D write_value = 3; read_value = 3; variable = 3
+17:30:01 0 D write_value = 4; read_value = 4; variable = 4
+2_mm_4_translate::t01_translate-------------------- [passed]
 
-2_mm_4_translate::t4_huge_page------------------------------
-2_mm_4_translate::t4_huge_page--------------------- [passed]
+2_mm_4_translate::t02_map_intermediate----------------------
+17:30:01 0 D allocated unique virtual address; virt = 0v1100_0000_0000; is_user = true
+17:30:01 0 D pte = <non-present>
+17:30:01 0 D allocated unique virtual address; virt = 0v1180_0000_0000; is_user = true
+2_mm_4_translate::t02_map_intermediate------------- [passed]
 
-2_mm_4_translate::t5_no_page--------------------------------
-2_mm_4_translate::t5_no_page----------------------- [passed]
+2_mm_4_translate::t03_no_excessive_intermediate_flags-------
+17:30:01 0 D allocated unique virtual address; virt = 0v1200_0000_0000; is_user = true
+2_mm_4_translate::t03_no_excessive_intermediate_flags [passed]
 
-2_mm_4_translate::t6_duplicate_drop-------------------------
-18:42:22 0 I duplicate; address_space = "process" @ 0p7FD_6000
-18:42:22 0 I drop; address_space = "process" @ 0p7FD_6000
-18:42:22 0 I duplicate; address_space = "process" @ 0p7FC_3000
-18:42:22 0 I drop; address_space = "process" @ 0p7FC_3000
-2_mm_4_translate::t6_duplicate_drop---------------- [passed]
+2_mm_4_translate::t04_huge_page-----------------------------
+2_mm_4_translate::t04_huge_page-------------------- [passed]
 
-2_mm_4_translate::t7_drop_subtree---------------------------
-18:42:23.067 0 D pte = <non-present>
-18:42:23.209 0 D pte = ()
-2_mm_4_translate::t7_drop_subtree------------------ [passed]
+2_mm_4_translate::t05_no_page-------------------------------
+17:30:01 0 D allocated unique virtual address; virt = 0v1280_0000_0000; is_user = true
+2_mm_4_translate::t05_no_page---------------------- [passed]
 
-2_mm_4_translate::t9_no_frame-------------------------------
-18:42:27.461 0 D real free frame count can be less than free frame count reported by boot frame allocator since it records reference and deallocation counts but does not do that actually; frame_count = 30942; real_frame_count = 30883
-2_mm_4_translate::t9_no_frame---------------------- [passed]
-18:42:27.477 0 I exit qemu; exit_code = ExitCode(SUCCESS)
+2_mm_4_translate::t06_build_map-----------------------------
+17:30:01 0 D virtual to physical mapping
+17:30:01 0 D block = [0v1000, 0v1_6000), size 84 KiB -> [0p1000, 0p1_6000), size 84 KiB, ----------WXP(0x3)
+17:30:01 0 D block = [0vA_0000, 0vC_0000), size 128 KiB -> [0pA_0000, 0pC_0000), size 128 KiB, ----------WXP(0x3)
+17:30:01 0 D block = [0v20_0000, 0v21_5000), size 84 KiB -> [0p40_0000, 0p41_5000), size 84 KiB, ------------P(0x8000000000000001)
+17:30:02.067 0 D block = [0v21_5000, 0v2E_0000), size 812 KiB -> [0p41_4000, 0p4D_F000), size 812 KiB, -----------XP(0x1)
+17:30:02.105 0 D block = [0v2E_0000, 0v2F_5000), size 84 KiB -> [0p4D_E000, 0p4F_3000), size 84 KiB, ----------W-P(0x8000000000000003)
+17:30:02.125 0 D block = [0v2F_5000, 0v2F_6000), size 4 KiB -> [0p1_7000, 0p1_8000), size 4 KiB, ----------W-P(0x8000000000000003)
+17:30:02.733 0 D block = [0v2F_7000, 0v5B_A000), size 2.762 MiB -> [0p4F_4000, 0p7B_7000), size 2.762 MiB, ----------W-P(0x8000000000000003)
+17:30:03.341 0 D block = [0v5B_A000, 0v5C_0000), size 24 KiB -> [0p1_8000, 0p1_E000), size 24 KiB, ----------W-P(0x8000000000000003)
+17:30:03.363 0 D block = [0v100_0000_0000, 0v100_0000_1000), size 4 KiB -> [0p1_6000, 0p1_7000), size 4 KiB, ----------WXP(0x3)
+17:30:03.491 0 D block = [0v100_0000_2000, 0v100_0008_3000), size 516 KiB -> [0p1_E000, 0p9_F000), size 516 KiB, ----------WXP(0x3)
+17:30:08.221 0 D block = [0v100_0008_3000, 0v100_0020_2000), size 1.496 MiB -> [0p10_0000, 0p27_F000), size 1.496 MiB, ----------WXP(0x3)
+17:30:08.619 0 D block = [0vFFFF_8000_0000_0000, 0vFFFF_8000_4000_0000), size 1 GiB -> [0p0, 0p4000_0000), size 1 GiB, ----H-----W-P(0x8000000000000083)
+17:30:08.639 0 D virtual address space
+17:30:08.747 0 D block = [0v1000, 0v1_6000), size 84 KiB, ----------WXP(0x3)
+17:30:08.973 0 D block = [0vA_0000, 0vC_0000), size 128 KiB, ----------WXP(0x3)
+17:30:09.001 0 D block = [0v20_0000, 0v21_5000), size 84 KiB, ------------P(0x8000000000000001)
+17:30:09.185 0 D block = [0v21_5000, 0v2E_0000), size 812 KiB, -----------XP(0x1)
+17:30:09.221 0 D block = [0v2E_0000, 0v2F_6000), size 88 KiB, ----------W-P(0x8000000000000003)
+17:30:10.417 0 D block = [0v2F_7000, 0v5C_0000), size 2.785 MiB, ----------W-P(0x8000000000000003)
+17:30:10.435 0 D block = [0v100_0000_0000, 0v100_0000_1000), size 4 KiB, ----------WXP(0x3)
+17:30:15.281 0 D block = [0v100_0000_2000, 0v100_0020_2000), size 2 MiB, ----------WXP(0x3)
+17:30:15.681 0 D block = [0vFFFF_8000_0000_0000, 0vFFFF_8000_4000_0000), size 1 GiB, ----H-----W-P(0x8000000000000083)
+2_mm_4_translate::t06_build_map-------------------- [passed]
+
+2_mm_4_translate::t99_no_frame------------------------------
+17:30:15.779 0 D real free frame count can be less than free frame count reported by boot frame allocator since it records reference and deallocation counts but does not do that actually; frame_count = 14606; real_frame_count = 14606
+17:30:15.797 0 D allocated unique virtual address; virt = 0v1300_0000_0000; is_user = true
+2_mm_4_translate::t99_no_frame--------------------- [passed]
+17:30:15.817 0 I exit qemu; exit_code = ExitCode(SUCCESS)
 ```
 
 
 ### Ориентировочный объём работ этой части лабораторки
 
 ```console
- kernel/src/memory/mapping.rs | 114 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 105 insertions(+), 9 deletions(-)
+kernel/src/memory/mapping.rs | 32 ++++++++++++++++++++++++++++----
+kernel/src/memory/path.rs    | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+2 files changed, 94 insertions(+), 6 deletions(-)
 ```

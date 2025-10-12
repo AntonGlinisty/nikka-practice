@@ -195,64 +195,66 @@ deadlines:
       end: 2026-02-01 23:59
       enabled: true
       tasks:
-        - task: boot-frame-allocator
-          score: 100
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-1-boot-frame-allocator.html
+        - task: frame-allocator
+          score: 150
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-1-frame-allocator.html
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-block --test 2-mm-1-boot-frame-allocator
+            - cd kernel && cargo test --profile ci --test 2-mm-1-frame-allocator
 
         - task: page-allocator
           score: 100
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-2-address-space-1-allocation.html
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-2-page-allocator.html
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-2-page-allocator
+            - cd kernel && cargo test --profile ci --test 2-mm-2-block --test 2-mm-2-page-allocator
 
         - task: phys2virt
           score: 100
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-2-address-space-2-phys2virt.html
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-3-phys2virt.html
+          dependencies:
+            - frame-allocator
           check:
             - cd kernel && cargo test --profile ci --test 2-mm-3-phys2virt
 
         - task: translate
           score: 100
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-2-address-space-2-translate.html
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-4-translate.html
           dependencies:
-            - page-allocator
+            - frame-allocator
           check:
             - cd kernel && cargo test --profile ci --test 2-mm-4-translate
 
         - task: map
           score: 50
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-2-address-space-3-map.html
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-5-map.html
           dependencies:
             - translate
+            - page-allocator
           check:
             - cd kernel && cargo test --profile ci --test 2-mm-5-map
 
         - task: duplicate
           score: 100
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-2-address-space-2-translate.html
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-6-duplicate-subtree.html
           dependencies:
-            - translate
+            - map
           check:
             - cd kernel && cargo test --profile ci --test 2-mm-6-duplicate-subtree
 
-        - task: main-frame-allocator
-          score: 150
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-8-main-frame-allocator.html
-          dependencies:
-            - map
-            - duplicate
-          check:
-            - cd kernel && cargo test --profile ci --test 2-mm-8-main-frame-allocator
-
         - task: no-leaks-in-memory
           score: 50
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-8-main-frame-allocator.html
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-7-drop-subtree.html
           dependencies:
-            - main-frame-allocator
+            - duplicate
           check:
-            - cd kernel && cargo test --profile ci --features forbid-leaks --test 2-mm-1-boot-frame-allocator --test 2-mm-2-page-allocator --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-6-duplicate-subtree --test 2-mm-8-main-frame-allocator --test 2-mm-7-drop-subtree
+            - cd kernel && cargo test --profile ci --features forbid-leaks --test 2-mm-1-frame-allocator --test 2-mm-2-page-allocator --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-6-duplicate-subtree --test 2-mm-7-drop-subtree
+
+        - task: resize-frame-allocator
+          score: 100
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-8-resize-frame-allocator.html
+          dependencies:
+            - map
+          check:
+            - cd kernel && cargo test --profile ci --test 2-mm-8-resize-frame-allocator
 
     - group: asm
       start: 2025-10-21 18:00
@@ -313,7 +315,7 @@ deadlines:
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-1-big.html
           dependencies:
-            - main-frame-allocator
+            - map
           check:
             - cd kernel && cargo test --profile ci --test 3-allocator-1-big
 
@@ -397,6 +399,7 @@ deadlines:
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-3-elf.html
           dependencies:
             - big-allocator
+            - duplicate
           check:
             - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --test 4-process-3-elf -- --test-threads=1
             - cd kernel && cargo test --profile ci --test 4-process-3-elf
@@ -405,7 +408,7 @@ deadlines:
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-4-permission-checks.html
           dependencies:
-            - main-frame-allocator
+            - map
           check:
             - cd kernel && cargo test --profile ci --test 4-process-4-permission-checks
 

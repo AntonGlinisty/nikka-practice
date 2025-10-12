@@ -13,9 +13,8 @@
 - [`kernel::memory`](../../doc/kernel/memory/index.html) в директории `kernel/src/memory`. Здесь находится часть работы с памятью, которая происходит только в ядре.
   - [`kernel/src/memory/mod.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/mod.rs) --- корневая часть модуля [`kernel::memory`](../../doc/kernel/memory/index.html).
   - [`kernel/src/memory/address_space.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/address_space.rs) --- абстракция адресного пространства `AddressSpace`.
-  - [`kernel/src/memory/boot_frame_allocator.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/boot_frame_allocator.rs) --- временный аллокатор физических фреймов `BootFrameAllocator`.
   - [`kernel/src/memory/gdt.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/gdt.rs) --- таблица сегментов памяти `Gdt`.
-  - [`kernel/src/memory/main_frame_allocator.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/main_frame_allocator.rs) --- основной аллокатор физических фреймов `MainFrameAllocator`.
+  - [`kernel/src/memory/frame_allocator.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/frame_allocator.rs) --- основной аллокатор физических фреймов `FrameAllocator`.
   - [`kernel/src/memory/mapping.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/mapping.rs) --- реализация отображения виртуальной памяти в физическую `Mapping`.
   - [`kernel/src/memory/page_allocator.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/page_allocator.rs) --- аллокатор страниц виртуальной памяти `PageAllocator`.
   - [`kernel/src/memory/stack.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/stack.rs) --- работа со стеками `Stack` и выделенные стеки для непредвиденных исключений `ExceptionStacks`.
@@ -39,11 +38,12 @@
 ### Ориентировочный объём работ этой лабораторки
 
 ```console
- kernel/src/memory/address_space.rs        |  57 ++++++++++++++++++++++-----
- kernel/src/memory/boot_frame_allocator.rs |  50 +++++++++++++++++++++---
- kernel/src/memory/main_frame_allocator.rs | 144 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++------
- kernel/src/memory/mapping.rs              | 114 +++++++++++++++++++++++++++++++++++++++++++++++++-----
- kernel/src/memory/page_allocator.rs       |  44 +++++++++++++++++++--
- ku/src/memory/block.rs                    |  12 +++++-
- 6 files changed, 380 insertions(+), 41 deletions(-)
+kernel/src/memory/address_space.rs   |  35 ++++++++++++---
+kernel/src/memory/frame_allocator.rs | 184 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-----
+kernel/src/memory/mapping.rs         | 110 +++++++++++++++++++++++++++++++++++++++++----
+kernel/src/memory/page_allocator.rs  |  45 +++++++++++++++++--
+kernel/src/memory/path.rs            |  68 +++++++++++++++++++++++++++-
+kernel/src/memory/phys2virt.rs       |  90 ++++++++++++++++++++++++++++++++-----
+ku/src/memory/block.rs               |  12 ++++-
+7 files changed, 499 insertions(+), 45 deletions(-)
 ```

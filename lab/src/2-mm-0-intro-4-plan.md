@@ -13,17 +13,20 @@
 Выбираться из него будем в три этапа.
 
 Сначала
-[реализуем простой аллокатор](../../lab/book/2-mm-1-boot-frame-allocator.html)
+[реализуем аллокатор](../../lab/book/2-mm-1-frame-allocator.html)
 физических фреймов
-[`BootFrameAllocator`](../../doc/kernel/memory/boot_frame_allocator/struct.BootFrameAllocator.html).
-Он не будет требовать много памяти и его размер будет известен на этапе компиляции.
-Этот аллокатор при инициализации должен будет учесть значительную часть свободной физической памяти.
-В качестве структуры данных для учёта свободных фреймов
-[`BootFrameAllocator`](../../doc/kernel/memory/boot_frame_allocator/struct.BootFrameAllocator.html)
-использует пару индексов --- номер первого свободного фрейма и номер следующего за последним свободным фреймом.
-При выделении он выдаёт свободные фреймы и меняет индексы для учёта этого факта.
-А вот освобождение он просто не поддерживает.
-Использовать этот аллокатор будем только во время инициализации ядра, что подчёркивается его названием.
+[`FrameAllocator`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html).
+Под его метаданные выделим немного памяти фиксированного размера на этапе компиляции.
+Выделять из него на этом этапе можно будет только ограниченную часть физической памяти.
+Про каждый фрейм он будет помнить некоторую информацию, собранную в
+[`FrameInfo`](../../doc/kernel/memory/frame_allocator/enum.FrameInfo.html).
+Соответственно, ему потребуется целый
+[срез](https://doc.rust-lang.ru/book/ch04-03-slices.html)
+[`FrameAllocator::frame_info`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#structfield.frame_info).
+Полный размер этого среза зависит от доступного количества памяти в компьютере,
+именно поэтому он не может быть инициализирован статически.
+То есть, на первом этапе аллокатору будет доступен фактически
+только начальный участок этого среза.
 
 На втором этапе нам нужно будет
 [поддержать работу с виртуальным адресным пространством](../../lab/book/2-mm-2-address-space.html),
@@ -34,20 +37,19 @@
 размер которых не известен на этапе компиляции.
 
 После этого
-[реализуем чуть более сложный аллокатор](../../lab/book/2-mm-8-main-frame-allocator.html)
-физических фреймов
-[`MainFrameAllocator`](../../doc/kernel/memory/main_frame_allocator/struct.MainFrameAllocator.html).
-Про каждый фрейм он будет помнить некоторую информацию, собранную в
-[`FrameInfo`](../../doc/kernel/memory/main_frame_allocator/enum.FrameInfo.html).
-Соответственно, ему потребуется целый
+[реализуем изменение размера метаданных](../../lab/book/2-mm-8-resize-frame-allocator.html)
+имеющегося у нас аллокатора физических фреймов
+[`FrameAllocator`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html).
+Теперь мы можем использовать полный
 [срез](https://doc.rust-lang.ru/book/ch04-03-slices.html)
-[`MainFrameAllocator::frame_info`](../../doc/kernel/memory/main_frame_allocator/struct.MainFrameAllocator.html#structfield.frame_info).
-Размер этого среза зависит от доступного количества памяти в компьютере,
-поэтому он не может быть инициализирован статически.
-Память под него мы выделим с помощью
+[`FrameAllocator::frame_info`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#structfield.frame_info),
+описывающий всю доступную физическую память компьютера.
+Память под новый срез мы выделим с помощью
 [`AddressSpace`](../../doc/kernel/memory/struct.AddressSpace.html)
-из
-[`BootFrameAllocator`](../../doc/kernel/memory/boot_frame_allocator/struct.BootFrameAllocator.html).
+из самого же
+[`FrameAllocator`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html).
+Из старого среза скопируем имеющуюся метаинформацию в новый,
+после чего память под старый срез можно будет освободить.
 
 Отражением этого плана в коде является функция
 [`kernel::memory::init()`](../../doc/kernel/memory/fn.init.html):
@@ -55,42 +57,26 @@
 fn init(boot_info: &'static BootInfo) {
     ...
 
-    *FRAME_ALLOCATOR.lock() = FrameAllocator::Boot(
-        BootFrameAllocator::new(&boot_info.memory_map)
-    );
+    *FRAME_ALLOCATOR.lock() = frame_allocator::init(&boot_info.memory_map);
 
-    *BASE_ADDRESS_SPACE.lock() = AddressSpace::new(phys2virt);
+    ...
 
-    *FRAME_ALLOCATOR.lock() = FrameAllocator::Main(
-        main_frame_allocator::init(&boot_info.memory_map),
-    );
+    *BASE_ADDRESS_SPACE.lock() = AddressSpace::new(page_table_root, phys2virt);
+
+    ...
+
+    frame_allocator::resize(physical_memory, &boot_info.memory_map);
 
     ...
 }
 ```
-Сначала глобальным аллокатором физических фреймов
+Сначала она инициализирует глобальный аллокатор физических фреймов
 [`FRAME_ALLOCATOR`](../../doc/kernel/memory/struct.FRAME_ALLOCATOR.html)
-она делает структуру
-[`BootFrameAllocator`](../../doc/kernel/memory/boot_frame_allocator/struct.BootFrameAllocator.html).
+с заданным на этапе компиляции размером метаданных.
 Затем она инициализирует глобальную переменную
 [`BASE_ADDRESS_SPACE`](../../doc/kernel/memory/static.BASE_ADDRESS_SPACE.html)
 для управления адресным пространством структурой
 [`AddressSpace`](../../doc/kernel/memory/struct.AddressSpace.html).
-Затем глобальный аллокатор физических фреймов
+Затем размер глобального аллокатора физических фреймов
 [`FRAME_ALLOCATOR`](../../doc/kernel/memory/struct.FRAME_ALLOCATOR.html)
-меняется на структуру
-[`MainFrameAllocator`](../../doc/kernel/memory/main_frame_allocator/struct.MainFrameAllocator.html),
-которую возвращает функция
-[`main_frame_allocator::init()`](../../doc/kernel/memory/main_frame_allocator/fn.init.html).
-
-`FrameAllocator::Boot` и `FrameAllocator::Main` --- это элементы перечисления
-
-```rust
-pub enum FrameAllocator {
-    Void,
-    Boot(BootFrameAllocator),
-    Main(MainFrameAllocator),
-}
-```
-
-Они позволяют понять, какой из аллокаторов физических фреймов используется в данный момент.
+меняется на необходимый для данного компьютера.
