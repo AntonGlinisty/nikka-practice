@@ -20,7 +20,6 @@ use kernel::{
         Block,
         FRAME_ALLOCATOR,
         Frame,
-        FrameAllocator,
         FrameGuard,
         KERNEL_R,
         KERNEL_RW,

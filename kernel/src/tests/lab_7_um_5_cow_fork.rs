@@ -18,10 +18,7 @@ use ku::{
 use kernel::{
     Subsystems,
     log::debug,
-    memory::{
-        FRAME_ALLOCATOR,
-        FrameAllocator,
-    },
+    memory::FRAME_ALLOCATOR,
     process::{
         Process,
         Scheduler,

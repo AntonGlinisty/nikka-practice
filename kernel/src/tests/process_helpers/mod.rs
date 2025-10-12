@@ -15,7 +15,6 @@ use kernel::{
     },
     memory::{
         FRAME_ALLOCATOR,
-        FrameAllocator,
         Virt,
         test_scaffolding::translate,
     },

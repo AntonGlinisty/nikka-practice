@@ -3,7 +3,6 @@ use kernel::{
     memory::{
         BASE_ADDRESS_SPACE,
         FRAME_ALLOCATOR,
-        FrameAllocator,
         test_scaffolding::unmap_unused_intermediate,
     },
 };

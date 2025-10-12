@@ -68,6 +68,7 @@ impl FrameGuard {
         Self { frame }
     }
 
+    #[allow(rustdoc::private_intra_doc_links)]
     /// Создает новый [`FrameGuard`] от выражения
     /// [`FRAME_ALLOCATOR.lock().allocate()`][FrameAllocator::allocate].
     ///
@@ -90,6 +91,7 @@ impl FrameGuard {
         Ok(Self::new(pte.take()?))
     }
 
+    #[allow(rustdoc::private_intra_doc_links)]
     /// Создает новый [`FrameGuard`] от выражения
     /// [`FRAME_ALLOCATOR.lock().reference(frame)`][FrameAllocator::reference].
     pub fn reference(frame: Frame) -> Self {

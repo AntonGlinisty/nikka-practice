@@ -511,7 +511,7 @@ impl Phys {
     }
 
     /// Количество используемых битов в физическом адресе.
-    pub(super) const BITS: u32 = 52;
+    pub const BITS: u32 = 52;
 
     /// Количество неиспользуемых битов в физическом адресе.
     const UNUSED_BITS: u32 = usize::BITS - Self::BITS;

@@ -20,7 +20,6 @@ use crate::{
 
 use super::{
     FRAME_ALLOCATOR,
-    FrameAllocator,
     FrameGuard,
     Path,
     Phys2Virt,

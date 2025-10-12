@@ -39,7 +39,6 @@ use ku::{
 
 use super::{
     FRAME_ALLOCATOR,
-    FrameAllocator,
     FrameGuard,
     range,
 };
@@ -335,9 +334,5 @@ pub(super) mod test_scaffolding {
         address: Phys,
     ) -> Virt {
         super::map(phys2virt, address)
-    }
-
-    pub(in super::super) fn physical_memory(phys2virt: &Phys2Virt) -> Block<Frame> {
-        phys2virt.physical_memory
     }
 }

@@ -13,14 +13,18 @@ use kernel::{
     memory::{
         BASE_ADDRESS_SPACE,
         FRAME_ALLOCATOR,
-        FrameAllocator,
         FrameGuard,
         KERNEL_RW,
+        Page,
         Phys,
         USER_R,
         USER_RW,
         Virt,
-        mmu::PageTableFlags,
+        mmu::{
+            PAGE_TABLE_ENTRY_COUNT,
+            PageTableEntry,
+            PageTableFlags,
+        },
         test_scaffolding::{
             get_pte,
             iter_mut,
@@ -124,6 +128,196 @@ fn t06_build_map() {
         {
             debug!(%block);
         }
+    }
+}
+
+#[test_case]
+fn t07_shared_memory() {
+    let _guard = mm_helpers::forbid_frame_leaks();
+
+    let frame = FrameGuard::allocate().expect("failed to allocate a frame");
+
+    debug!(%frame);
+
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+
+    let mut pages_iterator =
+        address_space.allocate(Page::layout_array(2), KERNEL_RW).unwrap().into_iter();
+
+    let pages = [
+        pages_iterator.next().unwrap(),
+        pages_iterator.next().unwrap(),
+    ];
+
+    debug!(?pages);
+
+    for page in pages {
+        let frame = FrameGuard::reference(*frame);
+        unsafe {
+            path(&mut address_space, page.address())
+                .map(frame, KERNEL_RW)
+                .expect("failed to map a page frame");
+        }
+    }
+
+    drop(frame);
+
+    let read_ptr: *const u64 = pages[0].address().try_into_ptr().unwrap();
+    let write_ptr: *mut u64 = pages[1].address().try_into_mut_ptr().unwrap();
+    debug!(?write_ptr, ?read_ptr);
+    assert_ne!(read_ptr, write_ptr);
+
+    const ITERATIONS: u64 = 3;
+
+    for write_value in 0 .. ITERATIONS {
+        let read_value = unsafe {
+            write_ptr.write_volatile(write_value);
+            read_ptr.read_volatile()
+        };
+        debug!(write_value, read_value);
+        assert_eq!(read_value, write_value);
+    }
+
+    for page in pages {
+        unsafe {
+            path(&mut address_space, page.address()).unmap().unwrap();
+        }
+    }
+}
+
+#[test_case]
+fn t08_garbage_after_unmap() {
+    let _guard = mm_helpers::forbid_frame_leaks();
+
+    let start_free_frames = FRAME_ALLOCATOR.lock().count();
+
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+
+    let virt = Virt::new(0x0000_4000_0000_0000).unwrap();
+    let mut path = path(&mut address_space, virt);
+    unsafe {
+        let frame = FrameGuard::allocate().unwrap();
+        path.map(frame, PageTableFlags::PRESENT).unwrap();
+        path.unmap().unwrap();
+    }
+    let pte = get_pte(&path).unwrap();
+
+    let expected_pte = PageTableEntry::default();
+
+    debug!(?pte, ?expected_pte);
+    assert_eq!(*pte, expected_pte);
+
+    let end_free_frames = FRAME_ALLOCATOR.lock().count();
+
+    assert_ne!(start_free_frames, end_free_frames);
+
+    for neighbour in 1 .. PAGE_TABLE_ENTRY_COUNT {
+        let neighbour_virt = (virt + neighbour * Page::SIZE).unwrap();
+        let neighbour_pte = translate(&mut address_space, neighbour_virt).unwrap();
+        if *neighbour_pte != expected_pte {
+            debug!(?neighbour_pte, ?expected_pte);
+        }
+        assert_eq!(*neighbour_pte, expected_pte);
+    }
+}
+
+#[test_case]
+fn t09_tlb_flush() {
+    let _guard = mm_helpers::forbid_frame_leaks();
+
+    let old_mark = 1111111;
+    let new_mark = 2222222;
+
+    let old_frame_guard = get_marked_frame(old_mark);
+    let new_frame_guard = get_marked_frame(new_mark);
+    let old_frame = *old_frame_guard;
+    let new_frame = *new_frame_guard;
+
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+
+    let page = address_space
+        .allocate(Page::layout_array(1), KERNEL_RW)
+        .unwrap()
+        .into_iter()
+        .next()
+        .unwrap();
+
+    unsafe {
+        path(&mut address_space, page.address())
+            .map(old_frame_guard, KERNEL_RW)
+            .expect("failed to map a page frame");
+    }
+
+    let current_mark = get_page_mark(page);
+    debug!(
+        %page,
+        %old_frame,
+        current_mark,
+        old_mark,
+        "the page is currently mapped to the old frame and should contain its old mark",
+    );
+    assert_eq!(current_mark, old_mark);
+
+    unsafe {
+        path(&mut address_space, page.address())
+            .map(new_frame_guard, KERNEL_RW)
+            .expect("failed to map a page frame");
+    }
+
+    let current_mark = get_page_mark(page);
+    debug!(
+        %page,
+        %new_frame,
+        current_mark,
+        new_mark,
+        "the page is currently mapped to the new frame and should contain its new mark",
+    );
+    assert_eq!(current_mark, new_mark);
+
+    unsafe {
+        path(&mut address_space, page.address()).unmap().unwrap();
+    }
+
+    FRAME_ALLOCATOR.lock().deallocate(old_frame);
+    FRAME_ALLOCATOR.lock().deallocate(new_frame);
+
+    fn get_marked_frame(mark: u64) -> FrameGuard {
+        let frame = FrameGuard::allocate().expect("failed to allocate a frame");
+        mem::forget(FrameGuard::reference(*frame));
+
+        let mut address_space = BASE_ADDRESS_SPACE.lock();
+
+        let page = address_space
+            .allocate(Page::layout_array(1), KERNEL_RW)
+            .unwrap()
+            .into_iter()
+            .next()
+            .unwrap();
+
+        unsafe {
+            let frame = FrameGuard::reference(*frame);
+            path(&mut address_space, page.address())
+                .map(frame, KERNEL_RW)
+                .expect("failed to map a page frame");
+        }
+
+        unsafe {
+            page.address().try_into_mut_ptr::<u64>().unwrap().write_volatile(mark);
+        }
+
+        let frame_mark = get_page_mark(page);
+        debug!(%frame, %page, frame_mark);
+        assert_eq!(mark, get_page_mark(page));
+
+        unsafe {
+            path(&mut address_space, page.address()).unmap().unwrap();
+        }
+
+        frame
+    }
+
+    fn get_page_mark(page: Page) -> u64 {
+        unsafe { page.address().try_into_ptr::<u64>().unwrap().read_volatile() }
     }
 }
 

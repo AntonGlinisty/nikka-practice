@@ -12,6 +12,7 @@ use itertools::Itertools;
 use ku::sync::spinlock::Spinlock;
 
 use crate::{
+    Subsystems,
     allocator::Big,
     error::{
         Error::{
@@ -31,7 +32,6 @@ use crate::{
 
 use super::{
     FRAME_ALLOCATOR,
-    FrameAllocator,
     FrameGuard,
     KERNEL_PAGE_ALLOCATOR,
     Path,
@@ -90,14 +90,21 @@ impl AddressSpace {
     pub(super) fn new(
         page_table_root: Frame,
         phys2virt: Phys2Virt,
+        subsystems: Subsystems,
     ) -> Self {
         let mut mapping = Mapping::new(page_table_root, phys2virt);
-        mapping.remove_recursive_mappings();
+        if subsystems.contains(Subsystems::VIRT_MEMORY) {
+            mapping.remove_recursive_mappings();
+        }
 
-        let user_page_allocator = PageAllocator::new(
-            unsafe { mapping.page_table_ref(mapping.page_table_root()) },
-            range::user_root_level_entries(),
-        );
+        let user_page_allocator = if subsystems.contains(Subsystems::VIRT_MEMORY) {
+            PageAllocator::new(
+                unsafe { mapping.page_table_ref(mapping.page_table_root()) },
+                range::user_root_level_entries(),
+            )
+        } else {
+            PageAllocator::zero()
+        };
 
         let address_space = Self {
             kind: Kind::Base,

@@ -10,18 +10,11 @@ pub(crate) mod gdt;
 /// Абстракция адресного пространства [`AddressSpace`].
 mod address_space;
 
-/// Временный аллокатор физических фреймов [`BootFrameAllocator`].
-mod boot_frame_allocator;
-
-/// Аллокатор физических фреймов [`FrameAllocator`],
-/// хранящий и оборачивающий либо [`BootFrameAllocator`], либо [`MainFrameAllocator`].
+/// Аллокатор физических фреймов [`FrameAllocator`].
 mod frame_allocator;
 
 /// RAII для операции выделения одного [`Frame`].
 mod frame_guard;
-
-/// Основной аллокатор физических фреймов [`MainFrameAllocator`].
-mod main_frame_allocator;
 
 /// Отображённый блок адресного пространства [`MappedBlock`].
 mod mapped_block;
@@ -81,8 +74,6 @@ use crate::{
     time,
 };
 
-use boot_frame_allocator::BootFrameAllocator;
-use frame_allocator::CurrentFrameAllocator;
 use mapping::Mapping;
 use path::Path;
 use range::PAGES_PER_ROOT_LEVEL_ENTRY;
@@ -111,10 +102,7 @@ pub use frage::{
     L2Page,
     Page,
 };
-pub use frame_allocator::{
-    FRAME_ALLOCATOR,
-    FrameAllocator,
-};
+pub use frame_allocator::FRAME_ALLOCATOR;
 pub use frame_guard::FrameGuard;
 pub use mapping::Translate;
 pub use mmu::{
@@ -160,7 +148,7 @@ use {
         self as kernel,
         error::Error,
     },
-    main_frame_allocator::MainFrameAllocator,
+    frame_allocator::FrameAllocator,
     mapped_block::MappedBlock,
     page_allocator::PageAllocator,
     stack::ExceptionStacks,
@@ -180,34 +168,26 @@ pub(super) fn init(
     let physical_memory = range::physical(&boot_info.memory_map);
 
     if subsystems.contains(Subsystems::PHYS_MEMORY) {
-        *FRAME_ALLOCATOR.lock() =
-            CurrentFrameAllocator::Boot(BootFrameAllocator::new(&boot_info.memory_map));
+        *FRAME_ALLOCATOR.lock() = frame_allocator::init(&boot_info.memory_map);
     }
 
     let phys2virt = Phys2Virt::make(physical_memory, size::from(boot_info.recursive_index()))?;
 
     info!(%phys2virt);
 
-    if subsystems.contains(Subsystems::VIRT_MEMORY) {
-        let page_table_root = Mapping::current_page_table_root();
-        let mut address_space = AddressSpace::new(page_table_root, phys2virt);
+    let page_table_root = Mapping::current_page_table_root();
+    let mut address_space = AddressSpace::new(page_table_root, phys2virt, subsystems);
 
+    if subsystems.contains(Subsystems::VIRT_MEMORY) {
         let page_table_root = unsafe { address_space.mapping()?.page_table_ref(page_table_root) };
         *KERNEL_PAGE_ALLOCATOR.lock() =
             PageAllocator::new(page_table_root, range::kernel_root_level_entries());
-
-        *BASE_ADDRESS_SPACE.lock() = address_space;
     }
 
-    if subsystems.contains(Subsystems::MAIN_FRAME_ALLOCATOR) {
-        if let CurrentFrameAllocator::Boot(boot_frame_allocator) = &*FRAME_ALLOCATOR.lock() {
-            assert!(boot_frame_allocator.is_consistent());
-        }
+    *BASE_ADDRESS_SPACE.lock() = address_space;
 
-        *FRAME_ALLOCATOR.lock() = CurrentFrameAllocator::Main(main_frame_allocator::init(
-            physical_memory,
-            &boot_info.memory_map,
-        ));
+    if subsystems.contains(Subsystems::MAIN_FRAME_ALLOCATOR) {
+        frame_allocator::resize(physical_memory, &boot_info.memory_map);
     }
 
     if subsystems.contains(Subsystems::VIRT_MEMORY | Subsystems::MAIN_FRAME_ALLOCATOR) &&
@@ -229,37 +209,11 @@ lazy_static! {
 
 #[doc(hidden)]
 pub mod test_scaffolding {
-    use super::{
-        BASE_ADDRESS_SPACE,
-        Block,
-        BootFrameAllocator,
-        CurrentFrameAllocator,
-        Frame,
-    };
-
-    use super::phys2virt::test_scaffolding as phys2virt;
-
     pub use super::{
         address_space::test_scaffolding::*,
-        boot_frame_allocator::test_scaffolding::*,
         page_allocator::test_scaffolding::*,
         path::test_scaffolding::*,
         phys2virt::test_scaffolding::*,
         range::test_scaffolding::*,
     };
-
-    pub fn get_boot(
-        frame_allocator: &mut CurrentFrameAllocator
-    ) -> Option<&mut BootFrameAllocator> {
-        match frame_allocator {
-            CurrentFrameAllocator::Boot(boot_allocator) => Some(boot_allocator),
-            CurrentFrameAllocator::Main(..) | CurrentFrameAllocator::Void => None,
-        }
-    }
-
-    pub fn physical_memory() -> Block<Frame> {
-        phys2virt::physical_memory(
-            &BASE_ADDRESS_SPACE.lock().mapping().expect("invalid AddressSpace").phys2virt(),
-        )
-    }
 }
