@@ -9,6 +9,7 @@ use bootloader::bootinfo::{
     MemoryRegionType,
 };
 use duplicate::duplicate_item;
+use itertools::Itertools;
 use lazy_static::lazy_static;
 
 use ku::sync::Spinlock;
