@@ -4,3 +4,6 @@ edition = "2024"
 license = "AGPL-3.0-or-later"
 name = "backtrace"
 version = "0.5.0"
+
+[dependencies]
+sentinel_frame = { path = "../../sentinel_frame" }
