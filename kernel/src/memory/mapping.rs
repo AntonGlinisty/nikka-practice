@@ -31,10 +31,7 @@ use super::{
     },
     mmu::{
         self,
-        PAGE_OFFSET_BITS,
         PAGE_TABLE_ENTRY_COUNT,
-        PAGE_TABLE_INDEX_BITS,
-        PAGE_TABLE_INDEX_MASK,
         PAGE_TABLE_LEAF_LEVEL,
         PAGE_TABLE_LEVEL_COUNT,
         PAGE_TABLE_ROOT_LEVEL,
@@ -279,8 +276,7 @@ impl Mapping {
         level: u32,
         page_table_frame: Frame,
     ) -> reference([PageTableEntry]) {
-        let index_shift = PAGE_OFFSET_BITS + level * PAGE_TABLE_INDEX_BITS;
-        let index = (virt.into_usize() >> index_shift) & PAGE_TABLE_INDEX_MASK;
+        let index = virt.page_table_index(level);
         let page_table = unsafe { self.page_table_getter(page_table_frame) };
 
         reference([page_table[index]])

@@ -43,7 +43,11 @@ use crate::{
 use super::{
     mmu::{
         PAGE_OFFSET_BITS,
+        PAGE_TABLE_ENTRY_COUNT,
         PAGE_TABLE_INDEX_BITS,
+        PAGE_TABLE_INDEX_MASK,
+        PAGE_TABLE_LEAF_LEVEL,
+        PAGE_TABLE_LEVEL_COUNT,
         PAGE_TABLE_ROOT_LEVEL,
     },
     size::{
@@ -583,6 +587,16 @@ impl Virt {
         Self::default()
     }
 
+    /// Возвращает индекс записи в узле таблицы страниц уровня `level`,
+    /// соответствующей виртуальному адресу.
+    pub fn page_table_index(
+        &self,
+        level: u32,
+    ) -> usize {
+        let shift = PAGE_OFFSET_BITS + level * PAGE_TABLE_INDEX_BITS;
+        (self.into_usize() >> shift) & PAGE_TABLE_INDEX_MASK
+    }
+
     /// Возвращает `true` если виртуальный адрес относится к
     /// [верхней половине](https://en.wikipedia.org/wiki/X86-64#Virtual_address_space_details)
     /// адресного пространства.
@@ -595,6 +609,32 @@ impl Virt {
     /// адресного пространства.
     pub fn is_lower_half(&self) -> bool {
         self.into_usize() >> Self::BITS == 0
+    }
+
+    /// Создаёт виртуальный адрес по его индексам `page_table_indexes` в узлах таблицы страниц,
+    /// от корневого `PAGE_TABLE_LEAF_LEVEL` до листьевого `PAGE_TABLE_LEAF_LEVEL`,
+    /// и смещения внутри страницы `offset`.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если:
+    /// - Хотя бы один из индексов в `page_table_indexes` превышает количество записей в
+    ///   узле таблицы страниц `PAGE_TABLE_ENTRY_COUNT`.
+    /// - Смещение `offset` превышает `1 << PAGE_OFFSET_BITS` --- 4 KiB.
+    pub fn from_page_table_indexes(
+        page_table_indexes: [usize; PAGE_TABLE_LEVEL_COUNT],
+        offset: usize,
+    ) -> Self {
+        assert!(page_table_indexes.iter().all(|&index| index < PAGE_TABLE_ENTRY_COUNT));
+        assert!(offset < 1 << PAGE_OFFSET_BITS);
+
+        let mut virt = 0;
+        for level in (PAGE_TABLE_LEAF_LEVEL ..= PAGE_TABLE_ROOT_LEVEL).rev() {
+            virt = (virt << PAGE_TABLE_INDEX_BITS) | page_table_indexes[size::from(level)];
+        }
+        virt = (virt << PAGE_OFFSET_BITS) | offset;
+
+        Virt::canonize(virt)
     }
 
     /// Преобразует указатель на `T` в [`Virt`].

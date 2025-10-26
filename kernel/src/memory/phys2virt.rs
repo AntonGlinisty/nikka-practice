@@ -26,10 +26,7 @@ use ku::{
         Virt,
         mmu::{
             KERNEL_RW,
-            PAGE_OFFSET_BITS,
             PAGE_TABLE_ENTRY_COUNT,
-            PAGE_TABLE_INDEX_BITS,
-            PAGE_TABLE_LEAF_LEVEL,
             PAGE_TABLE_ROOT_LEVEL,
             PageTable,
             PageTableEntry,
@@ -234,16 +231,17 @@ impl Phys2Virt {
         index: usize,
         recursive_mapping: usize,
     ) -> Block<Page> {
-        let mut address = 0;
-        for _ in PAGE_TABLE_LEAF_LEVEL .. PAGE_TABLE_ROOT_LEVEL {
-            address = (address << PAGE_TABLE_INDEX_BITS) | recursive_mapping;
-        }
-        address = (address << PAGE_TABLE_INDEX_BITS) | index;
-        address <<= PAGE_OFFSET_BITS;
-
+        let virt = Virt::from_page_table_indexes(
+            [
+                index,
+                recursive_mapping,
+                recursive_mapping,
+                recursive_mapping,
+            ],
+            0,
+        );
         let message = "wrong calculations through recursive entry";
 
-        let virt = Virt::canonize(address);
         let page = Page::new(virt).expect(message);
 
         Block::new(page, (page + 1).expect(message)).expect(message)
