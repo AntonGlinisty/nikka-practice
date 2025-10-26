@@ -322,6 +322,34 @@ fn t09_tlb_flush() {
 }
 
 #[test_case]
+fn t10_path_after_map() {
+    let _guard = mm_helpers::forbid_frame_leaks();
+
+    let mut address_space = BASE_ADDRESS_SPACE.lock();
+
+    let unique_l3_index = mm_helpers::unique_user_virt().page_table_index(3);
+    let virt = Virt::from_page_table_indexes([2, 3, 4, unique_l3_index], 0);
+
+    let mut path_a = path(&mut address_space, virt);
+    debug!(path = %path_a);
+    unsafe {
+        path_a.map(FrameGuard::allocate().unwrap(), USER_R).unwrap();
+    }
+    debug!(path_after_map = %path_a);
+    let pte_a = *get_pte(&path_a).unwrap();
+
+    let mut path_b = path(&mut address_space, virt);
+    debug!(%path_b);
+    let pte_b = *get_pte(&path_b).unwrap();
+
+    unsafe {
+        path_b.unmap().unwrap();
+    }
+
+    assert_eq!(pte_a, pte_b);
+}
+
+#[test_case]
 fn t99_no_frame() {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
