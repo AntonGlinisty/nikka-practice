@@ -19,6 +19,7 @@ use crate::{
 #[allow(unused)]
 use crate::error::Error;
 
+// ANCHOR: bitmap
 /// [Битовая карта](https://en.wikipedia.org/wiki/Free-space_bitmap)
 /// фиксированного размера
 /// для отслеживания какие именно элементы заняты, а какие --- свободны.
@@ -38,6 +39,7 @@ pub struct Bitmap<'a> {
     /// Количество элементов.
     len: usize,
 }
+// ANCHOR_END: bitmap
 
 impl<'a> Bitmap<'a> {
     /// Создаёт битовую карту поверх заданного среза `bitmap`.
@@ -146,6 +148,7 @@ impl<'a> Bitmap<'a> {
         unimplemented!();
     }
 
+    // ANCHOR: bulk_allocate
     /// Аналогична [`Bitmap::allocate()`], но выделяет за один раз несколько элементов.
     /// Если свободных элементов не хватает, то выделенных элементов может вернуться
     /// меньше, чем `count` --- запрошенное количество элементов.
@@ -161,6 +164,7 @@ impl<'a> Bitmap<'a> {
         &mut self,
         count: usize,
     ) -> Vec<usize, SIZE> {
+        // ANCHOR_END: bulk_allocate
         assert!(count <= SIZE);
 
         // TODO: your code here.

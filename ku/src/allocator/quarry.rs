@@ -28,6 +28,7 @@ use super::{
 #[allow(unused)]
 use super::FixedSizeAllocator;
 
+// ANCHOR: quarry
 /// Вспомогательная структура для [`FixedSizeAllocator`].
 ///
 /// Хранит [`Quarry::SLAB_COUNT`] больших блоков размера [`Quarry::SLAB_SIZE`],
@@ -52,6 +53,7 @@ pub(super) struct Quarry {
     /// либо содержит [`Self::SLAB_PAGE_COUNT`] последовательных страниц.
     slabs: [Page; Self::SLAB_COUNT],
 }
+// ANCHOR_END: quarry
 
 impl Quarry {
     /// Создаёт пустой [`Quarry`], из которого будут выделяться блоки размера `size`.
@@ -77,6 +79,7 @@ impl Quarry {
         self.size.get()
     }
 
+    // ANCHOR: allocation
     /// Возвращает адрес выделяемого блока памяти номер `allocation_index`.
     ///
     /// Нумерация непрерывна от `0` до [`Quarry::capacity()`] (не включительно) и
@@ -91,10 +94,12 @@ impl Quarry {
         &mut self,
         allocation_index: usize,
     ) -> Virt {
+        // ANCHOR_END: allocation
         // TODO: your code here.
         unimplemented!();
     }
 
+    // ANCHOR: allocation_index
     /// Обратная операция к [`Quarry::allocation()`].
     /// Возвращает номер выделяемого блока памяти по его адресу `address` или [`None`]
     /// если выделяемого блока памяти с таким адресом в [`Quarry`] нет.
@@ -107,6 +112,7 @@ impl Quarry {
         &mut self,
         address: Virt,
     ) -> Option<usize> {
+        // ANCHOR_END: allocation_index
         // TODO: your code here.
         unimplemented!();
     }
@@ -117,6 +123,7 @@ impl Quarry {
         self.slab_allocation_count.get() * self.slabs.len()
     }
 
+    // ANCHOR: map
     /// Отображает в физическую память необходимое количество страниц блоков [`Quarry::slabs`],
     /// с помощью страничного аллокатора `fallback`.
     ///
@@ -151,6 +158,7 @@ impl Quarry {
         new_allocation_count: &mut usize,
         fallback: &impl BigAllocatorGuard,
     ) -> Result<usize> {
+        // ANCHOR_END: map
         assert!(old_allocation_count < *new_allocation_count);
         assert!(*new_allocation_count <= self.capacity());
 
@@ -160,6 +168,7 @@ impl Quarry {
         unimplemented!();
     }
 
+    // ANCHOR: unmap
     /// Освобождает как всю использованную [`Quarry`] физическую память,
     /// так и всё использованное им адресное пространство.
     /// Возвращает их в страничный аллокатор `fallback`.
@@ -180,6 +189,7 @@ impl Quarry {
         allocation_count: usize,
         fallback: &impl BigAllocatorGuard,
     ) -> Result<usize> {
+        // ANCHOR_END: unmap
         // TODO: your code here.
         unimplemented!();
     }
@@ -196,6 +206,7 @@ impl Quarry {
         unimplemented!();
     }
 
+    // ANCHOR: reserve
     /// Резервирует адресное пространство под необходимое количество блоков [`Quarry::slabs`],
     /// с помощью страничного аллокатора `fallback`.
     /// Параметр `old_allocation_count` задаёт старое количество выделяемых блоков памяти,
@@ -217,6 +228,7 @@ impl Quarry {
         new_allocation_count: usize,
         fallback: &impl BigAllocatorGuard,
     ) -> Result<()> {
+        // ANCHOR_END: reserve
         assert!(old_allocation_count < new_allocation_count);
 
         // TODO: your code here.

@@ -1,6 +1,12 @@
 ## Аллокатор памяти общего назначения
 
-В этой части лабораторной работы вам нужно будет провязать
+В этой лабораторке нужно будет реализовать аллокатор памяти общего назначения.
+Чтобы можно было пользоваться, например, стандартными контейнерами.
+Только первая задача является обязательной.
+От остальных задач почти никакие последующие лабораторные работы не зависят.
+Исключение --- `static-bitmap`, которая пригодится нам при реализации файловой системы.
+
+В первой, обязательной, задаче вам нужно будет провязать
 Rust'овский интерфейс аллокатора памяти общего назначения с реализованными во
 [второй лабораторной работе](../../lab/book/2-mm-0-intro.html)
 методами адресного пространства
@@ -16,104 +22,60 @@ Rust'овский интерфейс аллокатора памяти обще�
 Что гораздо удобнее, чем методы семейства
 [`AddressSpace::map_slice()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.map_slice).
 
+Однако, при каждом динамическом выделении памяти будет расходоваться целое количество физических фреймов.
+Даже если запрошено было всего несколько байт.
+Это безумно расточительно, и в последующих задачах этой лабораторной работы нужно будет
+сделать библиотеку динамического выделения памяти общего назначения.
+Которая тратит меньше памяти при выделениях памяти маленького размера.
+Она получает память фреймами из сделанного в первой задаче интерфейса,
+нарезает полученную память небольшими блоками и динамически выделяет эти блоки.
+В результате в один физический фрейм чаще всего попадают данные большого числа выделенных блоков
+и физическая память расходуется экономно.
 
-### Типажи [`core::alloc::Allocator`](https://doc.rust-lang.org/nightly/core/alloc/trait.Allocator.html) и [`ku::allocator::dry::DryAllocator`](../../doc/ku/allocator/dry/trait.DryAllocator.html)
+Дизайн библиотеки динамической памяти --- задача достаточно творческая.
+Вы можете пойти по пути, проложенному в необязательных задачах.
+Или выбрать собственный путь и реализовать аллокатор так, как вам хочется.
+При этом можно вдохновляться дизайном хороших современных аллокаторов:
 
-Прежде всего, изучите Rust'овский интерфейс аллокатора памяти общего назначения --- типаж
-[`core::alloc::Allocator`](https://doc.rust-lang.org/nightly/core/alloc/trait.Allocator.html).
-Убедитесь, что вы понимаете:
+- Thread-caching malloc (Google):
+  - [Обзор дизайна TCMalloc](https://google.github.io/tcmalloc/design.html).
+  - [Temeraire: Hugepage-Aware Allocator](https://google.github.io/tcmalloc/temeraire.html).
+  - [Beyond malloc efficiency to fleet efficiency: a hugepage-aware memory allocator](https://storage.googleapis.com/gweb-research2023-media/pubtools/6170.pdf).
+  - [TCMalloc : Thread-Caching Malloc](https://pages.cs.wisc.edu/~danb/google-perftools-0.98/tcmalloc.html).
+- Jason Evans' malloc:
+  - [A Scalable Concurrent malloc(3) Implementation for FreeBSD](https://people.freebsd.org/~jasone/jemalloc/bsdcan2006/jemalloc.pdf).
+  - [https://engineering.fb.com/2011/01/03/core-data/scalable-memory-allocation-using-jemalloc/](https://engineering.fb.com/2011/01/03/core-data/scalable-memory-allocation-using-jemalloc/).
+- Mimalloc (Microsoft):
+  - [Mimalloc: Free List Sharding in Action](https://www.microsoft.com/en-us/research/wp-content/uploads/2019/06/mimalloc-tr-v1.pdf).
+- Threading Building Blocks (Intel)
+  - [The Foundations for Scalable Multi-core Software in Intel® Threading Building Blocks](http://www.intel.com/content/dam/www/public/us/en/documents/research/2007-vol11-iss-4-intel-technology-journal.pdf).
+- Ещё полезные ссылки:
+  - [Hoard: A Scalable Memory Allocator for Multithreaded Applications](https://www.cs.utexas.edu/~mckinley/papers/asplos-2000.pdf).
+  - [Scalable Lock-Free Dynamic Memory Allocation](https://www.cs.tufts.edu/~nr/cs257/archive/maged-michael/pldi-2004.pdf).
+  - [Scalable Locality-Conscious Multithreaded Memory Allocation](https://pureadmin.qub.ac.uk/ws/files/3429262/ISMM_2006.pdf).
+  - Обзор старых аллокаторов --- [Dynamic Storage Allocation: A Survey and Critical Review](https://www.cs.hmc.edu/~oneill/gc-library/Wilson-Alloc-Survey-1995.pdf).
+  - [На ARM можно занулить линию кэша без чтения её из памяти](https://www.systemonchips.com/cortex-a53-cache-line-allocation-without-memory-read-solutions-and-workarounds/).
 
-- что такое [`core::alloc::Layout`](https://doc.rust-lang.org/nightly/core/alloc/struct.Layout.html);
-- что такое [`core::ptr::NonNull`](https://doc.rust-lang.org/nightly/core/ptr/struct.NonNull.html);
-- чем отличаются `NonNull<u8>` и `NonNull<[u8]>`;
-- что означают маркеры `unsafe` на самом типаже и на его методах.
-
-Также изучите типаж
-[`ku::allocator::dry::DryAllocator`](../../doc/ku/allocator/dry/trait.DryAllocator.html).
-Он очень похож на
-[`core::alloc::Allocator`](https://doc.rust-lang.org/nightly/core/alloc/trait.Allocator.html),
-и отличается только тем, что:
-
-- Вместо двух методов [`core::alloc::Allocator::allocate()`](https://doc.rust-lang.org/nightly/core/alloc/trait.Allocator.html#tymethod.allocate) и [`core::alloc::Allocator::allocate_zeroed()`](https://doc.rust-lang.org/nightly/core/alloc/trait.Allocator.html#method.allocate_zeroed) имеет только один метод [`ku::allocator::dry::DryAllocator::dry_allocate()`](../../doc/ku/allocator/dry/trait.DryAllocator.html#tymethod.dry_allocate), принимающий признак необходимости занулить память [`ku::allocator::dry::Initialize`](../../doc/ku/allocator/dry/enum.Initialize.html). Это сделано, чтобы не дублировать код.
-- Аналогично, вместо двух методов [`core::alloc::Allocator::grow()`](https://doc.rust-lang.org/nightly/core/alloc/trait.Allocator.html#method.grow) и [`core::alloc::Allocator::grow_zeroed()`](https://doc.rust-lang.org/nightly/core/alloc/trait.Allocator.html#method.grow_zeroed) он имеет только один метод [`ku::allocator::dry::DryAllocator::dry_grow()`](../../doc/ku/allocator/dry/trait.DryAllocator.html#tymethod.dry_grow).
-
-
-### Типаж [`core::alloc::GlobalAlloc`](https://doc.rust-lang.org/nightly/core/alloc/trait.GlobalAlloc.html)
-
-Типаж глобального аллокатора
-[`core::alloc::GlobalAlloc`](https://doc.rust-lang.org/nightly/core/alloc/trait.GlobalAlloc.html)
-немного отличается от
-[`core::alloc::Allocator`](https://doc.rust-lang.org/nightly/core/alloc/trait.Allocator.html).
-Изучите и его, он понадобится для общего понимания и в
-[не обязательной задаче](../../lab/book/3-allocator-5-small.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-2--%D0%B0%D0%BB%D0%BB%D0%BE%D0%BA%D0%B0%D1%82%D0%BE%D1%80-%D0%BC%D0%B0%D0%BB%D0%B5%D0%BD%D1%8C%D0%BA%D0%B8%D1%85-%D0%B1%D0%BB%D0%BE%D0%BA%D0%BE%D0%B2-%D0%BF%D0%B0%D0%BC%D1%8F%D1%82%D0%B8)
-про аллокатор маленьких блоков памяти.
-
-
-### Типаж [`ku::allocator::big::BigAllocator`](../../doc/ku/allocator/big/trait.BigAllocator.html)
-
-Мы не можем воспользоваться реализацией по умолчанию для методов
-[`Allocator::grow()`](https://doc.rust-lang.org/nightly/core/alloc/trait.Allocator.html#method.grow),
-[`Allocator::grow_zeroed()`](https://doc.rust-lang.org/nightly/core/alloc/trait.Allocator.html#method.grow_zeroed) и
-[`Allocator::shrink()`](https://doc.rust-lang.org/nightly/core/alloc/trait.Allocator.html#method.shrink).
-Нам придётся переопределять их поведение, потому что мы хотим сделать следующий трюк.
-При изменениях размера ранее выделенного блока мы не будем копировать содержимое памяти.
-А вместо этого поменяем отображение физических фреймов старого блока памяти, на место нового блока памяти.
-
-Естественно, это пройдёт только для блоков памяти, которые выровнены на границы страниц.
-Интерфейс выделения таких блоков памяти задаётся типажом
-[`ku::allocator::big::BigAllocator`](../../doc/ku/allocator/big/trait.BigAllocator.html).
+Наша реализация будет доступна и в ядре и в пространстве пользователя.
+Помимо прочего, это упрощает её тестирование.
+Так как при запуске тестов `ku/tests/3-allocator-*.rs`
+вам будут доступны все возможности тестирования пользовательского приложения под linux.
 
 
-### Статистика аллокатора [`ku::allocator::info::Info`](../../doc/ku/allocator/info/struct.Info.html)
+### Зависимости задач этой лабораторной работы
 
-Для отладки выделения памяти в коде присутствует сбор статистики про выполняемые аллокатором операции.
-Эта статистика доступна в виде структуры [`ku::allocator::info::Info`](../../doc/ku/allocator/info/struct.Info.html).
-Её поля означают следующее:
-- [`Info::allocations`](../../doc/ku/allocator/info/struct.Info.html#structfield.allocations) --- количество запросов к аллокатору.
-- [`Info::requested`](../../doc/ku/allocator/info/struct.Info.html#structfield.requested) --- сколько памяти в байтах было запрошено у аллокатора.
-- [`Info::allocated`](../../doc/ku/allocator/info/struct.Info.html#structfield.allocated) --- сколько памяти в байтах было выделено аллокатором, включая потери на округления размеров выделяемых блоков памяти.
-- [`Info::pages`](../../doc/ku/allocator/info/struct.Info.html#structfield.pages) --- количество виртуальных страниц, которые были выделены для удовлетворения запросов.
+![Зависимости задач этой лабораторной работы](3-allocator-0-intro-lab-dependencies.svg)
 
-Каждый такой счётчик является структурой
-[`ku::allocator::info::Counter`](../../doc/ku/allocator/info/struct.Counter.html),
-содержащей положительную и отрицательную компоненту:
 
-- [`Counter::positive`](../../doc/ku/allocator/info/struct.Counter.html#structfield.positive) --- суммарный размер соответствующего параметра для выделений памяти.
-- [`Counter::negative`](../../doc/ku/allocator/info/struct.Counter.html#structfield.negative) --- суммарный размер соответствующего параметра для освобождений памяти.
-
-Метод [`Counter::balance()`](../../doc/ku/allocator/info/struct.Counter.html#method.balance) возвращает разность
-`Counter::positive - Counter::negative`.
-То есть, например:
-
-- `info.allocated.positive()` --- количество выделенных байт за всё время работы, включая освобождённые в дальнейшем.
-- `info.pages.negative()` --- количество освобождённых страниц.
-- `info.requested.balance()` --- количество байт, которые были запрошены у аллокатора, но ещё не освобождены.
-
-От этих чисел хочется интерпретируемости и соответствия естественным инвариантам.
-Если количество выделений больше чем количество освобождений, то естественно ожидать, что какая-то память ещё занята.
-А в ситуации, когда ещё и на входе и выходе балансы должны быть нулевые, это означает утечку.
-Если же освобождений больше чем выделений в ситуации когда и на входе и выходе балансы должны быть нулевые,
-это наталкивает на мысли о наличии какой-то серьёзной ошибки.
-В частности, перевыделение учитывается как одно освобождение полного старого блока плюс одно выделение полного
-нового блока.
-Не создавайте несколько освобождений по кусочку старого блока при вызовах `dry_shrink()` или
-фиктивных выделений нулевого размера.
-Это сломает естественные инварианты и интерпретируемость значений
-[`ku::allocator::info::Info`](../../doc/ku/allocator/info/struct.Info.html),
-а также не пройдёт тесты.
-
-Поэтому обратите внимание, как в
-[`ku::allocator::info::Info`](../../doc/ku/allocator/info/struct.Info.html)
-отслеживаются выделения и освобождения, которые выполняет ваш код.
-
-В сообщениях журнала эти счётчики будут печататься так:
+### Ориентировочный объём работ этой лабораторки
 
 ```console
-20:26:37 0 D info = { allocations: 9 - 8 = 1, requested: 284.000 KiB - 156.000 KiB = 128.000 KiB, allocated: 284.000 KiB - 156.000 KiB = 128.000 KiB, pages: 71 - 39 = 32, loss: 0 B = 0.000% }
+kernel/src/allocator/big.rs          |  23 +++++++-
+ku/src/allocator/big.rs              | 108 +++++++++++++++++++++++++++++++++++-----
+ku/src/allocator/dispatcher.rs       | 198 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-----
+ku/src/allocator/fixed_size.rs       | 147 +++++++++++++++++++++++++++++++++++++++++++++++++------
+ku/src/allocator/quarry.rs           | 182 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-----
+ku/src/collections/bitmap.rs         |  40 +++++++++++++--
+ku/src/collections/dynamic_bitmap.rs |  86 +++++++++++++++++++++++++++++---
+7 files changed, 723 insertions(+), 61 deletions(-)
 ```
-
-Это означает, что всего было выполнено `9` выделений и `8` освобождений.
-Суммарно было запрошено `284.000 KiB`, а суммарно было освобождено `156.000 KiB`,
-что даёт текущее запрошенное потребление `128.000 KiB` в одном выделенном на данный момент блоке памяти.
-Так как аллокатор в данном примере постраничный, эти величины совпадают с количеством реально выделенной памяти,
-а потери на фрагментацию нулевые.

@@ -75,3 +75,4 @@ benchmark = [
 ]
 # Отключает sentinel frame
 conservative-backtraces = []
+forbid-leaks = []

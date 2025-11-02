@@ -319,9 +319,9 @@ deadlines:
           check:
             - cd kernel && cargo test --profile ci --test 3-allocator-1-big
 
-        - task: no-leaks-in-allocator
+        - task: no-leaks-in-big-allocator
           score: 25
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-1-big.html
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-1-big.html#%D0%9F%D1%80%D0%BE%D0%B2%D0%B5%D1%80%D1%8C%D1%82%D0%B5-%D1%83%D1%82%D0%B5%D1%87%D0%BA%D0%B8-%D1%84%D0%B8%D0%B7%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D1%85-%D1%84%D1%80%D0%B5%D0%B9%D0%BC%D0%BE%D0%B2
           dependencies:
             - no-leaks-in-memory
             - big-allocator
@@ -329,46 +329,62 @@ deadlines:
             - cd kernel && cargo test --profile ci --features forbid-leaks --test 3-allocator-1-big
 
         - task: static-bitmap
-          score: 100
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-5-small.html
+          score: 50
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-2-bitmap.html
           check:
             - cd ku && cargo test --profile ci --test 3-allocator-2-bitmap
 
         - task: dynamic-bitmap
           score: 100
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-5-small.html
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-3-dynamic-bitmap.html
+          dependencies:
+            - static-bitmap
           check:
             - cd ku && cargo test --profile ci --test 3-allocator-3-dynamic-bitmap
 
         - task: quarry
-          score: 100
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-5-small.html
+          score: 150
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-4-quarry.html
           check:
             - cd ku && cargo test --profile ci --test 3-allocator-4-quarry
 
         - task: small-allocator
-          score: 100
+          score: 150
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-5-small.html
           dependencies:
+            - big-allocator
             - dynamic-bitmap
             - quarry
           check:
             - cd kernel && cargo test --profile ci --test 3-allocator-5-small
             - cd ku && cargo test --profile ci --test 3-allocator-5-small -- --nocapture --test-threads=1
 
+        - task: no-leaks-in-small-allocator
+          score: 100
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-6-no-leaks.html
+          dependencies:
+            - no-leaks-in-big-allocator
+            - small-allocator
+          check:
+            - cd kernel && cargo test --profile ci --features forbid-leaks --test 3-allocator-5-small
+            - cd ku && cargo test --profile ci --features forbid-leaks --test 3-allocator-5-small -- --nocapture --test-threads=1
+
         - task: allocator-cache
           score: 100
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-5-small.html
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-7-thread-cache.html
+          dependencies:
+            - no-leaks-in-small-allocator
           check:
             - cd ku && ALLOWED_RATIO=1.50 cargo test --profile benchmark --features benchmark --test 3-allocator-5-small -- --test-threads=1
 
         - task: allocator-statistics
           is_bonus: true
           score: 100
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-5-small.html
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-8-statistics.html 
           dependencies:
-            - small-allocator
+            - allocator-cache
           check:
+            - cd kernel && cargo test --profile ci --features allocator-statistics --test 3-allocator-1-big --test 3-allocator-5-small
             - cd ku && cargo test --profile ci --features allocator-statistics --test 3-allocator-5-small -- --test-threads=1
 
     - group: lab-4-process

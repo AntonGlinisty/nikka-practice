@@ -49,6 +49,7 @@ use ku::{
 };
 
 use allocator::{
+    Big,
     CachingBig,
     Fallback,
     ThreadLocalCache,
@@ -129,6 +130,11 @@ fn basic() {
 
     ALLOCATOR.unmap();
 
+    if cfg!(feature = "forbid-leaks") {
+        assert_eq!(Big::total_mapped(), 0, "leaked some physical frames");
+        assert_eq!(Big::total_reserved(), 0, "leaked some virtual pages");
+    }
+
     let detailed_info: Spinlock<DetailedInfo> = Spinlock::new(DetailedInfo::new());
     ALLOCATOR.detailed_info(&mut detailed_info.lock());
 
@@ -150,6 +156,11 @@ fn single_threaded() {
     );
 
     ALLOCATOR.unmap();
+
+    if cfg!(feature = "forbid-leaks") {
+        assert_eq!(Big::total_mapped(), 0, "leaked some physical frames");
+        assert_eq!(Big::total_reserved(), 0, "leaked some virtual pages");
+    }
 
     let detailed_info: Spinlock<DetailedInfo> = Spinlock::new(DetailedInfo::new());
     ALLOCATOR.detailed_info(&mut detailed_info.lock());
@@ -325,6 +336,11 @@ fn multi_threaded() {
     let nikka_allocator_stats = multi_threaded_stress("nikka allocator", &ALLOCATOR, thread_count);
 
     ALLOCATOR.unmap();
+
+    if cfg!(feature = "forbid-leaks") {
+        assert_eq!(Big::total_mapped(), 0, "leaked some physical frames");
+        assert_eq!(Big::total_reserved(), 0, "leaked some virtual pages");
+    }
 
     let detailed_info: Spinlock<DetailedInfo> = Spinlock::new(DetailedInfo::new());
     ALLOCATOR.detailed_info(&mut detailed_info.lock());

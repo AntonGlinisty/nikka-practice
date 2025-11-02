@@ -3,6 +3,10 @@ use std::{
     ffi::c_void,
     fs::File,
     num::NonZeroUsize,
+    sync::atomic::{
+        AtomicUsize,
+        Ordering,
+    },
 };
 
 use nix::sys::mman::{
@@ -45,6 +49,16 @@ impl Big {
         }
     }
 
+    #[allow(unused)]
+    pub fn total_mapped() -> usize {
+        MAPPED.load(Ordering::Relaxed)
+    }
+
+    #[allow(unused)]
+    pub fn total_reserved() -> usize {
+        RESERVED.load(Ordering::Relaxed)
+    }
+
     pub(super) fn last(&self) -> Block<Page> {
         self.last
     }
@@ -56,6 +70,8 @@ impl Big {
     ) {
         self.last = super::block(ptr, block.size());
         assert_eq!(self.last, block);
+
+        MAPPED.fetch_add(self.last.count(), Ordering::Relaxed);
 
         self.mapped = self
             .mapped
@@ -92,6 +108,8 @@ impl Big {
         let result_block = super::block(ptr, block.size());
 
         if prot_flags == ProtFlags::PROT_NONE {
+            RESERVED.fetch_add(result_block.count(), Ordering::Relaxed);
+
             self.reserved = self
                 .reserved
                 .checked_add(result_block.count())
@@ -152,6 +170,8 @@ unsafe impl BigAllocator for Big {
     ) -> Result<()> {
         assert!(!block.is_empty());
 
+        RESERVED.fetch_sub(block.count(), Ordering::Relaxed);
+
         self.reserved = self
             .reserved
             .checked_sub(block.count())
@@ -205,6 +225,8 @@ unsafe impl BigAllocator for Big {
     ) -> Result<()> {
         assert!(!block.is_empty());
 
+        MAPPED.fetch_sub(block.count(), Ordering::Relaxed);
+
         self.mapped = self
             .mapped
             .checked_sub(block.count())
@@ -253,3 +275,6 @@ impl Drop for Big {
         }
     }
 }
+
+static MAPPED: AtomicUsize = AtomicUsize::new(0);
+static RESERVED: AtomicUsize = AtomicUsize::new(0);
