@@ -91,10 +91,10 @@ const SCREEN_SIZE: Size = Size::new(1024, 768);
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
     kernel::init_subsystems(boot_info, Subsystems::MEMORY);
 
-    let mut frame_buffer = bga::init(SCREEN_SIZE).unwrap();
-
     let foreground = Color::from_24_bpp(0xC0C0FF);
     let background = Color::from_24_bpp(0x000040);
+
+    let mut frame_buffer = bga::init(SCREEN_SIZE, background).unwrap();
 
     let plot_x_span = 300;
 

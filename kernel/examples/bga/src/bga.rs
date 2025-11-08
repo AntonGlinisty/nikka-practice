@@ -26,7 +26,10 @@ use crate::frame_buffer::FrameBuffer;
 /// глубиной цвета, задаваемой `Color`.
 /// Возвращает соответствующий
 /// [видеобуфер](https://en.wikipedia.org/wiki/Framebuffer).
-pub fn init<Color: Default + PixelColor>(resolution: Size) -> Result<FrameBuffer<Color>> {
+pub fn init<Color: PixelColor>(
+    resolution: Size,
+    color: Color,
+) -> Result<FrameBuffer<Color>> {
     let frame_buffer = bga_frame_buffer()?;
 
     let version = version()?;
@@ -46,7 +49,7 @@ pub fn init<Color: Default + PixelColor>(resolution: Size) -> Result<FrameBuffer
 
     set_mode(resolution, bpp)?;
 
-    FrameBuffer::new(frame_buffer, resolution)
+    FrameBuffer::new(frame_buffer, resolution, color)
 }
 
 /// Сканирует PCI-шину в поисках

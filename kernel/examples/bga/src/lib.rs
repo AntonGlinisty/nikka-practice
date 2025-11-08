@@ -7,6 +7,7 @@
 
 #![deny(warnings)]
 #![feature(int_roundings)]
+#![feature(maybe_uninit_fill)]
 #![no_std]
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(missing_docs)]

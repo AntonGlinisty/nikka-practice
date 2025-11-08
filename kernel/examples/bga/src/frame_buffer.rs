@@ -1,4 +1,7 @@
-use core::mem;
+use core::mem::{
+    self,
+    MaybeUninit,
+};
 
 use embedded_graphics_core::{
     Pixel,
@@ -41,7 +44,7 @@ use kernel::{
 /// [видеобуфер](https://en.wikipedia.org/wiki/Framebuffer).
 /// Поддерживает
 /// [двойную буферизацию](https://en.wikipedia.org/wiki/Multiple_buffering).
-pub struct FrameBuffer<Color: Default + PixelColor + 'static> {
+pub struct FrameBuffer<Color: PixelColor + 'static> {
     /// Вторичный буфер (back buffer)
     /// [двойной буферизации](https://en.wikipedia.org/wiki/Multiple_buffering).
     /// Информация, записываемая в него, не отображается до тех пор, пока не вызван метод
@@ -55,6 +58,10 @@ pub struct FrameBuffer<Color: Default + PixelColor + 'static> {
     /// Информация, записываемая в него сразу отображается на экране.
     front_buffer: &'static mut [Color],
 
+    /// Предыдущий вторичный буфер [`Framebuffer::back_buffer`], записанный в
+    /// [`FrameBuffer::front_buffer`] предыдущим вызовом [`FrameBuffer::flush()`].
+    prev_back_buffer: &'static mut [Color],
+
     /// Разрешение экрана.
     resolution: Size,
 
@@ -63,32 +70,32 @@ pub struct FrameBuffer<Color: Default + PixelColor + 'static> {
     stride: usize,
 }
 
-impl<Color: Default + PixelColor> FrameBuffer<Color> {
+impl<Color: PixelColor> FrameBuffer<Color> {
     /// Создаёт видеобуфер по адресу `frame_buffer`
     /// с разрешением `resolution` и глубиной цвета, задаваемой `Color`.
+    /// Очищает экран, заполняя его цветом `color`.
     pub fn new(
         frame_buffer: Phys,
         resolution: Size,
+        color: Color,
     ) -> Result<Self> {
         let stride = size::from(resolution.width);
         let pixel_count = stride * size::from(resolution.height);
         let frame_buffer_size = pixel_count * mem::size_of::<Color>();
 
-        let (front_buffer, back_buffer) = Self::map_buffers(
+        let (front_buffer, back_buffer, prev_back_buffer) = Self::map_buffers(
             Block::new(frame_buffer, (frame_buffer + frame_buffer_size)?)?,
             pixel_count,
+            color,
         )?;
 
-        let mut frame_buffer = Self {
+        Ok(Self {
             back_buffer,
             front_buffer,
+            prev_back_buffer,
             resolution,
             stride,
-        };
-
-        frame_buffer.flush();
-
-        Ok(frame_buffer)
+        })
     }
 
     /// Копирует содержимое вторичного буфера, накопившего изображение,
@@ -98,7 +105,13 @@ impl<Color: Default + PixelColor> FrameBuffer<Color> {
     pub fn flush(&mut self) {
         let timer = time::timer();
 
-        self.front_buffer.copy_from_slice(&self.back_buffer);
+        for (pixel_index, pixel) in self.front_buffer.iter_mut().enumerate() {
+            if self.back_buffer[pixel_index] != self.prev_back_buffer[pixel_index] {
+                *pixel = self.back_buffer[pixel_index];
+            }
+        }
+
+        mem::swap(&mut self.back_buffer, &mut self.prev_back_buffer);
 
         debug!(duration = %timer.elapsed(), "flush the frame buffer");
     }
@@ -131,11 +144,16 @@ impl<Color: Default + PixelColor> FrameBuffer<Color> {
     }
 
     /// Отображает `frame_buffer` в виртуальную память в качестве первичного буфера.
-    /// И создаёт вторичный буфер такого же размера.
+    /// И создаёт вторичные буферы такого же размера.
     fn map_buffers(
         frame_buffer: Block<Phys>,
         pixel_count: usize,
-    ) -> Result<(&'static mut [Color], &'static mut [Color])> {
+        color: Color,
+    ) -> Result<(
+        &'static mut [Color],
+        &'static mut [Color],
+        &'static mut [Color],
+    )> {
         let back_buffer_flags = KERNEL_RW;
         let front_buffer_flags = KERNEL_MMIO;
 
@@ -151,34 +169,37 @@ impl<Color: Default + PixelColor> FrameBuffer<Color> {
             }
         }
 
-        let front_buffer = unsafe { front_buffer.try_into_mut_slice()? };
+        let front_buffer = unsafe { front_buffer.try_into_mut_slice::<MaybeUninit<Color>>()? };
         let front_buffer = &mut front_buffer[.. pixel_count];
-        let back_buffer =
-            &mut address_space.map_slice(front_buffer.len(), back_buffer_flags, Color::default)?
-                [.. pixel_count];
+        let front_buffer = front_buffer.write_with(|_| color);
 
-        Ok((front_buffer, back_buffer))
+        let mut back_buffer = || {
+            address_space.map_slice(pixel_count, back_buffer_flags, || color).map(|x| &mut x[.. pixel_count])
+        };
+
+        Ok((front_buffer, back_buffer()?, back_buffer()?))
     }
 }
 
-impl<Color: Default + PixelColor> Drop for FrameBuffer<Color> {
+impl<Color: PixelColor> Drop for FrameBuffer<Color> {
     fn drop(&mut self) {
         let message = "failed to unmap the frame buffer";
         let mut address_space = BASE_ADDRESS_SPACE.lock();
         unsafe {
-            address_space.unmap_slice(self.front_buffer).expect(message);
             address_space.unmap_slice(self.back_buffer).expect(message);
+            address_space.unmap_slice(self.front_buffer).expect(message);
+            address_space.unmap_slice(self.prev_back_buffer).expect(message);
         }
     }
 }
 
-impl<Color: Default + PixelColor> OriginDimensions for FrameBuffer<Color> {
+impl<Color: PixelColor> OriginDimensions for FrameBuffer<Color> {
     fn size(&self) -> Size {
         self.resolution
     }
 }
 
-impl<Color: Default + PixelColor> DrawTarget for FrameBuffer<Color> {
+impl<Color: PixelColor> DrawTarget for FrameBuffer<Color> {
     type Color = Color;
     type Error = Error;
 
