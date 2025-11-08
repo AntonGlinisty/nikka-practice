@@ -321,7 +321,7 @@ impl Translate for Mapping {
         let root_frame = self.page_table_root();
         let page_table_root = unsafe { self.page_table_mut(root_frame) };
         for pte in page_table_root.iter_mut() {
-            if pte.frame() == Ok(root_frame) {
+            if unsafe { pte.frame() } == Ok(root_frame) {
                 debug!(?pte, "remove recursive mapping");
                 pte.clear();
             }

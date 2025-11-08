@@ -814,7 +814,7 @@ fn generate_allocator_flags() -> impl Iterator<Item = PageTableFlags> {
     [
         KERNEL_R,
         USER_R,
-        PageTableFlags::NO_CACHE,
+        PageTableFlags::UNCACHEABLE,
         PageTableFlags::ACCESSED | PageTableFlags::DIRTY,
         PageTableFlags::AVAILABLE,
     ]

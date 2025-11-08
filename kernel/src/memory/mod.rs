@@ -111,6 +111,7 @@ pub use mmu::{
     KERNEL_R,
     KERNEL_RW,
     KERNEL_RX,
+    KERNEL_WC,
     SYSCALL_ALLOWED_FLAGS,
     USER_R,
     USER_RW,
@@ -179,6 +180,8 @@ pub(super) fn init(
     let mut address_space = AddressSpace::new(page_table_root, phys2virt, subsystems);
 
     if subsystems.contains(Subsystems::VIRT_MEMORY) {
+        mmu::init_page_attribute_table();
+
         let page_table_root = unsafe { address_space.mapping()?.page_table_ref(page_table_root) };
         *KERNEL_PAGE_ALLOCATOR.lock() =
             PageAllocator::new(page_table_root, range::kernel_root_level_entries());

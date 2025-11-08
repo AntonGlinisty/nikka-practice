@@ -131,7 +131,7 @@ fn check_path(
 
     let (level, pte) = deepest_pte(&path);
     if level > 0 {
-        assert!(!pte.is_present() || pte.is_huge());
+        assert!(!pte.is_present() || pte.is_huge(level));
     }
 
     for (&child, &parent) in nodes(&path).iter().zip(nodes(&path)[1 ..].iter()) {
@@ -261,7 +261,7 @@ pub(super) fn test_path(address_space: &mut AddressSpace) {
         "a Path should not descend deeper into a huge page",
     );
     assert!(pte.is_present());
-    assert!(pte.is_huge());
+    assert!(pte.is_huge(level));
     assert_eq!(get_pte(&huge_path), Err(Unimplemented));
     check_path(address_space, huge_virt);
 }
@@ -277,7 +277,7 @@ pub(super) fn test_translate(address_space: &mut AddressSpace) {
 
     debug!(?pte);
 
-    let frame = pte.frame().unwrap();
+    let frame = unsafe { pte.frame().unwrap() };
     let expected_flags = PageTableFlags::PRESENT |
         PageTableFlags::WRITABLE |
         PageTableFlags::ACCESSED |

@@ -106,10 +106,12 @@ impl<'a> Path<'a> {
         let (level, pte) = self.deepest_pte();
 
         let flags = pte.flags();
-        let frame = if pte.is_huge() {
-            pte.huge_frame().expect(Self::INVALID_PATH)
-        } else {
-            pte.frame().unwrap_or_default()
+        let frame = unsafe {
+            if pte.is_huge(level) {
+                pte.huge_frame().expect(Self::INVALID_PATH)
+            } else {
+                pte.frame().unwrap_or_default()
+            }
         };
 
         let pages = self.pages(level);
@@ -173,7 +175,7 @@ impl<'a> Path<'a> {
 
         if level == PAGE_TABLE_LEAF_LEVEL {
             Ok(pte)
-        } else if pte.is_huge() {
+        } else if pte.is_huge(level) {
             Err(Unimplemented)
         } else {
             Err(NoPage)
@@ -278,7 +280,7 @@ impl<'a> Path<'a> {
                 .as_ref()
         };
 
-        root_pte.frame() == Ok(root_frame)
+        unsafe { root_pte.frame() == Ok(root_frame) }
     }
 
     /// Проверяет инварианты [`Path`].
@@ -295,17 +297,16 @@ impl<'a> Path<'a> {
     ///   возвращают разные значения.
     fn validate(&self) {
         let (level, pte) = self.deepest_pte();
-        let level = size::from(level);
 
         assert!(
-            self.nodes[level + 1 ..]
+            self.nodes[size::from(level) + 1 ..]
                 .iter()
                 .all(|pte| unsafe { pte.expect(Self::INVALID_PATH).as_ref().is_present() }),
         );
 
-        if level > size::from(PAGE_TABLE_LEAF_LEVEL) {
-            assert!(self.nodes[.. level].iter().all(Option::is_none));
-            assert_eq!(pte.is_present(), pte.is_huge());
+        if level > PAGE_TABLE_LEAF_LEVEL {
+            assert!(self.nodes[.. size::from(level)].iter().all(Option::is_none));
+            assert_eq!(pte.is_present(), pte.is_huge(level));
         }
     }
 
@@ -330,14 +331,14 @@ impl<'a> fmt::Display for Path<'a> {
 
             let is_present = "failed to get frame for a present page";
 
-            if pte.is_huge() {
+            if pte.is_huge(level) {
                 let (phys, huge_frame_size) = match level {
                     1 => {
-                        let huge_frame = pte.huge_frame::<L1_SIZE>().expect(is_present);
+                        let huge_frame = unsafe { pte.huge_frame::<L1_SIZE>().expect(is_present) };
                         (huge_frame.offset(self.virt), huge_frame.size())
                     },
                     2 => {
-                        let huge_frame = pte.huge_frame::<L2_SIZE>().expect(is_present);
+                        let huge_frame = unsafe { pte.huge_frame::<L2_SIZE>().expect(is_present) };
                         (huge_frame.offset(self.virt), huge_frame.size())
                     },
                     _ => panic!("unexpected page table level for a huge page - {}", level),
@@ -350,7 +351,10 @@ impl<'a> fmt::Display for Path<'a> {
                 );
             };
 
-            frame = pte.frame().expect(is_present);
+            frame = unsafe {
+                assert!(!pte.is_huge(level));
+                pte.frame().expect(is_present)
+            };
 
             if level == PAGE_TABLE_LEAF_LEVEL {
                 let phys = frame.offset(self.virt);

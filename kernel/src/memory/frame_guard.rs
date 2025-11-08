@@ -87,8 +87,12 @@ impl FrameGuard {
     ///
     /// - [`Error::NoPage`] --- эта [`pte`][PageTableEntry] не используется,
     ///   то есть, сброшен бит [`PageTableFlags::PRESENT`].
-    pub fn load(pte: &mut PageTableEntry) -> Result<Self> {
-        Ok(Self::new(pte.take()?))
+    ///
+    /// # Safety
+    ///
+    /// Нельзя использовать эту функцию, если `pte` описывает большую страницу.
+    pub unsafe fn load(pte: &mut PageTableEntry) -> Result<Self> {
+        Ok(Self::new(unsafe { pte.take()? }))
     }
 
     #[allow(rustdoc::private_intra_doc_links)]

@@ -6,7 +6,12 @@ use core::{
 };
 
 use bitflags::bitflags;
+use derive_more::Display;
 use duplicate::duplicate_item;
+use num_enum::{
+    IntoPrimitive,
+    TryFromPrimitive,
+};
 use serde::{
     Deserialize,
     Deserializer,
@@ -67,6 +72,9 @@ impl PageTableEntry {
     }
 
     /// Устанавливает флаги доступа к странице, которую описывает эта запись.
+    ///
+    /// При необходимости переносит флаг [`PageTableFlags::PAGE_ATTRIBUTE_TABLE`]
+    /// во флаг [`PageTableFlags::HUGE`].
     pub fn set_flags(
         &mut self,
         flags: PageTableFlags,
@@ -81,13 +89,10 @@ impl PageTableEntry {
     /// - [`Error::NoPage`] --- эта запись не используется,
     ///   то есть, сброшен бит [`PageTableFlags::PRESENT`].
     ///
-    /// # Panics
+    /// # Safety
     ///
-    /// Паникует в отладочном режиме, если эта запись описывает большую страницу,
-    /// то есть в ней установлен бит [`PageTableFlags::HUGE`].
-    pub fn frame(&self) -> Result<Frame> {
-        debug_assert!(!self.is_huge(), "{}", Self::HUGE_PAGE_ERROR_MESSAGE);
-
+    /// Нельзя использовать эту функцию, если эта запись описывает большую страницу.
+    pub unsafe fn frame(&self) -> Result<Frame> {
         if self.is_present() {
             Ok(Frame::new(self.phys()).unwrap())
         } else {
@@ -98,6 +103,9 @@ impl PageTableEntry {
     /// Устанавливает целевой физический фрейм `frame` и
     /// флаги доступа `flags` в данной записи.
     /// Принудительно выставляет флаг [`PageTableFlags::PRESENT`].
+    ///
+    /// Переносит флаг [`PageTableFlags::PAGE_ATTRIBUTE_TABLE`]
+    /// во флаг [`PageTableFlags::HUGE`].
     ///
     /// # Panics
     ///
@@ -133,8 +141,12 @@ impl PageTableEntry {
     ///   на котором можно располагать большую страницу.
     /// - Физический адрес, на который указывает эта запись не выровнен так,
     ///   как должен был бы быть для большой страницы на уровне `level`.
-    pub fn huge_frame<const SIZE: usize>(&self) -> Result<ElasticFrame<SIZE>> {
-        assert!(self.is_huge(), "{}", Self::HUGE_PAGE_ERROR_MESSAGE);
+    ///
+    /// # Safety
+    ///
+    /// Эту функцию можно использовать, только если эта запись описывает большую страницу.
+    pub unsafe fn huge_frame<const SIZE: usize>(&self) -> Result<ElasticFrame<SIZE>> {
+        assert!(self.flags().is_huge(), "{}", Self::HUGE_PAGE_ERROR_MESSAGE);
 
         if self.is_present() {
             Ok(ElasticFrame::new(self.phys()).expect("bad huge frame address in PageTableEntry"))
@@ -171,11 +183,18 @@ impl PageTableEntry {
     }
 
     /// Устанавливает адрес физического фрейма `phys` и флаги доступа `flags`.
+    ///
+    /// При необходимости переносит флаг [`PageTableFlags::PAGE_ATTRIBUTE_TABLE`]
+    /// во флаг [`PageTableFlags::HUGE`].
     fn set_phys(
         &mut self,
         phys: Phys,
-        flags: PageTableFlags,
+        mut flags: PageTableFlags,
     ) {
+        if !flags.is_huge() && flags.is_pat() {
+            flags ^= PageTableFlags::HUGE | PageTableFlags::PAGE_ATTRIBUTE_TABLE;
+        }
+
         self.0 = phys.into_usize() | (flags ^ PageTableFlags::EXECUTABLE).bits();
     }
 
@@ -184,13 +203,22 @@ impl PageTableEntry {
         flag_getter;
         [is_dirty];
         [is_executable];
-        [is_huge];
         [is_present];
         [is_writable];
         [is_user];
     )]
     pub fn flag_getter(&self) -> bool {
         self.flags().flag_getter()
+    }
+
+    /// Возвращает `true`, если эта запись описывает большую страницу.
+    /// Аргумент `level` указывает, на каком уровне таблицы отображения страниц
+    /// расположена эта запись.
+    pub fn is_huge(
+        &self,
+        level: u32,
+    ) -> bool {
+        level != PAGE_TABLE_LEAF_LEVEL && self.flags().is_huge()
     }
 
     /// Очищает запись.
@@ -206,13 +234,10 @@ impl PageTableEntry {
     /// - [`Error::NoPage`] --- эта запись не используется,
     ///   то есть, сброшен бит [`PageTableFlags::PRESENT`].
     ///
-    /// # Panics
+    /// # Safety
     ///
-    /// Паникует в отладочном режиме, если эта запись описывает большую страницу,
-    /// то есть в ней установлен бит [`PageTableFlags::HUGE`].
-    pub fn take(&mut self) -> Result<Frame> {
-        debug_assert!(!self.is_huge(), "{}", Self::HUGE_PAGE_ERROR_MESSAGE);
-
+    /// Нельзя использовать эту функцию, если эта запись описывает большую страницу.
+    pub unsafe fn take(&mut self) -> Result<Frame> {
         if self.is_present() {
             let phys = self.phys();
             self.clear();
@@ -238,10 +263,8 @@ impl fmt::Debug for PageTableEntry {
     ) -> fmt::Result {
         let flags = self.flags();
 
-        if self.is_huge() {
+        if self.is_present() {
             write!(formatter, "{} {flags}", Frame::containing(self.phys()))
-        } else if let Ok(frame) = self.frame() {
-            write!(formatter, "{frame} {flags}")
         } else {
             write!(formatter, "<non-present>")
         }
@@ -310,12 +333,6 @@ bitflags! {
         /// Страница доступна в режиме пользователя.
         const USER = 1 << 2;
 
-        /// Для страницы используется синхронная запись в память, без ожидания буфера записи.
-        const WRITE_THROUGH = 1 << 3;
-
-        /// Кэширование страницы запрещено.
-        const NO_CACHE = 1 << 4;
-
         /// К странице был доступ.
         const ACCESSED = 1 << 5;
 
@@ -343,6 +360,47 @@ bitflags! {
         /// Один из битов [`PageTableFlags::AVAILABLE`] используется
         /// для пометки страниц, которые должны быть скопированы в случае записи в них.
         const COPY_ON_WRITE = Self::AVAILABLE_0.bits();
+
+        /// [Расширенное управление кэшированием](https://en.wikipedia.org/wiki/Page_attribute_table).
+        /// Совместно с битами
+        /// [`PageTableFlags::WRITE_THROUGH`] и [`PageTableFlags::UNCACHEABLE_MINUS`]
+        /// выбирает тип кеширования виртуальной страницы.
+        ///
+        /// В аппаратуре это:
+        /// - Либо 12-й бит для больших страниц, то есть в [`PageTableEntry`]
+        ///   не на листьевом уровне [`PAGE_TABLE_LEAF_LEVEL`].
+        /// - Либо это 7-й бит на листьевом уровне, где 12-й бит используется в номере
+        ///   4KiB--фрейма [`L0Frame`] и его использовать нельзя.
+        ///   А 7-й бит освобождается, так как на листьевом уровне не может быть
+        ///   установлен флаг [`PageTableFlags::HUGE`].
+        ///
+        /// Перенос из 12-го бита в 7-й делают методы [`PageTableEntry::set_flags()`] и
+        /// [`PageTableEntry::set_frame()`]. Но это делает невозможным корректно прочитать
+        /// [`PageTableFlags::HUGE`]/[`PageTableFlags::PAGE_ATTRIBUTE_TABLE`]
+        /// методом [`PageTableEntry::flags()`], в который не передаётся
+        /// уровень узла таблицы страниц.
+        const PAGE_ATTRIBUTE_TABLE = 1 << 12;
+
+        /// Маска типа кэширования страницы, см. [`MemoryType`].
+        const MEMORY_TYPE = Self::PAGE_ATTRIBUTE_TABLE.bits() | Self::WRITE_THROUGH.bits() | Self::UNCACHEABLE_MINUS.bits();
+
+        /// См. [`MemoryType::WriteBack`].
+        const WRITE_BACK = 0;
+
+        /// См. [`MemoryType::WriteThrough`].
+        const WRITE_THROUGH = 1 << 3;
+
+        /// См. [`MemoryType::UncacheableMinus`].
+        const UNCACHEABLE_MINUS = 1 << 4;
+
+        /// См. [`MemoryType::Uncacheable`].
+        const UNCACHEABLE = Self::UNCACHEABLE_MINUS.bits() | Self::WRITE_THROUGH.bits();
+
+        /// См. [`MemoryType::WriteCombining`].
+        const WRITE_COMBINING = Self::PAGE_ATTRIBUTE_TABLE.bits();
+
+        /// См. [`MemoryType::WriteProtected`].
+        const WRITE_PROTECTED = Self::PAGE_ATTRIBUTE_TABLE.bits() | Self::WRITE_THROUGH.bits();
 
         /// Страница доступна на исполнение.
         ///
@@ -373,6 +431,7 @@ impl PageTableFlags {
         [is_dirty] [DIRTY];
         [is_executable] [EXECUTABLE];
         [is_huge] [HUGE];
+        [is_pat] [PAGE_ATTRIBUTE_TABLE];
         [is_present] [PRESENT];
         [is_writable] [WRITABLE];
         [is_user] [USER];
@@ -380,6 +439,27 @@ impl PageTableFlags {
     pub fn flag_getter(&self) -> bool {
         self.contains(PageTableFlags::flag)
     }
+
+    /// Возвращает номер записи в таблице [`PAGE_ATTRIBUTE_TABLE`]
+    /// [расширенного управления кэшированием](https://en.wikipedia.org/wiki/Page_attribute_table).
+    pub fn pat_entry(&self) -> usize {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    /// Возвращает флаги для записи в таблице [`PAGE_ATTRIBUTE_TABLE`]
+    /// [расширенного управления кэшированием](https://en.wikipedia.org/wiki/Page_attribute_table)
+    /// номер `entry`.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если `entry` имеет недопустимый номер.
+    pub fn from_pat_entry(entry: usize) -> Self {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    // TODO: your code here.
 }
 
 impl Serialize for PageTableFlags {
@@ -438,13 +518,11 @@ impl fmt::Display for PageTableFlags {
         formatter: &mut fmt::Formatter,
     ) -> fmt::Result {
         /// Сокращения для флагов отображения страниц.
-        static FLAGS: [(PageTableFlags, char); 13] = [
+        static FLAGS: [(PageTableFlags, char); 11] = [
             (PageTableFlags::PRESENT, 'P'),
             (PageTableFlags::EXECUTABLE, 'X'),
             (PageTableFlags::WRITABLE, 'W'),
             (PageTableFlags::USER, 'U'),
-            (PageTableFlags::WRITE_THROUGH, 'T'),
-            (PageTableFlags::NO_CACHE, 'C'),
             (PageTableFlags::ACCESSED, 'A'),
             (PageTableFlags::DIRTY, 'D'),
             (PageTableFlags::HUGE, 'H'),
@@ -453,6 +531,8 @@ impl fmt::Display for PageTableFlags {
             (PageTableFlags::AVAILABLE_1, '1'),
             (PageTableFlags::AVAILABLE_2, '2'),
         ];
+
+        write!(formatter, "{} ", PAGE_ATTRIBUTE_TABLE[self.pat_entry()])?;
 
         for (flag, flag_symbol) in FLAGS.iter().rev() {
             write!(
@@ -472,9 +552,14 @@ impl fmt::Display for PageTableFlags {
 
 /// Флаги для страниц, предназначенных для взаимодействия с устройствами
 /// ([Memory--mapped I/O](https://en.wikipedia.org/wiki/Memory-mapped_I/O), MMIO).
-pub const KERNEL_MMIO: PageTableFlags = PageTableFlags::from_bits_truncate(
-    KERNEL_RW.bits() | PageTableFlags::NO_CACHE.bits() | PageTableFlags::WRITE_THROUGH.bits(),
-);
+pub const KERNEL_MMIO: PageTableFlags =
+    PageTableFlags::from_bits_truncate(KERNEL_RW.bits() | PageTableFlags::UNCACHEABLE.bits());
+
+/// Флаги для страниц, предназначенных для взаимодействия с
+/// [видеобуфером](https://en.wikipedia.org/wiki/Framebuffer)
+/// и подобными устройствами.
+pub const KERNEL_WC: PageTableFlags =
+    PageTableFlags::from_bits_truncate(KERNEL_RW.bits() | PageTableFlags::WRITE_COMBINING.bits());
 
 /// Флаги для страниц, доступных ядру только на чтение.
 pub const KERNEL_R: PageTableFlags =
@@ -517,6 +602,94 @@ pub const SYSCALL_ALLOWED_FLAGS: PageTableFlags = PageTableFlags::from_bits_trun
         PageTableFlags::DIRTY.bits(),
 );
 
+/// Режимы кэширования для
+/// [page attribute table (PAT)](https://en.wikipedia.org/wiki/Page_attribute_table).
+///
+/// [AMD64 Architecture Programmer's Manual Volume 2: System Programming](https://github.com/tpn/pdfs/blob/master/AMD%20-%20AMD64%20Programmer's%20Manual%20-%20Volume%202%20-%20System%20Programming%20-%20Rev%203.30%20-%20Sept%202018%20(24593).pdf),
+/// [Table 7-8. PAT Type Encodings](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G13.931459)
+#[derive(Clone, Copy, Debug, Display, Eq, IntoPrimitive, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
+pub enum MemoryType {
+    /// Кэширование страницы запрещено.
+    ///
+    /// [AMD64 Architecture Programmer's Manual Volume 2: System Programming](https://github.com/tpn/pdfs/blob/master/AMD%20-%20AMD64%20Programmer's%20Manual%20-%20Volume%202%20-%20System%20Programming%20-%20Rev%203.30%20-%20Sept%202018%20(24593).pdf),
+    /// [Table 7-8. PAT Type Encodings](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G13.931459):
+    /// > All accesses are uncacheable. Write combining is not allowed.
+    /// > Speculative accesses are not allowed.
+    #[display("UC")]
+    Uncacheable = 0,
+
+    /// Режим кэширования с
+    /// [объединением записей (write combining)](https://en.wikipedia.org/wiki/Write_combining).
+    /// Данные записываются в один из специальных write combining буферов процессора,
+    /// а не в кэш процессора.
+    /// Этот буфер асинхронно в фоне записывает данные в память или устройство.
+    /// Никаких гарантий модели памяти для таких областей не предоставляется.
+    ///
+    /// [AMD64 Architecture Programmer's Manual Volume 2: System Programming](https://github.com/tpn/pdfs/blob/master/AMD%20-%20AMD64%20Programmer's%20Manual%20-%20Volume%202%20-%20System%20Programming%20-%20Rev%203.30%20-%20Sept%202018%20(24593).pdf),
+    /// [Table 7-8. PAT Type Encodings](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G13.931459):
+    /// > All accesses are uncacheable. Write combining is allowed. Speculative reads are allowed.
+    #[display("WC")]
+    WriteCombining = 1,
+
+    /// Для страницы используется синхронная запись в память, без ожидания буфера записи.
+    ///
+    /// [AMD64 Architecture Programmer's Manual Volume 2: System Programming](https://github.com/tpn/pdfs/blob/master/AMD%20-%20AMD64%20Programmer's%20Manual%20-%20Volume%202%20-%20System%20Programming%20-%20Rev%203.30%20-%20Sept%202018%20(24593).pdf),
+    /// [Table 7-8. PAT Type Encodings](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G13.931459):
+    /// > Reads allocate cache lines on a cache miss, but only to the shared state.
+    /// > Cache lines are not allocated on a write miss.
+    /// > Write hits update the cache and main memory.
+    #[display("WT")]
+    WriteThrough = 4,
+
+    /// [AMD64 Architecture Programmer's Manual Volume 2: System Programming](https://github.com/tpn/pdfs/blob/master/AMD%20-%20AMD64%20Programmer's%20Manual%20-%20Volume%202%20-%20System%20Programming%20-%20Rev%203.30%20-%20Sept%202018%20(24593).pdf),
+    /// [Table 7-8. PAT Type Encodings](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G13.931459):
+    /// > Reads allocate cache lines on a cache miss, but only to the shared state.
+    /// > All writes update main memory. Cache lines are not allocated on a write miss.
+    /// > Write hits invalidate the cache line and update main memory.
+    #[display("WP")]
+    WriteProtected = 5,
+
+    /// Обычный механизм кэширования данных страницы.
+    /// Новые данные записываются в кэш процессора,
+    /// а кэш асинхронно в фоне записывает их в память.
+    ///
+    /// [AMD64 Architecture Programmer's Manual Volume 2: System Programming](https://github.com/tpn/pdfs/blob/master/AMD%20-%20AMD64%20Programmer's%20Manual%20-%20Volume%202%20-%20System%20Programming%20-%20Rev%203.30%20-%20Sept%202018%20(24593).pdf),
+    /// [Table 7-8. PAT Type Encodings](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G13.931459):
+    /// > Reads allocate cache lines on a cache miss, and can allocate to
+    /// > either the shared or exclusive state.
+    /// > Writes allocate to the modified state on a cache miss.
+    #[display("WB")]
+    WriteBack = 6,
+
+    /// [AMD64 Architecture Programmer's Manual Volume 2: System Programming](https://github.com/tpn/pdfs/blob/master/AMD%20-%20AMD64%20Programmer's%20Manual%20-%20Volume%202%20-%20System%20Programming%20-%20Rev%203.30%20-%20Sept%202018%20(24593).pdf),
+    /// [Table 7-8. PAT Type Encodings](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G13.931459):
+    /// > All accesses are uncacheable. Write combining is not allowed.
+    /// > Speculative accesses are not allowed.
+    /// > Can be overridden by an MTRR with the WC type.
+    #[display("Uc")]
+    UncacheableMinus = 7,
+}
+
+/// [Page attribute table (PAT)](https://en.wikipedia.org/wiki/Page_attribute_table),
+/// которую нужно загрузить в процессор, чтобы:
+///   - Были доступны режимы кэширования [`PageTableFlags::WRITE_COMBINING`] и
+///     [`PageTableFlags::WRITE_PROTECTED`].
+///   - Для остальных режимов кэширования не поменялось соответствие флагам [`PageTableFlags`].
+///
+/// [AMD64 Architecture Programmer's Manual Volume 2: System Programming](https://github.com/tpn/pdfs/blob/master/AMD%20-%20AMD64%20Programmer's%20Manual%20-%20Volume%202%20-%20System%20Programming%20-%20Rev%203.30%20-%20Sept%202018%20(24593).pdf),
+/// [Table 7-9. PAT-Register PA-Field Indexing](https://github.com/tpn/pdfs/blob/master/AMD%20-%20AMD64%20Programmer's%20Manual%20-%20Volume%202%20-%20System%20Programming%20-%20Rev%203.30%20-%20Sept%202018%20(24593).pdf#G13.1049568).
+pub const PAGE_ATTRIBUTE_TABLE: [MemoryType; 8] = [
+    MemoryType::WriteBack,
+    MemoryType::WriteThrough,
+    MemoryType::UncacheableMinus,
+    MemoryType::Uncacheable,
+    MemoryType::WriteCombining,
+    MemoryType::WriteProtected,
+    MemoryType::UncacheableMinus,
+    MemoryType::Uncacheable,
+];
+
 /// Количество бит в смещении внутри виртуальной страницы или физического фрейма.
 /// Равно двоичному логарифму их размера.
 pub const PAGE_OFFSET_BITS: u32 = 12;
@@ -544,3 +717,37 @@ const_assert_eq!(
     PAGE_TABLE_ENTRY_COUNT * mem::size_of::<PageTableEntry>(),
 );
 const_assert_eq!(mem::size_of::<PageTable>(), Page::SIZE);
+
+#[cfg(test)]
+mod test {
+    use super::{
+        MemoryType,
+        PAGE_ATTRIBUTE_TABLE,
+        PageTableFlags,
+    };
+
+    #[test]
+    fn page_attribute_table() {
+        for (flags, memory_type) in [
+            (PageTableFlags::WRITE_BACK, MemoryType::WriteBack),
+            (PageTableFlags::WRITE_THROUGH, MemoryType::WriteThrough),
+            (
+                PageTableFlags::UNCACHEABLE_MINUS,
+                MemoryType::UncacheableMinus,
+            ),
+            (PageTableFlags::UNCACHEABLE, MemoryType::Uncacheable),
+            (PageTableFlags::WRITE_COMBINING, MemoryType::WriteCombining),
+            (PageTableFlags::WRITE_PROTECTED, MemoryType::WriteProtected),
+        ] {
+            assert_eq!(flags & PageTableFlags::MEMORY_TYPE, flags);
+            assert_eq!(PAGE_ATTRIBUTE_TABLE[flags.pat_entry()], memory_type);
+        }
+    }
+
+    #[test]
+    fn pat_entry_conversions() {
+        for entry in 0 .. PAGE_ATTRIBUTE_TABLE.len() {
+            assert_eq!(PageTableFlags::from_pat_entry(entry).pat_entry(), entry);
+        }
+    }
+}

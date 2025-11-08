@@ -61,6 +61,7 @@ pub use mmu::{
     KERNEL_R,
     KERNEL_RW,
     KERNEL_RX,
+    KERNEL_WC,
     SYSCALL_ALLOWED_FLAGS,
     USER_R,
     USER_RW,

@@ -25,7 +25,7 @@ fn mapped_properly() {
 
     let mapping_error = "Local APIC is not mapped";
     let pte = *translate(&mut BASE_ADDRESS_SPACE.lock(), local_apic).expect(mapping_error);
-    let frame = pte.frame().expect(mapping_error);
+    let frame = unsafe { pte.frame().expect(mapping_error) };
     let flags = pte.flags();
 
     info!(%local_apic, ?frame, ?flags, "Local APIC");

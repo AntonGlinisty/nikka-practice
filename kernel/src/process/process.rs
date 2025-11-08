@@ -427,7 +427,8 @@ impl Process {
     fn map_system_info(address_space: &mut AddressSpace) -> Result<*const SystemInfo> {
         let flags = USER_R;
 
-        let system_info_frame = address_space.translate(Virt::from_ref(&SYSTEM_INFO))?.frame()?;
+        let system_info_frame =
+            unsafe { address_space.translate(Virt::from_ref(&SYSTEM_INFO))?.frame()? };
 
         let system_info_page = address_space
             .allocate(Layout::for_value(&SYSTEM_INFO), flags)?

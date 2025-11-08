@@ -36,7 +36,7 @@
 ### Ассемблер
 
 - Наиболее полные руководства по архитектуре:
-  - [AMD64 Architecture Programmer's Manual](https://docs.amd.com/v/u/en-US/40332-PUB_4.08),
+  - [AMD64 Architecture Programmer's Manual](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB),
   - [Intel® 64 and IA-32 Architectures Software Developer’s Manual](https://software.intel.com/en-us/download/intel-64-and-ia-32-architectures-sdm-combined-volumes-1-2a-2b-2c-2d-3a-3b-3c-3d-and-4).
 - Удобный справочник по командам ассемблера: [x86 and amd64 instruction reference](https://www.felixcloutier.com/x86/).
 - Макрос [`asm!()`](https://doc.rust-lang.org/core/arch/macro.asm.html): [Rust By Example: Inline assembly](https://doc.rust-lang.org/nightly/rust-by-example/unsafe/asm.html) и [The Rust Reference: Inline assembly](https://doc.rust-lang.org/nightly/reference/inline-assembly.html).
