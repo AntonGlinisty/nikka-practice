@@ -35,8 +35,8 @@ use kernel::{
     memory::{
         BASE_ADDRESS_SPACE,
         FrameGuard,
-        KERNEL_MMIO,
         KERNEL_RW,
+        KERNEL_WC,
     },
 };
 
@@ -155,7 +155,7 @@ impl<Color: PixelColor> FrameBuffer<Color> {
         &'static mut [Color],
     )> {
         let back_buffer_flags = KERNEL_RW;
-        let front_buffer_flags = KERNEL_MMIO;
+        let front_buffer_flags = KERNEL_WC;
 
         let mut address_space = BASE_ADDRESS_SPACE.lock();
 
