@@ -248,15 +248,7 @@ fn t09_tlb_flush() {
             .expect("failed to map a page frame");
     }
 
-    let current_mark = get_page_mark(page);
-    debug!(
-        %page,
-        %old_frame,
-        current_mark,
-        old_mark,
-        "the page is currently mapped to the old frame and should contain its old mark",
-    );
-    assert_eq!(current_mark, old_mark);
+    let mark_before_remap = get_page_mark(page);
 
     unsafe {
         path(&mut address_space, page.address())
@@ -264,15 +256,25 @@ fn t09_tlb_flush() {
             .expect("failed to map a page frame");
     }
 
-    let current_mark = get_page_mark(page);
+    let mark_after_remap = get_page_mark(page);
+
+    debug!(
+        %page,
+        %old_frame,
+        mark_before_remap,
+        old_mark,
+        "the page is currently mapped to the old frame and should contain its old mark",
+    );
+    assert_eq!(mark_before_remap, old_mark);
+
     debug!(
         %page,
         %new_frame,
-        current_mark,
+        mark_after_remap,
         new_mark,
         "the page is currently mapped to the new frame and should contain its new mark",
     );
-    assert_eq!(current_mark, new_mark);
+    assert_eq!(mark_after_remap, new_mark);
 
     unsafe {
         path(&mut address_space, page.address()).unmap().unwrap();
