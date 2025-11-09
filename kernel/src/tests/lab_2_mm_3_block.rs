@@ -1,8 +1,11 @@
+use ku::memory::block::Memory;
+
 use kernel::{
     Subsystems,
     log::debug,
     memory::{
         Block,
+        Page,
         Virt,
     },
 };
@@ -12,11 +15,20 @@ mod init;
 init!(Subsystems::empty());
 
 #[test_case]
-fn block() {
+fn block_page() {
+    test_block::<Page>();
+}
+
+#[test_case]
+fn block_virt() {
+    test_block::<Virt>();
+}
+
+fn test_block<T: Memory>() {
     for start in 0 .. 100 {
         for count in 0 .. 100 {
             let end = start + count;
-            let mut block = Block::<Virt>::from_index(start, end).unwrap();
+            let mut block = Block::<T>::from_index(start, end).unwrap();
 
             if start % 25 == 0 && end % 33 == 0 {
                 debug!(start, end, %block);
@@ -32,7 +44,7 @@ fn block() {
 
             while requested_count < block.count() {
                 let old_count = block.count();
-                let old_end = block.end_address().unwrap().into_usize();
+                let old_end = block.end();
 
                 block.tail(0).unwrap();
                 assert_eq!(block.count(), old_count);
@@ -42,25 +54,14 @@ fn block() {
                 assert_eq!(block.count(), old_count - requested_count);
                 assert_eq!(b.count(), requested_count);
 
-                assert_eq!(block.start_address().into_usize(), start);
-                assert!(
-                    block.start_address().into_usize() < block.end_address().unwrap().into_usize(),
-                );
-                assert_eq!(
-                    block.start_address().into_usize() + old_count - requested_count,
-                    block.end_address().unwrap().into_usize(),
-                );
-                assert_eq!(
-                    block.end_address().unwrap().into_usize(),
-                    b.start_address().into_usize(),
-                );
-                assert!(b.start_address().into_usize() <= b.end_address().unwrap().into_usize());
-                assert_eq!(
-                    b.start_address().into_usize() + requested_count,
-                    b.end_address().unwrap().into_usize(),
-                );
-                assert!(b.end_address().unwrap().into_usize() <= end);
-                assert_eq!(b.end_address().unwrap().into_usize(), old_end);
+                assert_eq!(block.start(), start);
+                assert!(block.start() < block.end());
+                assert_eq!(block.start() + old_count - requested_count, block.end());
+                assert_eq!(block.end(), b.start());
+                assert!(b.start() <= b.end());
+                assert_eq!(b.start() + requested_count, b.end());
+                assert!(b.end() <= end);
+                assert_eq!(b.end(), old_end);
 
                 requested_count += 1;
             }
@@ -74,21 +75,12 @@ fn block() {
                 assert_eq!(block.count(), 0);
                 assert_eq!(c.count(), remaining_count);
 
-                assert_eq!(block.start_address().into_usize(), start);
-                assert_eq!(
-                    block.start_address().into_usize(),
-                    block.end_address().unwrap().into_usize(),
-                );
-                assert_eq!(
-                    block.end_address().unwrap().into_usize(),
-                    c.start_address().into_usize(),
-                );
-                assert!(c.start_address().into_usize() < c.end_address().unwrap().into_usize());
-                assert_eq!(
-                    c.start_address().into_usize() + remaining_count,
-                    c.end_address().unwrap().into_usize(),
-                );
-                assert!(c.end_address().unwrap().into_usize() <= end);
+                assert_eq!(block.start(), start);
+                assert_eq!(block.start(), block.end());
+                assert_eq!(block.end(), c.start());
+                assert!(c.start() < c.end());
+                assert_eq!(c.start() + remaining_count, c.end());
+                assert!(c.end() <= end);
             }
 
             block.tail(0).unwrap();
