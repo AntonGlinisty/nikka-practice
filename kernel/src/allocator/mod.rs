@@ -1,6 +1,13 @@
 /// Аллокатор памяти, предназначенный для выделения памяти блоками виртуальных страниц.
 mod big;
 
+/// Пара аллокаторов, связанная с одним или с двумя разными адресными пространствами.
+/// Реализует типаж [`BigAllocatorPair`].
+/// В частности, позволяет скопировать
+/// отображение страниц из текущего адресного пространства [`BigPair::src()`]
+/// в целевое адресное пространство [`BigPair::dst()`] методом [`BigPair::copy_mapping()`].
+mod big_pair;
+
 /// Аллокатор памяти общего назначения внутри [`AddressSpace`].
 mod memory_allocator;
 
@@ -21,11 +28,15 @@ use crate::memory::{
 };
 
 pub(crate) use big::Big;
+pub(crate) use big_pair::BigPair;
 pub(crate) use memory_allocator::MemoryAllocator;
 
 // Used in docs.
 #[allow(unused)]
-use crate::memory::AddressSpace;
+use {
+    crate::memory::AddressSpace,
+    ku::allocator::BigAllocatorPair,
+};
 
 /// Статистика глобального аллокатора памяти общего назначения для ядра.
 pub fn info() -> Info {

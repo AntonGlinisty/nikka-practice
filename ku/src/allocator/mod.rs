@@ -2,6 +2,10 @@
 /// который умеет выдавать только выровненные на границу страниц блоки памяти.
 pub mod big;
 
+/// Интерфейс пары аллокаторов памяти [`BigAllocatorPair`],
+/// который позволяет копировать отображение блока страниц между двумя [`BigAllocator`].
+pub mod big_pair;
+
 /// Кэш выделяемых блоков.
 pub mod cache;
 
@@ -27,6 +31,7 @@ pub use big::{
     BigAllocator,
     BigAllocatorGuard,
 };
+pub use big_pair::BigAllocatorPair;
 pub use cache::{
     Cache,
     Clip,

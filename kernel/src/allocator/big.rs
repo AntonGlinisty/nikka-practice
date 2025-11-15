@@ -1,7 +1,10 @@
 use core::alloc::Layout;
 
 use ku::{
-    allocator::BigAllocator,
+    allocator::{
+        BigAllocator,
+        BigAllocatorPair,
+    },
     error::{
         Error::InvalidArgument,
         Result,
@@ -13,11 +16,9 @@ use ku::{
     },
 };
 
-use crate::memory::{
-    AddressSpace,
-    FrameGuard,
-    Translate,
-};
+use crate::memory::AddressSpace;
+
+use super::BigPair;
 
 // Used in docs.
 #[allow(unused)]
