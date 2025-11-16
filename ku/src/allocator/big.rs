@@ -193,6 +193,84 @@ pub unsafe trait BigAllocator {
         new_block: Block<Page>,
         flags: Option<PageTableFlags>,
     ) -> Result<()>;
+
+    // ANCHOR: grow
+    /// Аналогично [`Allocator::grow()`]
+    /// увеличивает ранее отображённый блок виртуальных страниц `old_block`.
+    ///
+    /// При `old_block.size() == 0` выделяет полный новый блок.
+    /// Метод `BigAllocator::grow(Block::default(), layout, flags)` может быть использован
+    /// для выделения нового блока вместо пары вызовов
+    /// [`BigAllocator::reserve()`] и [`BigAllocator::map()`].
+    /// А вызов `BigAllocator::shrink(block, Page::layout_array(0))` может быть использован
+    /// для полного освобождения блока вместо пары вызовов
+    /// [`BigAllocator::unmap()`] и [`BigAllocator::unreserve()`].
+    ///
+    /// # Safety
+    ///
+    /// - `old_block` должен был быть пустой или должен быть ранее отображён с помощью
+    ///   [`BigAllocator::map()`] или [`BigAllocator::copy_mapping()`].
+    /// - Вызывающий код должен гарантировать,
+    ///   что инварианты управления памятью в Rust'е не будут нарушены.
+    ///   В частности, не осталось ссылок, которые ведут в освобождаемые страницы.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если `new_layout.size() < old_block.size()`.
+    unsafe fn grow(
+        &mut self,
+        old_block: Block<Page>,
+        new_layout: Layout,
+        flags: PageTableFlags,
+    ) -> Result<Block<Page>> {
+        // ANCHOR_END: grow
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    // ANCHOR: shrink
+    /// Аналогично [`Allocator::shrink()`]
+    /// уменьшает ранее отображённый блок виртуальных страниц `old_block`.
+    /// Возвращает:
+    ///   - Подблок, начинающийся с того же адреса, что и `old_block`,
+    ///     если начало `old_block` удовлетворяет новому выравниванию `layout.align()`.
+    ///     Для станиц в конце `old_block`, не попадающих в результирующий подблок,
+    ///     вызывается [`BigAllocator::unreserve()`].
+    ///   - Новый блок, не пересекающийся с `old_block`,
+    ///     если начало `old_block` не удовлетворяет новому выравниванию `layout.align()`.
+    ///     Для `old_block` вызывается [`BigAllocator::unreserve()`].
+    ///
+    /// Флаги отображения страниц нового блока постранично совпадают с флагами,
+    /// с которыми были отображены страницы соответствующего префикса старого блока.
+    ///
+    /// При `new_layout.size() == 0` полностью освобождает `old_block`.
+    /// Метод `BigAllocator::grow(Block::default(), layout, flags)` может быть использован
+    /// для выделения нового блока вместо пары вызовов
+    /// [`BigAllocator::reserve()`] и [`BigAllocator::map()`].
+    /// А вызов `BigAllocator::shrink(block, Page::layout_array(0))` может быть использован
+    /// для полного освобождения блока вместо пары вызовов
+    /// [`BigAllocator::unmap()`] и [`BigAllocator::unreserve()`].
+    ///
+    /// # Safety
+    ///
+    /// - `old_block` должен был быть ранее отображён с помощью [`BigAllocator::map()`]
+    ///   или [`BigAllocator::copy_mapping()`].
+    /// - Вызывающий код должен гарантировать,
+    ///   что инварианты управления памятью в Rust'е не будут нарушены.
+    ///   В частности, не осталось ссылок, которые ведут в освобождаемые страницы.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если `new_layout.size() > old_block.size()`.
+    unsafe fn shrink(
+        &mut self,
+        old_block: Block<Page>,
+        new_layout: Layout,
+    ) -> Result<Block<Page>> {
+        // ANCHOR_END: shrink
+        // TODO: your code here.
+        unimplemented!();
+    }
 }
 
 unsafe impl<T: BigAllocator> DryAllocator for T {
