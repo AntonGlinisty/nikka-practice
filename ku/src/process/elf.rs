@@ -21,7 +21,10 @@ use xmas_elf::{
 };
 
 use crate::{
-    allocator::BigAllocator,
+    allocator::{
+        BigAllocator,
+        BigAllocatorPair,
+    },
     error::{
         Error::{
             Elf,
@@ -38,7 +41,6 @@ use crate::{
     },
     memory::{
         Block,
-        KERNEL_RW,
         Page,
         Virt,
         block::Memory,
@@ -53,10 +55,7 @@ use crate::error::Error;
 
 // ANCHOR: load
 /// Загружает [ELF--файл](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format) `file`.
-/// Выделяет для него память с помощью `allocator`.
-///
-/// Вызывающая функция должна гарантировать,
-/// что `allocator` выделяет память в текущем адресном пространстве.
+/// Выделяет для него память в целевом адресном пространстве с помощью `allocator.dst()`.
 ///
 /// Использует разновидность алгоритма
 /// [сканирующей прямой](https://ru.algorithmica.org/cs/decomposition/scanline/),
@@ -65,7 +64,12 @@ use crate::error::Error;
 /// они должны быть отсортированы по своим виртуальным адресам.
 /// См.
 /// [System V Application Binary Interface](https://refspecs.linuxbase.org/elf/gabi4+/ch5.pheader.html).
-pub fn load<T: BigAllocator>(
+///
+/// # Safety
+///
+/// Вызывающая функция должна гарантировать,
+/// что `allocator.src()` выделяет память в текущем адресном пространстве.
+pub unsafe fn load<T: BigAllocatorPair>(
     allocator: &mut T,
     file: &[u8],
 ) -> Result<Virt> {
@@ -76,25 +80,36 @@ pub fn load<T: BigAllocator>(
 
 // ANCHOR: loader
 /// Состояние загрузчика ELF--файлов.
-struct Loader<'a, T: BigAllocator> {
-    /// Страничный аллокатор памяти.
-    ///
-    /// Выделяет память в текущем адресном пространстве,
-    /// которое совпадает с адресным пространством загружаемого процесса.
+struct Loader<'a, T: BigAllocatorPair> {
+    /// Пара страничных аллокаторов памяти для работы как с целевым адресным пространством,
+    /// куда загружается ELF--файл, так и с текущим адресным пространством.
     allocator: &'a mut T,
+
+    /// Текущий обрабатываемый диапазон памяти загружаемого процесса.
+    curr: Option<VirtRange>,
 
     /// Содержимое [ELF--файла](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format).
     file: &'a [u8],
+
+    /// Текущий блок отображённых на физическую память страниц в текущем адресном пространстве.
+    /// В него копируются данные из ELF--файла,
+    /// после чего соответствующие физические фреймы переносятся в целевое адресное пространство.
+    src_block: Block<Page>,
 }
 // ANCHOR_END: loader
 
-impl<'a, T: BigAllocator> Loader<'a, T> {
+impl<'a, T: BigAllocatorPair> Loader<'a, T> {
     /// Инициализирует состояние загрузчика ELF--файлов.
     fn new(
         allocator: &'a mut T,
         file: &'a [u8],
     ) -> Self {
-        Self { allocator, file }
+        Self {
+            allocator,
+            curr: None,
+            file,
+            src_block: Block::default(),
+        }
     }
 
     // ANCHOR: load_program_header
@@ -102,45 +117,78 @@ impl<'a, T: BigAllocator> Loader<'a, T> {
     /// [ELF--файла](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format).
     ///
     /// - Выделяет для него память с помощью [`Loader::extend_mapping()`].
-    /// - Копирует его в память с помощью [`FileRange::copy_to_memory()`].
-    /// - С помощью метода [`Loader::process_boundary()`] исправляет флаги отображения
-    ///   для той части `curr` и границы между `curr` и `next`,
+    /// - Копирует его в текущее адресное пространство с помощью [`Loader::copy_to_memory()`].
+    /// - С помощью функции [`combine()`] разбивает диапазоны памяти [`Loader::curr`] и `next`
+    ///   на выровненные по границам страниц части,
     ///   про которые стали известны окончательные значения флагов отображения.
-    /// - Возвращает часть диапазона `next`, уже скопированную в память,
-    ///   но ещё не отображённую с правильными флагами.
+    ///   И диапазон памяти, флаги которого ещё могут измениться.
+    /// - С помощью метода [`Loader::finalize_mapping()`] переносит страницы в
+    ///   целевое адресное пространство с правильными флагами отображения
+    ///   той части [`Loader::curr`] и границы между [`Loader::curr`] и `next`,
+    ///   про которые стали известны окончательные значения флагов отображения.
+    /// - Сохраняет в [`Loader::curr`] часть диапазона `next`,
+    ///   флаги которого ещё могут измениться.
     ///   То есть, уже не обязательно соответствующую одному сегменту ELF--файла.
     fn load_program_header(
         &mut self,
-        curr: Option<VirtRange>,
         next: FileRange,
-    ) -> Result<VirtRange> {
+    ) -> Result<()> {
         // ANCHOR_END: load_program_header
         // TODO: your code here.
         unimplemented!();
     }
 
-    // ANCHOR: extend_mapping
-    /// Расширяет отображение текущего адресного пространства,
-    /// чтобы гарантировать что блок, который описывает `next`, отображён в память.
+    // ANCHOR: finish
+    /// Завершает загрузку ELF--файла в адресное пространство процесса.
+    /// После вызова [`Loader::finish()`] в адресное пространство процесса
+    /// больше не будут добавляться новые сегменты методом [`Loader::load_program_header()`].
     ///
-    /// - Уже отображённую часть памяти определяет по `curr`,
+    /// С помощью метода [`Loader::finalize_mapping()`] переносит оставшиеся страницы из
+    /// текущего адресного пространства в целевое для оставшегося диапазона [`Loader::curr`].
+    fn finish(&mut self) -> Result<()> {
+        // ANCHOR_END: finish
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    // ANCHOR: copy_to_memory
+    /// Копирует из ELF--файла [`Loader::file`] в текущее адресное пространство
+    /// диапазон памяти [`range`][FileRange].
+    ///
+    /// Диапазон страниц в текущем адресном пространстве, в который осуществляется копирование,
+    /// задаётся [`Loader::src_block`].
+    fn copy_to_memory(
+        &mut self,
+        range: FileRange,
+    ) -> Result<VirtRange> {
+        // ANCHOR_END: copy_to_memory
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    // ANCHOR: extend_mapping
+    /// Расширяет отображение целевого адресного пространства,
+    /// чтобы гарантировать что блок, который описывает `next`, зарезервирован в памяти.
+    ///
+    /// - Уже зарезервированную часть памяти определяет по [`Loader::curr`],
     ///   для которого вызывалась ранее. Это должен обеспечить вызывающий метод.
-    /// - Выделяет для `next` память с помощью [`Loader::allocator`].
-    ///   Для этого резервирует виртуальные страницы методом [`BigAllocator::reserve_fixed()`].
-    ///   А после этого отображает в физическую память методом [`BigAllocator::map()`].
-    /// - Флаги страниц должны быть выставлены так, чтобы в эту память мог записать метод
-    ///   [`FileRange::copy_to_memory()`], см. [`Loader::initial_flags()`].
-    ///   Эти флаги могут не совпадать с флагами [`VirtRange::flags`],
-    ///   с которыми этот диапазон должен быть отображён в память процесса.
-    ///   Последние проставит в дальнейшем метод [`Loader::finalize_mapping()`].
-    /// - Кроме нужных для копирования флагов требуется также указывать
-    ///   флаги аллокатора [`Loader::allocator.flags()`][BigAllocator::flags].
-    ///   Среди них, например, может быть [`PageTableFlags::USER`],
-    ///   которого нет во флагах ELF--файла.
-    /// - Новые страницы отображения заполняет нулями с помощью [`slice::write_filled()`].
+    /// - Резервирует в целевом адресном пространстве виртуальные страницы для `next`
+    ///   методом [`BigAllocator::reserve_fixed()`].
+    /// - Резервирует, отображает в физическую память методом [`BigAllocator::map()`]
+    ///   и зануляет с помощью [`slice::write_filled()`] необходимое количество страниц
+    ///   в текущем адресном пространстве.
+    ///   В них позже будут временно скопированы данные из ELF--файла.
+    ///   После чего они будут перенесены в зарезервированную область
+    ///   целевого адресного пространства.
+    /// - Флаги страниц в текущем адресном пространстве должны быть выставлены так,
+    ///   чтобы в эту память мог записать метод
+    ///   [`Loader::copy_to_memory()`].
+    ///   Кроме нужных для копирования флагов требуется также указывать
+    ///   флаги аллокатора [`Loader::allocator.src().flags()`][BigAllocator::flags]
+    ///   текущего адресного пространства.
+    ///   Среди них, например, может быть [`PageTableFlags::USER`].
     fn extend_mapping(
         &mut self,
-        curr: &Option<VirtRange>,
         next: &FileRange,
     ) -> Result<()> {
         // ANCHOR_END: extend_mapping
@@ -148,36 +196,13 @@ impl<'a, T: BigAllocator> Loader<'a, T> {
         unimplemented!();
     }
 
-    // ANCHOR: process_boundary
-    /// Обрабатывает очередную границу между диапазонами памяти `curr` и `next`.
-    ///
-    /// - С помощью функции [`combine()`] разбивает диапазоны памяти `curr` и `next`
-    ///   на выровненные по границам страниц части,
-    ///   про которые стали известны окончательные значения флагов отображения.
-    ///   И диапазон памяти, флаги которого ещё могут измениться.
-    /// - С помощью метода [`Loader::finalize_mapping()`] исправляет флаги отображения
-    ///   для той части `curr` и границы между `curr` и `next`,
-    ///   про которые стали известны окончательные значения флагов отображения.
-    /// - Возвращает диапазон памяти, флаги которого ещё могут измениться.
-    fn process_boundary(
-        &mut self,
-        curr: VirtRange,
-        next: VirtRange,
-    ) -> Result<VirtRange> {
-        // ANCHOR_END: process_boundary
-        // TODO: your code here.
-        unimplemented!();
-    }
-
     // ANCHOR: finalize_mapping
-    /// Исправляет флаги отображения диапазона [`page_range`][PageRange].
+    /// Переносит заполненные физические фреймы для целевого диапазона
+    /// [`page_range`][PageRange] из текущего адресного пространства в целевое
+    /// с окончательными флагами.
     ///
-    /// Флаги требуется исправить только если они отличаются от
-    /// использованных изначально для копирования в память содержимого из ELF--файла.
-    /// Изначальные флаги выставил ранее метод [`Loader::extend_mapping()`].
-    ///
-    /// Кроме нужных для копирования флагов требуется также указывать
-    /// флаги аллокатора [`Loader::allocator.flags()`][BigAllocator::flags].
+    /// Кроме заданных в ELF--файле флагов требуется также указывать
+    /// флаги аллокатора [`Loader::allocator.dst().flags()`][BigAllocator::flags].
     /// Среди них, например, может быть [`PageTableFlags::USER`],
     /// которого нет во флагах ELF--файла.
     fn finalize_mapping(
@@ -188,21 +213,11 @@ impl<'a, T: BigAllocator> Loader<'a, T> {
         // TODO: your code here.
         unimplemented!();
     }
-
-    /// Флаги, используемые изначально для копирования в память содержимого из ELF--файла,
-    /// которые выставляет метод [`Loader::extend_mapping()`].
-    fn initial_flags(&self) -> PageTableFlags {
-        Self::INITIAL_FLAGS | self.allocator.flags()
-    }
-
-    /// Флаги, используемые изначально для копирования в память содержимого из ELF--файла,
-    /// которые выставляет метод [`Loader::extend_mapping()`].
-    const INITIAL_FLAGS: PageTableFlags = KERNEL_RW;
 }
 
 // ANCHOR: memory_range
 /// Диапазон памяти процесса с заданными флагами доступа.
-#[derive(Debug, Display, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Display, Eq, PartialEq)]
 #[display("{{ memory: {}, flags: {} }}", memory, flags)]
 struct MemoryRange<T: Memory<Address = Virt>> {
     /// Флаги, с которыми должен быть отображён этот диапазон памяти процесса.
@@ -256,20 +271,6 @@ struct FileRange {
     virt_range: VirtRange,
 }
 // ANCHOR_END: file_range
-
-impl FileRange {
-    // ANCHOR: copy_to_memory
-    /// Копирует из ELF--файла `file` в адресное пространство процесса
-    /// диапазон памяти [`self`][FileRange].
-    fn copy_to_memory(
-        self,
-        file: &[u8],
-    ) -> Result<VirtRange> {
-        // ANCHOR_END: copy_to_memory
-        // TODO: your code here.
-        unimplemented!();
-    }
-}
 
 impl TryFrom<ProgramHeader<'_>> for FileRange {
     type Error = Error;
@@ -410,7 +411,7 @@ pub(super) mod test_scaffolding {
     };
 
     use crate::{
-        allocator::BigAllocator,
+        allocator::BigAllocatorPair,
         error::Result,
         memory::{
             Block,
@@ -421,9 +422,9 @@ pub(super) mod test_scaffolding {
         },
     };
 
-    pub struct Loader<'a, T: BigAllocator>(super::Loader<'a, T>);
+    pub struct Loader<'a, T: BigAllocatorPair>(super::Loader<'a, T>);
 
-    impl<'a, T: BigAllocator> Loader<'a, T> {
+    impl<'a, T: BigAllocatorPair> Loader<'a, T> {
         pub fn new(
             allocator: &'a mut T,
             file: &'a [u8],
@@ -433,22 +434,22 @@ pub(super) mod test_scaffolding {
 
         pub fn load_program_header(
             &mut self,
-            curr: Option<VirtRange>,
             next: FileRange,
-        ) -> Result<VirtRange> {
-            let curr = curr.map(|x| x.into());
+        ) -> Result<()> {
             let next = next.into();
-            self.0.load_program_header(curr, next).map(|x| x.into())
+            self.0.load_program_header(next)
+        }
+
+        pub fn finish(&mut self) -> Result<()> {
+            self.0.finish()
         }
 
         pub fn extend_mapping(
             &mut self,
-            curr: &Option<VirtRange>,
             next: &FileRange,
         ) -> Result<()> {
-            let curr = curr.map(|x| x.into());
             let next = next.clone().into();
-            self.0.extend_mapping(&curr, &next)
+            self.0.extend_mapping(&next)
         }
 
         pub fn finalize_mapping(
@@ -456,10 +457,6 @@ pub(super) mod test_scaffolding {
             page_range: PageRange,
         ) -> Result<()> {
             self.0.finalize_mapping(page_range.into())
-        }
-
-        pub fn initial_flags(&self) -> PageTableFlags {
-            self.0.initial_flags()
         }
     }
 
@@ -532,13 +529,6 @@ pub(super) mod test_scaffolding {
                 file_range,
                 virt_range: VirtRange::new(memory, flags),
             }
-        }
-
-        pub fn copy_to_memory(
-            self,
-            file: &[u8],
-        ) -> Result<VirtRange> {
-            Ok(super::FileRange::from(self.clone()).copy_to_memory(file)?.into())
         }
     }
 

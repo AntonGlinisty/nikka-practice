@@ -21,10 +21,12 @@ use ku::process::elf;
 
 use crate::{
     Subsystems,
+    allocator::BigPair,
     error::Result,
     log::info,
     memory::{
         BASE_ADDRESS_SPACE,
+        KERNEL_R,
         Size,
         USER_R,
     },
@@ -72,15 +74,20 @@ pub fn create(elf_file: &[u8]) -> Result<Pid> {
 /// [ELF--файла](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format)
 /// `elf_file` и возвращает его.
 fn create_process(elf_file: &[u8]) -> Result<Process> {
-    let mut address_space = BASE_ADDRESS_SPACE.lock().duplicate()?;
+    let mut base_address_space = BASE_ADDRESS_SPACE.lock();
+    let mut process_address_space = base_address_space.duplicate()?;
+    let mut src_dst = BigPair::new_pair(
+        &mut base_address_space,
+        KERNEL_R,
+        &mut process_address_space,
+        USER_R,
+    );
 
-    address_space.switch_to();
+    let entry = unsafe { elf::load(&mut src_dst, elf_file)? };
 
-    let entry = elf::load(&mut address_space.allocator(USER_R), elf_file)?;
+    drop(base_address_space);
 
-    BASE_ADDRESS_SPACE.lock().switch_to();
-
-    let process = Process::new(address_space, entry)?;
+    let process = Process::new(process_address_space, entry)?;
 
     info!(%entry, file_size = %Size::from_slice(elf_file), %process, "loaded ELF file");
 

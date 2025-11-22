@@ -53,7 +53,6 @@ impl<'a> BigPair<'a> {
     /// флаги по умолчанию в нём.
     /// Параметры `dst` и `dst_flags` задают второе адресное пространство и
     /// флаги по умолчанию в нём.
-    #[allow(unused)]
     pub(crate) fn new_pair(
         src: &'a mut AddressSpace,
         src_flags: PageTableFlags,

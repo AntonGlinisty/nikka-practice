@@ -35,7 +35,10 @@ use xmas_elf::program::{
 };
 
 use ku::{
-    allocator::BigAllocator,
+    allocator::{
+        BigAllocator,
+        BigAllocatorPair,
+    },
     error::{
         Error::{
             InvalidArgument,
@@ -55,6 +58,7 @@ use ku::{
         KERNEL_R,
         Page,
         USER_R,
+        USER_RW,
         Virt,
         mmu::PageTableFlags,
         size,
@@ -147,45 +151,29 @@ fn t02_range_errors() {
 
 #[test]
 fn t03_out_of_bounds() {
+    let mut allocator = DummyAllocatorPair::new(1, PageTableFlags::default());
+
     const DATA: [u8; 3] = [1, 2, 3];
 
     let mut file = [0; DATA.len()];
     file.copy_from_slice(&DATA);
     let bad_file_range = 1 .. DATA.len() + 1;
 
-    let mut target = vec![0; DATA.len()];
+    let file_range = FileRange::new(
+        Block::from_slice(allocator.dst.get(bad_file_range.clone())),
+        USER_R,
+        bad_file_range,
+    );
 
-    let program_header = program_header_block(Block::from_slice_mut(&mut target), &bad_file_range);
+    let mut loader = Loader::new(&mut allocator, &file);
 
-    let virt_range = program_header_to_file_range(&program_header).unwrap();
-    info!(%virt_range, ?program_header);
+    info!(%file_range);
 
-    assert_eq!(virt_range.copy_to_memory(&file), Err(Overflow));
+    assert_eq!(loader.load_program_header(file_range), Err(Overflow));
 }
 
 #[test]
-fn t04_file_offset() {
-    const DATA: [u8; 3] = [1, 2, 3];
-    const OFFSET: usize = 7;
-
-    let mut file = vec![0; OFFSET + DATA.len()];
-    let file_range = OFFSET .. OFFSET + DATA.len();
-    file[file_range.clone()].copy_from_slice(&DATA);
-
-    let mut target = vec![0; DATA.len()];
-
-    let program_header = program_header_block(Block::from_slice_mut(&mut target), &file_range);
-
-    let virt_range = program_header_to_file_range(&program_header).unwrap();
-    info!(%virt_range, ?program_header);
-
-    virt_range.copy_to_memory(&file).unwrap();
-
-    assert_eq!(&file[file_range], &target);
-}
-
-#[test]
-fn t05_validate_order() {
+fn t04_validate_order() {
     let a = Block::from_index(1, 2).unwrap();
     let b = Block::from_index(2, 3).unwrap();
     let c = Block::from_index(0, 2).unwrap();
@@ -209,7 +197,7 @@ struct CombineTestCase {
 }
 
 #[test]
-fn t06_0_rerun_last_failed_test() {
+fn t05_0_rerun_last_failed_test() {
     if let Err(error) = read_file(TEST_CASE_PATH)
         .and_then(|test_case| deserialize(&test_case))
         .and_then(rerun)
@@ -237,7 +225,7 @@ fn t06_0_rerun_last_failed_test() {
 }
 
 #[test]
-fn t06_1_stress_combine() {
+fn t05_1_stress_combine() {
     for curr in generate_blocks(0, 0 ..= 2, -2 ..= 2) {
         assert!(!curr.is_empty());
         for next in generate_blocks(curr.end(), 0 ..= 2, -2 ..= 2) {
@@ -493,13 +481,12 @@ fn validate_combine(
 }
 
 #[test]
-fn t07_initial_flags() {
-    let mut allocator = DummyAllocator::new(1, PageTableFlags::default());
-    let offset = allocator.offset();
+fn t06_initial_flags() {
+    let mut allocator = DummyAllocatorPair::new(1, USER_R);
+    let offset = allocator.dst.offset();
 
     let file = [];
 
-    let curr = None;
     let next = FileRange::new(
         Block::new(offset, (offset + Page::SIZE).unwrap()).unwrap(),
         PageTableFlags::default(),
@@ -507,107 +494,16 @@ fn t07_initial_flags() {
     );
 
     let mut loader = Loader::new(&mut allocator, &file);
-    let expected_initial_flags = loader.initial_flags();
 
-    loader.extend_mapping(&curr, &next).unwrap();
-    let initial_flags = allocator.pages[0].flags;
+    loader.extend_mapping(&next).unwrap();
+    let initial_flags = allocator.src.pages[0].flags;
 
     debug!(%initial_flags);
-    assert!(initial_flags.is_writable());
-    assert_eq!(initial_flags, expected_initial_flags);
+    assert_eq!(initial_flags, USER_RW);
 }
 
 #[test]
-fn t08_finalize_mapping() {
-    let mut rng = SmallRng::seed_from_u64(SEED);
-
-    let block_flags: Vec<_> = generate_flags().collect();
-
-    for allocator_flags in generate_allocator_flags() {
-        let page_count = 32;
-        let min_block_pages = 1;
-        let max_block_pages = 4;
-        let max_gap_pages = 4;
-        let file_size = max_block_pages * Page::SIZE;
-
-        let mut allocator = DummyAllocator::new(page_count, allocator_flags);
-        let offset = allocator.offset();
-        let offset_page = allocator.offset_page();
-
-        let file: Vec<_> = (&mut rng).sample_iter(Alphanumeric).take(file_size).collect();
-
-        let initial_flags = Loader::new(&mut allocator, &file).initial_flags();
-
-        let mut prev_end = 0;
-        let mut expected = Vec::new();
-
-        while prev_end < page_count {
-            let start = cmp::min(
-                rng.gen_range(prev_end ..= prev_end + max_gap_pages),
-                page_count,
-            );
-
-            while prev_end < start {
-                expected.push(DummyPage {
-                    flags: PageTableFlags::default(),
-                    reserved: false,
-                });
-                prev_end += 1;
-            }
-
-            if start >= page_count {
-                break;
-            }
-
-            let end = cmp::min(
-                rng.gen_range(start + min_block_pages ..= start + max_block_pages),
-                page_count,
-            );
-            let page_range = PageRange::new(
-                Block::from_index(offset_page + start, offset_page + end).unwrap(),
-                block_flags[rng.gen_range(0 .. block_flags.len())],
-            );
-
-            while prev_end < end {
-                expected.push(DummyPage {
-                    flags: page_range.flags | allocator.flags(),
-                    reserved: true,
-                });
-                prev_end += 1;
-            }
-
-            let size = page_range.memory.size();
-
-            allocator.reserve_fixed(page_range.memory).unwrap();
-            unsafe {
-                allocator.map(page_range.memory, initial_flags).unwrap();
-                page_range
-                    .memory
-                    .try_into_mut_slice::<u8>()
-                    .unwrap()
-                    .copy_from_slice(&file[.. size]);
-            }
-
-            debug!(%page_range);
-
-            let mut loader = Loader::new(&mut allocator, &file);
-            loader.finalize_mapping(page_range).unwrap();
-
-            let actual_memory = unsafe { page_range.memory.try_into_mut_slice::<u8>().unwrap() };
-            validate_memory(
-                actual_memory,
-                &file[.. size],
-                &format!("actual_memory[..{size}] (at offset {offset})"),
-                &format!("file[..{size}]"),
-            );
-        }
-
-        assert_eq!(allocator.pages, expected);
-    }
-}
-
-#[test]
-fn t09_extend_mapping() {
+fn t07_extend_mapping() {
     let mut rng = SmallRng::seed_from_u64(SEED);
 
     let block_flags: Vec<_> = generate_flags().collect();
@@ -619,8 +515,8 @@ fn t09_extend_mapping() {
         let max_block_len = 4 * Page::SIZE;
         let max_gap_len = 4 * Page::SIZE;
 
-        let mut allocator = DummyAllocator::new(page_count, allocator_flags);
-        let offset = allocator.offset();
+        let mut allocator = DummyAllocatorPair::new(page_count, allocator_flags);
+        let offset = allocator.dst.offset();
 
         let file = [];
 
@@ -657,7 +553,7 @@ fn t09_extend_mapping() {
 
             while curr_end < next_end {
                 expected.push(DummyPage {
-                    flags: loader.initial_flags(),
+                    flags: PageTableFlags::default(),
                     reserved: true,
                 });
                 curr_end += Page::SIZE;
@@ -665,19 +561,19 @@ fn t09_extend_mapping() {
 
             debug!(?curr, %next);
 
-            loader.extend_mapping(&curr, &next).unwrap();
+            loader.extend_mapping(&next).unwrap();
 
             curr = Some(next.virt_range);
         }
 
-        assert_eq!(allocator.pages, expected);
-
-        allocator.validate_no_garbage();
+        for (index, (&page, expected)) in allocator.dst.pages.iter().zip(expected).enumerate() {
+            assert_eq!(page, expected, "unexpected state of page #{index}");
+        }
     }
 }
 
 #[test]
-fn t10_load_program_header() {
+fn t08_load_program_header() {
     let mut rng = SmallRng::seed_from_u64(SEED);
 
     let block_flags: Vec<_> = generate_flags().collect();
@@ -693,17 +589,17 @@ fn t10_load_program_header() {
                 let min_block_len = 1;
                 let file_size = 16 * Page::SIZE;
 
-                let mut allocator = DummyAllocator::new(page_count, allocator_flags);
-                let offset = allocator.offset();
+                let mut allocator = DummyAllocatorPair::new(page_count, allocator_flags);
+                let offset = allocator.dst.offset();
 
                 let file: Vec<_> = (&mut rng).sample_iter(Alphanumeric).take(file_size).collect();
+                let mut segments = Vec::new();
 
                 let mut loader = Loader::new(&mut allocator, &file);
 
                 let mut curr_end = 0;
                 let mut expected_pages = Vec::new();
                 let mut expected_memory = vec![0_u8; end];
-                let mut curr = None;
 
                 while curr_end < page_count * Page::SIZE {
                     let next_start =
@@ -752,10 +648,34 @@ fn t10_load_program_header() {
                         curr_end += Page::SIZE;
                     }
 
-                    trace!(?curr, %next);
+                    debug!(%next);
 
-                    let updated_next = loader.load_program_header(curr, next).unwrap();
+                    loader.load_program_header(next).unwrap();
 
+                    segments.push(Segment {
+                        memory,
+                        file_start,
+                        file_end,
+                        next_start,
+                        next_end,
+                        offset,
+                    });
+
+                    curr_end = next_end;
+                }
+
+                loader.finish().unwrap();
+
+                for segment in segments.iter() {
+                    let file_size = segment.file_size();
+                    let Segment {
+                        memory,
+                        file_start,
+                        file_end,
+                        next_start,
+                        next_end,
+                        offset,
+                    } = *segment;
                     let actual_memory = unsafe { memory.try_into_slice::<u8>().unwrap() };
                     validate_memory(
                         &actual_memory[.. file_size],
@@ -764,21 +684,34 @@ fn t10_load_program_header() {
                         &format!("file[{file_start}..{file_end}]"),
                     );
                     assert!(actual_memory[file_size ..].iter().all(|&x| x == 0));
-
-                    curr_end = next_end;
-                    curr = Some(updated_next);
                 }
 
-                if let Some(curr) = curr {
-                    loader.finalize_mapping(curr.into()).unwrap();
-                }
+                assert_eq!(allocator.dst.pages, expected_pages);
+                allocator.dst.validate_allocated_memory_state(&expected_memory);
+                allocator.dst.validate_no_garbage();
+                allocator.dst.validate_no_unused_pages();
 
-                assert_eq!(allocator.pages, expected_pages);
-                allocator.validate_allocated_memory_state(&expected_memory);
-                allocator.validate_no_garbage();
-                allocator.validate_no_unused_pages();
+                if cfg!(feature = "forbid-leaks") {
+                    allocator.src.validate_empty();
+                }
             }
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Segment {
+    memory: Block<Virt>,
+    file_start: usize,
+    file_end: usize,
+    next_start: usize,
+    next_end: usize,
+    offset: Virt,
+}
+
+impl Segment {
+    fn file_size(&self) -> usize {
+        self.file_end - self.file_start
     }
 }
 
@@ -884,18 +817,6 @@ fn program_header(
     }
 }
 
-fn program_header_block(
-    memory: Block<Virt>,
-    file: &Range<usize>,
-) -> ProgramHeader64 {
-    program_header(
-        memory.start_address().into_usize(),
-        memory.size(),
-        file.start,
-        file.clone().count(),
-    )
-}
-
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 struct DummyPage {
     flags: PageTableFlags,
@@ -907,6 +828,7 @@ struct DummyAllocator {
     memory: Vec<u8>,
     offset_index: usize,
     pages: Vec<DummyPage>,
+    reserved: usize,
 }
 
 impl DummyAllocator {
@@ -919,6 +841,7 @@ impl DummyAllocator {
             memory: Vec::new(),
             offset_index: 0,
             pages: Vec::new(),
+            reserved: 0,
         };
 
         allocator.memory.resize((page_count + 1) * Page::SIZE, Self::GARBAGE);
@@ -955,6 +878,16 @@ impl DummyAllocator {
         Page::containing(self.offset()).index()
     }
 
+    fn mapped_count(
+        &self,
+        block: Block<Page>,
+    ) -> usize {
+        let offset_page = self.offset_page();
+        (block.start() .. block.end())
+            .filter(|&i| self.pages[i - offset_page].flags.is_present())
+            .count()
+    }
+
     fn reserved_count(
         &self,
         block: Block<Page>,
@@ -963,6 +896,10 @@ impl DummyAllocator {
         (block.start() .. block.end())
             .filter(|&i| self.pages[i - offset_page].reserved)
             .count()
+    }
+
+    fn validate_empty(&self) {
+        assert!(!self.pages.iter().any(|page| page.reserved));
     }
 
     fn validate_no_garbage(&self) {
@@ -1046,9 +983,36 @@ unsafe impl BigAllocator for DummyAllocator {
 
     fn reserve(
         &mut self,
-        _layout: Layout,
+        layout: Layout,
     ) -> Result<Block<Page>> {
-        unimplemented!();
+        assert!(layout.align() <= Page::SIZE);
+
+        let page_count = layout.size().div_ceil(Page::SIZE);
+        let mut start = self.reserved;
+        let mut end = start;
+        while end < self.pages.len() && end - start < page_count {
+            if self.pages[end].reserved {
+                start = end + 1;
+            }
+            end += 1;
+        }
+
+        if end - start < page_count {
+            assert_ne!(self.reserved, 0, "no more scratch space in src allocator");
+            self.reserved = 0;
+            return self.reserve(layout);
+        }
+
+        assert_eq!(end - start, page_count);
+        for i in start .. end {
+            assert!(!self.pages[i].reserved);
+            self.pages[i].reserved = true;
+        }
+
+        self.reserved = end;
+
+        let offset_page = self.offset_page();
+        Block::from_index(start + offset_page, end + offset_page)
     }
 
     fn reserve_fixed(
@@ -1062,6 +1026,8 @@ unsafe impl BigAllocator for DummyAllocator {
             for i in block.start() .. block.end() {
                 self.pages[i - offset_page].reserved = true;
             }
+            self.reserved = block.end() - offset_page;
+
             Ok(())
         } else {
             Err(NoPage)
@@ -1070,9 +1036,21 @@ unsafe impl BigAllocator for DummyAllocator {
 
     unsafe fn unreserve(
         &mut self,
-        _block: Block<Page>,
+        block: Block<Page>,
     ) -> Result<()> {
-        unimplemented!();
+        assert_eq!(self.reserved_count(block), block.count());
+        assert_eq!(
+            self.mapped_count(block),
+            0,
+            "unmap the block before unreserving it",
+        );
+
+        let offset_page = self.offset_page();
+        for i in block.start() .. block.end() {
+            self.pages[i - offset_page].reserved = false;
+        }
+
+        Ok(())
     }
 
     unsafe fn rereserve(
@@ -1094,10 +1072,7 @@ unsafe impl BigAllocator for DummyAllocator {
             "do not forget to reserve_fixed() a page block before mapping",
         );
 
-        assert!(
-            flags.is_present(),
-            "map() with non-present flags makes no sense",
-        );
+        let flags = flags | PageTableFlags::PRESENT;
 
         let offset_page = self.offset_page();
         for i in block.start() .. block.end() {
@@ -1113,9 +1088,16 @@ unsafe impl BigAllocator for DummyAllocator {
 
     unsafe fn unmap(
         &mut self,
-        _block: Block<Page>,
+        block: Block<Page>,
     ) -> Result<()> {
-        unimplemented!();
+        assert_eq!(self.mapped_count(block), block.count());
+
+        let offset_page = self.offset_page();
+        for i in block.start() .. block.end() {
+            self.pages[i - offset_page].flags = PageTableFlags::default();
+        }
+
+        Ok(())
     }
 
     unsafe fn copy_mapping(
@@ -1124,21 +1106,166 @@ unsafe impl BigAllocator for DummyAllocator {
         new_block: Block<Page>,
         flags: Option<PageTableFlags>,
     ) -> Result<()> {
-        assert_eq!(old_block, new_block);
-        assert!(flags.is_some());
-
+        assert_eq!(old_block.count(), new_block.count());
+        assert_eq!(self.mapped_count(old_block), old_block.count());
+        assert_eq!(self.mapped_count(new_block), 0);
         assert_eq!(
             self.reserved_count(new_block),
             new_block.count(),
-            "do not forget to reserve_fixed() a page block before mapping",
+            "do not forget to reserve a page block before mapping",
         );
 
-        for i in new_block.start() .. new_block.end() {
-            let i = i - self.offset_page();
-            self.pages[i].flags = flags.unwrap();
+        for (new_page, old_page) in new_block.into_iter().zip(old_block.into_iter()) {
+            let new_page = new_page.index() - self.offset_page();
+            let old_page = old_page.index() - self.offset_page();
+            self.pages[new_page].flags =
+                flags.unwrap_or(self.pages[old_page].flags) | PageTableFlags::PRESENT;
+        }
+
+        unsafe {
+            copy(old_block, new_block);
         }
 
         Ok(())
+    }
+}
+
+struct Dummy<'a>(&'a mut DummyAllocator);
+
+unsafe impl BigAllocator for Dummy<'_> {
+    fn flags(&self) -> PageTableFlags {
+        self.0.flags()
+    }
+
+    fn set_flags(
+        &mut self,
+        flags: PageTableFlags,
+    ) -> Result<()> {
+        self.0.set_flags(flags)
+    }
+
+    fn reserve(
+        &mut self,
+        layout: Layout,
+    ) -> Result<Block<Page>> {
+        self.0.reserve(layout)
+    }
+
+    fn reserve_fixed(
+        &mut self,
+        block: Block<Page>,
+    ) -> Result<()> {
+        self.0.reserve_fixed(block)
+    }
+
+    unsafe fn unreserve(
+        &mut self,
+        block: Block<Page>,
+    ) -> Result<()> {
+        unsafe { self.0.unreserve(block) }
+    }
+
+    unsafe fn rereserve(
+        &mut self,
+        _old_block: Block<Page>,
+        _sub_block: Block<Page>,
+    ) -> Result<()> {
+        unimplemented!();
+    }
+
+    unsafe fn map(
+        &mut self,
+        block: Block<Page>,
+        flags: PageTableFlags,
+    ) -> Result<()> {
+        unsafe { self.0.map(block, flags) }
+    }
+
+    unsafe fn unmap(
+        &mut self,
+        block: Block<Page>,
+    ) -> Result<()> {
+        unsafe { self.0.unmap(block) }
+    }
+
+    unsafe fn copy_mapping(
+        &mut self,
+        old_block: Block<Page>,
+        new_block: Block<Page>,
+        flags: Option<PageTableFlags>,
+    ) -> Result<()> {
+        unsafe { self.0.copy_mapping(old_block, new_block, flags) }
+    }
+}
+
+struct DummyAllocatorPair {
+    dst: DummyAllocator,
+    src: DummyAllocator,
+}
+
+impl DummyAllocatorPair {
+    fn new(
+        page_count: usize,
+        flags: PageTableFlags,
+    ) -> Self {
+        Self {
+            dst: DummyAllocator::new(page_count, flags),
+            src: DummyAllocator::new(8 * page_count, flags),
+        }
+    }
+}
+
+impl BigAllocatorPair for DummyAllocatorPair {
+    fn dst(&mut self) -> impl BigAllocator {
+        Dummy(&mut self.dst)
+    }
+
+    fn src(&mut self) -> impl BigAllocator {
+        Dummy(&mut self.src)
+    }
+
+    fn is_same(&self) -> bool {
+        false
+    }
+
+    unsafe fn copy_mapping(
+        &mut self,
+        src_block: Block<Page>,
+        dst_block: Block<Page>,
+        flags: Option<PageTableFlags>,
+    ) -> Result<()> {
+        assert_eq!(src_block.count(), dst_block.count());
+        assert_eq!(self.src.mapped_count(src_block), src_block.count());
+        assert_eq!(self.dst.mapped_count(dst_block), 0);
+        assert_eq!(
+            self.dst.reserved_count(dst_block),
+            dst_block.count(),
+            "do not forget to reserve a page block before mapping",
+        );
+
+        for (new_page, old_page) in dst_block.into_iter().zip(src_block.into_iter()) {
+            let new_page = new_page.index() - self.dst.offset_page();
+            let old_page = old_page.index() - self.src.offset_page();
+            self.dst.pages[new_page].flags =
+                flags.unwrap_or(self.src.pages[old_page].flags) | PageTableFlags::PRESENT;
+        }
+
+        unsafe {
+            copy(src_block, dst_block);
+        }
+
+        Ok(())
+    }
+}
+
+unsafe fn copy(
+    src_block: Block<Page>,
+    dst_block: Block<Page>,
+) {
+    if src_block != dst_block {
+        let new_slice = unsafe { dst_block.try_into_mut_slice::<usize>().unwrap() };
+        let old_slice = unsafe { src_block.try_into_mut_slice().unwrap() };
+        new_slice.copy_from_slice(old_slice);
     }
 }
 
