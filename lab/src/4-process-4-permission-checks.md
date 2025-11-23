@@ -41,7 +41,7 @@ fn AddressSpace::check_permission_common(
 с флагами `PageTableFlags::PRESENT`, `PageTableFlags::USER` и заданными на вход `flags` одновременно.
 
 
-### Задача 2 --- проверка доступа к памяти
+### Задача 4 --- проверка доступа к памяти
 
 Реализуйте методы [`AddressSpace::check_permission_common()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.check_permission_common), [`AddressSpace::check_permission<T>()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.check_permission) и [`AddressSpace::check_permission_mut<T>()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.check_permission_mut) в файле [`kernel/src/memory/address_space.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/address_space.rs).
 

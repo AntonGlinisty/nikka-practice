@@ -24,7 +24,7 @@
   - [`GS`](https://wiki.osdev.org/CPU_Registers_x86-64#FS.base.2C_GS.base) --- доступен для программных нужд.
 
 
-### Задача 4 --- вектор структур [`kernel::smp::cpu::Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html)
+### Задача 2 --- вектор структур [`kernel::smp::cpu::Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html)
 
 
 #### Инициализация TSS и регистра `TR`

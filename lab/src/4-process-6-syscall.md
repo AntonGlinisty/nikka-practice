@@ -55,7 +55,7 @@
 - Остальные регистры общего назначения занулены, чтобы через них никакой информации из ядра не утекло в пользовательское пространство.
 
 
-### Задача 4 --- поддержка системных вызовов
+### Задача 6 --- поддержка системных вызовов
 
 
 #### Инициализация системных вызовов
@@ -357,7 +357,7 @@ $ (cd kernel; cargo test --test 4-process-6-syscall)
 
 Если в
 [задаче про `AtomicCorrelationPoint`](../../lab/book/5-sync-4-correlation-point.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-5--%D1%80%D0%B5%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-atomiccorrelationpoint)
-вы попытались воспользоваться
+в следующей лабораторке вы попытаетесь воспользоваться
 [приёмом "read-dont-modify-write"](https://web.archive.org/web/20230318132751/https://web.archive.org/web/20230318132751/https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf),
 то в режиме пользователя и вызов `time::delay()` из
 [`user/exit/src/main.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/user/exit/src/main.rs)

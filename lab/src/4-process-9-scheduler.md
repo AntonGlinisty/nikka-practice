@@ -13,7 +13,7 @@
 [`static ref SCHEDULER: Spinlock<Scheduler>`](../../doc/kernel/process/scheduler/struct.SCHEDULER.html).
 
 
-### Задача 7 --- планировщик
+### Задача 9 --- планировщик
 
 #### Реализуйте методы планировщика
 

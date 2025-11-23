@@ -1,5 +1,58 @@
 ## Работа с local APIC
 
+При реализации вытесняющей многозадачности для измерения кванта времени,
+отведённого текущему процессу, нам нужны часы.
+Микросхема [RTC](../../lab/book/1-hw-1-rtc.html) не подходит,
+так как отмеряет интервалы времени равные секунде ---
+слишком большие для кванта времени.
+Кроме неё в компьютере есть таймер
+[Intel 8253/8254](https://en.wikipedia.org/wiki/Intel_8253)
+([programmable interval timer, PIT](https://en.wikipedia.org/wiki/Programmable_interval_timer)).
+Можно использовать его, однако он морально устарел и обладает существенным недостатком ---
+он один на всю систему.
+А нам хотелось бы в конечном итоге построить многопроцессорную систему,
+которая запускает процессы на каждом процессоре.
+Прерывания же
+[PIT](https://en.wikipedia.org/wiki/Programmable_interval_timer)
+будут тогда доставляться только на один процессор.
+И не понятно как ядро будет вытеснять процессы, запущенные на других процессорах.
+Либо можно настроить доставку прерывания сразу на все процессоры.
+Но тогда они все будут одновременно запускать планировщик,
+что приведёт к высокой конкуренции на его внутренних блокировках.
+
+Поэтому в
+[x86-64](https://en.wikipedia.org/wiki/X86-64)
+был добавлен более современный таймер, который есть у каждого логического процессора.
+За него отвечает современный контроллер прерываний
+[Advanced Programmable Interrupt Controller (APIC)](https://en.wikipedia.org/wiki/Advanced_Programmable_Interrupt_Controller).
+Этот контроллер прерываний пришёл на смену устаревшему
+[Intel 8259](https://en.wikipedia.org/wiki/Intel_8259).
+Он состоит из набора контроллеров прерываний
+[local APIC](https://en.wikipedia.org/wiki/Advanced_Programmable_Interrupt_Controller#Integrated_local_APICs),
+по одному у каждого логического процессора,
+и одного или нескольких контроллеров внешних прерываний
+[I/O APIC](https://en.wikipedia.org/wiki/Advanced_Programmable_Interrupt_Controller#I/O_APICs).
+В каждом из
+[local APIC](https://en.wikipedia.org/wiki/Advanced_Programmable_Interrupt_Controller#Integrated_local_APICs)
+есть
+[собственный таймер](https://en.wikipedia.org/wiki/Advanced_Programmable_Interrupt_Controller#APIC_timer).
+Его мы и будем использовать для реализации принудительного вытеснения процессов.
+
+То есть, прежде всего нам нужно инициализировать
+[local APIC](https://en.wikipedia.org/wiki/Advanced_Programmable_Interrupt_Controller#Integrated_local_APICs)
+и настроить его таймер на посылку периодических прерываний.
+Эта настройка осуществляется через
+[Memory--mapped I/O (MMIO)](https://en.wikipedia.org/wiki/Memory-mapped_I/O),
+то есть нам нужно знать физический адрес,
+по которому располагается MMIO для
+[local APIC](https://en.wikipedia.org/wiki/Advanced_Programmable_Interrupt_Controller#Integrated_local_APICs).
+Эту информацию подготавливает BIOS, а ядро получает её от него в таблицах
+[Advanced Configuration and Power Interface (ACPI)](https://en.wikipedia.org/wiki/Advanced_Configuration_and_Power_Interface).
+Чтение таблицы конфигурации процессоров реализовано с помощью внешней библиотеки
+[`acpi`](../../doc/acpi/index.html) и находится в методе
+[`kernel::smp::acpi::Acpi::new()`](../../doc/kernel/smp/acpi/struct.Acpi.html#method.new)
+в файле [`kernel/src/smp/acpi.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/smp/acpi.rs).
+
 В Nikka функционал для работы с LAPIC реализован в структуре
 [`kernel::smp::local_apic::LocalApic`](../../doc/kernel/smp/local_apic/struct.LocalApic.html)
 в файле [`kernel/src/smp/local_apic.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/smp/local_apic.rs).
@@ -11,7 +64,7 @@
 - [`LocalApic::get()`](../../doc/kernel/smp/local_apic/struct.LocalApic.html#method.get) возвращает структуру [`LocalApic`](../../doc/kernel/smp/local_apic/struct.LocalApic.html) данного CPU.
 
 
-### Задача 3 --- инициализация работы с `LocalApic`
+### Задача 1 --- инициализация работы с `LocalApic`
 
 Интерфейс для работы с local APIC в [x86-64](https://en.wikipedia.org/wiki/X86-64) представляет собой выровненную область размером 4 килобайта в физической памяти --- один физический фрейм.
 Такой тип интерфейса называется

@@ -26,7 +26,7 @@ process::create(LOOP_ELF);
 
 Она принимает на вход
 
-- Аллокатор `allocator`, реализующий типаж [`ku::allocator::big::BigAllocator`](../../doc/ku/allocator/big/trait.BigAllocator.html). Для упрощения реализации функции [`load()`](../../doc/ku/process/elf/fn.load.html), вызывающая её функция гарантирует, что загрузка происходит в текущее адресное пространство, и аллокатор работает в нём же. Вызывающая функция должна настроить аллокатор так, чтобы его метод [`BigAllocator::flags()`](../../doc/ku/allocator/big/trait.BigAllocator.html#tymethod.flags) возвращал флаг доступа для пользователя, если он нужен. А также любые другие дополнительные флаги, которые не задаёт сам ELF--файл.
+- Аллокатор `allocator`, реализующий типаж [`ku::allocator::big::BigAllocatorPair`](../../doc/ku/allocator/big_pair/trait.BigAllocatorPair.html). Вызывающая её функция гарантирует, что код работает в текущем адресном пространстве [`BigAllocatorPair::src()`](../../doc/ku/allocator/big_pair/trait.BigAllocatorPair.html#tymethod.src). А загружать процесс нужно в целевое адресное пространство [`BigAllocatorPair::dst()`](../../doc/ku/allocator/big_pair/trait.BigAllocatorPair.html#tymethod.dst). Вызывающая функция должна настроить аллокатор так, чтобы `dst().flags()` возвращал флаг доступа для пользователя, если он нужен. А также любые другие дополнительные флаги, которые не задаёт сам ELF--файл. И чтобы `src().flags()` возвращал корректные флаги для текущего кода в текущем адресном пространстве.
 - Срез `file` с записанным в памяти ELF--файлом процесса.
 
 Из `file` она создаёт объект [`xmas_elf::ElfFile`](../../doc/xmas_elf/struct.ElfFile.html),
@@ -41,6 +41,113 @@ process::create(LOOP_ELF);
 [`HeaderPt2::entry_point()`](../../doc/xmas_elf/header/enum.HeaderPt2.html#method.entry_point)
 в виде виртуального адреса
 [`Virt`](../../doc/ku/memory/addr/type.Virt.html).
+
+
+### Типаж [`ku::allocator::big_pair::BigAllocatorPair`](../../doc/ku/allocator/big_pair/trait.BigAllocatorPair.html)
+
+Этот типаж объединяет два аллокатора
+[`ku::allocator::big::BigAllocator`](../../doc/ku/allocator/big/trait.BigAllocator.html).
+В общем случае, они отвечают за память разных адресных пространств
+или выделяют память в разных участках адресного пространства.
+Например, один --- в зарезервированном для ядра, другой --- в зарезервированном для пользователя.
+Типаж
+[`BigAllocatorPair`](../../doc/ku/allocator/big_pair/trait.BigAllocatorPair.html)
+позволяет переносить отображение страниц из одного адресного пространства в другое методом
+[`BigAllocatorPair::copy_mapping()`](../../doc/ku/allocator/big_pair/trait.BigAllocatorPair.html#tymethod.copy_mapping).
+Реализует этот типаж структура
+[`kernel::allocator::big_pair::BigPair`](../../doc/kernel/allocator/big_pair/struct.BigPair.html).
+Её можно создать как для двух разных адресных пространств методом
+[`BigPair::new_pair()`](../../doc/kernel/allocator/big_pair/struct.BigPair.html#method.new_pair).
+Так и для одного адресного пространства методом
+[`BigPair::new_single()`](../../doc/kernel/allocator/big_pair/struct.BigPair.html#method.new_single).
+В обоих случаях, для текущего аллокатора
+[`BigPair::src()`](../../doc/kernel/allocator/big_pair/struct.BigPair.html#method.src)
+можно указать один набор флагов, а для целевого аллокатора
+[`BigPair::dst()`](../../doc/kernel/allocator/big_pair/struct.BigPair.html#method.dst) ---
+другой набор флагов.
+
+Например, можно использовать
+[`BigPair::src()`](../../doc/kernel/allocator/big_pair/struct.BigPair.html#method.src)
+для выделения страниц в области данных ядра.
+И переносить их в то же или другое целевое адресное пространство
+методом
+[`BigPair::copy_mapping()`](../../doc/kernel/allocator/big_pair/struct.BigPair.html#method.copy_mapping).
+Где ими будет заведовать
+[`BigPair::dst()`](../../doc/kernel/allocator/big_pair/struct.BigPair.html#method.dst),
+например, уже в области данных пользователя.
+Это нам пригодится для загрузки кодом ядра ELF--файла
+в адресное пространство пользовательского процесса.
+И ровно тот же код, работая в одном пользовательском процессе, сможет загружать ELF--файл
+в адресное пространство другого пользовательского процесса.
+
+Перенесите свою реализацию метода
+[`BigAllocator::copy_mapping()`](../../doc/ku/allocator/big/trait.BigAllocator.html#tymethod.copy_mapping)
+для структуры
+[`Big`](../../doc/kernel/allocator/big/struct.Big.html)
+из файла
+[`kernel/src/allocator/big.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/allocator/big.rs)
+в файл
+[`kernel/src/allocator/big_pair.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/allocator/big_pair.rs)
+в реализацию метода
+[`BigAllocatorPair::copy_mapping()`](../../doc/ku/allocator/big_pair/trait.BigAllocatorPair.html#tymethod.copy_mapping)
+для структуры
+[`BigPair`](../../doc/kernel/allocator/big_pair/struct.BigPair.html).
+И поправьте её с учётом того, что исходный блок `src_block` находится в текущем адресном пространстве,
+получить которое можно методом
+[`BigPair::src_address_space()`](../../doc/kernel/allocator/big_pair/struct.BigPair.html#method.src_address_space).
+А целевой блок `dst_block` находится потенциально в другом, целевом адресном пространстве,
+получить которое можно методом
+[`BigPair::dst_address_space()`](../../doc/kernel/allocator/big_pair/struct.BigPair.html#method.dst_address_space).
+
+В файле
+[`kernel/src/allocator/big.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/allocator/big.rs)
+в качестве реализации метода
+[`Big::copy_mapping()`](../../doc/kernel/allocator/big/struct.Big.html#method.copy_mapping)
+можно сделать перенаправление на
+[`BigPair::copy_mapping()`](../../doc/kernel/allocator/big_pair/struct.BigPair.html#method.copy_mapping):
+```rust
+unsafe fn copy_mapping(
+    &mut self,
+    old_block: Block<Page>,
+    new_block: Block<Page>,
+    flags: Option<PageTableFlags>,
+) -> Result<()> {
+    let allocator_flags = self.flags();
+    let mut allocator =
+        BigPair::new_single(self.address_space, allocator_flags, allocator_flags);
+
+    unsafe { allocator.copy_mapping(old_block, new_block, flags) }
+}
+```
+
+
+### Методы [`BigAllocator::grow()`](../../doc/ku/allocator/big/trait.BigAllocator.html#method.grow) и [`BigAllocator::shrink()`](../../doc/ku/allocator/big/trait.BigAllocator.html#method.shrink)
+
+Вам может пригодиться
+[`метод`](../../doc/ku/allocator/big/trait.BigAllocator.html#method.grow)
+в файле
+[`ku/src/allocator/big.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/allocator/big.rs):
+
+```rust
+{{#include ../../ku/src/allocator/big.rs:grow}}
+```
+
+Его реализацию вы можете выделить из вашей реализации метода
+[`ku::allocator::dry::DryAllocator::dry_grow()`](../../doc/ku/allocator/dry/trait.DryAllocator.html#tymethod.dry_grow)
+для типажа
+[`BigAllocator`](../../doc/ku/allocator/big/trait.BigAllocator.html).
+
+Также есть и парный
+[`метод`](../../doc/ku/allocator/big/trait.BigAllocator.html#method.shrink)
+
+```rust
+{{#include ../../ku/src/allocator/big.rs:shrink}}
+```
+
+Реализацию которого вы можете выделить из вашей реализации метода
+[`ku::allocator::dry::DryAllocator::dry_shrink()`](../../doc/ku/allocator/dry/trait.DryAllocator.html#tymethod.dry_shrink)
+для типажа
+[`BigAllocator`](../../doc/ku/allocator/big/trait.BigAllocator.html).
 
 
 ### Вспомогательные структуры и функции
@@ -128,7 +235,7 @@ ELF--файла в порядке адресов в памяти.
 ```
 
 Метод
-[`ku::process::elf::FileRange::copy_to_memory()`](../../doc/ku/process/elf/struct.FileRange.html#method.copy_to_memory)
+[`ku::process::elf::Loader::copy_to_memory()`](../../doc/ku/process/elf/struct.Loader.html#method.copy_to_memory)
 копирует байты сегмента из ELF--файла в память:
 
 ```rust
@@ -145,13 +252,27 @@ ELF--файла в порядке адресов в памяти.
 предназначенная для неинициализированных или инициализированных нулями статических переменных.
 
 Занулять байты имеет смысл не в методе
-[`ku::process::elf::FileRange::copy_to_memory()`](../../doc/ku/process/elf/struct.FileRange.html#method.copy_to_memory),
+[`ku::process::elf::Loader::copy_to_memory()`](../../doc/ku/process/elf/struct.Loader.html#method.copy_to_memory),
 а раньше, в методе
 [`ku::process::elf::Loader::extend_mapping()`](../../doc/ku/process/elf/struct.Loader.html#method.extend_mapping) ---
 сразу после выделения страниц.
 Так как сегменты могут не покрывать выделяемые страницы полностью,
 и если оставить мусор в не относящихся к сегментам местах,
 в процесс пользователя может попасть закрытая от него информация.
+
+После загрузки последнего сегмента ELF--файла методом
+[`Loader::load_program_header()`](../../doc/ku/process/elf/struct.Loader.html#method.load_program_header),
+функция
+[`load()`](../../doc/ku/process/elf/fn.load.html)
+должна вызывать
+[метод](../../doc/ku/process/elf/struct.Loader.html#method.finish)
+
+```rust
+{{#include ../../ku/src/process/elf.rs:finish}}
+```
+
+Он завершает обработку последнего сегмента, зная что никаких больше данных
+загружать в целевое адресное пространство не нужно.
 
 
 ### Структура загрузчика ELF--файла
@@ -166,7 +287,8 @@ ELF--файла в порядке адресов в памяти.
 
 Метод
 [`Loader::load_program_header()`](../../doc/ku/process/elf/struct.Loader.html#method.load_program_header)
-загружает в память диапазон `next` и финализирует флаги отображения части диапазона `curr`:
+загружает в память диапазон `next` и переносит в целевое адресное пространство
+заполненные физические фреймы, для которых стали известны флаги доступа:
 
 ```rust
 {{#include ../../ku/src/process/elf.rs:load_program_header}}
@@ -174,7 +296,7 @@ ELF--файла в порядке адресов в памяти.
 
 Метод
 [`Loader::extend_mapping()`](../../doc/ku/process/elf/struct.Loader.html#method.extend_mapping)
-расширяет отображение текущего адресного пространства, чтобы можно было записать
+расширяет отображение целевого адресного пространства, чтобы можно было записать
 из ELF--файла в память блок, который описывает `next`:
 
 ```rust
@@ -182,28 +304,18 @@ ELF--файла в порядке адресов в памяти.
 ```
 
 Метод
-[`Loader::process_boundary()`](../../doc/ku/process/elf/struct.Loader.html#method.process_boundary)
-обрабатывает границу между диапазонами `curr` и `next`:
-
-```rust
-{{#include ../../ku/src/process/elf.rs:process_boundary}}
-```
-
-Делает он это с помощью уже знакомой нам функции
-[`ku::process::elf::combine()`](../../doc/ku/process/elf/fn.combine.html)
-и с помощью метода
-[`Loader::finalize_mapping()`](../../doc/ku/process/elf/struct.Loader.html#method.finalize_mapping).
-Последний, с помощью
-[`BigAllocator::copy_mapping()`](../../doc/ku/allocator/big/trait.BigAllocator.html#tymethod.copy_mapping),
-исправляет флаги отображения диапазона `page_range`
-на запрошенные в тех сегментах ELF--файла, что пересекаются с `page_range`:
+[`Loader::finalize_mapping()`](../../doc/ku/process/elf/struct.Loader.html#method.finalize_mapping)
+с помощью
+[`BigAllocatorPair::copy_mapping()`](../../doc/ku/allocator/big_pair/trait.BigAllocatorPair.html#tymethod.copy_mapping)
+переносит в целевое адресное пространство заполненные физические фреймы,
+для которых стали известны флаги доступа --- диапазон `page_range`:
 
 ```rust
 {{#include ../../ku/src/process/elf.rs:finalize_mapping}}
 ```
 
 
-### Задача 1 --- загрузка ELF--файла
+### Задача 3 --- загрузка ELF--файла
 
 Реализуйте указанные функции.
 Вам могут пригодиться:
@@ -212,7 +324,7 @@ ELF--файла в порядке адресов в памяти.
 - Метод [`PageTableFlags::try_from(ph_flags: xmas_elf::program::Flags)`](../../doc/kernel/memory/mmu/struct.PageTableFlags.html#method.try_from), который преобразовывает флаги ELF--файла в соответствующие флаги страниц. Так как [x86-64](https://en.wikipedia.org/wiki/X86-64) не поддерживает флага, который бы запрещал читать страницу, это отображение не точное. Кроме того, оно запрещает флаги, потенциально позволяющие атакующему [записать и выполнить произвольный код](https://en.wikipedia.org/wiki/Arbitrary_code_execution) в процессе работы процесса --- комбинацию флагов "доступно и на запись и на исполнение".
 - Метод [`fn Block::<Virt>::enclosing() -> Block<Page>`](../../doc/ku/memory/block/struct.Block.html#method.enclosing), который для заданного блока виртуальных адресов возвращает минимальный содержащий его блок страниц виртуальной памяти.
 - [`Block::<Virt>::try_into_mut_slice()`](../../doc/ku/memory/block/struct.Block.html#method.try_into_mut_slice), а также другие методы блоков, например [`Block::is_empty()`](../../doc/ku/memory/block/struct.Block.html#method.is_empty), [`Block::is_disjoint()`](../../doc/ku/memory/block/struct.Block.html#method.is_disjoint), [`Block::count()`](../../doc/ku/memory/block/struct.Block.html#method.count), [`Block::tail()`](../../doc/ku/memory/block/struct.Block.html#method.tail).
-- Метод [`MaybeUninit::fill()`](https://doc.rust-lang.org/nightly/core/mem/union.MaybeUninit.html#method.fill), инициализирующий сырую память.
+- Метод [`slice::write_filled()`](https://doc.rust-lang.org/nightly/core/primitive.slice.html#method.write_filled), инициализирующий сырую память.
 - Методы [`copy_from_slice()`](https://doc.rust-lang.org/nightly/core/primitive.slice.html#method.copy_from_slice) и [`get()`](https://doc.rust-lang.org/nightly/core/primitive.slice.html#method.get) [срезов](https://doc.rust-lang.ru/book/ch04-03-slices.html).
 - Арифметические операции с проверкой переполнения, такие как [`checked_add()`](https://doc.rust-lang.org/nightly/core/primitive.usize.html#method.checked_add).
 - [`Result::map_err()`](https://doc.rust-lang.org/nightly/core/result/enum.Result.html#method.map_err) для преобразования одного типа ошибки в другой.

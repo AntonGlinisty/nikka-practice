@@ -479,6 +479,7 @@ deadlines:
             - no-leaks-in-memory
             - scheduler
           check:
+            - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --features forbid-leaks --test 4-process-3-elf -- --test-threads=1
             - cd kernel && cargo test --profile ci --features forbid-leaks --test 4-process-3-elf --test 4-process-5-user-mode --test 4-process-7-table --test 4-process-8-preemption --test 4-process-9-scheduler
 
     - group: locks
