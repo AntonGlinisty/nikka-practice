@@ -89,6 +89,7 @@ fn basic() {
     }
 
     assert_eq!(bitmap.unmap(&allocator).unwrap(), bitmap_frame_count);
+    assert!(bitmap.is_empty());
 }
 
 #[ctor::ctor]
