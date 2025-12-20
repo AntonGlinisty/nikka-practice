@@ -89,14 +89,6 @@ unsafe impl BigAllocator for BigForPipe {
         unimplemented!();
     }
 
-    unsafe fn rereserve(
-        &mut self,
-        _old_block: Block<Page>,
-        _sub_block: Block<Page>,
-    ) -> Result<()> {
-        unimplemented!();
-    }
-
     unsafe fn map(
         &mut self,
         block: Block<Page>,

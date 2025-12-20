@@ -199,17 +199,12 @@ unsafe impl BigAllocator for MemoryAllocatorGuard<'_> {
         unsafe { self.allocator().method(block) }
     }
 
-    #[duplicate_item(
-        method argument_type;
-        [rereserve] [Block<Page>];
-        [map] [PageTableFlags];
-    )]
-    unsafe fn method(
+    unsafe fn map(
         &mut self,
         block: Block<Page>,
-        argument: argument_type,
+        flags: PageTableFlags,
     ) -> Result<()> {
-        unsafe { self.allocator().method(block, argument) }
+        unsafe { self.allocator().map(block, flags) }
     }
 
     unsafe fn copy_mapping(

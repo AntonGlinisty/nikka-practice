@@ -1053,14 +1053,6 @@ unsafe impl BigAllocator for DummyAllocator {
         Ok(())
     }
 
-    unsafe fn rereserve(
-        &mut self,
-        _old_block: Block<Page>,
-        _sub_block: Block<Page>,
-    ) -> Result<()> {
-        unimplemented!();
-    }
-
     unsafe fn map(
         &mut self,
         block: Block<Page>,
@@ -1163,14 +1155,6 @@ unsafe impl BigAllocator for Dummy<'_> {
         block: Block<Page>,
     ) -> Result<()> {
         unsafe { self.0.unreserve(block) }
-    }
-
-    unsafe fn rereserve(
-        &mut self,
-        _old_block: Block<Page>,
-        _sub_block: Block<Page>,
-    ) -> Result<()> {
-        unimplemented!();
     }
 
     unsafe fn map(

@@ -128,17 +128,12 @@ unsafe impl BigAllocator for BigGuard<'_> {
         unsafe { self.big.method(argument) }
     }
 
-    #[duplicate_item(
-        method second_argument_type;
-        [rereserve] [Block<Page>];
-        [map] [PageTableFlags];
-    )]
-    unsafe fn method(
+    unsafe fn map(
         &mut self,
-        first_argument: Block<Page>,
-        second_argument: second_argument_type,
+        block: Block<Page>,
+        flags: PageTableFlags,
     ) -> Result<()> {
-        unsafe { self.big.method(first_argument, second_argument) }
+        unsafe { self.big.map(block, flags) }
     }
 
     unsafe fn copy_mapping(

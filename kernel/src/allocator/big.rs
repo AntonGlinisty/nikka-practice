@@ -5,10 +5,7 @@ use ku::{
         BigAllocator,
         BigAllocatorPair,
     },
-    error::{
-        Error::InvalidArgument,
-        Result,
-    },
+    error::Result,
     memory::{
         Block,
         Page,
@@ -79,34 +76,6 @@ unsafe impl BigAllocator for Big<'_> {
         block: Block<Page>,
     ) -> Result<()> {
         self.address_space.deallocate(block)
-    }
-
-    unsafe fn rereserve(
-        &mut self,
-        old_block: Block<Page>,
-        sub_block: Block<Page>,
-    ) -> Result<()> {
-        if old_block.contains_block(sub_block) {
-            let message = "subblock of a valid block should be valid";
-            let left = Block::from_index(old_block.start(), sub_block.start()).expect(message);
-            let right = Block::from_index(sub_block.end(), old_block.end()).expect(message);
-
-            if !left.is_empty() {
-                unsafe {
-                    self.unreserve(left)?;
-                }
-            }
-
-            if !right.is_empty() {
-                unsafe {
-                    self.unreserve(right)?;
-                }
-            }
-
-            Ok(())
-        } else {
-            Err(InvalidArgument)
-        }
     }
 
     unsafe fn map(

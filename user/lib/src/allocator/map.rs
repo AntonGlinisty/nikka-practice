@@ -18,7 +18,6 @@ use ku::{
     error::{
         Error::{
             InvalidAlignment,
-            InvalidArgument,
             PermissionDenied,
         },
         Result,
@@ -93,18 +92,6 @@ unsafe impl BigAllocator for MapAllocator {
         _block: Block<Page>,
     ) -> Result<()> {
         Ok(())
-    }
-
-    unsafe fn rereserve(
-        &mut self,
-        old_block: Block<Page>,
-        sub_block: Block<Page>,
-    ) -> Result<()> {
-        if old_block.contains_block(sub_block) {
-            Ok(())
-        } else {
-            Err(InvalidArgument)
-        }
     }
 
     unsafe fn map(
