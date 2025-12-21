@@ -1,3 +1,7 @@
+use alloc::{
+    vec,
+    vec::Vec,
+};
 use core::{
     arch,
     arch::{
@@ -40,12 +44,15 @@ use crate::{
         Frame,
         GDT,
         KERNEL_RW,
+        KERNEL_RX,
         Page,
         Phys,
         Phys2Virt,
         RealModePseudoDescriptor,
         SmallGdt,
+        Translate,
         Virt,
+        mmu::PageTableFlags,
         size,
     },
     process::{
@@ -398,21 +405,51 @@ pub(super) struct BootMemory {
     /// Физический адрес кода загрузки Application Processor.
     code_frame: Frame,
 
+    /// Блок памяти, из которого будет исполняться код загрузки.
+    /// Гарантированно отображается с доступом на исполнение
+    /// перед загрузкой Application Processor.
+    code_pages: Block<Page>,
+
     /// Блок памяти, содержимое которого нужно сохранить и в последствии восстановить.
+    /// Соответствует блоку [`BootMemory::code_pages`], но гарантированно отображён с
+    /// доступом на запись.
+    /// Чтобы одни и те же страницы не были отображены одновременно на запись и на исполнение,
+    /// имеет другой виртуальный адрес, чем [`BootMemory::code_pages`].
+    /// Но отображена на те же физические фреймы.
     data: &'static mut [usize],
 
     /// Оригинальные данные блока [`BootMemory::data`],
     /// которые содержались в нём до записи в него кода загрузки Application Processor.
     /// Их нужно будет восстановить после загрузки Application Processor.
     original_data: &'static mut [usize],
+
+    /// Оригинальные флаги страниц блока [`BootMemory::code_pages`],
+    /// с которыми он был отображён до записи в него кода загрузки Application Processor.
+    /// Их нужно будет восстановить после загрузки Application Processor.
+    original_flags: Vec<PageTableFlags>,
 }
 
 impl BootMemory {
     /// Возвращает гард [`BootMemory`], который:
     ///   - При создании запоминает данные, записанные в блоке [`BootMemory::data`].
-    ///   - При своём удалении восстановит исходное содержимое в этом блоке памяти.
+    ///   - Изменяет флаги этого блока так, чтобы можно было исполнять код в нём.
+    ///   - При своём удалении восстановит исходное содержимое в этом блоке памяти и
+    ///     его исходные флаги.
     fn new(phys2virt: Phys2Virt) -> Result<Self> {
         let message = "invalid boot code_pages block";
+
+        let code_start = Virt::new(BOOT_CODE).expect(message);
+        let code_pages = Self::code_block(code_start).expect(message);
+        let mut original_flags = vec![PageTableFlags::default(); code_pages.count()];
+
+        let mut address_space = BASE_ADDRESS_SPACE.lock();
+
+        for (flags, page) in original_flags.iter_mut().zip(code_pages) {
+            *flags = address_space.translate(page.address())?.flags();
+        }
+        unsafe {
+            address_space.remap_block(code_pages, KERNEL_RX)?;
+        }
 
         let code_frame = Frame::new(real_mode_address(BOOT_CODE, "boot code_pages"))
             .expect("boot code should be aligned on frame boundary");
@@ -422,15 +459,16 @@ impl BootMemory {
                 .try_into_mut_slice()?
         };
 
-        let original_data =
-            unsafe { BASE_ADDRESS_SPACE.lock().map_slice_zeroed(data.len(), KERNEL_RW)? };
+        let original_data = unsafe { address_space.map_slice_zeroed(data.len(), KERNEL_RW)? };
 
         original_data.clone_from_slice(data);
 
         Ok(Self {
             code_frame,
+            code_pages,
             data,
             original_data,
+            original_flags,
         })
     }
 
@@ -453,10 +491,21 @@ impl BootMemory {
 
 impl Drop for BootMemory {
     fn drop(&mut self) {
+        let mut address_space = BASE_ADDRESS_SPACE.lock();
+
+        for (flags, page) in self.original_flags.iter().zip(self.code_pages) {
+            address_space
+                .translate(page.address())
+                .expect("the page should be mapped")
+                .set_flags(*flags);
+        }
+
         self.data.clone_from_slice(self.original_data);
 
         unsafe {
-            BASE_ADDRESS_SPACE.lock().unmap_slice(self.original_data).unwrap();
+            address_space
+                .unmap_slice(self.original_data)
+                .expect("the block should be mapped in new");
         }
     }
 }

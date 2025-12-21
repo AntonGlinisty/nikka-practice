@@ -182,6 +182,8 @@ pub(super) fn init(
     if subsystems.contains(Subsystems::VIRT_MEMORY) {
         mmu::init_page_attribute_table();
 
+        address_space.mark_writable_pages_as_non_executable();
+
         let page_table_root = unsafe { address_space.mapping()?.page_table_ref(page_table_root) };
         *KERNEL_PAGE_ALLOCATOR.lock() =
             PageAllocator::new(page_table_root, range::kernel_root_level_entries());

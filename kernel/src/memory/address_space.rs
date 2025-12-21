@@ -47,6 +47,7 @@ use super::{
     mapping::Mapping,
     mmu::{
         self,
+        PAGE_TABLE_LEAF_LEVEL,
         PageTableFlags,
     },
     page_allocator::PageAllocator,
@@ -622,6 +623,25 @@ impl AddressSpace {
         // TODO: your code here.
 
         Ok(())
+    }
+
+    /// Сбрасывает флаг [`PageTableFlags::EXECUTABLE`] со страниц,
+    /// которые разрешены на запись, то есть имеют флаг [`PageTableFlags::WRITABLE`].
+    pub(super) fn mark_writable_pages_as_non_executable(&mut self) {
+        if let Ok(mapping) = self.mapping() {
+            for mut path in mapping.iter_mut().filter(|path| path.block().is_present()) {
+                let message = "page is mapped";
+                let (level, pte) = path.deepest_pte_mut();
+                let flags = pte.flags();
+                let is_leaf = flags.is_huge() || level == PAGE_TABLE_LEAF_LEVEL;
+
+                if is_leaf && flags.is_present() && flags.is_executable() && flags.is_writable() {
+                    let page = Page::containing(path.virt());
+                    path.set_flags(flags & !PageTableFlags::EXECUTABLE).expect(message);
+                    trace!(%page, %flags, level, "removed executable flag from writable page");
+                }
+            }
+        }
     }
 
     /// Выводит в журнал карту виртуального адресного пространства.

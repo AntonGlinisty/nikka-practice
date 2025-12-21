@@ -156,6 +156,11 @@ impl<'a> Path<'a> {
         Ok(())
     }
 
+    /// Возвращает адрес, для которого построен путь отображения.
+    pub(super) fn virt(&self) -> Virt {
+        self.virt
+    }
+
     #[allow(rustdoc::private_intra_doc_links)]
     /// Возвращает листьевую [`PageTableEntry`], которая отвечает за отображение адреса [`Path::virt`].
     ///
