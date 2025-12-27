@@ -57,5 +57,8 @@ use quarry::Quarry;
 
 #[doc(hidden)]
 pub mod test_scaffolding {
-    pub use super::quarry::test_scaffolding::*;
+    pub use super::{
+        fixed_size::test_scaffolding::*,
+        quarry::test_scaffolding::*,
+    };
 }

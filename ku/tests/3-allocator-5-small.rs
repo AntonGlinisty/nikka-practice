@@ -1,5 +1,6 @@
 #![deny(warnings)]
 #![feature(allocator_api)]
+#![feature(pointer_is_aligned_to)]
 
 use std::{
     alloc::{
@@ -9,6 +10,7 @@ use std::{
     cmp,
     marker::Sync,
     mem,
+    ptr,
     thread,
     time::{
         Duration,
@@ -29,11 +31,16 @@ use rand::{
 
 use ku::{
     allocator::{
+        Cache,
         Clip,
         DetailedInfo,
         Dispatcher,
         FIXED_SIZE_COUNT,
         Info,
+        test_scaffolding::{
+            MIN_SIZE,
+            Quarry,
+        },
     },
     log::{
         debug,
@@ -41,6 +48,7 @@ use ku::{
         info,
     },
     memory::{
+        Page,
         Size,
         Virt,
         size,
@@ -67,14 +75,10 @@ use {
     },
     jemallocator::Jemalloc,
     ku::{
-        allocator::{
-            Cache,
-            GlobalCache,
-        },
+        allocator::GlobalCache,
         memory::{
             GiB,
             MiB,
-            Page,
         },
     },
     mimalloc::MiMalloc,
@@ -85,10 +89,7 @@ use {
         alloc::System,
         env,
         fs,
-        ptr::{
-            self,
-            NonNull,
-        },
+        ptr::NonNull,
     },
     talc::{
         ErrOnOom,
@@ -141,6 +142,50 @@ fn basic() {
     validate_info(stats, &detailed_info.lock());
 
     assert_eq!(CachingBig::total_memory(), 0, "do you deallocate?");
+}
+
+#[test]
+fn exhaust_fixed_size_allocator() {
+    static ALLOCATOR: Dispatcher<NoCache, Fallback> = Dispatcher::new(NoCache, Fallback::new());
+
+    for size in [
+        Page::SIZE / 2 - MIN_SIZE,
+        Page::SIZE / 2,
+        Page::SIZE / 2 + MIN_SIZE,
+        Page::SIZE - MIN_SIZE,
+        Page::SIZE + MIN_SIZE,
+    ] {
+        for lb_align in 0 ..= 12 {
+            let layout = Layout::from_size_align(size, 1 << lb_align).unwrap();
+            let fixed_size = layout.size().next_multiple_of(layout.align());
+            let capacity = Quarry::new(fixed_size).capacity();
+
+            debug!(?layout, capacity);
+
+            if fixed_size.is_multiple_of(Page::SIZE) {
+                continue;
+            }
+
+            let mut ptrs: Vec<*mut u8> = vec![ptr::null_mut(); capacity];
+
+            for ptr in &mut ptrs {
+                *ptr = unsafe { ALLOCATOR.alloc(layout) };
+
+                assert_ne!(*ptr, ptr::null_mut());
+                assert!(ptr.is_aligned_to(layout.align()));
+            }
+
+            unsafe {
+                assert_eq!(ALLOCATOR.alloc(layout), ptr::null_mut());
+            }
+
+            for ptr in ptrs {
+                unsafe { ALLOCATOR.dealloc(ptr, layout) };
+            }
+        }
+    }
+
+    ALLOCATOR.unmap();
 }
 
 #[test]
@@ -1029,10 +1074,8 @@ fn into_f64(x: usize) -> f64 {
     f64::from(u32::try_from(x).unwrap())
 }
 
-#[cfg(feature = "benchmark")]
 struct NoCache;
 
-#[cfg(feature = "benchmark")]
 impl Cache for NoCache {
     fn with_borrow_mut<F: FnOnce(&mut Clip) -> R, R>(
         &self,

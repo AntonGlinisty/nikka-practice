@@ -275,3 +275,8 @@ pub(super) type MaxPrimitiveType = u64;
 /// Минимальный размер и выравнивание для блоков памяти,
 /// которыми управляет [`FixedSizeAllocator`].
 pub(super) const MIN_SIZE: usize = mem::size_of::<MaxPrimitiveType>();
+
+#[doc(hidden)]
+pub(super) mod test_scaffolding {
+    pub const MIN_SIZE: usize = super::MIN_SIZE;
+}
