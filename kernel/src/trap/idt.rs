@@ -114,14 +114,6 @@ impl Idt {
             tables::lidt(&pseudo_descriptor);
         }
     }
-
-    /// Возвращает запись таблицы обработчиков прерываний для прерывания `trap`.
-    fn get_mut(
-        &mut self,
-        index: Trap,
-    ) -> &mut IdtEntry {
-        &mut self.0[usize::from(index)]
-    }
 }
 
 impl Index<Trap> for Idt {
@@ -164,7 +156,7 @@ impl IdtEntry {
     }
 
     /// Устанавливает обработчик `handler` исключения процессора.
-    fn set_trap_handler(
+    fn set_exception_handler(
         &mut self,
         handler: extern "C" fn(),
     ) -> &mut EntryOptions {

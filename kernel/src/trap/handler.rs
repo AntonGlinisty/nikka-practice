@@ -58,14 +58,12 @@ macro_rules! exception_with_error_code {
 
     ($idt: ident, $name:ident, $trap:expr $(,)?) => {
         exception_with_error_code!($name, $trap);
-        $idt.get_mut($trap).set_trap_handler($name);
+        $idt[$trap].set_exception_handler($name);
     };
 
     ($idt: ident, $name:ident, $trap:expr, $stack:expr $(,)?) => {
         exception_with_error_code!($name, $trap);
-        $idt.get_mut($trap)
-            .set_trap_handler($name)
-            .set_stack_index($stack);
+        $idt[$trap].set_exception_handler($name).set_stack_index($stack);
     };
 }
 
@@ -93,7 +91,7 @@ macro_rules! exception_without_error_code {
     ($idt: ident, $name:ident, $trap:expr $(,)?) => {
         {
             exception_without_error_code!($name, $trap);
-            $idt.get_mut($trap).set_trap_handler($name);
+            $idt[$trap].set_exception_handler($name);
         }
     };
 }
