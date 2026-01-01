@@ -179,14 +179,14 @@ pub enum Trap {
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct TrapInfo {
-    /// Номер исключения.
-    number: usize,
+    /// Контекст, в котором возникло исключение.
+    context: MiniContext,
 
     /// Информация об исключении, предоставляемая процессором.
     info: Info,
 
-    /// Контекст, в котором возникло исключение.
-    context: MiniContext,
+    /// Номер исключения.
+    number: usize,
 
     #[allow(rustdoc::private_intra_doc_links)]
     /// [`TrapInfo`] может быть сохранено в тот же стек,
@@ -218,16 +218,16 @@ impl TrapInfo {
         context: MiniContext,
     ) -> Self {
         Self {
-            number,
-            info,
             context,
+            info,
+            number,
             return_address_placeholder: [0; Self::PLACEHOLDER_SIZE],
         }
     }
 
-    /// Номер исключения.
-    pub fn number(&self) -> usize {
-        self.number
+    /// Контекст, в котором возникло исключение.
+    pub fn context(&self) -> MiniContext {
+        self.context
     }
 
     /// Информация об исключении, предоставляемая процессором.
@@ -235,9 +235,9 @@ impl TrapInfo {
         self.info
     }
 
-    /// Контекст, в котором возникло исключение.
-    pub fn context(&self) -> MiniContext {
-        self.context
+    /// Номер исключения.
+    pub fn number(&self) -> usize {
+        self.number
     }
 
     #[allow(rustdoc::private_intra_doc_links)]
