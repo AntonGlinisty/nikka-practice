@@ -34,10 +34,12 @@ use ku::{
     },
     process::{
         ExitCode,
-        Info,
         Pid,
         ResultCode,
         State,
+    },
+    trap::{
+        Info,
         TrapInfo,
     },
 };

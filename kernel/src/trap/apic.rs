@@ -1,4 +1,4 @@
-use ku::process::Trap;
+use ku::trap::Trap;
 
 use crate::{
     process::Process,

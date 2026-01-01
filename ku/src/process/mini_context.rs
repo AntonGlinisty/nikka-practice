@@ -64,4 +64,4 @@ impl fmt::Display for MiniContext {
 
 /// Смещение поля для регистра `rsp` контекста в структуре [`MiniContext`].
 /// Позволяет обращаться к этому полю из ассемблерных вставок.
-pub(super) const RSP_OFFSET_IN_MINI_CONTEXT: usize = offset_of!(MiniContext, rsp);
+pub(crate) const RSP_OFFSET_IN_MINI_CONTEXT: usize = offset_of!(MiniContext, rsp);

@@ -14,9 +14,6 @@ pub mod registers;
 /// Константы для работы с системными вызовами.
 pub mod syscall;
 
-/// Информация об исключении процессора.
-pub mod trap_info;
-
 use num_enum::{
     IntoPrimitive,
     TryFromPrimitive,
@@ -30,12 +27,8 @@ pub use syscall::{
     ResultCode,
     Syscall,
 };
-pub use trap_info::{
-    Info,
-    RSP_OFFSET_IN_TRAP_INFO,
-    Trap,
-    TrapInfo,
-};
+
+pub(crate) use mini_context::RSP_OFFSET_IN_MINI_CONTEXT;
 
 /// Состояние пользовательского процесса.
 #[derive(Clone, Copy, Debug, Eq, IntoPrimitive, PartialEq, TryFromPrimitive)]

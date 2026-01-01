@@ -23,8 +23,8 @@ use ku::{
             PageTableFlags,
         },
     },
-    process::Info,
     sync::FastSpinlock,
+    trap::Info,
 };
 
 use crate::memory::{

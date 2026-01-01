@@ -20,7 +20,7 @@ use x86_64::{
     },
 };
 
-use ku::process::Trap;
+use ku::trap::Trap;
 
 use crate::memory::{
     DOUBLE_FAULT_IST_INDEX,

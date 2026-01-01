@@ -8,14 +8,14 @@ use sentinel_frame::with_sentinel_frame;
 use ku::{
     backtrace::Backtrace,
     memory::Virt,
-    process::{
-        Info,
-        Pid,
-        Trap,
-    },
+    process::Pid,
     sync::{
         self,
         Spinlock,
+    },
+    trap::{
+        Info,
+        Trap,
     },
 };
 

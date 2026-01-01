@@ -11,15 +11,17 @@ use ku::{
         ReadBuffer,
     },
     process::{
-        Info,
         MiniContext,
         ResultCode,
         State,
-        TrapInfo,
     },
     sync::spinlock::{
         Spinlock,
         SpinlockGuard,
+    },
+    trap::{
+        Info,
+        TrapInfo,
     },
 };
 

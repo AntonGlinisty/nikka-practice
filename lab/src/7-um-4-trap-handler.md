@@ -55,7 +55,7 @@ extern "C" fn trap_handler_trampoline() -> !
 Причём на момент вызова
 [`lib::syscall::trap_handler_trampoline()`](../../doc/lib/syscall/fn.trap_handler_trampoline.html)
 в стеке лежит структура
-[`ku::process::trap_info::TrapInfo`](../../doc/ku/process/trap_info/struct.TrapInfo.html)
+[`ku::trap::trap_info::TrapInfo`](../../doc/ku/trap/trap_info/struct.TrapInfo.html)
 с информацией о возникшем прерывании или исключении.
 Эту информацию записывает в стек процесса ядро.
 
@@ -71,12 +71,12 @@ extern "C" fn trap_handler_trampoline() -> !
 {{#include ../../user/lib/src/syscall.rs:trap_handler_invoker}}
 ```
 Передайте ей в регистре `RDI` адрес
-[`ku::process::trap_info::TrapInfo`](../../doc/ku/process/trap_info/struct.TrapInfo.html),
+[`ku::trap::trap_info::TrapInfo`](../../doc/ku/trap/trap_info/struct.TrapInfo.html),
 на который указывал регистр `RSP` в момент вызова
 [`lib::syscall::trap_handler_trampoline()`](../../doc/lib/syscall/fn.trap_handler_trampoline.html).
 Мы только что положили в стек регистры, и `RSP` сдвинулся.
 Поэтому для получения адреса
-[`ku::process::trap_info::TrapInfo`](../../doc/ku/process/trap_info/struct.TrapInfo.html),
+[`ku::trap::trap_info::TrapInfo`](../../doc/ku/trap/trap_info/struct.TrapInfo.html),
 нужно прибавить к `RSP` объём сохранённых регистров.
 После вызова
 [`lib::syscall::trap_handler_invoker()`](../../doc/lib/syscall/fn.trap_handler_invoker.html)
@@ -88,10 +88,10 @@ extern "C" fn trap_handler_trampoline() -> !
 [`lib::syscall::trap_handler_invoker()`](../../doc/lib/syscall/fn.trap_handler_invoker.html):
 
 - Вызывает функцию, сохранённую в переменной [`static TRAP_HANDLER: AtomicPtr<()>`](../../doc/lib/syscall/static.TRAP_HANDLER.html).
-- Выполняет [`TrapInfo::prepare_for_ret()`](../../doc/ku/process/trap_info/struct.TrapInfo.html#method.prepare_for_ret).
+- Выполняет [`TrapInfo::prepare_for_ret()`](../../doc/ku/trap/trap_info/struct.TrapInfo.html#method.prepare_for_ret).
 
 А
-[`TrapInfo::prepare_for_ret()`](../../doc/ku/process/trap_info/struct.TrapInfo.html#method.prepare_for_ret)
+[`TrapInfo::prepare_for_ret()`](../../doc/ku/trap/trap_info/struct.TrapInfo.html#method.prepare_for_ret)
 кладёт в стек времени возникновения прерывания регистр `RIP` --- адрес кода, который исполнялся в этот момент.
 Значит, если мы установим `RSP` на место в памяти, где сохранён `RIP` и сделаем `ret`, то инструкция `ret` одновременно
 
@@ -103,11 +103,11 @@ extern "C" fn trap_handler_trampoline() -> !
 должна переключить `RSP` на этот адрес и выполнить инструкцию
 [`ret`](https://www.felixcloutier.com/x86/ret).
 Лежит нужный нам `RSP` в поле
-[`TrapInfo::context`](../../doc/ku/process/trap_info/struct.TrapInfo.html#structfield.context)
+[`TrapInfo::context`](../../doc/ku/trap/trap_info/struct.TrapInfo.html#structfield.context)
 структуры
 
 ```rust
-{{#include ../../ku/src/process/trap_info.rs:trap_info}}
+{{#include ../../ku/src/trap/trap_info.rs:trap_info}}
 ```
 
 И к нему можно обратиться по
@@ -118,7 +118,7 @@ pub const RSP_OFFSET_IN_TRAP_INFO: usize = offset_of!(TrapInfo, context) + RSP_O
 ```
 
 от начала структуры
-[`ku::process::trap_info::TrapInfo`](../../doc/ku/process/trap_info/struct.TrapInfo.html),
+[`ku::trap::trap_info::TrapInfo`](../../doc/ku/trap/trap_info/struct.TrapInfo.html),
 которое сейчас находится в `RSP`.
 
 
@@ -213,13 +213,13 @@ Page Fault повторится и программа зациклится в р
 С помощью метода
 [`MiniContext::push()`](../../doc/ku/process/mini_context/struct.MiniContext.html#method.push)
 выделите на стеке пользователя блок памяти под структуру
-[`ku::process::trap_info::TrapInfo`](../../doc/ku/process/trap_info/struct.TrapInfo.html).
+[`ku::trap::trap_info::TrapInfo`](../../doc/ku/trap/trap_info/struct.TrapInfo.html).
 Помните, --- доверять пользовательскому стеку нельзя!
 Он может быт некорректным изначально или просто уже исчерпаться.
 Поэтому обязательно проверьте, что выделенный блок памяти доступен пользователю для записи методом
 [`AddressSpace::check_permission_mut<T>()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.check_permission_mut).
 Только после этого в него можно записать структуру
-[`ku::process::trap_info::TrapInfo`](../../doc/ku/process/trap_info/struct.TrapInfo.html)
+[`ku::trap::trap_info::TrapInfo`](../../doc/ku/trap/trap_info/struct.TrapInfo.html)
 с описанием возникшего прерывания и его контекста из `context`.
 Метод
 [`AddressSpace::check_permission_mut<T>()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.check_permission_mut)

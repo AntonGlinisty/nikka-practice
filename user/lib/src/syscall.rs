@@ -30,10 +30,12 @@ use ku::{
     },
     process::{
         Pid,
-        RSP_OFFSET_IN_TRAP_INFO,
         ResultCode,
         State,
         Syscall,
+    },
+    trap::{
+        RSP_OFFSET_IN_TRAP_INFO,
         TrapInfo,
     },
 };

@@ -23,7 +23,7 @@ mod trap_context;
 
 use x86_64::instructions::interrupts;
 
-pub use ku::process::Trap;
+pub use ku::trap::Trap;
 
 use crate::{
     log::info,

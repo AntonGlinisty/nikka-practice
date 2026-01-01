@@ -1,4 +1,6 @@
-use ku::process::Trap;
+use pic8259;
+
+use ku::trap::Trap;
 
 use crate::time::{
     pit8254,

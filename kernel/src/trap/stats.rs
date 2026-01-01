@@ -6,7 +6,7 @@ use core::{
     },
 };
 
-use ku::process::Trap;
+use ku::trap::Trap;
 
 use super::COUNT;
 

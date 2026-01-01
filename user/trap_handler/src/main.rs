@@ -25,9 +25,9 @@ use ku::{
         USER_RW,
         Virt,
     },
-    process::{
+    process::Pid,
+    trap::{
         Info,
-        Pid,
         TrapInfo,
     },
 };

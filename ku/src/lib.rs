@@ -68,6 +68,9 @@ pub mod sync;
 /// которые нужны и в ядре, и в пространстве пользователя.
 pub mod time;
 
+/// Информация про исключения и прерывания.
+pub mod trap;
+
 use x86_64::instructions::{
     self,
     interrupts,
