@@ -34,7 +34,10 @@ use crate::{
 pub(crate) use self::idt::IDT;
 
 pub use self::{
-    stats::TRAP_STATS,
+    stats::{
+        Stats,
+        TRAP_STATS,
+    },
     trap_context::TrapContext,
 };
 
