@@ -55,9 +55,6 @@ use crate::process::ModeContext;
 /// (ISA).
 const PIC_BASE: usize = Trap::Pit as usize;
 
-/// Количество исключений и прерываний.
-const COUNT: usize = Trap::Spurious as usize + 1;
-
 // ANCHOR: init
 /// Инициализирует таблицу обработчиков прерываний [`struct@IDT`].
 pub(super) fn init() {
@@ -76,6 +73,9 @@ pub(super) fn init() {
     info!("traps init");
 }
 // ANCHOR_END: init
+
+/// Количество исключений и прерываний.
+const COUNT: usize = Trap::Spurious as usize + 1;
 
 #[doc(hidden)]
 pub mod test_scaffolding {
