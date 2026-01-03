@@ -54,7 +54,7 @@ pub(crate) fn init() {
     GDT.lock().load();
 
     unsafe {
-        tables::load_tss(Gdt::tss(0));
+        tables::load_tss(Gdt::tss(CpuId::default()));
     }
 
     info!("GDT init");
@@ -160,7 +160,7 @@ impl<const TSS_COUNT: usize> SmpGdt<TSS_COUNT> {
         cpu: CpuId,
         tss: &TaskStateSegment,
     ) {
-        let cpu = size::from(cpu);
+        let cpu = usize::from(cpu);
         assert!(cpu < TSS_COUNT);
 
         self.tss[cpu] = TssEntry::new(tss);
@@ -175,7 +175,7 @@ impl<const TSS_COUNT: usize> SmpGdt<TSS_COUNT> {
         const TSS_DESCRIPTOR_WIDTH: usize =
             mem::size_of::<TssEntry>() / mem::size_of::<DescriptorFlags>();
 
-        let cpu = size::from(cpu);
+        let cpu = usize::from(cpu);
         assert!(cpu < TSS_COUNT);
 
         SegmentSelector::new(
@@ -254,7 +254,7 @@ impl<const TSS_COUNT: usize> SmpGdt<TSS_COUNT> {
 
 /// Основная используемая глобальная таблица дескрипторов
 /// ([Global Descriptor Table](https://en.wikipedia.org/wiki/Global_Descriptor_Table), GDT).
-pub(crate) type Gdt = SmpGdt<MAX_CPUS>;
+pub(crate) type Gdt = SmpGdt<{ CpuId::MAX_CPUS }>;
 
 /// Глобальная таблица дескрипторов
 /// ([Global Descriptor Table](https://en.wikipedia.org/wiki/Global_Descriptor_Table), GDT),
@@ -264,9 +264,6 @@ pub(crate) type SmallGdt = SmpGdt<0>;
 
 /// Количество основных сегментов (нулевой и четыре сегмента для кода/данных ядра/пользователя).
 const BASIC_COUNT: usize = 5;
-
-/// Максимальное поддерживаемое количество CPU.
-const MAX_CPUS: usize = 1024;
 
 /// Запись в таблице дескрипторов для дескриптора сегмента состояния задачи
 /// ([Task State Segment](https://en.wikipedia.org/wiki/Task_state_segment), TSS).
@@ -312,7 +309,7 @@ lazy_static! {
     pub(crate) static ref GDT: Spinlock<Gdt> = Spinlock::new({
         let mut gdt = Gdt::new();
 
-        gdt.set_tss(0, &TSS);
+        gdt.set_tss(CpuId::default(), &TSS);
 
         gdt
     });

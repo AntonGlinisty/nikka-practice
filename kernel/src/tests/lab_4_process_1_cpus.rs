@@ -29,7 +29,7 @@ init!(Subsystems::MEMORY | Subsystems::CPUS);
 fn initialized() {
     let cpu = cpu_id();
     let local_apic_id = id();
-    info!(cpu, local_apic_id);
+    info!(%cpu, %local_apic_id);
 
     assert_eq!(cpu, local_apic_id);
 }

@@ -1,3 +1,5 @@
+use core::fmt;
+
 use bitflags::bitflags;
 use chrono::Duration;
 use num_enum::IntoPrimitive;
@@ -33,8 +35,77 @@ use crate::{
     trap::Trap,
 };
 
-/// Идентификатор local APIC и текущего CPU.
-pub(crate) type CpuId = u32;
+/// Идентификатор local APIC и CPU.
+#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
+pub struct CpuId(u32);
+
+impl CpuId {
+    /// Создаёт идентификатор CPU.
+    pub(crate) fn new(cpu_id: u32) -> Self {
+        assert!(
+            cpu_id <= Self::MAX.0,
+            "unsupported CPU count ({})",
+            cpu_id + 1,
+        );
+        Self(cpu_id)
+    }
+
+    /// Максимальное поддерживаемое количество CPU.
+    pub(crate) const MAX_CPUS: usize = Self::MAX.0 as usize + 1;
+
+    /// Номер максимального поддерживаемого CPU.
+    const MAX: Self = Self(1023);
+
+    /// Неизвестный идентификатор CPU.
+    const UNKNOWN: Self = Self(Self::MAX.0 + 1);
+}
+
+impl fmt::Display for CpuId {
+    fn fmt(
+        &self,
+        formatter: &mut fmt::Formatter,
+    ) -> fmt::Result {
+        if *self <= Self::MAX {
+            write!(formatter, "{}", self.0)
+        } else if *self == Self::UNKNOWN {
+            write!(formatter, "?")
+        } else {
+            panic!("invalid CPU id = {}", self.0)
+        }
+    }
+}
+
+impl From<CpuId> for usize {
+    fn from(cpu_id: CpuId) -> Self {
+        size::from(cpu_id.0)
+    }
+}
+
+impl TryFrom<u32> for CpuId {
+    type Error = Error;
+
+    fn try_from(cpu_id: u32) -> Result<Self> {
+        if cpu_id <= Self::MAX.0 {
+            Ok(Self(cpu_id))
+        } else {
+            Err(InvalidArgument)
+        }
+    }
+}
+
+impl TryFrom<usize> for CpuId {
+    type Error = Error;
+
+    fn try_from(cpu_id: usize) -> Result<Self> {
+        if cpu_id <= Self::MAX.into() {
+            Ok(Self(
+                size::into_u64(cpu_id).try_into().expect("cpu_id <= MAX should fit in its type"),
+            ))
+        } else {
+            Err(InvalidArgument)
+        }
+    }
+}
 
 /// Local
 /// [APIC](https://en.wikipedia.org/wiki/Advanced_Programmable_Interrupt_Controller).
@@ -69,7 +140,7 @@ impl LocalApic {
                 Self::end_of_interrupt();
             }
 
-            info!(cpu = Self::id(), "Local APIC init");
+            info!(cpu = %Self::id(), "Local APIC init");
 
             Ok(())
         }
@@ -104,10 +175,13 @@ impl LocalApic {
     /// [16.3.3 Local APIC ID](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1006385>).
     pub(crate) fn id() -> CpuId {
         if Self::is_enabled() {
-            unsafe { Register::Id.read() }
-        } else {
-            CpuId::MAX
+            let id = unsafe { Register::Id.read() };
+            if let Ok(id) = id.try_into() {
+                return id;
+            }
         }
+
+        CpuId::UNKNOWN
     }
 
     /// Посылает прерывание на Application Processor с идентификатором `dst`,
@@ -192,14 +266,14 @@ impl LocalApic {
         let mut interrupt_command = Msr::new(0x830);
 
         unsafe {
-            interrupt_command.write((u64::from(dst) << ID_SHIFT) | u64::from(data));
+            interrupt_command.write((size::into_u64(dst.into()) << ID_SHIFT) | u64::from(data));
         }
 
         let error = unsafe { Register::ErrorStatus.read() };
         if error == 0 {
             Ok(())
         } else {
-            error!(dst, data, error, "error sending IPI");
+            error!(%dst, data, error, "error sending IPI");
 
             Err(Error::LocalApic)
         }

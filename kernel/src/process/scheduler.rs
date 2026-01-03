@@ -58,7 +58,7 @@ impl Scheduler {
 
         loop {
             if !Scheduler::run_one() {
-                info!(cpu, "nothing to do");
+                info!(%cpu, "nothing to do");
                 instructions::hlt();
             }
         }

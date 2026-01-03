@@ -77,7 +77,7 @@ impl Acpi {
         let cpus = platform_info.processor_info.ok_or(Unimplemented)?;
 
         let acpi = Self {
-            bsp_id: cpus.boot_processor.local_apic_id,
+            bsp_id: CpuId::new(cpus.boot_processor.local_apic_id),
             ap_ids: usable_aps(&cpus),
         };
 
@@ -109,8 +109,8 @@ fn usable_aps(cpus: &ProcessorInfo<'_, Global>) -> Vec<CpuId> {
     cpus.application_processors
         .iter()
         .filter(|cpu| cpu.state == ProcessorState::WaitingForSipi)
-        .filter(|cpu| cpu.local_apic_id <= CpuId::MAX.into())
-        .map(|cpu| cpu.local_apic_id.try_into().unwrap())
+        .map(|cpu| CpuId::try_from(cpu.local_apic_id))
+        .flatten()
         .collect()
 }
 

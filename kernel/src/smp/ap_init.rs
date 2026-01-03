@@ -87,7 +87,7 @@ pub(super) fn boot_ap(
     let code_size = switch_mode_code_size();
     let code_size_is_unrealistic = code_size < 8;
     if code_size_is_unrealistic {
-        debug!(cpu = cpu_id, %code_size, "AP init does not seem to be implemented, skipping it");
+        debug!(cpu = %cpu_id, %code_size, "AP init does not seem to be implemented, skipping it");
         return Ok(());
     }
 
@@ -100,9 +100,9 @@ pub(super) fn boot_ap(
     let message = "boot Application Processor";
 
     if let Err(error) = cpu.wait_initialized(Duration::seconds(1), boot_memory) {
-        error!(cpu = cpu_id, duration = %timer.elapsed(), ?error, message);
+        error!(cpu = %cpu_id, duration = %timer.elapsed(), ?error, message);
     } else {
-        info!(cpu = cpu_id, duration = %timer.elapsed(), message);
+        info!(cpu = %cpu_id, duration = %timer.elapsed(), message);
     }
 
     Ok(())
@@ -396,7 +396,7 @@ extern "C" fn ap_kernel_main(cpu: &mut Cpu, // rdi
 
     cpu.signal_initialized();
 
-    info!(cpu = cpu.id(), "report for duty");
+    info!(cpu = %cpu.id(), "report for duty");
 
     Scheduler::run();
 }

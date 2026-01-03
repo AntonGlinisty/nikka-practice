@@ -30,10 +30,7 @@ use crate::{
         info,
         warn,
     },
-    memory::{
-        Phys2Virt,
-        size,
-    },
+    memory::Phys2Virt,
     time,
 };
 
@@ -89,8 +86,8 @@ fn init_smp(
     let current_cpu = LocalApic::id();
     if bootstrap_processor != current_cpu {
         warn!(
-            bootstrap_processor,
-            current_cpu, "ACPI Bootstrap Processor is not the current processor",
+            %bootstrap_processor,
+            %current_cpu, "ACPI Bootstrap Processor is not the current processor",
         );
         return Err(Unimplemented);
     }
@@ -99,7 +96,7 @@ fn init_smp(
         bootstrap_processor,
         *acpi.ap_ids().iter().max().unwrap_or(&bootstrap_processor),
     );
-    let cpu_count = size::from(max_cpu_id) + 1;
+    let cpu_count = usize::from(max_cpu_id) + 1;
 
     let mut cpus = CPUS.lock();
 
@@ -107,11 +104,11 @@ fn init_smp(
 
     assert_eq!(cpus.len(), cpu_count);
 
-    info!(cpu = current_cpu, cpu_count, "Bootstrap Processor");
+    info!(cpu = %current_cpu, cpu_count, "Bootstrap Processor");
 
     if subsystems.contains(Subsystems::BOOT_APS) {
         for id in acpi.ap_ids() {
-            ap_init::boot_ap(phys2virt, &mut cpus[size::from(*id)])?;
+            ap_init::boot_ap(phys2virt, &mut cpus[usize::from(*id)])?;
         }
     }
 

@@ -55,7 +55,7 @@ fn ap_loop() {
     barrier(&BARRIER_FINISH, cpu_count);
 
     let cpu = cpu_id();
-    info!(cpu, "AP halted");
+    info!(%cpu, "AP halted");
 
     loop {
         interrupts::without_interrupts(instructions::hlt)
@@ -70,13 +70,13 @@ fn barrier(
     let cpu = cpu_id();
     let cpus_waiting = barrier.fetch_add(1, Ordering::Relaxed);
     let last = cpus_waiting == cpu_count - 1;
-    info!(%barrier_id, cpu, cpu_count, cpus_waiting, last, "arrived at the barrier");
+    info!(%barrier_id, %cpu, cpu_count, cpus_waiting, last, "arrived at the barrier");
 
     while barrier.load(Ordering::Relaxed) != cpu_count {
         instructions::hlt();
     }
 
-    info!(%barrier_id, cpu, cpu_count, "all CPUs have arrived at the barrier");
+    info!(%barrier_id, %cpu, cpu_count, "all CPUs have arrived at the barrier");
 }
 
 fn race() {

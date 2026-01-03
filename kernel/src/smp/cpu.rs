@@ -73,7 +73,7 @@ pub(super) fn init(
 ) -> Result<Vec<Cpu>> {
     let mut cpus = init_cpu_vec(cpu_count)?;
 
-    let cpu = &mut cpus[size::from(current_cpu)];
+    let cpu = &mut cpus[usize::from(current_cpu)];
     cpu.set_gs();
     cpu.set_tss();
     cpu.signal_initialized();
