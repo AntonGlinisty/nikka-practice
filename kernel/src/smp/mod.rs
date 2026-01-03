@@ -12,6 +12,7 @@ mod cpu;
 use alloc::vec::Vec;
 use core::cmp;
 
+use bootloader_api::BootInfo;
 use lazy_static::lazy_static;
 
 use ku::sync::spinlock::Spinlock;
@@ -26,7 +27,11 @@ use crate::{
         info,
         warn,
     },
-    memory::Phys2Virt,
+    memory::{
+        Phys,
+        Phys2Virt,
+        size,
+    },
     time,
     trap::LocalApic,
 };
@@ -50,12 +55,13 @@ pub(super) fn preinit() {
 /// Инициализация симметричной многопроцессорности
 /// ([Symmetric multiprocessing](https://en.wikipedia.org/wiki/Symmetric_multiprocessing), SMP).
 pub(super) fn init(
+    boot_info: &'static BootInfo,
     phys2virt: Phys2Virt,
     subsystems: Subsystems,
 ) {
     let timer = time::timer();
 
-    if let Err(error) = init_smp(phys2virt, subsystems) {
+    if let Err(error) = init_smp(boot_info, phys2virt, subsystems) {
         warn!(?error, duration = %timer.elapsed(), "SMP init");
     } else {
         info!(duration = %timer.elapsed(), "SMP init");
@@ -66,14 +72,16 @@ pub(super) fn init(
 /// ([Symmetric multiprocessing](https://en.wikipedia.org/wiki/Symmetric_multiprocessing), SMP).
 /// Внутренняя функция, которая выполняет всю работу.
 fn init_smp(
+    boot_info: &'static BootInfo,
     phys2virt: Phys2Virt,
     subsystems: Subsystems,
 ) -> Result<()> {
-    if !subsystems.contains(Subsystems::CPUS) {
+    if !subsystems.intersects(Subsystems::CPUS) {
         return Err(Unimplemented);
     }
 
-    let acpi = Acpi::new(phys2virt)?;
+    let rsdp = Phys::new(size::from(boot_info.rsdp_addr.into_option().ok_or(Unimplemented)?))?;
+    let acpi = Acpi::new(phys2virt, rsdp)?;
 
     let bootstrap_processor = acpi.bsp_id();
     let current_cpu = LocalApic::id();
@@ -83,6 +91,10 @@ fn init_smp(
             %current_cpu, "ACPI Bootstrap Processor is not the current processor",
         );
         return Err(Unimplemented);
+    }
+
+    if !subsystems.contains(Subsystems::CPUS) {
+        return Ok(());
     }
 
     let max_cpu_id = cmp::max(
@@ -115,6 +127,8 @@ lazy_static! {
 
 #[doc(hidden)]
 pub mod test_scaffolding {
+    use bootloader_api::BootInfo;
+
     use crate::{
         Subsystems,
         error::Result,
@@ -134,10 +148,11 @@ pub mod test_scaffolding {
     }
 
     pub fn init_smp(
+        boot_info: &'static BootInfo,
         phys2virt: Phys2Virt,
         subsystems: Subsystems,
     ) -> Result<()> {
-        super::init_smp(phys2virt, subsystems)
+        super::init_smp(boot_info, phys2virt, subsystems)
     }
 
     pub fn kernel_stack_zones(cpu: usize) -> (Block<Virt>, Block<Virt>) {

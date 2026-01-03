@@ -54,10 +54,13 @@ impl Acpi {
     /// Заполняет структуру [`Acpi`] по таблицам ACPI, которые BIOS сохранил в памяти.
     /// Аргумент [`phys2virt`][Phys2Virt] описывает линейное отображение
     /// физической памяти в виртуальную внутри этого страничного отображения.
-    pub(super) fn new(phys2virt: Phys2Virt) -> Result<Self> {
+    pub(super) fn new(
+        phys2virt: Phys2Virt,
+        rsdp: Phys,
+    ) -> Result<Self> {
         let acpi_mapper = AcpiMapper { phys2virt };
 
-        let acpi_tables = match unsafe { AcpiTables::search_for_rsdp_bios(acpi_mapper) } {
+        let acpi_tables = match unsafe { AcpiTables::from_rsdp(acpi_mapper, rsdp.into_usize()) } {
             Ok(acpi_tables) => acpi_tables,
             Err(acpi_error) => {
                 warn!(?acpi_error, "failed to find ACPI tables");

@@ -170,7 +170,7 @@ pub fn init_subsystems(
     if subsystems.intersects(Subsystems::SMP) &&
         let Ok(phys2virt) = phys2virt
     {
-        smp::init(phys2virt, subsystems);
+        smp::init(boot_info, phys2virt, subsystems);
     }
 
     if subsystems.intersects(Subsystems::PROCESS) {
