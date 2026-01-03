@@ -37,6 +37,7 @@ use crate::{
         debug,
         error,
         info,
+        warn,
     },
     memory::{
         BASE_ADDRESS_SPACE,
@@ -381,7 +382,9 @@ extern "C" fn ap_kernel_main(cpu: &mut Cpu, // rdi
 ) -> ! {
     GDT.lock().load();
 
-    LocalApic::init();
+    if let Err(error) = LocalApic::init() {
+        warn!(?error, "failed to init local APIC");
+    }
 
     cpu.set_gs();
     cpu.set_tss();

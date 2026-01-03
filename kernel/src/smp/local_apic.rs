@@ -1,200 +1,113 @@
-use core::{
-    hint,
-    mem,
-    ptr,
-};
-
 use bitflags::bitflags;
 use chrono::Duration;
-use static_assertions::const_assert_eq;
+use num_enum::IntoPrimitive;
+use x86::cpuid;
+use x86_64::registers::model_specific::{
+    ApicBase,
+    ApicBaseFlags,
+    Msr,
+};
 
-use ku::time;
+use ku::{
+    log::{
+        info,
+        warn,
+    },
+    time,
+};
 
 use crate::{
     error::{
         Error::{
             self,
             InvalidArgument,
+            Unimplemented,
         },
         Result,
     },
     log::error,
     memory::{
-        BASE_ADDRESS_SPACE,
         Frame,
-        FrameGuard,
-        KERNEL_MMIO,
-        Page,
-        Phys,
-        Virt,
         size,
     },
     trap::Trap,
 };
 
-use register::Register;
-
 /// Идентификатор local APIC и текущего CPU.
-pub(crate) type CpuId = u8;
+pub(crate) type CpuId = u32;
 
-/// [Memory--mapped I/O (MMIO)](https://en.wikipedia.org/wiki/Memory-mapped_I/O)
-/// для работы с local APIC.
+/// Local
+/// [APIC](https://en.wikipedia.org/wiki/Advanced_Programmable_Interrupt_Controller).
 ///
-/// <https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.pdf>, Chapter 10.
-/// <https://wiki.osdev.org/APIC#Local_APIC_registers>
-#[derive(Clone)]
-#[repr(C, align(4096))]
-pub(crate) struct LocalApic {
-    #[doc(hidden)]
-    _0: [Register; 2],
-
-    /// Возвращает идентификатор local APIC и текущего CPU.
-    id: Register,
-
-    #[doc(hidden)]
-    _1: [Register; 8],
-
-    /// Посылает local APIC сигнал о завершении работы обработчика прерывания ---
-    /// [end of interrupt (EOI)](https://en.wikipedia.org/wiki/End_of_interrupt).
-    eoi: Register,
-
-    #[doc(hidden)]
-    _2: [Register; 3],
-
-    /// Обработчик "фантомных прерываний"
-    /// ([Spurious interrupts](https://en.wikipedia.org/wiki/Interrupt#Spurious_interrupts)).
-    ///
-    /// <https://wiki.osdev.org/APIC#Spurious_Interrupt_Vector_Register>
-    spurious: Register,
-
-    #[doc(hidden)]
-    _3: [Register; 23],
-
-    /// Регистр ошибок.
-    error_status_register: Register,
-
-    #[doc(hidden)]
-    _4: [Register; 8],
-
-    /// Позволяет посылать другим процессорам прерывание ---
-    /// [inter-processor interrupt](https://en.wikipedia.org/wiki/Inter-processor_interrupt) (IPI).
-    /// Эта (нижняя) часть двойного регистра задаёт флаги и дополнительные данные для IPI,
-    /// см. [`InterruptCommand`].
-    interrupt_command_lo: Register,
-
-    /// Позволяет посылать другим процессорам прерывание ---
-    /// [inter-processor interrupt](https://en.wikipedia.org/wiki/Inter-processor_interrupt) (IPI).
-    /// Эта (верхняя) часть двойного регистра задаёт целевой процессор для IPI.
-    interrupt_command_hi: Register,
-
-    /// Регистр таймера.
-    lvt_timer: Register,
-
-    /// Регистр сенсора температуры.
-    lvt_termal_sensor: Register,
-
-    /// Регистр переполнения
-    /// [hardware performance counter](https://en.wikipedia.org/wiki/Hardware_performance_counter)
-    /// (HPC).
-    lvt_performance_counter_overflow: Register,
-
-    #[doc(hidden)]
-    lvt_lint0: Register,
-
-    #[doc(hidden)]
-    lvt_lint1: Register,
-
-    #[doc(hidden)]
-    lvt_error: Register,
-
-    /// Начальное значение счётчика таймера.
-    timer_initial_count: Register,
-
-    /// Текущее значение счётчика таймера.
-    timer_current_count: Register,
-
-    #[doc(hidden)]
-    _5: [Register; 4],
-
-    /// Делитель счётчика таймера.
-    timer_divide_configuration: Register,
-
-    #[doc(hidden)]
-    _6: [Register; 1],
-}
-
-const_assert_eq!(mem::size_of::<LocalApic>(), Page::SIZE);
+/// [16 Advanced Programmable Interrupt Controller (APIC)](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.998446).
+pub(crate) struct LocalApic;
 
 impl LocalApic {
-    /// Инициализирует виртуальную страницу для [`LocalApic`] нулями.
-    /// Доступна в константном контексте, чтобы можно было инициализировать
-    /// с её помощью статическую переменную [`LOCAL_APIC`].
-    /// Позже эта страница будет заменена на страницу для доступа к local APIC через интерфейс
-    /// [Memory--mapped I/O (MMIO)](https://en.wikipedia.org/wiki/Memory-mapped_I/O).
-    const fn zero() -> Self {
-        Self {
-            _0: [Register::zero(); 2],
-            id: Register::zero(),
-            _1: [Register::zero(); 8],
-            eoi: Register::zero(),
-            _2: [Register::zero(); 3],
-            spurious: Register::zero(),
-            _3: [Register::zero(); 23],
-            error_status_register: Register::zero(),
-            _4: [Register::zero(); 8],
-            interrupt_command_lo: Register::zero(),
-            interrupt_command_hi: Register::zero(),
-            lvt_timer: Register::zero(),
-            lvt_termal_sensor: Register::zero(),
-            lvt_performance_counter_overflow: Register::zero(),
-            lvt_lint0: Register::zero(),
-            lvt_lint1: Register::zero(),
-            lvt_error: Register::zero(),
-            timer_initial_count: Register::zero(),
-            timer_current_count: Register::zero(),
-            _5: [Register::zero(); 4],
-            timer_divide_configuration: Register::zero(),
-            _6: [Register::zero(); 1],
+    /// Инициализирует local APIC.
+    ///
+    /// - Переводит local APIC в
+    ///   [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352).
+    /// - Включает прерывание таймера.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Unimplemented`] --- процессор не поддерживает
+    ///   [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352).
+    pub(crate) fn init() -> Result<()> {
+        if let Err(error) = Self::enable_x2() {
+            warn!(?error, "failed to switch the local APIC into x2APIC mode");
+
+            Err(error)
+        } else {
+            /// Количество тиков процессора между прерываниями от таймера APIC.
+            const TSCS_PER_INTERRUPT: u32 = 100_000_000;
+
+            unsafe {
+                Self::enable();
+                Self::disable_lvts();
+                Self::init_timer(TSCS_PER_INTERRUPT);
+                Self::end_of_interrupt();
+            }
+
+            info!(cpu = Self::id(), "Local APIC init");
+
+            Ok(())
         }
     }
 
-    /// Инициализирует local APIC, в том числе включает прерывание таймера.
-    pub(super) fn init() {
-        /// Количество тиков процессора между прерываниями от APIC таймера.
-        const TSCS_PER_INTERRUPT: u32 = 100_000_000;
-
-        let local_apic = Self::get();
-
-        local_apic.enable();
-        local_apic.disable_lvts();
-        local_apic.init_timer(TSCS_PER_INTERRUPT);
-        Self::end_of_interrupt();
-    }
-
-    /// Инициализирует [Memory--mapped I/O (MMIO)](https://en.wikipedia.org/wiki/Memory-mapped_I/O)
-    /// для работы с local APIC по физическому адресу `address`.
-    pub(super) fn map(address: Phys) -> Result<()> {
-        // TODO: your code here.
-        unimplemented!();
+    /// Возвращает `true` если local APIC инициализирован в режиме x2APIC.
+    pub(crate) fn is_enabled() -> bool {
+        ApicBase::read().1.contains(ApicBaseFlags::X2APIC_ENABLE)
     }
 
     /// Посылает local APIC сигнал о завершении работы обработчика прерывания ---
     /// [end of interrupt (EOI)](https://en.wikipedia.org/wiki/End_of_interrupt).
     ///
-    /// <https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.pdf>,
-    /// Chapter 10.8.5 "Signaling Interrupt Servicing Completion"
+    /// - [16.6.4 Selecting and Handling Interrupts](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1003561).
+    /// - <https://wiki.osdev.org/APIC#EOI_Register>
     ///
-    /// <https://wiki.osdev.org/APIC#EOI_Register>
-    pub(crate) fn end_of_interrupt() {
-        Self::get().eoi.set(0);
+    /// # Safety
+    ///
+    /// Local APIC должен быть переведён в
+    /// [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352)
+    /// методом [`LocalApic::enable_x2()`].
+    pub(crate) unsafe fn end_of_interrupt() {
+        unsafe {
+            Register::Eoi.write(0);
+        }
     }
 
     /// Возвращает идентификатор local APIC и текущего CPU.
+    /// Либо `0` если local APIC ещё не инициализирован или CPU не поддерживает
+    /// [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352).
     ///
-    /// <https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.pdf>,
-    /// Chapter 10.4.6 "Local APIC ID"
+    /// [16.3.3 Local APIC ID](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1006385>).
     pub(crate) fn id() -> CpuId {
-        (Self::get().id.get() >> Self::ID_SHIFT).try_into().unwrap()
+        if Self::is_enabled() {
+            unsafe { Register::Id.read() }
+        } else {
+            CpuId::MAX
+        }
     }
 
     /// Посылает прерывание на Application Processor с идентификатором `dst`,
@@ -208,6 +121,8 @@ impl LocalApic {
     /// - [`Error::InvalidArgument`] --- `boot_address` выходит за допустимую в
     ///   реальном режиме границу.
     /// - [`Error::LocalApic`] --- local APIC вернул ошибку.
+    /// - [`Error::Unimplemented`] --- процессор не поддерживает
+    ///   [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352).
     pub(super) fn send_init(
         dst: CpuId,
         boot_address: Frame,
@@ -221,18 +136,28 @@ impl LocalApic {
             return Err(InvalidArgument);
         }
 
-        let local_apic = Self::get();
+        if !Self::is_enabled() {
+            return Err(Unimplemented);
+        }
 
-        let init_data = InterruptCommand::INIT | InterruptCommand::TRIGGER_MODE_LEVEL;
+        let init_data = InterruptCommand::DESTINATION_PHYSICAL |
+            InterruptCommand::INIT |
+            InterruptCommand::TRIGGER_MODE_LEVEL;
 
-        local_apic.send_ipi(dst, (init_data | InterruptCommand::LEVEL_ASSERT).bits())?;
+        unsafe {
+            Self::send_ipi(dst, (init_data | InterruptCommand::LEVEL_ASSERT).bits())?;
+        }
         time::delay(Duration::microseconds(200));
 
-        local_apic.send_ipi(dst, (init_data | InterruptCommand::LEVEL_DEASSERT).bits())?;
+        unsafe {
+            Self::send_ipi(dst, (init_data | InterruptCommand::LEVEL_DEASSERT).bits())?;
+        }
         time::delay(Duration::microseconds(200));
 
         for _ in 0 .. 2 {
-            local_apic.send_ipi(dst, InterruptCommand::START_UP.bits() | boot_page)?;
+            unsafe {
+                Self::send_ipi(dst, InterruptCommand::START_UP.bits() | boot_page)?;
+            }
             time::delay(Duration::microseconds(200));
         }
 
@@ -243,25 +168,34 @@ impl LocalApic {
     /// ([inter-processor interrupt](https://en.wikipedia.org/wiki/Inter-processor_interrupt), IPI)
     /// с дополнительными данными `data`.
     ///
-    /// <https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.pdf>,
-    /// 10.6 "Issuing Interprocessor Interrupts"
+    /// [16.5 Interprocessor Interrupts (IPI)](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1001655).
     ///
     /// # Errors
     ///
     /// - [`Error::LocalApic`] --- local APIC вернул ошибку.
-    fn send_ipi(
-        &mut self,
+    /// - [`Error::Unimplemented`] --- процессор не поддерживает
+    ///   [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352).
+    ///
+    /// # Safety
+    ///
+    /// Local APIC должен быть переведён в
+    /// [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352)
+    /// методом [`LocalApic::enable_x2()`].
+    unsafe fn send_ipi(
         dst: CpuId,
         data: u32,
     ) -> Result<()> {
-        self.interrupt_command_hi.set(u32::from(dst) << Self::ID_SHIFT);
-        self.interrupt_command_lo.set(data);
+        /// Сдвиг для [`CpuId`] внутри
+        /// [Interrupt Command Register](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1050595).
+        const ID_SHIFT: u32 = u32::BITS;
 
-        while (self.interrupt_command_lo.get() & InterruptCommand::SEND_PENDING.bits()) != 0 {
-            hint::spin_loop();
+        let mut interrupt_command = Msr::new(0x830);
+
+        unsafe {
+            interrupt_command.write((u64::from(dst) << ID_SHIFT) | u64::from(data));
         }
 
-        let error = self.error_status_register.get();
+        let error = unsafe { Register::ErrorStatus.read() };
         if error == 0 {
             Ok(())
         } else {
@@ -271,111 +205,117 @@ impl LocalApic {
         }
     }
 
-    /// Возвращает структуру [`LocalApic`] текущего CPU.
-    fn get() -> &'static mut Self {
-        unsafe { &mut *ptr::addr_of_mut!(LOCAL_APIC) }
+    /// Запрещает ненужные нам локальные прерывания.
+    ///
+    /// <https://wiki.osdev.org/APIC#Local_Vector_Table_Registers>
+    ///
+    /// # Safety
+    ///
+    /// Local APIC должен быть переведён в
+    /// [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352)
+    /// методом [`LocalApic::enable_x2()`].
+    unsafe fn disable_lvts() {
+        /// Отключает получение прерывания.
+        const MASK_INTERRUPT: u32 = 1 << 16;
+
+        for mut interrupt in [
+            Register::LvtTermalSensor,
+            Register::LvtPerformanceCounterOverflow,
+            Register::LvtLocalInterrupt1,
+            Register::LvtError,
+        ] {
+            unsafe {
+                interrupt.write(interrupt.read() | MASK_INTERRUPT);
+            }
+        }
     }
 
     /// Разрешает использование local APIC.
     ///
     /// <https://wiki.osdev.org/APIC#Spurious_Interrupt_Vector_Register>
-    fn enable(&mut self) {
+    ///
+    /// # Safety
+    ///
+    /// Local APIC должен быть переведён в
+    /// [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352)
+    /// методом [`LocalApic::enable_x2()`].
+    unsafe fn enable() {
         /// Включает использование local APIC.
         const ENABLE_LOCAL_APIC: u32 = 1 << 8;
-        self.spurious
-            .set(ENABLE_LOCAL_APIC | size::try_into::<u32>(Trap::Spurious.into()).unwrap());
+
+        unsafe {
+            Register::Spurious.write(ENABLE_LOCAL_APIC | u32::from(Trap::Spurious));
+        }
     }
 
-    /// Запрещает ненужные нам локальные прерывания.
+    /// Переводит local APIC в
+    /// [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352).
     ///
-    /// <https://wiki.osdev.org/APIC#Local_Vector_Table_Registers>
-    fn disable_lvts(&mut self) {
-        /// Отключает получение прерывания.
-        const MASK_INTERRUPT: u32 = 1 << 16;
+    /// [16.9 Detecting and Enabling x2APIC Mode](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1046719).
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Unimplemented`] --- процессор не поддерживает
+    ///   [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352).
+    fn enable_x2() -> Result<()> {
+        let (frame, mut flags) = ApicBase::read();
 
-        for interrupt in [
-            &mut self.lvt_termal_sensor,
-            &mut self.lvt_performance_counter_overflow,
-            &mut self.lvt_lint1,
-            &mut self.lvt_error,
-        ] {
-            interrupt.update(|x| x | MASK_INTERRUPT);
+        flags |= ApicBaseFlags::LAPIC_ENABLE;
+
+        unsafe {
+            ApicBase::write(frame, flags);
+        }
+
+        if cpuid::CpuId::new()
+            .get_feature_info()
+            .map(|feature_info| feature_info.has_x2apic())
+            .unwrap_or(false)
+        {
+            unsafe {
+                ApicBase::write(frame, flags | ApicBaseFlags::X2APIC_ENABLE);
+            }
+
+            Ok(())
+        } else {
+            Err(Unimplemented)
         }
     }
 
     /// Инициализирует таймер local APIC в периодическом режиме с делителем 1
     /// и прерыванием номер [`Trap::Timer`].
     ///
-    /// <https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.pdf>,
-    /// Chapter 10.5.4
-    fn init_timer(
-        &mut self,
-        tscs_per_interrupt: u32,
-    ) {
+    /// [16.4.1 APIC Timer Interrupt](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1000026).
+    ///
+    /// # Safety
+    ///
+    /// Local APIC должен быть переведён в
+    /// [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352)
+    /// методом [`LocalApic::enable_x2()`].
+    unsafe fn init_timer(tscs_per_interrupt: u32) {
         /// Задаёт делитель таймера равный 1.
         const DIVIDE_BY_1: u32 = 0b1011;
-
-        self.timer_divide_configuration.set(DIVIDE_BY_1);
 
         /// Задаёт периодический режим таймера.
         const PERIODIC_MODE: u32 = 0b01 << 17;
 
-        self.lvt_timer
-            .set(PERIODIC_MODE | size::try_into::<u32>(Trap::Timer.into()).unwrap());
+        unsafe {
+            Register::TimerDivideConfiguration.write(DIVIDE_BY_1);
+            Register::LvtTimer.write(PERIODIC_MODE | u32::from(Trap::Timer));
 
-        // [AMD64 Architecture Programmer’s Manual](https://docs.amd.com/v/u/en-US/40332-PUB_4.08):
-        // "To avoid race conditions, software should initialize
-        // the Divide Configuration Register and the Timer Local Vector Table Register
-        // prior to writing the Initial Count Register to start the timer."
-        self.timer_initial_count.set(tscs_per_interrupt);
-    }
-
-    /// Сдвиг для [`CpuId`] внутри [`LocalApic::id`].
-    const ID_SHIFT: usize = 24;
-}
-
-/// Задаёт формат одного регистра local APIC.
-mod register {
-    /// Задаёт формат одного регистра local APIC.
-    #[derive(Clone, Copy)]
-    #[repr(C)]
-    pub(super) struct Register(u32, #[doc(hidden)] [u32; 3]);
-
-    impl Register {
-        /// Возвращает регистр, инициализированный нулём.
-        /// Доступна в константном контексте.
-        pub(super) const fn zero() -> Self {
-            Self(0, [0; 3])
-        }
-
-        /// Читает значение из регистра.
-        pub(super) fn get(&self) -> u32 {
-            unsafe { (&self.0 as *const u32).read_volatile() }
-        }
-
-        /// Записывает значение в регистр.
-        pub(super) fn set(
-            &mut self,
-            value: u32,
-        ) {
-            unsafe { (&mut self.0 as *mut u32).write_volatile(value) }
-        }
-
-        /// Обновляет значение в регистре с помощью заданной `f`.
-        pub(super) fn update<F: FnOnce(u32) -> u32>(
-            &mut self,
-            f: F,
-        ) {
-            self.set(f(self.get()));
+            // [AMD64 Architecture Programmer’s Manual](https://docs.amd.com/v/u/en-US/40332-PUB_4.08):
+            // "To avoid race conditions, software should initialize
+            // the Divide Configuration Register and the Timer Local Vector Table Register
+            // prior to writing the Initial Count Register to start the timer."
+            Register::TimerInitialCount.write(tscs_per_interrupt);
         }
     }
 }
 
 bitflags! {
-    /// Поля регистра данных [`LocalApic::interrupt_command_lo`] для
+    /// Поля регистра Interrupt Command Register (ICR) для отправки
     /// [inter-processor interrupt](https://en.wikipedia.org/wiki/Inter-processor_interrupt) (IPI).
     ///
-    /// <https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.pdf>,
+    /// [Figure 16-18. Interrupt Command Register (APIC Offset 300h–310h)](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1009018).
     /// 10.6.1 Interrupt Command Register (ICR)
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     struct InterruptCommand: u32 {
@@ -385,10 +325,8 @@ bitflags! {
         /// Выполнить код загрузки по заданному адресу.
         const START_UP = 0b110 << 8;
 
-        /// Признак того, что последнее
-        /// [IPI](https://en.wikipedia.org/wiki/Inter-processor_interrupt)
-        /// пока не доставлено целевому процессору.
-        const SEND_PENDING = 1 << 12;
+        /// Используется физический идентификатор целевого CPU.
+        const DESTINATION_PHYSICAL = 0 << 11;
 
         /// Высокий уровень сигнала для прерывания [`InterruptCommand::INIT`].
         const LEVEL_ASSERT = 1 << 14;
@@ -401,21 +339,105 @@ bitflags! {
     }
 }
 
-/// [Memory--mapped I/O (MMIO)](https://en.wikipedia.org/wiki/Memory-mapped_I/O)
-/// для работы с local APIC.
-static mut LOCAL_APIC: LocalApic = LocalApic::zero();
+/// Регистр local APIC в
+/// [режиме x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352).
+///
+/// Задаёт номера
+/// [моделезависимых регистров](https://en.wikipedia.org/wiki/Model-specific_register)
+/// в соответствии с
+/// [таблицей](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1047581).
+///
+/// <https://wiki.osdev.org/APIC#Local_APIC_registers>
+#[derive(Clone, Copy, Debug, IntoPrimitive)]
+#[repr(u32)]
+enum Register {
+    /// Возвращает идентификатор local APIC и текущего CPU.
+    Id = 0x802,
+
+    /// Посылает local APIC сигнал о завершении работы обработчика прерывания ---
+    /// [end of interrupt (EOI)](https://en.wikipedia.org/wiki/End_of_interrupt).
+    Eoi = 0x80B,
+
+    /// Регистр таймера.
+    LvtTimer = 0x832,
+
+    /// Обработчик "фантомных прерываний"
+    /// ([Spurious interrupts](https://en.wikipedia.org/wiki/Interrupt#Spurious_interrupts)).
+    ///
+    /// <https://wiki.osdev.org/APIC#Spurious_Interrupt_Vector_Register>
+    Spurious = 0x80F,
+
+    /// Регистр ошибок.
+    ErrorStatus = 0x828,
+
+    /// Регистр сенсора температуры.
+    LvtTermalSensor = 0x833,
+
+    /// Регистр переполнения
+    /// [hardware performance counter](https://en.wikipedia.org/wiki/Hardware_performance_counter)
+    /// (HPC).
+    LvtPerformanceCounterOverflow = 0x834,
+
+    #[doc(hidden)]
+    LvtLocalInterrupt1 = 0x836,
+
+    #[doc(hidden)]
+    LvtError = 0x837,
+
+    /// Начальное значение счётчика таймера.
+    TimerInitialCount = 0x838,
+
+    /// Делитель счётчика таймера.
+    TimerDivideConfiguration = 0x83E,
+}
+
+impl Register {
+    /// Читает значение из регистра `register` local APIC в
+    /// [режиме x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352).
+    ///
+    /// # Safety
+    ///
+    /// - Local APIC должен быть переведён в
+    ///   [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352)
+    ///   методом [`LocalApic::enable_x2()`].
+    /// - Читать можно только из
+    ///   [определённых регистров local APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1047581).
+    unsafe fn read(&self) -> u32 {
+        unsafe {
+            u32::try_from(Msr::new((*self).into()).read() & u64::from(u32::MAX))
+                .expect("should fit")
+        }
+    }
+
+    /// Записывает значение в регистр `register` local APIC в
+    /// [режиме x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352).
+    ///
+    /// # Safety
+    ///
+    /// - Local APIC должен быть переведён в
+    ///   [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352)
+    ///   методом [`LocalApic::enable_x2()`].
+    /// - Записывать можно только в
+    ///   [определённые регистры local APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1047581)
+    ///   и в определённом для них формате.
+    unsafe fn write(
+        &mut self,
+        value: u32,
+    ) {
+        unsafe {
+            Msr::new((*self).into()).write(value.into());
+        }
+    }
+}
 
 #[doc(hidden)]
 pub mod test_scaffolding {
-    use ku::memory::Virt;
+    use super::{
+        CpuId,
+        LocalApic,
+    };
 
-    use super::LocalApic;
-
-    pub fn local_apic() -> Virt {
-        Virt::from_ref(LocalApic::get())
-    }
-
-    pub fn id() -> u8 {
+    pub fn id() -> CpuId {
         LocalApic::id()
     }
 }

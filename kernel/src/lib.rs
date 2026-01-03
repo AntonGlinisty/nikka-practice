@@ -72,10 +72,7 @@ use ku::{
 };
 use text::println;
 
-use log::{
-    info,
-    warn,
-};
+use log::info;
 use memory::gdt;
 
 // Used in docs.
@@ -131,17 +128,14 @@ bitflags! {
         /// Все части подсистемы процессов.
         const PROCESS = Self::SYSCALL.bits() | Self::PROCESS_TABLE.bits() | Self::SCHEDULER.bits();
 
-        /// Симметричной многопроцессорности: контроллер прерываний Local APIC.
-        const LOCAL_APIC = 1 << 7;
-
         /// Симметричной многопроцессорности: вектор структур для CPU--локальных данных.
-        const CPUS = 1 << 8;
+        const CPUS = 1 << 7;
 
         /// Симметричной многопроцессорности: запуск Application Processors.
-        const BOOT_APS = 1 << 9;
+        const BOOT_APS = 1 << 8;
 
         /// Все части подсистемы симметричной многопроцессорности.
-        const SMP = Self::LOCAL_APIC.bits() | Self::CPUS.bits() | Self::BOOT_APS.bits();
+        const SMP = Self::CPUS.bits() | Self::BOOT_APS.bits();
     }
 }
 

@@ -58,7 +58,6 @@
 # Лабораторная работа №4
 
 - [Процессы](4-process-0-intro.md)
-  - [Работа с local APIC](4-process-1-local-apic.md)
   - [Состояние каждого процессора](4-process-2-cpus.md)
   - [Загрузка процесса в память](4-process-3-elf.md)
   - [Проверки доступа процесса к памяти](4-process-4-permission-checks.md)

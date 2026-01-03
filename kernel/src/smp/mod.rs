@@ -30,7 +30,10 @@ use crate::{
         info,
         warn,
     },
-    memory::Phys2Virt,
+    memory::{
+        Phys2Virt,
+        size,
+    },
     time,
 };
 
@@ -76,15 +79,11 @@ fn init_smp(
     phys2virt: Phys2Virt,
     subsystems: Subsystems,
 ) -> Result<()> {
-    if !subsystems.contains(Subsystems::LOCAL_APIC) {
+    if !subsystems.contains(Subsystems::CPUS) {
         return Err(Unimplemented);
     }
 
     let acpi = Acpi::new(phys2virt)?;
-    let local_apic_address = acpi.local_apic_address();
-
-    LocalApic::map(local_apic_address)?;
-    LocalApic::init();
 
     let bootstrap_processor = acpi.bsp_id();
     let current_cpu = LocalApic::id();
@@ -100,26 +99,21 @@ fn init_smp(
         bootstrap_processor,
         *acpi.ap_ids().iter().max().unwrap_or(&bootstrap_processor),
     );
-    let cpu_count = usize::from(max_cpu_id) + 1;
-    info!(cpu = current_cpu, cpu_count, %local_apic_address, "Local APIC init");
+    let cpu_count = size::from(max_cpu_id) + 1;
 
-    if !subsystems.contains(Subsystems::CPUS) {
-        return Err(Unimplemented);
-    }
+    let mut cpus = CPUS.lock();
 
-    let mut cpus = cpu::init(cpu_count, current_cpu)?;
+    *cpus = cpu::init(cpu_count, current_cpu)?;
 
     assert_eq!(cpus.len(), cpu_count);
 
-    info!(cpu = current_cpu, "Bootstrap Processor");
+    info!(cpu = current_cpu, cpu_count, "Bootstrap Processor");
 
     if subsystems.contains(Subsystems::BOOT_APS) {
         for id in acpi.ap_ids() {
-            ap_init::boot_ap(phys2virt, &mut cpus[usize::from(*id)])?;
+            ap_init::boot_ap(phys2virt, &mut cpus[size::from(*id)])?;
         }
     }
-
-    *CPUS.lock() = cpus;
 
     Ok(())
 }

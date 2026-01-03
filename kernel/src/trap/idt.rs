@@ -94,8 +94,10 @@ impl Idt {
         idt[Trap::Ata0].set_handler(pic::ata0);
         idt[Trap::Ata1].set_handler(pic::ata1);
 
-        idt[Trap::Timer].set_handler(apic::timer);
-        idt[Trap::Spurious].set_handler(apic::spurious);
+        unsafe {
+            idt[Trap::Timer].set_unsafe_handler(apic::timer);
+            idt[Trap::Spurious].set_unsafe_handler(apic::spurious);
+        }
 
         idt
     }
@@ -173,6 +175,18 @@ impl IdtEntry {
     fn set_handler(
         &mut self,
         handler: extern "x86-interrupt" fn(TrapContext),
+    ) -> &mut EntryOptions {
+        unsafe { self.0.set_handler_addr(VirtAddr::from_ptr(handler as *const ())) }
+    }
+
+    /// Устанавливает обработчик `handler` прерывания.
+    ///
+    /// # Safety
+    ///
+    /// Определяется устанавливаемым `handler`.
+    unsafe fn set_unsafe_handler(
+        &mut self,
+        handler: unsafe extern "x86-interrupt" fn(TrapContext),
     ) -> &mut EntryOptions {
         unsafe { self.0.set_handler_addr(VirtAddr::from_ptr(handler as *const ())) }
     }

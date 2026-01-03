@@ -41,6 +41,7 @@ use crate::{
         PAGE_FAULT_IST_INDEX,
         Stack,
         Virt,
+        size,
     },
     process::{
         ModeContext,
@@ -72,7 +73,7 @@ pub(super) fn init(
 ) -> Result<Vec<Cpu>> {
     let mut cpus = init_cpu_vec(cpu_count)?;
 
-    let cpu = &mut cpus[usize::from(current_cpu)];
+    let cpu = &mut cpus[size::from(current_cpu)];
     cpu.set_gs();
     cpu.set_tss();
     cpu.signal_initialized();
@@ -164,9 +165,9 @@ impl Cpu {
         // So a common double fault stack for all CPUs is sufficient as long as
         // `double_fault()` handler in `trap/mod.rs` locks
         // and never unlocks a common mutex and does not return.
-        result.tss.interrupt_stack_table[usize::from(DOUBLE_FAULT_IST_INDEX)] =
+        result.tss.interrupt_stack_table[size::from(DOUBLE_FAULT_IST_INDEX)] =
             EXCEPTION_STACKS.lock().double_fault_rsp().into();
-        result.tss.interrupt_stack_table[usize::from(PAGE_FAULT_IST_INDEX)] =
+        result.tss.interrupt_stack_table[size::from(PAGE_FAULT_IST_INDEX)] =
             result.page_fault_stack.pointer().into();
 
         result
@@ -341,9 +342,12 @@ impl Drop for Cpu {
 
 #[doc(hidden)]
 pub mod test_scaffolding {
-    use super::Cpu;
+    use super::{
+        Cpu,
+        CpuId,
+    };
 
-    pub fn cpu_id() -> u8 {
+    pub fn cpu_id() -> CpuId {
         let cpu = unsafe { Cpu::get() };
         cpu.id()
     }

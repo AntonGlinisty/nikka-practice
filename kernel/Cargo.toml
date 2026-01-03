@@ -52,6 +52,8 @@ forbid-leaks = []
 [package.metadata.bootimage]
 # Отвечает за `cargo run`.
 run-args = [
+    "-cpu",
+    "max",
     "-m",
     "size=128M",
     "-smp",
@@ -71,6 +73,8 @@ run-args = [
 
 # Отвечает за `cargo test ...`.
 test-args = [
+    "-cpu",
+    "max",
     "-m",
     "size=128M",
     "-smp",

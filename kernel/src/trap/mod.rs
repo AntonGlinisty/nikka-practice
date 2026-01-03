@@ -27,6 +27,7 @@ pub use ku::process::Trap;
 
 use crate::{
     log::info,
+    smp::LocalApic,
     time::rtc,
 };
 
@@ -62,6 +63,8 @@ pub(super) fn init() {
     }
 
     IDT.load();
+
+    LocalApic::init().expect("failed to initialize the local APIC");
 
     interrupts::enable();
 

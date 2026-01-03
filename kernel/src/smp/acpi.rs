@@ -11,10 +11,6 @@ use acpi::{
     platform::{
         ProcessorInfo,
         ProcessorState,
-        interrupt::{
-            Apic,
-            InterruptModel,
-        },
     },
 };
 
@@ -48,11 +44,6 @@ use crate::error::Error;
 /// [Спецификация ACPI](https://uefi.org/sites/default/files/resources/ACPI_Spec_6_5_Aug29.pdf).
 #[derive(Debug)]
 pub(super) struct Acpi {
-    /// Физический адрес
-    /// [Memory--mapped I/O (MMIO)](https://en.wikipedia.org/wiki/Memory-mapped_I/O)
-    /// local [APIC](https://en.wikipedia.org/wiki/Advanced_Programmable_Interrupt_Controller).
-    local_apic_address: Phys,
-
     /// Идентификатор Bootstrap Processor.
     bsp_id: CpuId,
 
@@ -83,12 +74,10 @@ impl Acpi {
             },
         };
 
-        let apic = apic(platform_info.interrupt_model)?;
         let cpus = platform_info.processor_info.ok_or(Unimplemented)?;
 
         let acpi = Self {
-            local_apic_address: Phys::new_u64(apic.local_apic_address)?,
-            bsp_id: cpus.boot_processor.local_apic_id.try_into()?,
+            bsp_id: cpus.boot_processor.local_apic_id,
             ap_ids: usable_aps(&cpus),
         };
 
@@ -96,20 +85,12 @@ impl Acpi {
             bsp = ?cpus.boot_processor,
             ap = ?cpus.application_processors,
             power_profile = ?platform_info.power_profile,
-            ?apic,
             "raw ACPI info",
         );
 
         info!(?acpi);
 
         Ok(acpi)
-    }
-
-    /// Физический адрес
-    /// [Memory--mapped I/O (MMIO)](https://en.wikipedia.org/wiki/Memory-mapped_I/O)
-    /// local [APIC](https://en.wikipedia.org/wiki/Advanced_Programmable_Interrupt_Controller).
-    pub(super) fn local_apic_address(&self) -> Phys {
-        self.local_apic_address
     }
 
     /// Идентификатор Bootstrap Processor.
@@ -120,17 +101,6 @@ impl Acpi {
     /// Идентификаторы доступных Application Processor.
     pub(super) fn ap_ids(&self) -> &[CpuId] {
         &self.ap_ids
-    }
-}
-
-/// Возвращает [`Apic`] если в `interrupt_model` из таблиц ACPI указан соответствующий
-/// контроллер прерываний.
-/// Иначе возвращает ошибку [`Error::Unimplemented`].
-fn apic(interrupt_model: InterruptModel<'_, Global>) -> Result<Apic<'_, Global>> {
-    if let InterruptModel::Apic(apic) = interrupt_model {
-        Ok(apic)
-    } else {
-        Err(Unimplemented)
     }
 }
 

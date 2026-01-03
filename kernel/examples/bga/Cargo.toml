@@ -28,6 +28,8 @@ text = { path = "../../../text" }
 [package.metadata.bootimage]
 # Отвечает за `cargo run`.
 run-args = [
+    "-cpu",
+    "max",
     "-m",
     "size=128M",
     "-smp",

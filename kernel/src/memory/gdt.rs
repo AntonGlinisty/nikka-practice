@@ -266,7 +266,7 @@ pub(crate) type SmallGdt = SmpGdt<0>;
 const BASIC_COUNT: usize = 5;
 
 /// Максимальное поддерживаемое количество CPU.
-const MAX_CPUS: usize = CpuId::MAX as usize + 1;
+const MAX_CPUS: usize = 1024;
 
 /// Запись в таблице дескрипторов для дескриптора сегмента состояния задачи
 /// ([Task State Segment](https://en.wikipedia.org/wiki/Task_state_segment), TSS).

@@ -16,6 +16,7 @@ use crate::{
     memory::{
         PageFaultInfo,
         Virt,
+        size,
     },
 };
 
@@ -172,6 +173,17 @@ pub enum Trap {
     /// ([spurious interrupt](https://en.wikipedia.org/wiki/Interrupt#Spurious_interrupts))
     /// [APIC](https://en.wikipedia.org/wiki/Advanced_Programmable_Interrupt_Controller).
     Spurious,
+}
+
+impl Trap {
+    /// Номер прерывания или исключения слишком большой.
+    const INVALID_TRAP_NUMBER: &str = "too big trap number";
+}
+
+impl From<Trap> for u32 {
+    fn from(trap: Trap) -> Self {
+        size::try_into::<u32>(trap.into()).expect(Trap::INVALID_TRAP_NUMBER)
+    }
 }
 
 // ANCHOR: trap_info
