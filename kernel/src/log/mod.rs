@@ -54,7 +54,7 @@ use crate::{
         Result,
     },
     process::Pid,
-    smp::LocalApic,
+    trap::LocalApic,
 };
 
 pub use tracing::{

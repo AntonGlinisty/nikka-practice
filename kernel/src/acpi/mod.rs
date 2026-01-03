@@ -28,9 +28,8 @@ use crate::{
         Phys,
         Phys2Virt,
     },
+    trap::CpuId,
 };
-
-use super::CpuId;
 
 // Used in docs.
 #[allow(unused)]

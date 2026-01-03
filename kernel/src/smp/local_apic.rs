@@ -147,7 +147,7 @@ impl LocalApic {
     }
 
     /// Возвращает `true` если local APIC инициализирован в режиме x2APIC.
-    pub(crate) fn is_enabled() -> bool {
+    pub(super) fn is_enabled() -> bool {
         ApicBase::read().1.contains(ApicBaseFlags::X2APIC_ENABLE)
     }
 
@@ -162,7 +162,7 @@ impl LocalApic {
     /// Local APIC должен быть переведён в
     /// [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352)
     /// методом [`LocalApic::enable_x2()`].
-    pub(crate) unsafe fn end_of_interrupt() {
+    pub(super) unsafe fn end_of_interrupt() {
         unsafe {
             Register::Eoi.write(0);
         }
@@ -197,7 +197,7 @@ impl LocalApic {
     /// - [`Error::LocalApic`] --- local APIC вернул ошибку.
     /// - [`Error::Unimplemented`] --- процессор не поддерживает
     ///   [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352).
-    pub(super) fn send_init(
+    pub(crate) fn send_init(
         dst: CpuId,
         boot_address: Frame,
     ) -> Result<()> {

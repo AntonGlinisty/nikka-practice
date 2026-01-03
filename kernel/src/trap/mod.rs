@@ -9,6 +9,10 @@ mod handler;
 /// ([Interrupt descriptor table](https://en.wikipedia.org/wiki/Interrupt_descriptor_table), IDT).
 mod idt;
 
+/// Код работы с
+/// local [APIC](https://en.wikipedia.org/wiki/Advanced_Programmable_Interrupt_Controller).
+mod local_apic;
+
 /// Обработчики прерываний, маршрутизируемых через
 /// [PIC 8259](https://en.wikipedia.org/wiki/Intel_8259).
 mod pic;
@@ -27,11 +31,16 @@ pub use ku::trap::Trap;
 
 use crate::{
     log::info,
-    smp::LocalApic,
     time::rtc,
 };
 
-pub(crate) use self::idt::IDT;
+pub(crate) use self::{
+    idt::IDT,
+    local_apic::{
+        CpuId,
+        LocalApic,
+    },
+};
 
 pub use self::{
     stats::{

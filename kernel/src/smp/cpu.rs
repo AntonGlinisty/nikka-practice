@@ -48,13 +48,13 @@ use crate::{
         Pid,
     },
     time,
+    trap::{
+        CpuId,
+        LocalApic,
+    },
 };
 
-use super::{
-    BootMemory,
-    CpuId,
-    LocalApic,
-};
+use super::BootMemory;
 
 // Used in docs.
 #[allow(unused)]

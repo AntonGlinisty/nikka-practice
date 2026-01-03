@@ -1,11 +1,9 @@
 use ku::trap::Trap;
 
-use crate::{
-    process::Process,
-    smp::LocalApic,
-};
+use crate::process::Process;
 
 use super::{
+    LocalApic,
     TRAP_STATS,
     TrapContext,
 };

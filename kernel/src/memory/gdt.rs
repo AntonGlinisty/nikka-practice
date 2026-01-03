@@ -34,7 +34,7 @@ use crate::{
         Result,
     },
     log::info,
-    smp::CpuId,
+    trap::CpuId,
 };
 
 use super::{

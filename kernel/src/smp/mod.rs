@@ -9,10 +9,6 @@ mod ap_init;
 /// каждая из которых принадлежит своему процессору системы.
 mod cpu;
 
-/// Код работы с
-/// local [APIC](https://en.wikipedia.org/wiki/Advanced_Programmable_Interrupt_Controller).
-mod local_apic;
-
 use alloc::vec::Vec;
 use core::cmp;
 
@@ -32,6 +28,7 @@ use crate::{
     },
     memory::Phys2Virt,
     time,
+    trap::LocalApic,
 };
 
 use acpi::Acpi;
@@ -40,10 +37,6 @@ use ap_init::BootMemory;
 pub(crate) use cpu::{
     Cpu,
     KERNEL_RSP_OFFSET_IN_CPU,
-};
-pub(crate) use local_apic::{
-    CpuId,
-    LocalApic,
 };
 
 /// Зануляет регистр
@@ -134,10 +127,7 @@ pub mod test_scaffolding {
 
     use super::CPUS;
 
-    pub use super::{
-        cpu::test_scaffolding::*,
-        local_apic::test_scaffolding::*,
-    };
+    pub use super::cpu::test_scaffolding::*;
 
     pub fn cpu_count() -> usize {
         CPUS.lock().len()

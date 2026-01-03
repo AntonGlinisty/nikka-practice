@@ -7,7 +7,7 @@ use ku::sync::Spinlock;
 
 use crate::{
     log::info,
-    smp::LocalApic,
+    trap::LocalApic,
 };
 
 use super::{
