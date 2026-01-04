@@ -146,28 +146,6 @@ impl LocalApic {
         }
     }
 
-    /// Возвращает `true` если local APIC инициализирован в режиме x2APIC.
-    pub(super) fn is_enabled() -> bool {
-        ApicBase::read().1.contains(ApicBaseFlags::X2APIC_ENABLE)
-    }
-
-    /// Посылает local APIC сигнал о завершении работы обработчика прерывания ---
-    /// [end of interrupt (EOI)](https://en.wikipedia.org/wiki/End_of_interrupt).
-    ///
-    /// - [16.6.4 Selecting and Handling Interrupts](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1003561).
-    /// - <https://wiki.osdev.org/APIC#EOI_Register>
-    ///
-    /// # Safety
-    ///
-    /// Local APIC должен быть переведён в
-    /// [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352)
-    /// методом [`LocalApic::enable_x2()`].
-    pub(super) unsafe fn end_of_interrupt() {
-        unsafe {
-            Register::Eoi.write(0);
-        }
-    }
-
     /// Возвращает идентификатор local APIC и текущего CPU.
     /// Либо `0` если local APIC ещё не инициализирован или CPU не поддерживает
     /// [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352).
@@ -238,44 +216,25 @@ impl LocalApic {
         Ok(())
     }
 
-    /// Посылает процессору `dst` прерывание
-    /// ([inter-processor interrupt](https://en.wikipedia.org/wiki/Inter-processor_interrupt), IPI)
-    /// с дополнительными данными `data`.
+    /// Возвращает `true` если local APIC инициализирован в режиме x2APIC.
+    pub(super) fn is_enabled() -> bool {
+        ApicBase::read().1.contains(ApicBaseFlags::X2APIC_ENABLE)
+    }
+
+    /// Посылает local APIC сигнал о завершении работы обработчика прерывания ---
+    /// [end of interrupt (EOI)](https://en.wikipedia.org/wiki/End_of_interrupt).
     ///
-    /// [16.5 Interprocessor Interrupts (IPI)](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1001655).
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::LocalApic`] --- local APIC вернул ошибку.
-    /// - [`Error::Unimplemented`] --- процессор не поддерживает
-    ///   [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352).
+    /// - [16.6.4 Selecting and Handling Interrupts](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1003561).
+    /// - <https://wiki.osdev.org/APIC#EOI_Register>
     ///
     /// # Safety
     ///
     /// Local APIC должен быть переведён в
     /// [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352)
     /// методом [`LocalApic::enable_x2()`].
-    unsafe fn send_ipi(
-        dst: CpuId,
-        data: u32,
-    ) -> Result<()> {
-        /// Сдвиг для [`CpuId`] внутри
-        /// [Interrupt Command Register](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1050595).
-        const ID_SHIFT: u32 = u32::BITS;
-
-        let mut interrupt_command = Msr::new(0x830);
-
+    pub(super) unsafe fn end_of_interrupt() {
         unsafe {
-            interrupt_command.write((size::into_u64(dst.into()) << ID_SHIFT) | u64::from(data));
-        }
-
-        let error = unsafe { Register::ErrorStatus.read() };
-        if error == 0 {
-            Ok(())
-        } else {
-            error!(%dst, data, error, "error sending IPI");
-
-            Err(Error::LocalApic)
+            Register::Eoi.write(0);
         }
     }
 
@@ -381,6 +340,47 @@ impl LocalApic {
             // the Divide Configuration Register and the Timer Local Vector Table Register
             // prior to writing the Initial Count Register to start the timer."
             Register::TimerInitialCount.write(tscs_per_interrupt);
+        }
+    }
+
+    /// Посылает процессору `dst` прерывание
+    /// ([inter-processor interrupt](https://en.wikipedia.org/wiki/Inter-processor_interrupt), IPI)
+    /// с дополнительными данными `data`.
+    ///
+    /// [16.5 Interprocessor Interrupts (IPI)](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1001655).
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::LocalApic`] --- local APIC вернул ошибку.
+    /// - [`Error::Unimplemented`] --- процессор не поддерживает
+    ///   [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352).
+    ///
+    /// # Safety
+    ///
+    /// Local APIC должен быть переведён в
+    /// [режим x2APIC](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1044352)
+    /// методом [`LocalApic::enable_x2()`].
+    unsafe fn send_ipi(
+        dst: CpuId,
+        data: u32,
+    ) -> Result<()> {
+        /// Сдвиг для [`CpuId`] внутри
+        /// [Interrupt Command Register](https://docs.amd.com/v/u/en-US/40332_4.10_APM_Vol1-5_PUB#G22.1050595).
+        const ID_SHIFT: u32 = u32::BITS;
+
+        let mut interrupt_command = Msr::new(0x830);
+
+        unsafe {
+            interrupt_command.write((size::into_u64(dst.into()) << ID_SHIFT) | u64::from(data));
+        }
+
+        let error = unsafe { Register::ErrorStatus.read() };
+        if error == 0 {
+            Ok(())
+        } else {
+            error!(%dst, data, error, "error sending IPI");
+
+            Err(Error::LocalApic)
         }
     }
 }
