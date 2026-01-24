@@ -1246,7 +1246,7 @@ unsafe fn copy(
     src_block: Block<Page>,
     dst_block: Block<Page>,
 ) {
-    if src_block != dst_block {
+    if src_block != dst_block && !src_block.is_empty() && !dst_block.is_empty() {
         let new_slice = unsafe { dst_block.try_into_mut_slice::<usize>().unwrap() };
         let old_slice = unsafe { src_block.try_into_mut_slice().unwrap() };
         new_slice.copy_from_slice(old_slice);
