@@ -21,6 +21,9 @@ export PATH := $(RUST_PATH):$(PATH)
 CRATES = ku pci pic8259 serial text kernel sem
 WORKSPACES = . sem
 
+LECTURES_MD=$(shell ls lectures/*.md)
+LECTURES_PDF=$(LECTURES_MD:.md=.pdf)
+
 all: test run
 
 run: install
@@ -186,6 +189,11 @@ lab: $(RUST_PATH)/mdbook doc lab/src/*.dot lab/src/*.md lab/src/*.puml
 		rm --force lab/src/*.aux lab/src/*.log lab/src/*.pdf; \
 	)
 
+lectures: $(LECTURES_PDF)
+
+lectures/%.pdf: lectures/%.md lectures/%.img/*
+	pandoc --pdf-engine=xelatex -V mainfont="DejaVu Sans" -t beamer $< -o $@
+
 fs-dump:
 	@xxd fs.img | sed 's@.*0000 0000 0000 0000 0000 0000 0000 0000.*@...@' | uniq
 
@@ -213,6 +221,7 @@ clean:
 		lab/book \
 		lab/src/*.aux lab/src/*.log lab/src/*.pdf lab/src/*.svg \
 		lab/src/*-lab-dependencies.dot \
+		lectures/*.pdf \
 		$(find . -name \*.rs.bk)
 
 stat:

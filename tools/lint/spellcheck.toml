@@ -14,7 +14,7 @@ allow_concatenation = false
 allow_dashes = false
 allow_emojis = true
 check_footnote_references = true
-transform_regex = []
+transform_regex = ["^[0-9]+%}*$"]
 
 [reflow]
 max_line_length = 80

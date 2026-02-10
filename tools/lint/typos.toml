@@ -1,5 +1,6 @@
 [files]
 extend-exclude = [
+    "**/*.svg",
     "doc/",
     "lab/book/",
     "lab/src/*.aux",
