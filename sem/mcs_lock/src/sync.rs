@@ -1,14 +1,12 @@
 use core::{
     cell::UnsafeCell,
+    fmt,
     hint,
     ops::{
         Deref,
         DerefMut,
     },
-    ptr::{
-        self,
-        NonNull,
-    },
+    ptr,
     sync::atomic::{
         self,
         AtomicBool,
@@ -39,11 +37,28 @@ unsafe impl<T: Send> Send for McsLock<T> {
 unsafe impl<T: Send> Sync for McsLock<T> {
 }
 
+unsafe impl<T: Sync> Sync for McsLockGuard<'_, T> {
+}
+
 #[derive(Default)]
 pub struct McsLockNode {
     owner: CachePadded<AtomicBool>,
     next: CachePadded<AtomicPtr<McsLockNode>>,
 }
+
+#[derive(Debug)]
+pub struct WouldBlock;
+
+impl fmt::Display for WouldBlock {
+    fn fmt(
+        &self,
+        f: &mut fmt::Formatter<'_>,
+    ) -> fmt::Result {
+        "try_lock failed because the operation would block".fmt(f)
+    }
+}
+
+pub type TryLockResult<'a, T> = Result<McsLockGuard<'a, T>, WouldBlock>;
 
 impl McsLockNode {
     pub fn new() -> Self {
@@ -52,17 +67,15 @@ impl McsLockNode {
 }
 
 pub struct McsLockGuard<'a, T> {
-    node: NonNull<McsLockNode>,
+    node: &'a McsLockNode,
     lock: &'a McsLock<T>,
 }
 
 impl<'a, T> McsLockGuard<'a, T> {
     fn new(
         lock: &'a McsLock<T>,
-        node: &'a mut McsLockNode,
+        node: &'a McsLockNode,
     ) -> Self {
-        let node = NonNull::from(node);
-        lock.acquire(node);
         Self { node, lock }
     }
 }
@@ -101,12 +114,30 @@ impl<T> McsLock<T> {
         &'a self,
         node: &'a mut McsLockNode,
     ) -> McsLockGuard<'a, T> {
+        let node = &*node;
+        self.acquire(node);
         McsLockGuard::new(self, node)
+    }
+
+    pub fn try_lock<'a>(
+        &'a self,
+        node: &'a mut McsLockNode,
+    ) -> TryLockResult<'a, T> {
+        let node = &*node;
+        self.try_acquire(node).then(|| McsLockGuard::new(self, node)).ok_or(WouldBlock)
+    }
+
+    fn try_acquire(
+        &self,
+        node: &McsLockNode,
+    ) -> bool {
+        // TODO: your code here.
+        unimplemented!();
     }
 
     fn acquire(
         &self,
-        node: NonNull<McsLockNode>,
+        node: &McsLockNode,
     ) {
         // TODO: your code here.
         unimplemented!();
@@ -114,7 +145,7 @@ impl<T> McsLock<T> {
 
     fn release(
         &self,
-        node: NonNull<McsLockNode>,
+        node: &McsLockNode,
     ) {
         // TODO: your code here.
         unimplemented!();

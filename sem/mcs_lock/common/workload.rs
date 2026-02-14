@@ -68,9 +68,9 @@ pub fn heavy() {
 }
 
 pub fn pin_to(core: u64) {
-    let mut cpuset = rustix::process::CpuSet::new();
+    let mut cpuset = rustix::thread::CpuSet::new();
     cpuset.set(core as usize);
-    rustix::process::sched_setaffinity(None, &cpuset).unwrap();
+    rustix::thread::sched_setaffinity(None, &cpuset).unwrap();
 }
 
 pub fn run_lock_workload<L: Lockable<u64>>(

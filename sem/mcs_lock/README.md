@@ -125,31 +125,12 @@ error: Undefined Behavior: trying to retag from <474372> for SharedReadWrite per
    = help: see https://github.com/rust-lang/unsafe-code-guidelines/blob/master/wip/stacked-borrows.md for further information
 ```
 
-Это может происходить, если вы:
+Это может происходить, если вы с помощью `unsafe` создали конфликтующие ссылки на
+один и тот же объект (две ссылки, из которых хотя бы одна – эксклюзивная), потенциально
+в разных потоках.
 
-1. С помощью `unsafe` создали конфликтующие ссылки на один и тот же объект (две ссылки, из которых хотя бы одна – эксклюзивная).
-2. Использовали разные указатели для получения ссылок на один и тот же объект.
-
-Более подробно пункт 2 описан в
-[документации](https://doc.rust-lang.org/std/ptr/index.html#safety) Rust:
-
-> The result of casting a reference to a pointer is valid for as long as the underlying object
-> is live and no reference (just raw pointers) is used to access the same memory.
-> That is, reference and pointer accesses cannot be interleaved.
-
-Проще говоря, старайтесь не создавать ссылки из указателей. То есть вместо того, чтобы писать
-
-```rs
-unsafe { &*ptr }.field.store(true);
-```
-
-пишите
-
-```rs
-unsafe {
-    (*ptr).field.store(true);
-}
-```
+Проще говоря, создавая эксклюзивную ссылку на объект, удостоверьтесь, что в то же
+время на этот объект не ссылается ни одна другая ссылка.
 
 ## Замеры производительности
 
