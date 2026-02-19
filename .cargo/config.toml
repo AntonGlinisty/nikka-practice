@@ -1,0 +1,12 @@
+[build]
+rustflags = [
+    "--codegen",
+    "force-frame-pointers=yes",
+    "--codegen",
+    "relocation-model=dynamic-no-pic",
+    "--codegen",
+    "debuginfo=full",
+]
+
+[unstable]
+bindeps = true

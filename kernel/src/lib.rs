@@ -39,6 +39,10 @@ pub mod memory;
 /// Здесь находится часть работы с процессами, которая происходит только в ядре.
 pub mod process;
 
+/// Реализация работы с последовательным портом.
+#[macro_use]
+pub mod serial;
+
 /// Поддержка симметричной многопроцессорности
 /// ([Symmetric multiprocessing](https://en.wikipedia.org/wiki/Symmetric_multiprocessing), SMP).
 pub mod smp;
@@ -56,12 +60,18 @@ pub mod trap;
 
 use core::{
     any,
-    fmt::Write,
+    mem,
     panic::PanicInfo,
 };
 
 use bitflags::bitflags;
-use bootloader::BootInfo;
+use bootloader_api::{
+    BootInfo,
+    config::{
+        BootloaderConfig,
+        Mapping,
+    },
+};
 use x86::io;
 
 use ku::{
@@ -70,22 +80,17 @@ use ku::{
     backtrace::Backtrace,
     error::Error::NoPage,
 };
-use text::println;
 
 use log::info;
-use memory::gdt;
+use memory::{
+    Stack,
+    gdt,
+    size,
+};
 
 // Used in docs.
 #[allow(unused)]
 use error::Error;
-
-/// Цвет для печати сообщения об успешном завершении теста.
-#[allow(dead_code)]
-const PASS: text::Color = text::Color::LIGHT_GREEN;
-
-/// Цвет для печати сообщения о провале теста.
-#[allow(dead_code)]
-const FAIL: text::Color = text::Color::LIGHT_RED;
 
 bitflags! {
     /// Код выхода из qemu при запуске тестов.
@@ -140,7 +145,7 @@ bitflags! {
 }
 
 /// Инициализация части подсистем ядра для тестов.
-/// Аргумент `boot_info` содержит информацию от [`bootloader`],
+/// Аргумент `boot_info` содержит информацию от `bootloader`,
 /// `subsystems` задаёт набор подсистем, которые нужно инициализировать.
 #[cold]
 #[inline(never)]
@@ -152,7 +157,6 @@ pub fn init_subsystems(
 
     smp::preinit();
 
-    text::TEXT.lock().init();
     log::init();
     time::init();
 
@@ -179,7 +183,7 @@ pub fn init_subsystems(
 }
 
 /// Инициализация всех подсистем ядра.
-/// Аргумент `boot_info` содержит информацию от [`bootloader`].
+/// Аргумент `boot_info` содержит информацию от `bootloader`.
 #[cold]
 #[inline(never)]
 pub fn init(boot_info: &'static BootInfo) {
@@ -215,7 +219,7 @@ where
     fn run(&self) {
         println!("\n{:-<60}", any::type_name::<T>());
         self();
-        println!(color(PASS), "{:-<51} [passed]", any::type_name::<T>());
+        println!("{:-<51} [passed]", any::type_name::<T>());
     }
 }
 
@@ -232,20 +236,20 @@ pub fn test_runner(tests: &[&dyn Testable]) {
 
 /// Отмечает интеграционный тест как проваленный.
 pub fn fail_test(panic_info: &PanicInfo) -> ! {
-    println!(color(FAIL), "{}", panic_info);
+    println!("{}", panic_info);
 
     if let Ok(backtrace) = Backtrace::current() {
-        println!(color(FAIL), "{backtrace:?}");
+        println!("{backtrace:?}");
     }
 
-    println!(color(FAIL), "{:-<51} [failed]", "");
+    println!("{:-<51} [failed]", "");
 
     exit_qemu(ExitCode::FAILURE)
 }
 
 /// Отмечает интеграционный тест как прошедший.
 pub fn pass_test() -> ! {
-    println!(color(PASS), "{:-<51} [passed]", "");
+    println!("{:-<51} [passed]", "");
 
     exit_qemu(ExitCode::SUCCESS)
 }
@@ -259,6 +263,15 @@ fn panic(panic_info: &PanicInfo) -> ! {
     ku::sync::start_panicking();
     fail_test(panic_info)
 }
+
+/// Конфигурация `bootloader`, с которой он будет запускать ядро.
+pub static BOOTLOADER_CONFIG: BootloaderConfig = {
+    let mut config = BootloaderConfig::new_default();
+    config.mappings.page_table_recursive = Some(Mapping::Dynamic);
+    config.kernel_stack_size = size::into_u64(2 * mem::size_of::<Stack>());
+
+    config
+};
 
 /// Страница памяти с общей информацией о системе.
 static SYSTEM_INFO: SystemInfo = SystemInfo::new();

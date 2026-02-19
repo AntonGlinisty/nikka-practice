@@ -4,12 +4,11 @@ use core::{
     ops::Range,
 };
 
-use bootloader::bootinfo::{
-    MemoryMap,
-    MemoryRegionType,
+use bootloader_api::info::{
+    MemoryRegionKind,
+    MemoryRegions,
 };
 use duplicate::duplicate_item;
-use itertools::Itertools;
 use lazy_static::lazy_static;
 
 use ku::sync::Spinlock;
@@ -33,9 +32,9 @@ use super::{
     Block,
     FrameGuard,
     KERNEL_RW,
+    Phys,
     Size,
     frage::Frame,
-    size,
 };
 
 // Used in docs.
@@ -67,13 +66,13 @@ enum FrameInfo {
     },
 }
 
-/// Инициализирует аллокатор [`FrameAllocator`] по информации из `memory_map`.
+/// Инициализирует аллокатор [`FrameAllocator`] по информации из `memory_regions`.
 /// Использует для него временное хранилище метаданных.
 #[allow(static_mut_refs)]
-pub(super) fn init(memory_map: &MemoryMap) -> FrameAllocator {
+pub(super) fn init(memory_regions: &MemoryRegions) -> FrameAllocator {
     // ANCHOR: log_tsc
     let timer = time::timer();
-    let frame_allocator = FrameAllocator::new(unsafe { &mut BOOT_FRAME_INFO.0 }, memory_map);
+    let frame_allocator = FrameAllocator::new(unsafe { &mut BOOT_FRAME_INFO.0 }, memory_regions);
     info!(
         free_frame_count = frame_allocator.count(),
         duration = %timer.elapsed(),
@@ -90,10 +89,10 @@ pub(super) fn init(memory_map: &MemoryMap) -> FrameAllocator {
 ///
 /// Уже имеющиеся в [`FrameAllocator`] метаданные переносит
 /// из временного хранилища в новое и освобождает временное хранилище.
-/// Ещё не заполненные метаданные заполняет по информации из `memory_map`.
+/// Ещё не заполненные метаданные заполняет по информации из `memory_regions`.
 pub(super) fn resize(
     physical_memory: Block<Frame>,
-    memory_map: &MemoryMap,
+    memory_regions: &MemoryRegions,
 ) {
     // ANCHOR_END: fn_resize
     // TODO: your code here.
@@ -120,10 +119,10 @@ pub struct FrameAllocator {
 }
 
 impl FrameAllocator {
-    /// Инициализирует аллокатор [`FrameAllocator`] по информации из `memory_map`.
+    /// Инициализирует аллокатор [`FrameAllocator`] по информации из `memory_regions`.
     fn new(
         frame_info: &'static mut [FrameInfo],
-        memory_map: &MemoryMap,
+        memory_regions: &MemoryRegions,
     ) -> Self {
         let mut frame_allocator = Self {
             absent: FrameInfo::Absent,
@@ -135,7 +134,7 @@ impl FrameAllocator {
 
         let frame_count = frame_allocator.frame_info.len();
 
-        frame_allocator.init_frame_info(memory_map, 0 .. frame_count);
+        frame_allocator.init_frame_info(memory_regions, 0 .. frame_count);
 
         debug!(
             frame_count,
@@ -220,10 +219,10 @@ impl FrameAllocator {
 
     // ANCHOR: init_frame_info
     /// Инициализирует метаданные аллокатора в диапазоне номеров
-    /// физических фреймов `frames` по информации из `memory_map`.
+    /// физических фреймов `frames` по информации из `memory_regions`.
     fn init_frame_info(
         &mut self,
-        memory_map: &MemoryMap,
+        memory_regions: &MemoryRegions,
         frames: Range<usize>,
     ) {
         // ANCHOR_END: init_frame_info
@@ -234,13 +233,13 @@ impl FrameAllocator {
     // ANCHOR: resize
     /// Переносит уже имеющиеся в [`FrameAllocator`] метаданные
     /// из временного хранилища в новое --- `frame_info`.
-    /// Ещё не заполненные метаданные заполняет по информации из `memory_map`.
+    /// Ещё не заполненные метаданные заполняет по информации из `memory_regions`.
     /// Переключает [`field@FrameAllocator::frame_info`] на новое хранилище.
     /// Возвращает старое временное хранилище метаданных.
     fn resize(
         &mut self,
         frame_info: &'static mut [FrameInfo],
-        memory_map: &MemoryMap,
+        memory_regions: &MemoryRegions,
     ) -> &'static mut [FrameInfo] {
         // ANCHOR_END: resize
         assert!(

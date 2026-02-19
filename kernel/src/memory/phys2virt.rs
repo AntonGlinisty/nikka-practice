@@ -60,7 +60,7 @@ pub struct Phys2Virt {
     physical_memory: Block<Frame>,
 
     /// Количество использованных для отображения физических фреймов.
-    /// Или [`None`], если оно не известно, так как отображение построил [`bootloader`].
+    /// Или [`None`], если оно не известно, так как отображение построил `bootloader`.
     used_frame_count: Option<NonZeroUsize>,
 }
 
@@ -253,7 +253,7 @@ impl Phys2Virt {
     ///
     /// Сохраняет `used_frame_count` --- количество физических фреймов,
     /// которые были потрачены на создание отображения `Phys2Virt`.
-    /// Или [`None`], если это количество не известно --- отображение создано [`bootloader`].
+    /// Или [`None`], если это количество не известно --- отображение создано `bootloader`.
     fn new_impl(
         physical_memory: Block<Frame>,
         start: Page,

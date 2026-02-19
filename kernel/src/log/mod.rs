@@ -1,7 +1,4 @@
-use core::fmt::{
-    Debug,
-    Write,
-};
+use core::fmt::Debug;
 
 use serde::Deserialize;
 use tracing::{
@@ -42,17 +39,14 @@ use ku::{
         datetime_ms,
     },
 };
-use text::{
-    Color,
-    print,
-    println,
-};
 
 use crate::{
     error::{
         Error::Unimplemented,
         Result,
     },
+    print,
+    println,
     process::Pid,
     trap::LocalApic,
 };
@@ -83,23 +77,13 @@ pub(super) fn user_events(
 struct LogEvent {
     /// Признак того, что нужно записать разделитель полей после ранее записанного поля.
     separator: bool,
-
-    /// Текущий цвет при выводе части сообщения на экран.
-    color: Color,
 }
 
 impl LogEvent {
-    /// Цвет для вывода текста сообщения.
-    const MESSAGE: Color = Color::WHITE;
-
-    /// Цвет для вывода значений полей сообщения.
-    const VALUE: Color = Color::LIGHT_CYAN;
-
     /// Создаёт вспомогательную структуру для печати сообщения.
     fn new() -> Self {
         Self {
             separator: false,
-            color: Self::VALUE,
         }
     }
 
@@ -116,11 +100,8 @@ impl LogEvent {
             self.separator = true
         }
 
-        if name == "message" {
-            self.color = Self::MESSAGE;
-        } else {
+        if name != "message" {
             print!("{} = ", name);
-            self.color = Self::VALUE;
         }
     }
 
@@ -129,7 +110,7 @@ impl LogEvent {
         &mut self,
         value_part: &str,
     ) {
-        print!(color(self.color), "{}", value_part);
+        print!("{}", value_part);
     }
 
     /// Печатает поле сообщения `name` со значением `value` через [`core::fmt::Debug::fmt()`].
@@ -139,7 +120,7 @@ impl LogEvent {
         value: &dyn Debug,
     ) {
         self.field(name);
-        print!(color(self.color), "{:?}", value);
+        print!("{:?}", value);
     }
 }
 
@@ -207,27 +188,9 @@ struct Log {
 }
 
 impl Log {
-    /// Цвет для вывода номера CPU.
-    const CPU: Color = Color::DARK_GRAY;
-
-    /// Цвет для вывода [`tracing::Metadata::target()`],
-    /// файла [`tracing::Metadata::file()`] и строки [`tracing::Metadata::line()`].
-    const LOCATION: Color = Color::DARK_GRAY;
-
     /// Создаёт сборщик записей журнала для печати сообщений в формате `format`.
     const fn new(format: Format) -> Self {
         Self { format }
-    }
-
-    /// Возвращает цвет, которым нужно печатать уровень журналирования `level`.
-    const fn level_color(level: &Level) -> Color {
-        match *level {
-            Level::ERROR => Color::LIGHT_RED,
-            Level::WARN => Color::LIGHT_YELLOW,
-            Level::INFO => Color::WHITE,
-            Level::DEBUG => Color::LIGHT_BLUE,
-            Level::TRACE => Color::DARK_GRAY,
-        }
     }
 
     /// Печатает сообщение `event` с отметкой времени `timestamp`.
@@ -256,20 +219,15 @@ impl Log {
             print!("{:?} ", timestamp.time());
         }
 
-        print!(color(Self::CPU), "{} ", LocalApic::id());
+        print!("{} ", LocalApic::id());
 
         match self.format {
             Format::Compact | Format::Timeless => {
-                print!(
-                    color(Self::level_color(level)),
-                    "{} ",
-                    level_into_symbol(level),
-                );
+                print!("{} ", level_into_symbol(level));
             },
             Format::Full => {
-                print!(color(Self::level_color(level)), "{} ", level);
+                print!("{} ", level);
                 print!(
-                    color(Self::LOCATION),
                     "{} {}:{} ",
                     metadata.target(),
                     metadata.file().unwrap_or("?"),

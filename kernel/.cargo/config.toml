@@ -7,7 +7,6 @@ rustflags = [
     "--codegen",
     "debuginfo=full",
 ]
-target = "kernel.json"
 
 [target.'cfg(target_os = "none")']
 runner = "./scripts/run_kernel.sh"

@@ -11,7 +11,7 @@ version = "0.5.0"
 [dependencies]
 acpi = "*"
 bitflags = "*"
-bootloader = { version = "0.9.*", features = ["recursive_page_table"] }
+bootloader_api = "0.11"
 chrono = { version = "*", default-features = false }
 derive-getters = "*"
 derive_more = { version = "*", default-features = false, features = ["full"] }
@@ -32,10 +32,9 @@ x86 = "*"
 x86_64 = "*"
 
 ku = { path = "../ku" }
-pci = { path = "../pci" }
 pic8259 = { path = "../pic8259" }
 sentinel_frame = { path = "../sentinel_frame" }
-text = { path = "../text" }
+serial = { path = "../serial" }
 
 [dev-dependencies]
 enum-iterator = "*"

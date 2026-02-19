@@ -12,12 +12,9 @@
 
 extern crate alloc;
 
-use core::{
-    fmt::Write,
-    panic::PanicInfo,
-};
+use core::panic::PanicInfo;
 
-use bootloader::{
+use bootloader_api::{
     BootInfo,
     entry_point,
 };
@@ -35,17 +32,13 @@ use ku::{
 #[cfg(not(feature = "conservative-backtraces"))]
 use sentinel_frame::with_sentinel_frame;
 
-use text::{
-    Attribute,
-    Color,
-    println,
-};
-
 use kernel::{
     self,
+    BOOTLOADER_CONFIG,
     ExitCode,
     Subsystems,
     log::debug,
+    println,
     time,
     trap::{
         TRAP_STATS,
@@ -53,13 +46,13 @@ use kernel::{
     },
 };
 
-entry_point!(kernel_main);
+entry_point!(kernel_main, config = &BOOTLOADER_CONFIG);
 
 #[cfg_attr(not(feature = "conservative-backtraces"), with_sentinel_frame)]
 #[cold]
 #[inline(never)]
-fn kernel_main(boot_info: &'static BootInfo) -> ! {
-    kernel::init_subsystems(boot_info, Subsystems::empty());
+fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
+    kernel::init_subsystems(boot_info, Subsystems::MEMORY);
 
     #[cfg(test)]
     test_main();
@@ -99,8 +92,6 @@ fn panic(panic_info: &PanicInfo) -> ! {
     if cfg!(test) {
         kernel::fail_test(panic_info)
     } else {
-        text::TEXT.lock().set_attribute(Attribute::new(Color::WHITE, Color::RED));
-
         println!("{panic_info}");
 
         if let Ok(backtrace) = Backtrace::current() {

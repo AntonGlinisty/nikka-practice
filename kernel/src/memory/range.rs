@@ -3,9 +3,9 @@ use core::{
     ops::Range,
 };
 
-use bootloader::bootinfo::{
-    MemoryMap,
-    MemoryRegionType,
+use bootloader_api::info::{
+    MemoryRegionKind,
+    MemoryRegions,
 };
 use static_assertions::const_assert;
 
@@ -23,6 +23,7 @@ use crate::{
 };
 
 use super::{
+    addr::Phys,
     block::Block,
     frage::{
         Frame,
@@ -48,25 +49,25 @@ use crate::{
 ///
 /// В этот блок могут не попадать некоторые зарезервированные диапазоны фреймов.
 /// Поэтому он может быть немного меньше установленной в системе физической памяти.
-pub(super) fn physical(memory_map: &MemoryMap) -> Block<Frame> {
+pub(super) fn physical(memory_regions: &MemoryRegions) -> Block<Frame> {
     let mut prev_physical_region = Block::default();
 
     let mut total_frame_count = 0;
     let mut usable_total_frame_count = 0;
 
-    let message = "invalid memory map from bootloader";
+    let message = "invalid memory map from bootloader from bootloader";
 
     debug!("physical memory:");
-    for region in memory_map.iter() {
-        let usable = region.region_type == MemoryRegionType::Usable;
-        let start = region.range.start_frame_number;
-        let end = region.range.end_frame_number;
-        let physical_region = Block::<Frame>::from_index_u64(start, end).expect(message);
+    for region in memory_regions.iter() {
+        let usable = region.kind == MemoryRegionKind::Usable;
+        let start = Frame::containing(Phys::new_u64(region.start).expect(message)).index();
+        let end = Frame::containing(Phys::new_u64(region.end).expect(message)).index();
+        let physical_region = Block::<Frame>::from_index(start, end).expect(message);
         let isolated = !prev_physical_region.is_adjacent(physical_region);
 
         debug!(
-            "    {}; type = {:?}; usable = {}; isolated = {}",
-            physical_region, region.region_type, usable, isolated,
+            "    {}; kind = {:?}; usable = {}; isolated = {}",
+            physical_region, region.kind, usable, isolated,
         );
 
         if usable || !isolated {
@@ -86,12 +87,12 @@ pub(super) fn physical(memory_map: &MemoryMap) -> Block<Frame> {
         prev_physical_region = physical_region;
     }
 
-    let physical_memory = Block::from_index_u64(0, total_frame_count).expect(message);
+    let physical_memory = Block::from_index(0, total_frame_count).expect(message);
 
     info!(
         %physical_memory,
-        total = %Size::new_u64::<Frame>(total_frame_count),
-        usable = %Size::new_u64::<Frame>(usable_total_frame_count),
+        total = %Size::new::<Frame>(total_frame_count),
+        usable = %Size::new::<Frame>(usable_total_frame_count),
         total_frame_count,
         usable_total_frame_count,
     );
@@ -217,7 +218,7 @@ const_assert!(
 pub mod test_scaffolding {
     use core::ops::Range;
 
-    use bootloader::bootinfo::MemoryMap;
+    use bootloader_api::info::MemoryRegions;
 
     use super::super::{
         Block,
@@ -225,8 +226,8 @@ pub mod test_scaffolding {
         Page,
     };
 
-    pub fn physical(memory_map: &MemoryMap) -> Block<Frame> {
-        super::physical(memory_map)
+    pub fn physical(memory_regions: &MemoryRegions) -> Block<Frame> {
+        super::physical(memory_regions)
     }
 
     pub const fn kernel_root_level_entries() -> Range<usize> {

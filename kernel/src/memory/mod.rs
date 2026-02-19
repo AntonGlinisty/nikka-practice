@@ -44,7 +44,7 @@ mod stack;
 /// ([Task State Segment](https://en.wikipedia.org/wiki/Task_state_segment), TSS).
 mod tss;
 
-use bootloader::BootInfo;
+use bootloader_api::BootInfo;
 use lazy_static::lazy_static;
 use x86_64::registers::model_specific::{
     Efer,
@@ -66,7 +66,10 @@ pub use ku::{
 
 use crate::{
     Subsystems,
-    error::Result,
+    error::{
+        Error::Unimplemented,
+        Result,
+    },
     log::{
         error,
         info,
@@ -166,13 +169,16 @@ pub(super) fn init(
         Efer::write(EferFlags::NO_EXECUTE_ENABLE | Efer::read());
     }
 
-    let physical_memory = range::physical(&boot_info.memory_map);
+    let physical_memory = range::physical(&boot_info.memory_regions);
 
     if subsystems.contains(Subsystems::PHYS_MEMORY) {
-        *FRAME_ALLOCATOR.lock() = frame_allocator::init(&boot_info.memory_map);
+        *FRAME_ALLOCATOR.lock() = frame_allocator::init(&boot_info.memory_regions);
     }
 
-    let phys2virt = Phys2Virt::make(physical_memory, size::from(boot_info.recursive_index()))?;
+    let phys2virt = Phys2Virt::make(
+        physical_memory,
+        size::from(boot_info.recursive_index.into_option().ok_or(Unimplemented)?),
+    )?;
 
     info!(%phys2virt);
 
@@ -192,7 +198,7 @@ pub(super) fn init(
     *BASE_ADDRESS_SPACE.lock() = address_space;
 
     if subsystems.contains(Subsystems::MAIN_FRAME_ALLOCATOR) {
-        frame_allocator::resize(physical_memory, &boot_info.memory_map);
+        frame_allocator::resize(physical_memory, &boot_info.memory_regions);
     }
 
     if subsystems.contains(Subsystems::VIRT_MEMORY | Subsystems::MAIN_FRAME_ALLOCATOR) &&

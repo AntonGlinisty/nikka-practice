@@ -7,7 +7,7 @@
 [`kernel::memory::frame_allocator::FrameInfo`](../../doc/kernel/memory/frame_allocator/enum.FrameInfo.html).
 Это [перечисление](https://doc.rust-lang.ru/book/ch06-01-defining-an-enum.html) с вариантами:
 
-- [`FrameInfo::Absent`](../../doc/kernel/memory/frame_allocator/enum.FrameInfo.html#variant.Absent) --- этого физического фрейма нет в компьютере или же он зарезервирован, например [BIOS](https://en.wikipedia.org/wiki/BIOS) или загрузчиком [`bootloader`](../../doc/bootloader/index.html).
+- [`FrameInfo::Absent`](../../doc/kernel/memory/frame_allocator/enum.FrameInfo.html#variant.Absent) --- этого физического фрейма нет в компьютере или же он зарезервирован, например [BIOS](https://en.wikipedia.org/wiki/BIOS) или загрузчиком [`bootloader`](https://docs.rs/bootloader).
 - [`FrameInfo::Free`](../../doc/kernel/memory/frame_allocator/enum.FrameInfo.html#variant.Free) --- этот физический фрейм свободен. Содержит поле [`FrameInfo::Free::next_free`](../../doc/kernel/memory/frame_allocator/enum.FrameInfo.html#variant.Free.field.next_free) с номером следующего свободного фрейма, либо `None` если это последний элемент списка. То есть, описатели свободных фреймов провязаны в интрузивный односвязный список с номерами вместо указателей.
 - [`FrameInfo::Used`](../../doc/kernel/memory/frame_allocator/enum.FrameInfo.html#variant.Used) --- этот физический фрейм занят. Содержит поле [`FrameInfo::Used::reference_count`](../../doc/kernel/memory/frame_allocator/enum.FrameInfo.html#variant.Used.field.reference_count) с количеством ссылок на описываемый фрейм.
 
@@ -29,59 +29,55 @@
 [`FrameAllocator::free_count`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#structfield.free_count) ---
 их количество.
 
-Библиотека [`bootloader`](../../doc/bootloader/index.html), которую мы используем для загрузки ОС,
+Загрузчик [`bootloader`](https://docs.rs/bootloader), который мы используем,
 получает от [BIOS](https://wiki.osdev.org/BIOS) или [UEFI](https://wiki.osdev.org/UEFI)
 информацию о физической памяти компьютера.
 Этот процесс состоит из нескольких наслоений устаревших решений.
 Подробнее о том, как он устроен можно посмотреть [тут](https://wiki.osdev.org/Detecting_Memory_(x86)).
 А ориентировочную карту зарезервированных областей --- [тут](https://wiki.osdev.org/Memory_Map_(x86)).
 К счастью,
-[`bootloader`](../../doc/bootloader/index.html)
-скрывает от нас эти устаревшие интерфейсы и предоставляет готовую структуру
-[`bootloader::bootinfo::MemoryMap`](../../doc/bootloader/bootinfo/struct.MemoryMap.html),
+[`bootloader`](https://docs.rs/bootloader)
+скрывает от нас эти устаревшие интерфейсы и предоставляет более удобный API ---
+[`bootloader_api`](../../doc/bootloader_api/index.html)
+готовую структуру
+[`bootloader_api::info::MemoryRegions`](../../doc/bootloader_api/info/struct.MemoryRegions.html),
 которая описывает карту доступной физической памяти.
-Структура [`MemoryMap`](../../doc/bootloader/bootinfo/struct.MemoryMap.html)
-[реализует](../../doc/bootloader/bootinfo/struct.MemoryMap.html#impl-Deref) типаж
+Структура [`MemoryRegions`](../../doc/bootloader_api/info/struct.MemoryRegions.html)
+[реализует](../../doc/bootloader_api/info/struct.MemoryRegions.html#impl-Deref) типаж
 [`core::ops::Deref`](https://doc.rust-lang.org/nightly/core/ops/trait.Deref.html),
-[возвращая из него](../../doc/bootloader/bootinfo/struct.MemoryMap.html#associatedtype.Target)
+[возвращая из него](../../doc/bootloader_api/info/struct.MemoryRegions.html#associatedtype.Target)
 массив структур
-[`bootloader::bootinfo::MemoryRegion`](../../doc/bootloader/bootinfo/struct.MemoryRegion.html).
+[`bootloader_api::info::MemoryRegion`](../../doc/bootloader_api/info/struct.MemoryRegion.html).
 Это означает, что если мы напишем
 ```rust
-for region in memory_map.iter() {
+for region in memory_regions.iter() {
     ...
 }
 ```
 переменная `region` пробежится по всем
-[`MemoryRegion`](../../doc/bootloader/bootinfo/struct.MemoryRegion.html)
+[`MemoryRegion`](../../doc/bootloader_api/info/struct.MemoryRegion.html)
 в
-[`MemoryMap`](../../doc/bootloader/bootinfo/struct.MemoryMap.html).
+[`MemoryRegions`](../../doc/bootloader_api/info/struct.MemoryRegions.html).
 В каждом из них есть поле
-[`MemoryRegion::region_type`](../../doc/bootloader/bootinfo/struct.MemoryRegion.html#structfield.region_type),
+[`MemoryRegion::kind`](../../doc/bootloader_api/info/struct.MemoryRegion.html#structfield.kind),
 которое равно:
 
-- [`MemoryRegionType::Usable`](../../doc/bootloader/bootinfo/enum.MemoryRegionType.html#variant.Usable) для незанятых диапазонов физической памяти.
-- [`MemoryRegionType::Kernel`](../../doc/bootloader/bootinfo/enum.MemoryRegionType.html#variant.Kernel) и [`MemoryRegionType::KernelStack`](../../doc/bootloader/bootinfo/enum.MemoryRegionType.html#variant.KernelStack) для диапазонов физической памяти, занятых ядром Nikka.
-- [`PageTable`](../../doc/bootloader/bootinfo/enum.MemoryRegionType.html#variant.PageTable) для фреймов, занятых на формирование таблицы страниц.
+- [`MemoryRegionKind::Usable`](../../doc/bootloader_api/info/enum.MemoryRegionKind.html#variant.Usable) для незанятых диапазонов физической памяти.
+- [`MemoryRegionKind::Kernel`](../../doc/bootloader_api/info/enum.MemoryRegionKind.html#variant.Kernel) и [`MemoryRegionKind::KernelStack`](../../doc/bootloader_api/info/enum.MemoryRegionKind.html#variant.KernelStack) для диапазонов физической памяти, занятых ядром Nikka.
+- [`PageTable`](../../doc/bootloader_api/info/enum.MemoryRegionKind.html#variant.PageTable) для фреймов, занятых на формирование таблицы страниц.
 
 Нас будут интересовать только эти типы.
-Кроме того, в
-[`MemoryRegion`](../../doc/bootloader/bootinfo/struct.MemoryRegion.html)
-есть поле
-[`MemoryRegion::range`](../../doc/bootloader/bootinfo/struct.MemoryRegion.html#structfield.range)
-типа
-[`bootloader::bootinfo::FrameRange`](../../doc/bootloader/bootinfo/struct.FrameRange.html),
-которое устроено аналогично
-[`Block<Frame>`](../../doc/ku/memory/block/struct.Block.html)
-и содержит поля
-[`FrameRange::start_frame_number`](../../doc/bootloader/bootinfo/struct.FrameRange.html#structfield.start_frame_number) и
-[`FrameRange::end_frame_number`](../../doc/bootloader/bootinfo/struct.FrameRange.html#structfield.end_frame_number).
+Кроме того,
+[`MemoryRegion`](../../doc/bootloader_api/info/struct.MemoryRegion.html)
+содержит поля
+[`MemoryRegion::start`](../../doc/bootloader_api/info/struct.MemoryRegion.html#structfield.start) и
+[`MemoryRegion::end`](../../doc/bootloader_api/info/struct.MemoryRegion.html#structfield.end).
 Они соответствуют
 [`Block::<Frame>::start`](../../doc/ku/memory/block/struct.Block.html#structfield.start) и
 [`Block::<Frame>::end`](../../doc/ku/memory/block/struct.Block.html#structfield.end).
 Из пары
-[`FrameRange::start_frame_number`](../../doc/bootloader/bootinfo/struct.FrameRange.html#structfield.start_frame_number) и
-[`FrameRange::end_frame_number`](../../doc/bootloader/bootinfo/struct.FrameRange.html#structfield.end_frame_number),
+[`MemoryRegion::start`](../../doc/bootloader_api/info/struct.MemoryRegion.html#structfield.start) и
+[`MemoryRegion::end`](../../doc/bootloader_api/info/struct.MemoryRegion.html#structfield.end),
 можно сделать соответствующий
 [`Block::<Frame>`](../../doc/ku/memory/block/struct.Block.html)
 с помощью метода
@@ -100,7 +96,7 @@ for region in memory_map.iter() {
 ```
 
 в файле [`kernel/src/memory/frame_allocator.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/frame_allocator.rs).
-Пройдите по `memory_map` с картой памяти [`MemoryMap`](../../doc/bootloader/bootinfo/struct.MemoryMap.html).
+Пройдите по `memory_regions` с картой памяти [`MemoryRegions`](../../doc/bootloader_api/info/struct.MemoryRegions.html).
 Обратите внимание, что на вход метод принимает также диапазон `frames`.
 Он содержит номера физических фреймов, которые нужно учесть.
 Не входящие в него фреймы:
@@ -110,9 +106,9 @@ for region in memory_map.iter() {
 
 Заполнять метаданные нужно так:
 
-- Пометьте фреймы из [`Usable`](../../doc/bootloader/bootinfo/enum.MemoryRegionType.html#variant.Usable) регионов как [`FrameInfo::Free`](../../doc/kernel/memory/frame_allocator/enum.FrameInfo.html#variant.Free) и провяжите их в односвязный список.
-- Пометьте фреймы из [`MemoryRegionType::Kernel`](../../doc/bootloader/bootinfo/enum.MemoryRegionType.html#variant.Kernel), [`MemoryRegionType::KernelStack`](../../doc/bootloader/bootinfo/enum.MemoryRegionType.html#variant.KernelStack) и [`MemoryRegionType::PageTable`](../../doc/bootloader/bootinfo/enum.MemoryRegionType.html#variant.PageTable) как [`FrameInfo::Used`](../../doc/kernel/memory/frame_allocator/enum.FrameInfo.html#variant.Used). Их мы сможем освободить в дальнейшем. В частности, --- память под начальный массив [`kernel::memory::frame_allocator::BOOT_FRAME_INFO`](../../doc/kernel/memory/frame_allocator/static.BOOT_FRAME_INFO.html).
-- Если тип региона памяти не является [`MemoryRegionType::Usable`](../../doc/bootloader/bootinfo/enum.MemoryRegionType.html#variant.Usable), пометьте фрейм как [`FrameInfo::Absent`](../../doc/kernel/memory/frame_allocator/enum.FrameInfo.html#variant.Absent). В этом случае можно просто ничего не делать. Как вы видели, [`FrameAllocator::new()`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#method.new) при выделении памяти под срез [`FrameAllocator::frame_info`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#structfield.frame_info) инициализирует его значением [`FrameInfo::Absent`](../../doc/kernel/memory/frame_allocator/enum.FrameInfo.html#variant.Absent).
+- Пометьте фреймы из [`Usable`](../../doc/bootloader_api/info/enum.MemoryRegionKind.html#variant.Usable) регионов как [`FrameInfo::Free`](../../doc/kernel/memory/frame_allocator/enum.FrameInfo.html#variant.Free) и провяжите их в односвязный список.
+- Пометьте фреймы из [`MemoryRegionKind::Kernel`](../../doc/bootloader_api/info/enum.MemoryRegionKind.html#variant.Kernel), [`MemoryRegionKind::KernelStack`](../../doc/bootloader_api/info/enum.MemoryRegionKind.html#variant.KernelStack) и [`MemoryRegionKind::PageTable`](../../doc/bootloader_api/info/enum.MemoryRegionKind.html#variant.PageTable) как [`FrameInfo::Used`](../../doc/kernel/memory/frame_allocator/enum.FrameInfo.html#variant.Used). Их мы сможем освободить в дальнейшем. В частности, --- память под начальный массив [`kernel::memory::frame_allocator::BOOT_FRAME_INFO`](../../doc/kernel/memory/frame_allocator/static.BOOT_FRAME_INFO.html).
+- Если тип региона памяти не является [`MemoryRegionKind::Usable`](../../doc/bootloader_api/info/enum.MemoryRegionKind.html#variant.Usable), пометьте фрейм как [`FrameInfo::Absent`](../../doc/kernel/memory/frame_allocator/enum.FrameInfo.html#variant.Absent). В этом случае можно просто ничего не делать. Как вы видели, [`FrameAllocator::new()`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#method.new) при выделении памяти под срез [`FrameAllocator::frame_info`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#structfield.frame_info) инициализирует его значением [`FrameInfo::Absent`](../../doc/kernel/memory/frame_allocator/enum.FrameInfo.html#variant.Absent).
 
 Количество найденных свободных фреймов сохраните в
 [`FrameAllocator::free_count`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#structfield.free_count).
@@ -185,7 +181,7 @@ panic!("your {} message {:?}", ...);
 Дело в том, что зарезервированные фреймы, которые мы так помечаем в
 [`FrameAllocator::init_frame_info()`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#method.init_frame_info)
 могут быть отображены в память загрузчиком
-[`bootloader`](../../doc/bootloader/index.html).
+[`bootloader`](https://docs.rs/bootloader).
 И при копировании и освобождении
 [`Mapping`](../../doc/kernel/memory/mapping/struct.Mapping.html)
 мы можем попытаться поменять количество ссылок на них.
@@ -193,7 +189,7 @@ panic!("your {} message {:?}", ...);
 [`FrameInfo::Absent`](../../doc/kernel/memory/frame_allocator/enum.FrameInfo.html#variant.Absent)
 и не должен попасть в список свободных.
 Так как может быть много разных причин почему он не был
-[`MemoryRegionType::Usable`](../../doc/bootloader/bootinfo/enum.MemoryRegionType.html#variant.Usable).
+[`MemoryRegionKind::Usable`](../../doc/bootloader_api/info/enum.MemoryRegionKind.html#variant.Usable).
 Например, он может соответствовать микросхеме
 [постоянного запоминающего устройства](https://en.wikipedia.org/wiki/Read-only_memory),
 которая позволяет только читать данные, и не может быть использован ядром для произвольных данных.
@@ -210,7 +206,7 @@ panic!("your {} message {:?}", ...);
 Поэтому функция
 [`kernel::memory::range::physical()`](../../doc/kernel/memory/range/fn.physical.html)
 игнорирует не
-[`Usable`](../../doc/bootloader/bootinfo/enum.MemoryRegionType.html#variant.Usable) регионы,
+[`Usable`](../../doc/bootloader_api/info/enum.MemoryRegionKind.html#variant.Usable) регионы,
 чтобы не нужно было выделять огромный срез
 [`FrameAllocator::frame_info`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#structfield.frame_info),
 который может просто не поместится в память,

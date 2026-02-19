@@ -3,7 +3,7 @@ use core::sync::atomic::{
     Ordering,
 };
 
-use bootloader::bootinfo::MemoryMap;
+use bootloader_api::info::MemoryRegions;
 
 use ku::memory::mmu::PAGE_TABLE_ENTRY_COUNT;
 
@@ -12,16 +12,18 @@ use kernel::memory::test_scaffolding;
 #[macro_export]
 macro_rules! init {
     ($subsystems:expr) => {
-        bootloader::entry_point!(test_entry);
+        bootloader_api::entry_point!(test_entry, config = &kernel::BOOTLOADER_CONFIG);
 
         #[cfg_attr(
             not(feature = "conservative-backtraces"),
             sentinel_frame::with_sentinel_frame
         )]
-        fn test_entry(boot_info: &'static bootloader::BootInfo) -> ! {
-            kernel::init_subsystems(&boot_info, $subsystems);
-            init::set_frame_count(&boot_info.memory_map);
-            init::set_recursive_mapping(ku::memory::size::from(boot_info.recursive_index()));
+        fn test_entry(boot_info: &'static mut bootloader_api::BootInfo) -> ! {
+            kernel::init_subsystems(boot_info, $subsystems);
+            init::set_frame_count(&boot_info.memory_regions);
+            if let Some(recursive_index) = boot_info.recursive_index.into_option() {
+                init::set_recursive_mapping(ku::memory::size::from(recursive_index));
+            }
             test_main();
             panic!("should not return to test_entry()")
         }
@@ -39,9 +41,9 @@ pub(super) fn frame_count() -> usize {
     FRAME_COUNT.load(Ordering::Relaxed)
 }
 
-pub(super) fn set_frame_count(memory_map: &MemoryMap) {
+pub(super) fn set_frame_count(memory_regions: &MemoryRegions) {
     FRAME_COUNT.store(
-        test_scaffolding::physical(memory_map).end(),
+        test_scaffolding::physical(memory_regions).end(),
         Ordering::Relaxed,
     );
 }

@@ -1,3 +1,20 @@
+[package]
+authors = ["Sergey V. Galtsev <sergey-v-galtsev@gitlab.com>"]
+description = "Nikka is an educational operating system"
+edition = "2024"
+homepage = "https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/index.html"
+license = "AGPL-3.0-or-later"
+name = "nikka"
+repository = "https://gitlab.com/sergey-v-galtsev/nikka-public"
+version = "0.5.0"
+
+[build-dependencies]
+bootloader = { version = "0.11", default-features = false, features = ["uefi"] }
+kernel = { path = "kernel", artifact = "bin", target = "x86_64-unknown-none" }
+
+[dependencies]
+ovmf-prebuilt = "0.1.0-alpha.1"
+
 [workspace]
 members = [
     "kernel",
@@ -43,3 +60,11 @@ incremental = true
 inherits = "release"
 opt-level = 3
 overflow-checks = false
+
+#[profile.release]
+#lto = "off"
+#panic = "abort"
+#incremental = false
+
+#[profile.dev.package."bootloader"] # https://old.reddit.com/r/rust/comments/gvrgca/this_is_a_neat_trick_for_getting_good_runtime/
+#opt-level = 1

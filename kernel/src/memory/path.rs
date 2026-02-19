@@ -175,7 +175,7 @@ impl<'a> Path<'a> {
         [get] [&Self] [&'a PageTableEntry] [deepest_pte];
         [get_mut] [&mut Self] [&'a mut PageTableEntry] [deepest_pte_mut];
     )]
-    pub(super) fn getter(self: self_type) -> Result<return_type> {
+    pub fn getter(self: self_type) -> Result<return_type> {
         let (level, pte) = self.deepest_pte_getter();
 
         if level == PAGE_TABLE_LEAF_LEVEL {
