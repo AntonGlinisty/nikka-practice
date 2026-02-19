@@ -9,7 +9,7 @@ settings:
   students_group: os/students-2025-2026
 
 
-report_url: https://app.manytask.org/api/os-2025-fall/report
+report_url: https://app.manytask.org/api/os-2026-spring/report
 
 
 ui:
@@ -18,8 +18,8 @@ ui:
   links:
     Announcements: https://t.me/+6hudiffitLU5MTYy
     Chat: https://t.me/+PAXh6qX5Nzg1MDcy
-    Zoom: https://yandex.zoom.us/j/91254022146
-    LMS: https://lk.dataschool.yandex.ru/courses/2025-autumn/7.1555-arkhitektura-kompiutera-i-operatsionnye-sistemy
+    Zoom: https://yandex.zoom.us/j/96772346576
+    LMS: https://lk.dataschool.yandex.ru/courses/2026-spring/7.1709-advanced_caos/
 
 
 grades:

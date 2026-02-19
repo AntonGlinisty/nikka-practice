@@ -36,4 +36,4 @@ deploy-manytask:
   script:
     - 'curl --fail --silent -X POST -H "Authorization: Bearer $TESTER_TOKEN"
         -H "Content-type: application/x-yaml" --data-binary "@.manytask.yml"
-        "https://app.manytask.org/api/os-2025-fall/update_config"'
+        "https://app.manytask.org/api/os-2026-spring/update_config"'
