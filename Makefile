@@ -197,12 +197,26 @@ lectures/%.pdf: lectures/%.md lectures/%.img/*
 fs-dump:
 	@xxd fs.img | sed 's@.*0000 0000 0000 0000 0000 0000 0000 0000.*@...@' | uniq
 
-doc: FORCE
+doc:
 	@( \
-		cargo doc --document-private-items --features allocator-statistics; \
-		rm --force $$(grep --files-with-matches 'compose::begin_private' $$(find target/doc/src -name \*.rs.html) ); \
 		rm --force --recursive doc; \
-		mv target/doc .; \
+		mkdir doc; \
+		for crate in $(CRATES) user/lib; do \
+			cd $$crate; \
+			if [ .$$crate = .ku ]; then \
+				feature_flags='--features allocator-statistics'; \
+			else \
+				feature_flags=''; \
+			fi; \
+			cargo doc --document-private-items $$feature_flags; \
+			cd - >/dev/null; \
+			rm -rf doc/$$crate; \
+			for src in target/doc/*/; do dst=$${src#target/}; if [ ! -e $$dst ]; then mv $$src $$dst; fi; done; \
+			for src in target/kernel/doc/*/; do dst=$${src#target/kernel/}; if [ ! -e $$dst ]; then mv $$src $$dst; fi; done; \
+		done; \
+		cargo doc --document-private-items; \
+		for src in target/doc/*/; do dst=$${src#target/}; if [ ! -e $$dst ]; then mv $$src $$dst; fi; done; \
+		rm --force $$(grep --files-with-matches 'compose::begin_private' $$(find doc/src -name \*.rs.html) ); \
 	)
 
 clean:
