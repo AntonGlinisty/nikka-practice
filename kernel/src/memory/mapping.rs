@@ -162,7 +162,7 @@ impl Mapping {
 
     /// Возвращает итератор по листьям дерева отображения страниц,
     /// попадающим в заданный диапазон `range`.
-    fn range_mut<R: RangeBounds<Page>>(
+    pub(super) fn range_mut<R: RangeBounds<Page>>(
         &mut self,
         range: R,
     ) -> MappingIterator<'_> {

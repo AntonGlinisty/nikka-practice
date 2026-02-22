@@ -171,6 +171,10 @@ pub fn init_subsystems(
         Err(NoPage)
     };
 
+    if subsystems.intersects(Subsystems::VIRT_MEMORY) {
+        memory::fix_address_space();
+    }
+
     if subsystems.intersects(Subsystems::SMP) &&
         let Ok(phys2virt) = phys2virt
     {

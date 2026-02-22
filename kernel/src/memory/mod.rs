@@ -44,6 +44,8 @@ mod stack;
 /// ([Task State Segment](https://en.wikipedia.org/wiki/Task_state_segment), TSS).
 mod tss;
 
+use core::iter::zip;
+
 use bootloader_api::BootInfo;
 use lazy_static::lazy_static;
 use x86_64::registers::model_specific::{
@@ -63,6 +65,8 @@ pub use ku::{
     },
     sync::spinlock::Spinlock,
 };
+
+use ku::memory::mmu::PageTableFlags;
 
 use crate::{
     Subsystems,
@@ -210,6 +214,51 @@ pub(super) fn init(
     info!(duration = %timer.elapsed(), "memory init");
 
     Ok(phys2virt)
+}
+
+/// Исправляет инвариант "если фрейм отображён в адресное пространство, то он занят"
+/// после `bootloader`.
+///
+/// Для этого находит все отображённые свободные фреймы и удаляет их отображения.
+pub(super) fn fix_address_space() {
+    let mut dangling_frame_count = 0;
+    let mut start = Page::default();
+    let timer = time::timer();
+
+    while let Some((page, dangling_frame)) = find_mapped_but_unused_frame(start) {
+        error!(%page, %dangling_frame, "found mapped but unused frame, unmapping");
+        BASE_ADDRESS_SPACE
+            .lock()
+            .path(page.address())
+            .set_flags(PageTableFlags::empty())
+            .expect("this frame is mapped");
+        dangling_frame_count += 1;
+        start = page;
+    }
+
+    info!(dangling_frame_count, duration = %timer.elapsed(), "unmapped dangling frames");
+
+    fn find_mapped_but_unused_frame(start: Page) -> Option<(Page, Frame)> {
+        let mut address_space = BASE_ADDRESS_SPACE.lock();
+        let mapping = address_space
+            .mapping()
+            .expect("run fix_address_space() only after the mapping is initialized");
+        let phys2virt = *mapping.phys2virt().mapping();
+
+        for block in mapping
+            .range_mut(start ..)
+            .map(|path| path.block())
+            .filter(|block| block.is_present() && block.pages().is_disjoint(phys2virt))
+        {
+            for (page, frame) in zip(*block.pages(), *block.frames()) {
+                if !FRAME_ALLOCATOR.lock().is_used(frame) {
+                    return Some((page, frame));
+                }
+            }
+        }
+
+        None
+    }
 }
 
 lazy_static! {

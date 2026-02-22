@@ -3,6 +3,8 @@ use core::{
     result,
 };
 
+use derive_getters::Getters;
+
 use ku::memory::{
     Block,
     Frame,
@@ -11,7 +13,7 @@ use ku::memory::{
 };
 
 /// Описатель отображённого блока адресного пространства.
-#[derive(Clone, Copy, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Default, Eq, Getters, PartialEq)]
 pub struct MappedBlock {
     /// Маска флагов, которые не были принудительно сброшены в [`MappedBlock::flags`].
     flag_mask: PageTableFlags,

@@ -4,6 +4,7 @@ use core::{
     num::NonZeroUsize,
 };
 
+use derive_getters::Getters;
 use itertools::Itertools;
 
 use ku::{
@@ -50,7 +51,7 @@ use {
 /// Для простоты работы с физической памятью,
 /// она целиком линейно отображена в некоторую область виртуальной.
 /// [`Phys2Virt`] описывает это отображение.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, Getters, PartialEq)]
 pub struct Phys2Virt {
     /// Блок виртуальной памяти, куда линейно отображена вся физическая память.
     mapping: Block<Page>,
