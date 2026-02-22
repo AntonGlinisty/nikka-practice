@@ -66,7 +66,7 @@ impl<Q: Cache, T: Allocator + BigAllocatorGuard> Dispatcher<Q, T> {
             cache,
             fallback,
             fallback_info: AtomicInfo::new(),
-            fixed_size: [FIXED_SIZE_DUMMY; FIXED_SIZE_COUNT],
+            fixed_size: [const { Spinlock::new(FixedSizeAllocator::new()) }; FIXED_SIZE_COUNT],
             info: AtomicInfo::new(),
         }
     }
@@ -119,7 +119,7 @@ impl<Q: Cache, T: Allocator + BigAllocatorGuard> Dispatcher<Q, T> {
     ///
     /// Возвращает [`None`], если такого нет.
     /// То есть, если за этот `layout` отвечает [`Dispatcher::fallback`].
-    fn get_fixed_size_index(
+    const fn get_fixed_size_index(
         &self,
         layout: Layout,
     ) -> Option<usize> {
@@ -130,7 +130,7 @@ impl<Q: Cache, T: Allocator + BigAllocatorGuard> Dispatcher<Q, T> {
     /// Возвращает размер блоков памяти, за которые отвечает аллокатор
     /// по индексу `index` в массиве [`Dispatcher::fixed_size`].
     #[allow(unused)]
-    fn get_size(index: usize) -> usize {
+    const fn get_size(index: usize) -> usize {
         get_size(index)
     }
 
@@ -476,7 +476,7 @@ enum Operation {
 /// Возвращает размер блоков памяти, за которые отвечает аллокатор
 /// по индексу `index` в массиве [`Dispatcher::fixed_size`].
 #[inline(always)]
-fn get_size(index: usize) -> usize {
+const fn get_size(index: usize) -> usize {
     (index + 1) * MIN_SIZE
 }
 
@@ -484,9 +484,3 @@ fn get_size(index: usize) -> usize {
 /// Количество аллокаторов фиксированного размера [`FixedSizeAllocator`],
 /// которыми управляет [`Dispatcher`].
 pub const FIXED_SIZE_COUNT: usize = (4 * Page::SIZE - 1) / MIN_SIZE;
-
-/// Вспомогательная константа для инициализации массива [`Dispatcher::fixed_size`]
-/// в константной функции [`Dispatcher::new()`].
-/// Необходима, так как [`Spinlock`] не может быть помечен типажом [`Copy`].
-#[allow(clippy::declare_interior_mutable_const)]
-const FIXED_SIZE_DUMMY: Spinlock<FixedSizeAllocator> = Spinlock::new(FixedSizeAllocator::new());

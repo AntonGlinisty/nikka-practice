@@ -188,10 +188,10 @@ impl Default for Clip {
 
 impl Drop for Clip {
     fn drop(&mut self) {
-        if let Some(mut allocation_owner) = self.allocation_owner &&
+        if let Some(allocation_owner) = self.allocation_owner &&
             !self.allocations.is_empty()
         {
-            let allocation_owner = unsafe { allocation_owner.as_mut() };
+            let allocation_owner = unsafe { allocation_owner.as_ref() };
             allocation_owner.lock().unfill_clip(self, 0);
         }
 

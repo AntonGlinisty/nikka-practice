@@ -155,7 +155,7 @@ Rust предоставляет
 
 Удобно вынести часть действий во вспомогательные методы, так как они нам понадобятся неоднократно:
 
-- [`Dispatcher::get_fixed_size_index()`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#method.get_fixed_size_index) возвращает индекс аллокатора фиксированного размера для запрошенного `layout`. Либо `None`, если за `layout` отвечает [`Dispatcher::fallback`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#structfield.fallback).
+- [`Dispatcher::get_fixed_size_index()`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#method.get_fixed_size_index) возвращает индекс аллокатора фиксированного размера для запрошенного `layout`. Либо `None`, если за `layout` отвечает [`Dispatcher::fallback`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#structfield.fallback). Функция помечена `const`, т.к. функция `Layout::new::<T>` является константной, а значит размерный класс для любых типов может быть посчитан на этапе компиляции.
 - [`Dispatcher::get_size()`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#method.get_size) по индексу в массиве [`Dispatcher::fixed_size`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#structfield.fixed_size) возвращает размер блоков памяти, которые выдаёт соответствующий [`FixedSizeAllocator`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html).
 - [`Dispatcher::fixed_size_allocate()`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#method.fixed_size_allocate) скрывает логику выделения блока из [`FixedSizeAllocator`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html). А именно, --- проверку его непустоты, наполнение блоками, и собственно выделение блока.
 
