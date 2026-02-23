@@ -442,9 +442,14 @@ fn do_main(opts: Opts) -> Result<()> {
 
                 println!("* copy {}", relative.display());
                 if orig_path != stud_path {
-                    fs::copy(&src, &dst).with_context(|| {
-                        format!("failed to copy {} to {}", src.display(), dst.display())
+                    let exists = fs::exists(&src).with_context(|| {
+                        format!("failed to check presence of file {}", src.display())
                     })?;
+                    if exists {
+                        fs::copy(&src, &dst).with_context(|| {
+                            format!("failed to copy {} to {}", src.display(), dst.display())
+                        })?;
+                    }
                 }
             }
         }
