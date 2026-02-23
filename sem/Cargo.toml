@@ -11,6 +11,7 @@ members = [
     "rwlock",
     "atomic",
     "mcs_lock",
+    "ticket_lock",
 ]
 
 resolver = "1"

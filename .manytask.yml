@@ -503,6 +503,15 @@ deadlines:
             - cd sem/rwlock && cargo clean
             - cd sem/rwlock && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test -- --nocapture --test-threads=1
 
+        - task: ticket-lock
+          is_bonus: true
+          score: 100
+          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/ticket_lock
+          check:
+            - cd sem/ticket_lock && cargo test -- --nocapture --test-threads=1
+            - cd sem/ticket_lock && cargo clean
+            - cd sem/ticket_lock && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test -- --nocapture --test-threads=1
+
         - task: mcs-lock
           score: 200
           url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/mcs_lock
