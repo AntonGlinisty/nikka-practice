@@ -12,7 +12,10 @@ use ku::time;
 
 use crate::{
     error::{
-        Error::InvalidArgument,
+        Error::{
+            self,
+            InvalidArgument,
+        },
         Result,
     },
     log::error,
@@ -194,20 +197,26 @@ impl LocalApic {
         (Self::get().id.get() >> Self::ID_SHIFT).try_into().unwrap()
     }
 
-    /// Посылает прерывание на Application Processor с идентификатором `id`,
+    /// Посылает прерывание на Application Processor с идентификатором `dst`,
     /// предназначенное для его инициализации.
     /// Физический адрес процедуры инициализации задаёт `boot_address`.
     ///
     /// MultiProcessor Specification 4.1 part B.4 "Application Processor Startup"
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::InvalidArgument`] --- `boot_address` выходит за допустимую в
+    ///   реальном режиме границу.
+    /// - [`Error::LocalApic`] --- local APIC вернул ошибку.
     pub(super) fn send_init(
-        id: CpuId,
-        boot_address: Phys,
+        dst: CpuId,
+        boot_address: Frame,
     ) -> Result<()> {
         /// Максимальный номер физического фрейма, который может задавать адрес
         /// кода загрузки процессора.
         const MAX_BOOT_FRAME: u32 = 0xFF;
 
-        let boot_page = size::try_into::<u32>(Frame::new(boot_address)?.index())?;
+        let boot_page = size::try_into::<u32>(boot_address.index())?;
         if boot_page > MAX_BOOT_FRAME {
             return Err(InvalidArgument);
         }
@@ -216,32 +225,36 @@ impl LocalApic {
 
         let init_data = InterruptCommand::INIT | InterruptCommand::TRIGGER_MODE_LEVEL;
 
-        local_apic.send_ipi(id, (init_data | InterruptCommand::LEVEL_ASSERT).bits());
+        local_apic.send_ipi(dst, (init_data | InterruptCommand::LEVEL_ASSERT).bits())?;
         time::delay(Duration::microseconds(200));
 
-        local_apic.send_ipi(id, (init_data | InterruptCommand::LEVEL_DEASSERT).bits());
+        local_apic.send_ipi(dst, (init_data | InterruptCommand::LEVEL_DEASSERT).bits())?;
         time::delay(Duration::microseconds(200));
 
         for _ in 0 .. 2 {
-            local_apic.send_ipi(id, InterruptCommand::START_UP.bits() | boot_page);
+            local_apic.send_ipi(dst, InterruptCommand::START_UP.bits() | boot_page)?;
             time::delay(Duration::microseconds(200));
         }
 
         Ok(())
     }
 
-    /// Посылает процессору `id` прерывание
+    /// Посылает процессору `dst` прерывание
     /// ([inter-processor interrupt](https://en.wikipedia.org/wiki/Inter-processor_interrupt), IPI)
     /// с дополнительными данными `data`.
     ///
     /// <https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.pdf>,
     /// 10.6 "Issuing Interprocessor Interrupts"
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::LocalApic`] --- local APIC вернул ошибку.
     fn send_ipi(
         &mut self,
-        id: CpuId,
+        dst: CpuId,
         data: u32,
-    ) {
-        self.interrupt_command_hi.set(u32::from(id) << Self::ID_SHIFT);
+    ) -> Result<()> {
+        self.interrupt_command_hi.set(u32::from(dst) << Self::ID_SHIFT);
         self.interrupt_command_lo.set(data);
 
         while (self.interrupt_command_lo.get() & InterruptCommand::SEND_PENDING.bits()) != 0 {
@@ -249,8 +262,12 @@ impl LocalApic {
         }
 
         let error = self.error_status_register.get();
-        if error != 0 {
-            error!(cpu = id, data, error, "error sending IPI");
+        if error == 0 {
+            Ok(())
+        } else {
+            error!(dst, data, error, "error sending IPI");
+
+            Err(Error::LocalApic)
         }
     }
 
