@@ -48,7 +48,7 @@ pub struct Spinlock<T, const PANIC_STRATEGY> {
 Поэтому в блокировках, которые использует подсистема журналирования, выбирается другая стратегия ---
 [`PanicStrategy::KnockDown`](../../doc/ku/sync/panic/enum.PanicStrategy.html#variant.KnockDown).
 При ней все блокировки становятся всё время открытыми, как пожарные выходы из зданий,
-и позволяют захват произвольное конкурентное количество раз.
+и позволяют конкурентный захват произвольное количество раз.
 Обработчик паники сообщает блокировкам о том что ядро перешло в режим паники с помощью свободных функций
 [`ku::sync::panic::start_panicking()`](../../doc/ku/sync/panic/fn.start_panicking.html) и
 [`ku::sync::panic::is_panicking()`](../../doc/ku/sync/panic/fn.is_panicking.html).
@@ -195,6 +195,7 @@ fn Spinlock::try_lock_impl(
 содержит `false` и одновременно поменять этот `false` на `true`.
 Сделать это поможет
 
+- метод [`core::sync::atomic::AtomicBool::swap()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicBool.html#method.swap),
 - метод
 [`core::sync::atomic::AtomicBool::compare_exchange()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicBool.html#method.compare_exchange) или
 - метод
@@ -311,11 +312,12 @@ fn SpinlockGuard::drop(&mut self)
 
 При решении этой задачи вам могут пригодиться:
 
+- Метод [`core::sync::atomic::AtomicBool::swap()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicBool.html#method.swap).
 - Метод [`core::sync::atomic::AtomicBool::compare_exchange()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicBool.html#method.compare_exchange).
 - Метод [`core::sync::atomic::AtomicBool::compare_exchange_weak()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicBool.html#method.compare_exchange_weak).
 - Метод [`core::sync::atomic::AtomicBool::load()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicBool.html#method.load).
 - Метод [`core::sync::atomic::AtomicBool::store()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicBool.html#method.store).
-- Метод [`core::sync::atomic::AtomicUsize::fetch_add()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicUsize.html#method.fetch_add)у
+- Метод [`core::sync::atomic::AtomicUsize::fetch_add()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicUsize.html#method.fetch_add).
 - Функция [`core::hint::spin_loop()`](https://doc.rust-lang.org/nightly/core/hint/fn.spin_loop.html), которая сообщает процессору, что он находится в цикле активного ожидания внешнего события.
 
 > В своей реализации вы можете применить какие-нибудь из

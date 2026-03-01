@@ -154,6 +154,7 @@ thread '<unnamed>' panicked at 'there is no such thing as a release load', /rust
 Плюс дополнительное снижающее эффективность свойство, --- все атомарные операции, помеченные
 [`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst),
 будут выстроены в одинаковый с точки зрения всех ядер порядок.
+Причём совершенно контринтуитивно, этот порядок [**не** согласован](https://sabrinajewson.org/rust-nomicon/atomics/seqcst.html) с порядком happens before.
 
 То есть, использование
 [`Ordering::SeqCst`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html#variant.SeqCst)
@@ -172,7 +173,7 @@ thread '<unnamed>' panicked at 'there is no such thing as a release load', /rust
 
 > Дополнительные ссылки про модель памяти:
 >
-> - [Модель памяти Rust](https://doc.rust-lang.org/nomicon/atomics.html#atomics).
+> - [Модель памяти Rust](https://doc.rust-lang.org/nomicon/atomics.html).
 > - Цикл статей Джефа Прешинга:
 >   - [Atomic vs. Non-Atomic Operations](https://preshing.com/20130618/atomic-vs-non-atomic-operations/).
 >   - [The Happens-Before Relation](https://preshing.com/20130702/the-happens-before-relation/).
@@ -181,6 +182,7 @@ thread '<unnamed>' panicked at 'there is no such thing as a release load', /rust
 >   - [Acquire and Release Semantics](https://preshing.com/20120913/acquire-and-release-semantics/).
 >   - ...
 > - [Common Compiler Optimisations are Invalid in the C11 Memory Model and what we can do about it](https://plv.mpi-sws.org/c11comp/popl15.pdf).
+> - [SeqCst](https://sabrinajewson.org/rust-nomicon/atomics/seqcst.html)
 > - [Теория и практика многопоточной синхронизации (ТПМС, Concurrency) / Лекции / Весна 2022 / Роман Липовский](https://youtu.be/playlist?list=PL4_hYwCyhAva37lNnoMuBcKRELso5nvBm):
 >   - [ТПМС / Лекция 7 / Shared Memory: Memory Models](https://youtu.be/CEzFMP78D1Y).
 > - [Теория и практика многопоточной синхронизации (ТПМС, Concurrency) / Семинары / Весна 2022 / Роман Липовский](https://youtu.be/playlist?list=PL4_hYwCyhAvYTxm55RBm_HA5Bq5W1Nv-R):

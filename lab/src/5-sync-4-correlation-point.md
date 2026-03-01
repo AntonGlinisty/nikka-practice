@@ -211,7 +211,7 @@ fn AtomicCorrelationPoint::inc(&self, tsc: i64)
 Чтобы заменить недоступный
 [приём read-don't-modify-write](https://web.archive.org/web/20230318132751/https://www.hpl.hp.com/techreports/2012/HPL-2012-68.pdf)
 теперь придётся придумать более хитрую схему синхронизации, чем в
-[предыдущей задачи](../../lab/book/5-sync-3-sequence-lock.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-3--%D1%80%D0%B5%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-sequencelock).
+[предыдущей задаче](../../lab/book/5-sync-3-sequence-lock.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-3--%D1%80%D0%B5%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-sequencelock).
 
 Тесты проверяют корректность расстановки
 [`Ordering`](https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html)
@@ -347,8 +347,8 @@ running 2 tests
 > [`kernel/tests/5-sync-4-correlation-point.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/5-sync-4-correlation-point.rs)
 > запускаются в ядре Nikka.
 > При этом поддержку нескольких процессоров в нём мы сделаем в
-> [следующей необязательной задаче](../../lab/book/5-sync-5-ap-init.html).
-> Чтобы не зависеть от необязательной задачи, мы не можем запустить
+> [следующей задаче](../../lab/book/5-sync-5-ap-init.html).
+> Чтобы не зависеть от другой задачи, мы не можем запустить
 > стресс--тест даже на двух процессорах в симметричной системе.
 >
 > Но можно вспомнить про то, что

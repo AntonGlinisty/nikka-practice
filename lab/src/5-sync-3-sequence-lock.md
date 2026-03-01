@@ -263,10 +263,11 @@ fn SequenceLockGuard::drop(&mut self)
 
 Вам могут пригодиться:
 
-- Метод [`core::sync::atomic::AtomicBool::compare_exchange()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicBool.html#method.compare_exchange).
-- Метод [`core::sync::atomic::AtomicBool::compare_exchange_weak()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicBool.html#method.compare_exchange_weak).
-- Метод [`core::sync::atomic::AtomicBool::load()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicBool.html#method.load).
-- Метод [`core::sync::atomic::AtomicBool::store()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicBool.html#method.store).
+- Метод [`core::sync::atomic::AtomicU64::swap()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicU64.html#method.swap).
+- Метод [`core::sync::atomic::AtomicU64::compare_exchange()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicU64.html#method.compare_exchange).
+- Метод [`core::sync::atomic::AtomicU64::compare_exchange_weak()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicU64.html#method.compare_exchange_weak).
+- Метод [`core::sync::atomic::AtomicU64::load()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicU64.html#method.load).
+- Метод [`core::sync::atomic::AtomicU64::store()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicU64.html#method.store).
 - Метод [`core::sync::atomic::AtomicUsize::fetch_add()`](https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicUsize.html#method.fetch_add).
 - Функция [`core::hint::spin_loop()`](https://doc.rust-lang.org/nightly/core/hint/fn.spin_loop.html), которая сообщает процессору, что он находится в цикле активного ожидания внешнего события.
 - Метод [`SequenceLock::is_locked(sequence: u64)`](../../doc/ku/sync/sequence_lock/struct.SequenceLock.html#method.is_locked). Он возвращает `true`, если значение `sequence` означает, что захвачена блокировка на запись.
@@ -315,9 +316,9 @@ fn Spinlock::lock(&self) -> SpinlockGuard<'_, T>
 Для удобства также стоит добавить информацию о строке кода, где была определена переменная типа
 [`Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html),
 на которой возникла взаимоблокировка.
-И о строке кода, которая пытаясь захватить это
+И о строке кода, которая пытаясь захватить этот
 [`Spinlock`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html),
-создала взаимоблокировку, вместе с ведущим к ней backtrace.
+создала взаимоблокировку, вместе с ведущей к ней трассировкой стека.
 Теперь тесты ожидают, что в сообщении паники об обнаружении взаимоблокировки присутствуют
 ссылки на эти строки кода, а также подстрока `"deadlock"`.
 
