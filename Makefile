@@ -246,7 +246,7 @@ compose:
 
 install:
 	@(which rustup > /dev/null || (curl https://sh.rustup.rs -sSf | sh))
-	@(which bootimage > /dev/null || (cargo install bootimage))
+	@(which bootimage > /dev/null || (cargo install --version 0.10.3 bootimage))
 	@(which rustfilt > /dev/null || (cargo install rustfilt))
 	@(which cargo-expand > /dev/null || (cargo install cargo-expand))
 	@(which cargo-spellcheck  > /dev/null || (cargo install cargo-spellcheck))
