@@ -3,6 +3,9 @@
 /// для отслеживания какие именно элементы заняты, а какие --- свободны.
 mod bitmap;
 
+/// Ограниченная двухсторонняя очередь на циклическом буфере.
+pub mod bounded_deque;
+
 /// [Битовая карта](https://en.wikipedia.org/wiki/Free-space_bitmap)
 /// расширяемого размера
 /// для отслеживания какие именно элементы заняты, а какие --- свободны.
@@ -14,5 +17,6 @@ mod dynamic_bitmap;
 mod lru;
 
 pub use bitmap::Bitmap;
+pub use bounded_deque::BoundedDeque;
 pub use dynamic_bitmap::DynamicBitmap;
 pub use lru::Lru;
