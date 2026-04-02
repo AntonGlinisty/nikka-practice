@@ -20,3 +20,8 @@ pub use bitmap::Bitmap;
 pub use bounded_deque::BoundedDeque;
 pub use dynamic_bitmap::DynamicBitmap;
 pub use lru::Lru;
+
+#[doc(hidden)]
+pub mod test_scaffolding {
+    pub use super::bounded_deque::test_scaffolding::*;
+}

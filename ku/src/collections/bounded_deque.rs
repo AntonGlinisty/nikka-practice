@@ -183,3 +183,24 @@ pub enum Error<T> {
 /// Тип возвращаемого результата `T` или ошибки [`Error`] ---
 /// мономорфизация [`result::Result`] по типу ошибки.
 pub type Result<Q, T> = result::Result<Q, Error<T>>;
+
+#[doc(hidden)]
+pub(super) mod test_scaffolding {
+    use super::BoundedDeque;
+
+    pub fn head<T, const CAPACITY: usize>(bounded_queue: &BoundedDeque<T, CAPACITY>) -> usize {
+        bounded_queue.head
+    }
+
+    pub fn tail<T, const CAPACITY: usize>(bounded_queue: &BoundedDeque<T, CAPACITY>) -> usize {
+        bounded_queue.tail
+    }
+
+    pub fn set_head_tail<T, const CAPACITY: usize>(
+        bounded_queue: &mut BoundedDeque<T, CAPACITY>,
+        start: usize,
+    ) {
+        bounded_queue.head = start;
+        bounded_queue.tail = start;
+    }
+}
