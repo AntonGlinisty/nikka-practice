@@ -1,3 +1,7 @@
+/// [`CacheAligned`] --- выравнивание на удвоенный размер линии кэша, чтобы избежать
+/// [ложной конкуренции за данные](https://en.wikipedia.org/wiki/False_sharing).
+pub mod cache_aligned;
+
 /// Примитив синхронизации [`IrqSpinlock`].
 pub mod irq_spinlock;
 
@@ -14,6 +18,10 @@ pub mod sequence_lock;
 /// Примитив синхронизации [`Spinlock`].
 pub mod spinlock;
 
+/// SPSC очередь без ожидания [`Spsc`].
+pub mod spsc;
+
+pub use cache_aligned::CacheAligned;
 pub use irq_spinlock::{
     IrqSpinlock,
     IrqSpinlockGuard,
@@ -30,3 +38,4 @@ pub use spinlock::{
     Spinlock,
     SpinlockGuard,
 };
+pub use spsc::Spsc;
