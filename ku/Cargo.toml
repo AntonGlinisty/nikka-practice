@@ -49,9 +49,11 @@ wee_alloc = { version = "*", optional = true }
 sentinel_frame = { path = "../sentinel_frame" }
 
 [dev-dependencies]
+affinity = "*"
 anyhow = "*"
 criterion = { version = "*", features = ["html_reports"] }
 ctor = "*"
+dtor = "*"
 nix = { version = "0.27.*", features = ["mman"] }
 rand = { version = "*", default-features = false, features = ["alloc", "small_rng"] }
 rstest = "*"
