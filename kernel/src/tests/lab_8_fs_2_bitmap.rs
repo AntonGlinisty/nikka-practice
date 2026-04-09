@@ -3,6 +3,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use chrono::Duration;
+use opt_level::OPT_LEVEL;
 
 use ku::{
     error::Error::NoDisk,
@@ -147,9 +148,16 @@ fn allocation_has_amortized_constant_complexity() {
         assert_eq!(bitmap.allocate(), Err(NoDisk));
         let elapsed = timer.elapsed();
 
-        let limit = Duration::microseconds(20 * i64::try_from(total_elements).unwrap());
+        let limit = Duration::microseconds(
+            i64::try_from(total_elements).unwrap() *
+                if OPT_LEVEL == "2" || OPT_LEVEL == "3" {
+                    1
+                } else {
+                    20
+                },
+        );
         let limit = TscDuration::try_from(limit).unwrap();
-        debug!(%elapsed, count = elements.clone().count(), ?elements, %limit);
+        debug!(%elapsed, count = elements.clone().count(), ?elements, opt_level = OPT_LEVEL, %limit);
         assert!(
             elapsed < limit,
             "Block::allocation() has wrong time complexity",

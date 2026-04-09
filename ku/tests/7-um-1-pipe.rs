@@ -1,5 +1,7 @@
 #![deny(warnings)]
 #![feature(allocator_api)]
+#![feature(const_cmp)]
+#![feature(const_trait_impl)]
 
 use std::{
     fmt,
@@ -11,6 +13,7 @@ use std::{
     vec::Vec,
 };
 
+use opt_level::OPT_LEVEL;
 use rand::{
     Rng,
     SeedableRng,
@@ -51,10 +54,11 @@ use allocator::BigForPipe;
 mod allocator;
 mod log;
 
+const OPTIMIZED_BUILD: bool = OPT_LEVEL == "2" || OPT_LEVEL == "3";
 const QUALITY: Quality = Quality::Paranoid;
 const SEED: u64 = 314159265;
 const WINDOW_DURATION: Duration = Duration::from_millis(
-    if cfg!(debug_assertions) {
+    if cfg!(debug_assertions) || !OPTIMIZED_BUILD {
         500
     } else {
         50
@@ -237,10 +241,10 @@ fn sequential() {
 #[rstest]
 #[cfg_attr(not(miri), timeout(Duration::from_secs(300)))]
 fn concurrent() {
-    const ITERATIONS: u64 = if cfg!(debug_assertions) {
-        20
-    } else {
+    const ITERATIONS: u64 = if OPTIMIZED_BUILD {
         100
+    } else {
+        20
     };
 
     for iteration in 0 .. ITERATIONS {
@@ -307,7 +311,7 @@ fn read_thread(
                 read_stats = ?read_buffer.read_stats(),
             );
 
-            let min_throughput = if cfg!(debug_assertions) {
+            let min_throughput = if cfg!(debug_assertions) || !OPTIMIZED_BUILD {
                 MiB
             } else {
                 500 * MiB
@@ -339,10 +343,10 @@ fn write_thread(
 
     let mut window_begin = Instant::now();
 
-    const WRITE_TRANSACTIONS: u64 = if cfg!(debug_assertions) {
-        10_000
-    } else {
+    const WRITE_TRANSACTIONS: u64 = if OPTIMIZED_BUILD {
         100_000
+    } else {
+        10_000
     };
 
     for write_tx in 0 .. WRITE_TRANSACTIONS {

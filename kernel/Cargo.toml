@@ -39,6 +39,7 @@ serial = { path = "../serial" }
 [dev-dependencies]
 enum-iterator = "*"
 introsort = { version = "*", default-features = false }
+opt-level = "*"
 xmas-elf = "*"
 
 [features]

@@ -963,6 +963,7 @@ dependencies = [
  "memoffset",
  "num-integer",
  "num_enum",
+ "opt-level",
  "pic8259",
  "postcard",
  "rand",
@@ -1007,6 +1008,7 @@ dependencies = [
  "num-traits",
  "num_enum",
  "number_prefix",
+ "opt-level",
  "postcard",
  "rand",
  "ring-alloc",
@@ -1304,6 +1306,12 @@ name = "oorandom"
 version = "11.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6790f58c7ff633d8771f42965289203411a5e5c68388703c06e14f24770b41e"
+
+[[package]]
+name = "opt-level"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e98329f1048d878d11b28949196b798b93e2f1e0f98121cca55d6b3e1a91030f"
 
 [[package]]
 name = "overload"

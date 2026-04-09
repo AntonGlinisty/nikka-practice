@@ -55,6 +55,7 @@ criterion = { version = "*", features = ["html_reports"] }
 ctor = "*"
 dtor = "*"
 nix = { version = "0.27.*", features = ["mman"] }
+opt-level = "*"
 rand = { version = "*", default-features = false, features = ["alloc", "small_rng"] }
 rstest = "*"
 serde = { version = "*", default-features = false, features = ["alloc", "derive"] }
