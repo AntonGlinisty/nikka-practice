@@ -26,7 +26,6 @@ use kernel::{
             PageTableFlags,
         },
         test_scaffolding::{
-            get_pte,
             iter_mut,
             path,
             phys2virt,
@@ -82,8 +81,7 @@ fn t04_huge_page() {
     let phys2virt = phys2virt(&address_space);
     let phys2virt_start = phys2virt.map(Phys::default()).unwrap();
 
-    let path = path(&mut address_space, phys2virt_start);
-    let result = get_pte(&path);
+    let result = path(&mut address_space, phys2virt_start).flags();
     assert_eq!(result, Err(Unimplemented));
 
     drop(address_space);
@@ -100,9 +98,9 @@ fn t05_no_page() {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
     let virt = mm_helpers::unique_user_virt();
-    let pte = path(&mut address_space, virt).pte();
+    let result = path(&mut address_space, virt).flags();
 
-    assert_eq!(pte, Err(NoPage));
+    assert_eq!(result, Err(NoPage));
 }
 
 #[test_case]
@@ -199,7 +197,7 @@ fn t08_garbage_after_unmap() {
         virt_path.map(frame, PageTableFlags::PRESENT).unwrap();
         virt_path.unmap().unwrap();
     }
-    let pte = get_pte(&virt_path).unwrap();
+    let pte = virt_path.pte().unwrap();
 
     let expected_pte = PageTableEntry::default();
 
@@ -337,11 +335,11 @@ fn t10_path_after_map() {
         path_a.map(FrameGuard::allocate().unwrap(), USER_R).unwrap();
     }
     debug!(path_after_map = %path_a);
-    let pte_a = *get_pte(&path_a).unwrap();
+    let pte_a = *path_a.pte().unwrap();
 
     let mut path_b = path(&mut address_space, virt);
     debug!(%path_b);
-    let pte_b = *get_pte(&path_b).unwrap();
+    let pte_b = *path_b.pte().unwrap();
 
     unsafe {
         path_b.unmap().unwrap();

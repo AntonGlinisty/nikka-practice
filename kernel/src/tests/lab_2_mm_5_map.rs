@@ -155,14 +155,14 @@ fn map_twice() {
     unsafe { map_page(&mut address_space, page, KERNEL_R).unwrap() };
     let old_frame = unsafe { path(&mut address_space, page.address()).pte().unwrap().frame() };
 
-    let pte = path(&mut address_space, virt).pte().unwrap();
-    assert_eq!(KERNEL_R, pte.flags());
+    let flags = path(&mut address_space, virt).flags().unwrap();
+    assert_eq!(flags, KERNEL_R);
 
     unsafe { map_page(&mut address_space, page, KERNEL_RW).unwrap() };
     let new_frame = unsafe { path(&mut address_space, page.address()).pte().unwrap().frame() };
 
-    let pte = path(&mut address_space, virt).pte().unwrap();
-    assert_eq!(KERNEL_RW, pte.flags());
+    let flags = path(&mut address_space, virt).flags().unwrap();
+    assert_eq!(flags, KERNEL_RW);
 
     let hacked_frame = unsafe { map_page(&mut address_space, page, USER_R) };
     assert_eq!(hacked_frame, Err(PermissionDenied));

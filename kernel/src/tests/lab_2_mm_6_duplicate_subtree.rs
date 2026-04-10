@@ -104,8 +104,8 @@ fn duplicate_and_drop() {
     assert!(start_free_frames > free_frames);
 
     {
-        let pte = path(&mut address_space, b).pte();
-        assert_eq!(pte, Err(NoPage));
+        let result = path(&mut address_space, b).flags();
+        assert_eq!(result, Err(NoPage));
     }
 
     let end_free_frames = map_in_duplicate(&mut address_space, true, false, b);

@@ -448,7 +448,7 @@ impl BootMemory {
         let mut address_space = BASE_ADDRESS_SPACE.lock();
 
         for (flags, page) in original_flags.iter_mut().zip(code_pages) {
-            *flags = address_space.path(page.address()).pte()?.flags();
+            *flags = address_space.path(page.address()).flags()?;
         }
         unsafe {
             address_space.remap_block(code_pages, KERNEL_RX)?;

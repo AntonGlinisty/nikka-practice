@@ -352,7 +352,7 @@ fn copy_mapping_same_block() {
         &mut address_space,
         block.into_iter().next().unwrap().address(),
     );
-    assert!(!path.pte().unwrap().is_writable());
+    assert!(!path.flags().unwrap().is_writable());
 
     let slice =
         unsafe { block.try_into_mut_slice::<MaybeUninit<usize>>().unwrap().assume_init_mut() };

@@ -23,10 +23,7 @@ use kernel::{
     log::debug,
     memory::{
         BASE_ADDRESS_SPACE,
-        test_scaffolding::{
-            get_pte,
-            path,
-        },
+        test_scaffolding::path,
     },
 };
 
@@ -56,7 +53,7 @@ fn read_what_was_written() {
         };
         let virt = Virt::from_ref(actual);
         let actual = unsafe { virt.try_into_ptr::<usize>().unwrap().read_volatile() };
-        let flags = get_pte(&path(&mut BASE_ADDRESS_SPACE.lock(), virt)).unwrap().flags();
+        let flags = path(&mut BASE_ADDRESS_SPACE.lock(), virt).flags().unwrap();
         if actual != expected || i.is_multiple_of(777) {
             debug!(i, block, %flags, actual, expected);
         }

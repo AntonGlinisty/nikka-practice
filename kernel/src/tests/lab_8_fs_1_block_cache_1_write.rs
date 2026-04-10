@@ -24,10 +24,7 @@ use kernel::{
     log::debug,
     memory::{
         BASE_ADDRESS_SPACE,
-        test_scaffolding::{
-            get_pte,
-            path,
-        },
+        test_scaffolding::path,
     },
 };
 
@@ -68,7 +65,7 @@ fn write() {
 
     for block in 0 .. (len * mem::size_of_val(&slice[0])).div_ceil(BLOCK_SIZE) {
         let virt = cache.address(block * BLOCK_SIZE).unwrap();
-        let flags = get_pte(&path(&mut BASE_ADDRESS_SPACE.lock(), virt)).unwrap().flags();
+        let flags = path(&mut BASE_ADDRESS_SPACE.lock(), virt).flags().unwrap();
         assert_eq!(
             flags,
             KERNEL_RW | PageTableFlags::ACCESSED | PageTableFlags::DIRTY,
@@ -76,7 +73,7 @@ fn write() {
 
         if block.is_multiple_of(2) {
             flush_block(block).unwrap();
-            let flags = get_pte(&path(&mut BASE_ADDRESS_SPACE.lock(), virt)).unwrap().flags();
+            let flags = path(&mut BASE_ADDRESS_SPACE.lock(), virt).flags().unwrap();
             debug!(block, %flags, "flush");
             assert_eq!(flags, KERNEL_RW | PageTableFlags::ACCESSED);
             write_count += 1;

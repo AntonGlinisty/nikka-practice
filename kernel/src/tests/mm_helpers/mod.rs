@@ -46,7 +46,6 @@ use kernel::memory::{
     FrameGuard,
     test_scaffolding::{
         deepest_pte,
-        get_pte,
         nodes,
         page_table_root,
         path,
@@ -69,9 +68,8 @@ pub(super) fn check_intermediate_flags(
     );
 
     let leaf_flags = PageTableFlags::EXECUTABLE;
-    let pte = path.pte().unwrap();
     assert_eq!(
-        pte.flags(),
+        path.flags().unwrap(),
         leaf_flags,
         "leaf page table flags are incorrect",
     );
@@ -190,7 +188,7 @@ pub(super) fn map_intermediate(
     unsafe {
         path.map(frame, flags)?;
     }
-    let pte = *get_pte(&path)?;
+    let pte = *path.pte()?;
     unsafe {
         path.unmap()?;
     }
@@ -226,7 +224,7 @@ pub(super) fn test_path(address_space: &mut AddressSpace) {
     debug!("    pte = {pte:?}");
     assert_eq!(level, PAGE_TABLE_LEAF_LEVEL);
     assert!(pte.is_present());
-    assert!(get_pte(&present_path).is_ok());
+    assert!(present_path.flags().is_ok());
     check_path(address_space, present_virt);
 
     let non_present_virt = unique_user_virt();
@@ -244,7 +242,7 @@ pub(super) fn test_path(address_space: &mut AddressSpace) {
         "nodes should be addresses of PageTableEntries, not addresses of PageTables",
     );
     assert!(!pte.is_present());
-    assert_eq!(get_pte(&non_present_path), Err(NoPage));
+    assert_eq!(non_present_path.flags(), Err(NoPage));
     check_path(address_space, non_present_virt);
 
     let huge_virt = phys2virt(address_space).map(Phys::new(7 * MiB).unwrap()).unwrap();
@@ -261,7 +259,7 @@ pub(super) fn test_path(address_space: &mut AddressSpace) {
     );
     assert!(pte.is_present());
     assert!(pte.is_huge(level));
-    assert_eq!(get_pte(&huge_path), Err(Unimplemented));
+    assert_eq!(huge_path.flags(), Err(Unimplemented));
     check_path(address_space, huge_virt);
 }
 

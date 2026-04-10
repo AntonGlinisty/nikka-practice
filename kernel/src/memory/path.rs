@@ -121,9 +121,10 @@ impl<'a> Path<'a> {
         MappedBlock::new(flags, frames, pages)
     }
 
-    //    pub fn flags(&self) -> Result<PageTableFlags> {
-    //        self.get().map(|pte| pte.flags())
-    //    }
+    /// Листьевые флаги доступа к странице, которую описывает этот [`Path`].
+    pub fn flags(&self) -> Result<PageTableFlags> {
+        self.pte().map(|pte| pte.flags())
+    }
 
     /// Устанавливает флаги доступа к странице, в которую ведёт этот [`Path`].
     ///
@@ -405,8 +406,6 @@ impl<'a> fmt::Display for Path<'a> {
 pub(super) mod test_scaffolding {
     use core::ptr::NonNull;
 
-    use ku::error::Result;
-
     use super::super::mmu::{
         PAGE_TABLE_LEVEL_COUNT,
         PageTableEntry,
@@ -417,14 +416,6 @@ pub(super) mod test_scaffolding {
     pub fn deepest_pte<'a>(path: &'a Path<'a>) -> (u32, &'a PageTableEntry) {
         path.deepest_pte()
     }
-
-    pub fn get_pte<'a>(path: &'a Path<'a>) -> Result<&'a PageTableEntry> {
-        path.pte()
-    }
-
-    //    pub fn get_pte_mut<'a>(path: &'a mut Path<'a>) -> Result<&'a mut PageTableEntry> {
-    //        path.get_mut()
-    //    }
 
     pub fn nodes(path: &Path) -> [Option<NonNull<PageTableEntry>>; PAGE_TABLE_LEVEL_COUNT] {
         path.nodes

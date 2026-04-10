@@ -28,7 +28,6 @@ use ku::{
 use kernel::{
     Subsystems,
     memory::test_scaffolding::{
-        get_pte,
         path,
         switch_to,
     },
@@ -229,7 +228,7 @@ fn map_syscall_group() {
         let mut process = process.lock();
         let mut address_space = process.address_space();
         let path = path(&mut address_space, virt);
-        let actual_flags = get_pte(&path).unwrap().flags();
+        let actual_flags = path.flags().unwrap();
         debug!(%actual_flags, %expected_flags);
         assert_eq!(actual_flags, expected_flags);
     }

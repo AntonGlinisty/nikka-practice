@@ -54,6 +54,7 @@ use crate::{
     },
     memory::{
         self,
+        AddressSpace,
         Block,
         FrameGuard,
         KERNEL_RW,
@@ -425,7 +426,7 @@ fn check_block(
 ///   - [`Error::PermissionDenied`] если страница отображена,
 ///     но не со всеми запрошенными флагами.
 fn check_frame(
-    process: &SpinlockGuard<Process>,
+    address_space: &mut AddressSpace,
     page: Page,
     flags: PageTableFlags,
 ) -> Result<PageTableEntry> {
