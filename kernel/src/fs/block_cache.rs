@@ -30,7 +30,6 @@ use ku::{
 use crate::memory::{
     BASE_ADDRESS_SPACE,
     Translate,
-    mmu,
 };
 
 use super::{

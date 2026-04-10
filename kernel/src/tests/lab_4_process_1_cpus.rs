@@ -11,7 +11,7 @@ use kernel::{
         FULL_ACCESS,
         KERNEL_RW,
         Page,
-        test_scaffolding::translate,
+        test_scaffolding::path,
     },
     smp::test_scaffolding::{
         cpu_count,
@@ -53,7 +53,7 @@ fn kernel_stacks() {
 
         for stack_page in stack.enclosing() {
             let stack_pte =
-                translate(&mut address_space, stack_page.address()).expect(stack_mapping_error);
+                path(&mut address_space, stack_page.address()).pte().expect(stack_mapping_error);
             let stack_frame = unsafe { stack_pte.frame().expect(stack_mapping_error) };
             let stack_flags = stack_pte.flags();
 
@@ -77,7 +77,8 @@ fn kernel_stacks() {
         }
 
         for stack_guard_page in stack_guard.enclosing() {
-            let stack_guard_frame = translate(&mut address_space, stack_guard_page.address())
+            let stack_guard_frame = path(&mut address_space, stack_guard_page.address())
+                .pte()
                 .and_then(|pte| unsafe { pte.frame() });
 
             info!(cpu, ?stack_guard_frame);

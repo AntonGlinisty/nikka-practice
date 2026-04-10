@@ -121,6 +121,10 @@ impl<'a> Path<'a> {
         MappedBlock::new(flags, frames, pages)
     }
 
+    //    pub fn flags(&self) -> Result<PageTableFlags> {
+    //        self.get().map(|pte| pte.flags())
+    //    }
+
     /// Устанавливает флаги доступа к странице, в которую ведёт этот [`Path`].
     ///
     /// Если это необходимо, корректирует промежуточные флаги.
@@ -130,7 +134,7 @@ impl<'a> Path<'a> {
     ///
     /// Если промежуточного или нужного листьевого узла таблицы страниц нет,
     /// возвращает ошибку [`Error::NoPage`].
-    pub(super) fn set_flags(
+    pub(crate) fn set_flags(
         &mut self,
         flags: PageTableFlags,
     ) -> Result<()> {
@@ -161,6 +165,28 @@ impl<'a> Path<'a> {
         self.virt
     }
 
+    /// Возвращает листьевую [`PageTableEntry`], которая отвечает за отображение адреса [`Path::virt`].
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::NoPage`] --- промежуточного или нужного листьевого узла таблицы страниц нет.
+    /// - [`Error::Unimplemented`] --- промежуточный узел таблицы страниц
+    ///   имеет флаг [`PageTableFlags::HUGE`].
+    pub fn pte(&self) -> Result<&'a PageTableEntry> {
+        self.get_pte()
+    }
+
+    /// Возвращает листьевую [`PageTableEntry`], которая отвечает за отображение адреса [`Path::virt`].
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::NoPage`] --- промежуточного или нужного листьевого узла таблицы страниц нет.
+    /// - [`Error::Unimplemented`] --- промежуточный узел таблицы страниц
+    ///   имеет флаг [`PageTableFlags::HUGE`].
+    fn pte_mut(&mut self) -> Result<&'a mut PageTableEntry> {
+        self.get_pte_mut()
+    }
+
     #[allow(rustdoc::private_intra_doc_links)]
     /// Возвращает листьевую [`PageTableEntry`], которая отвечает за отображение адреса [`Path::virt`].
     ///
@@ -172,10 +198,10 @@ impl<'a> Path<'a> {
     #[allow(clippy::needless_arbitrary_self_type)]
     #[duplicate_item(
         getter self_type return_type deepest_pte_getter;
-        [get] [&Self] [&'a PageTableEntry] [deepest_pte];
-        [get_mut] [&mut Self] [&'a mut PageTableEntry] [deepest_pte_mut];
+        [get_pte] [&Self] [&'a PageTableEntry] [deepest_pte];
+        [get_pte_mut] [&mut Self] [&'a mut PageTableEntry] [deepest_pte_mut];
     )]
-    pub fn getter(self: self_type) -> Result<return_type> {
+    fn getter(self: self_type) -> Result<return_type> {
         let (level, pte) = self.deepest_pte_getter();
 
         if level == PAGE_TABLE_LEAF_LEVEL {
@@ -393,8 +419,12 @@ pub(super) mod test_scaffolding {
     }
 
     pub fn get_pte<'a>(path: &'a Path<'a>) -> Result<&'a PageTableEntry> {
-        path.get()
+        path.pte()
     }
+
+    //    pub fn get_pte_mut<'a>(path: &'a mut Path<'a>) -> Result<&'a mut PageTableEntry> {
+    //        path.get_mut()
+    //    }
 
     pub fn nodes(path: &Path) -> [Option<NonNull<PageTableEntry>>; PAGE_TABLE_LEVEL_COUNT] {
         path.nodes

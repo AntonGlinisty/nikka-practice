@@ -22,7 +22,6 @@ use kernel::{
             map_page,
             path,
             switch_to,
-            translate,
             unmap_page,
             user_root_level_entries,
         },
@@ -42,7 +41,7 @@ fn basic() {
         unsafe { BASE_ADDRESS_SPACE.lock().map_slice_zeroed::<usize>(1, KERNEL_RW).unwrap() };
     let virt = Virt::from_ref(&variable[0]);
     let frame =
-        unsafe { translate(&mut BASE_ADDRESS_SPACE.lock(), virt).unwrap().frame().unwrap() };
+        unsafe { path(&mut BASE_ADDRESS_SPACE.lock(), virt).pte().unwrap().frame().unwrap() };
 
     let reference_count = FRAME_ALLOCATOR.lock().reference_count(frame).unwrap();
     debug!(%virt, %frame, %reference_count, "one address space");
@@ -56,8 +55,8 @@ fn basic() {
     assert_eq!(reference_count, 2);
 
     let ptes = [
-        translate(&mut address_space, virt).unwrap(),
-        translate(&mut address_space_copy, virt).unwrap(),
+        path(&mut address_space, virt).pte().unwrap(),
+        path(&mut address_space_copy, virt).pte().unwrap(),
     ];
     let pte_addresses = [Virt::from_ref(ptes[0]), Virt::from_ref(ptes[1])];
 
@@ -105,7 +104,7 @@ fn duplicate_and_drop() {
     assert!(start_free_frames > free_frames);
 
     {
-        let pte = translate(&mut address_space, b);
+        let pte = path(&mut address_space, b).pte();
         assert_eq!(pte, Err(NoPage));
     }
 
@@ -177,7 +176,7 @@ fn all_frames_are_freed_on_drop() {
             map_page(&mut address_space, page, flags).unwrap();
         }
         let frame =
-            unsafe { translate(&mut address_space, page.address()).unwrap().frame().unwrap() };
+            unsafe { path(&mut address_space, page.address()).pte().unwrap().frame().unwrap() };
         debug!(%page, %frame, ?flags);
     }
 }
@@ -198,8 +197,8 @@ fn garbage_in_duplicate() {
     let mut address_space_copy = duplicate(&address_space).unwrap();
 
     let ptes = [
-        translate(&mut address_space, virt).unwrap(),
-        translate(&mut address_space_copy, virt).unwrap(),
+        path(&mut address_space, virt).pte().unwrap(),
+        path(&mut address_space_copy, virt).pte().unwrap(),
     ];
     let pte_addresses = [Virt::from_ref(ptes[0]), Virt::from_ref(ptes[1])];
 
@@ -211,8 +210,8 @@ fn garbage_in_duplicate() {
 
     for neighbour in 1 .. PAGE_TABLE_ENTRY_COUNT {
         let neighbour_virt = (virt + neighbour * Page::SIZE).unwrap();
-        let expected_neighbour_pte = translate(&mut address_space, neighbour_virt).unwrap();
-        let neighbour_pte = translate(&mut address_space_copy, neighbour_virt).unwrap();
+        let expected_neighbour_pte = path(&mut address_space, neighbour_virt).pte().unwrap();
+        let neighbour_pte = path(&mut address_space_copy, neighbour_virt).pte().unwrap();
         if *neighbour_pte != *expected_neighbour_pte {
             debug!(?neighbour_pte, ?expected_neighbour_pte);
         }
@@ -249,8 +248,8 @@ fn duplicate_only_kernel() {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
     let ptes = [
-        translate(&mut address_space, virt).unwrap(),
-        translate(&mut address_space_copy, virt).unwrap(),
+        path(&mut address_space, virt).pte().unwrap(),
+        path(&mut address_space_copy, virt).pte().unwrap(),
     ];
     debug!(?ptes);
     assert!(ptes[0].is_present());

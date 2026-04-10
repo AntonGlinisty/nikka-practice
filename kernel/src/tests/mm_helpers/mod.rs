@@ -51,7 +51,6 @@ use kernel::memory::{
         page_table_root,
         path,
         phys2virt,
-        translate,
         user_pages,
     },
 };
@@ -70,7 +69,7 @@ pub(super) fn check_intermediate_flags(
     );
 
     let leaf_flags = PageTableFlags::EXECUTABLE;
-    let pte = translate(address_space, virt).unwrap();
+    let pte = path.pte().unwrap();
     assert_eq!(
         pte.flags(),
         leaf_flags,
@@ -273,7 +272,7 @@ pub(super) fn test_translate(address_space: &mut AddressSpace) {
 
     let virt = Virt::from_ptr(&raw const VARIABLE);
 
-    let pte = translate(address_space, virt).unwrap();
+    let pte = path(address_space, virt).pte().unwrap();
 
     debug!(?pte);
 

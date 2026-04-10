@@ -32,7 +32,7 @@ use kernel::{
             kernel_root_level_entries,
             map_page,
             map_page_to_frame,
-            translate,
+            path,
             unmap_page,
             user_root_level_entries,
         },
@@ -86,7 +86,7 @@ fn map_readable() {
 
     let page = Page::containing(mm_helpers::unique_kernel_virt());
     unsafe { map_page(&mut address_space, page, KERNEL_R).unwrap() };
-    let frame = unsafe { translate(&mut address_space, page.address()).unwrap().frame().unwrap() };
+    let frame = unsafe { path(&mut address_space, page.address()).pte().unwrap().frame().unwrap() };
     debug!(%page, %frame);
 
     unsafe {
@@ -123,7 +123,7 @@ fn check_map_writable(
     }
 
     unsafe { map_page(&mut address_space, page, KERNEL_RW).unwrap() };
-    let frame = unsafe { translate(&mut address_space, page.address()).unwrap().frame().unwrap() };
+    let frame = unsafe { path(&mut address_space, page.address()).pte().unwrap().frame().unwrap() };
     debug!(%page, %frame);
 
     unsafe {
@@ -153,15 +153,15 @@ fn map_twice() {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
     unsafe { map_page(&mut address_space, page, KERNEL_R).unwrap() };
-    let old_frame = unsafe { translate(&mut address_space, page.address()).unwrap().frame() };
+    let old_frame = unsafe { path(&mut address_space, page.address()).pte().unwrap().frame() };
 
-    let pte = translate(&mut address_space, virt).unwrap();
+    let pte = path(&mut address_space, virt).pte().unwrap();
     assert_eq!(KERNEL_R, pte.flags());
 
     unsafe { map_page(&mut address_space, page, KERNEL_RW).unwrap() };
-    let new_frame = unsafe { translate(&mut address_space, page.address()).unwrap().frame() };
+    let new_frame = unsafe { path(&mut address_space, page.address()).pte().unwrap().frame() };
 
-    let pte = translate(&mut address_space, virt).unwrap();
+    let pte = path(&mut address_space, virt).pte().unwrap();
     assert_eq!(KERNEL_RW, pte.flags());
 
     let hacked_frame = unsafe { map_page(&mut address_space, page, USER_R) };

@@ -65,7 +65,7 @@ use kernel::{
         },
         test_scaffolding::{
             PAGES_PER_ROOT_LEVEL_ENTRY,
-            translate,
+            path,
             user_root_level_entries,
         },
     },
@@ -272,8 +272,8 @@ fn copy_mapping_frame_references() {
         debug!(%a, %b, "blocks should be equal");
 
         for (a_page, b_page) in a.into_iter().zip(b) {
-            let a_pte = translate(address_space, a_page.address()).map(|pte| *pte);
-            let b_pte = translate(address_space, b_page.address()).map(|pte| *pte);
+            let a_pte = path(address_space, a_page.address()).pte().map(|pte| *pte);
+            let b_pte = path(address_space, b_page.address()).pte().map(|pte| *pte);
             debug!(?a_pte, ?b_pte);
             assert_eq!(a_pte, b_pte);
         }
@@ -287,7 +287,7 @@ fn copy_mapping_frame_references() {
         debug!(%block, expected_reference_count);
 
         for page in block {
-            let translate_result = translate(address_space, page.address());
+            let translate_result = path(address_space, page.address()).pte();
             if let Ok(pte) = translate_result {
                 let reference_count = FRAME_ALLOCATOR
                     .lock()
@@ -313,7 +313,7 @@ fn copy_mapping_frame_references() {
         debug!(%block, should_be_mapped);
 
         for page in block {
-            let translate_result = translate(address_space, page.address());
+            let translate_result = path(address_space, page.address()).pte();
             if let Ok(pte) = translate_result {
                 debug!(%page, ?pte);
                 assert_eq!(pte.is_present(), should_be_mapped, "pte: {pte:?}");
@@ -348,12 +348,11 @@ fn copy_mapping_same_block() {
             .unwrap();
     }
 
-    let pte = translate(
+    let path = path(
         &mut address_space,
         block.into_iter().next().unwrap().address(),
-    )
-    .unwrap();
-    assert!(!pte.is_writable());
+    );
+    assert!(!path.pte().unwrap().is_writable());
 
     let slice =
         unsafe { block.try_into_mut_slice::<MaybeUninit<usize>>().unwrap().assume_init_mut() };
@@ -507,7 +506,7 @@ fn check_frames<T>(
     let block = Block::from_slice(vec.as_slice()).enclosing();
     let mut frames = Vec::with_capacity(block.count());
     for page in block {
-        let mut pte = *translate(&mut BASE_ADDRESS_SPACE.lock(), page.address()).unwrap();
+        let mut pte = *path(&mut BASE_ADDRESS_SPACE.lock(), page.address()).pte().unwrap();
         pte.set_flags(pte.flags() & !(PageTableFlags::ACCESSED | PageTableFlags::DIRTY));
         frames.push(pte)
     }

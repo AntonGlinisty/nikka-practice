@@ -30,7 +30,6 @@ use kernel::{
             iter_mut,
             path,
             phys2virt,
-            translate,
         },
     },
 };
@@ -101,7 +100,7 @@ fn t05_no_page() {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
     let virt = mm_helpers::unique_user_virt();
-    let pte = translate(&mut address_space, virt);
+    let pte = path(&mut address_space, virt).pte();
 
     assert_eq!(pte, Err(NoPage));
 }
@@ -194,13 +193,13 @@ fn t08_garbage_after_unmap() {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
     let virt = Virt::new(0x0000_4000_0000_0000).unwrap();
-    let mut path = path(&mut address_space, virt);
+    let mut virt_path = path(&mut address_space, virt);
     unsafe {
         let frame = FrameGuard::allocate().unwrap();
-        path.map(frame, PageTableFlags::PRESENT).unwrap();
-        path.unmap().unwrap();
+        virt_path.map(frame, PageTableFlags::PRESENT).unwrap();
+        virt_path.unmap().unwrap();
     }
-    let pte = get_pte(&path).unwrap();
+    let pte = get_pte(&virt_path).unwrap();
 
     let expected_pte = PageTableEntry::default();
 
@@ -213,7 +212,7 @@ fn t08_garbage_after_unmap() {
 
     for neighbour in 1 .. PAGE_TABLE_ENTRY_COUNT {
         let neighbour_virt = (virt + neighbour * Page::SIZE).unwrap();
-        let neighbour_pte = translate(&mut address_space, neighbour_virt).unwrap();
+        let neighbour_pte = path(&mut address_space, neighbour_virt).pte().unwrap();
         if *neighbour_pte != expected_pte {
             debug!(?neighbour_pte, ?expected_pte);
         }

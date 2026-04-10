@@ -774,10 +774,11 @@ pub(super) mod test_scaffolding {
             },
             mmu::{
                 PageTable,
-                PageTableEntry,
+                // PageTableEntry,
                 PageTableFlags,
             },
             page_allocator::test_scaffolding::block,
+            // path::test_scaffolding::get_pte_mut,
         },
         AddressSpace,
         Phys2Virt,
@@ -855,12 +856,12 @@ pub(super) mod test_scaffolding {
         address_space.switch_to();
     }
 
-    pub fn translate(
-        address_space: &mut AddressSpace,
-        virt: Virt,
-    ) -> Result<&mut PageTableEntry> {
-        address_space.translate(virt)
-    }
+    //    pub fn translate(
+    //        address_space: &mut AddressSpace,
+    //        virt: Virt,
+    //    ) -> Result<&mut PageTableEntry> {
+    //        get_pte_mut(&mut address_space.path(virt))
+    //    }
 
     pub fn unmap_unused_intermediate(address_space: &mut AddressSpace) {
         address_space.unmap_unused_intermediate();

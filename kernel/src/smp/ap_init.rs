@@ -448,7 +448,7 @@ impl BootMemory {
         let mut address_space = BASE_ADDRESS_SPACE.lock();
 
         for (flags, page) in original_flags.iter_mut().zip(code_pages) {
-            *flags = address_space.translate(page.address())?.flags();
+            *flags = address_space.path(page.address()).pte()?.flags();
         }
         unsafe {
             address_space.remap_block(code_pages, KERNEL_RX)?;
@@ -498,9 +498,9 @@ impl Drop for BootMemory {
 
         for (flags, page) in self.original_flags.iter().zip(self.code_pages) {
             address_space
-                .translate(page.address())
-                .expect("the page should be mapped")
-                .set_flags(*flags);
+                .path(page.address())
+                .set_flags(*flags)
+                .expect("the page should be mapped");
         }
 
         self.data.clone_from_slice(self.original_data);
