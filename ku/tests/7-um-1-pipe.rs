@@ -5,6 +5,10 @@
 
 use std::{
     fmt,
+    sync::atomic::{
+        AtomicU8,
+        Ordering,
+    },
     thread,
     time::{
         Duration,
@@ -46,6 +50,11 @@ use ku::{
             MiB,
             Size,
         },
+    },
+    pipe::test_scaffolding::{
+        CLEAR,
+        WRITTEN,
+        tx_head_tail,
     },
 };
 
@@ -192,6 +201,65 @@ fn writer_close(#[case] corrupt: bool) {
     }
 
     assert!(read_buffer.read_tx().is_none());
+
+    allocator.unmap();
+}
+
+#[rstest]
+#[cfg_attr(not(miri), timeout(Duration::from_secs(5)))]
+fn future_record_is_clear() {
+    const ITERATIONS: u64 = 100_000;
+
+    let mut allocator = BigForPipe::new(false);
+
+    let (mut read_buffer, mut write_buffer) = pipe::make(1, &mut allocator).unwrap();
+
+    let read_thread = thread::Builder::new()
+        .name("read_thread".to_string())
+        .spawn(move || {
+            let mut iteration = 0;
+            let block = read_buffer.block();
+
+            while iteration <= ITERATIONS {
+                let mut read_tx = read_buffer.read_tx().unwrap();
+
+                if unsafe { read_tx.read().is_none() } {
+                    continue;
+                }
+
+                let (_, tail) = tx_head_tail(&read_tx);
+                let future_header = block.address(tail).unwrap();
+                let future_header = unsafe { future_header.try_into_ref::<AtomicU8>().unwrap() };
+                let future_header_state = future_header.load(Ordering::Relaxed);
+                assert!(future_header_state == CLEAR || future_header_state == WRITTEN);
+
+                read_tx.commit();
+
+                iteration += 1;
+            }
+        })
+        .unwrap();
+
+    let write_thread = thread::Builder::new()
+        .name("write_thread".to_string())
+        .spawn(move || {
+            let mut iteration = 0;
+
+            while iteration <= ITERATIONS {
+                let mut write_tx = write_buffer.write_tx().unwrap();
+
+                if write_tx.write(&[0]).is_err() {
+                    continue;
+                }
+
+                write_tx.commit();
+                iteration += 1;
+            }
+        })
+        .unwrap();
+
+    assert!(read_thread.join().is_ok());
+    assert!(write_thread.join().is_ok());
 
     allocator.unmap();
 }
