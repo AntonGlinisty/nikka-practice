@@ -140,7 +140,7 @@ Single-Producer Single-Consumer (SPSC) очередь без ожидания (w
 Поэтому он не может затереть остальные заголовки по модулю цикличности буфера.
 Но так как буфер циклический, то он может быть записан поверх чего-то уже обработанного ---
 пользовательских байтов или старого полностью обработанного заголовка.
-Но не может быть записан поверх ещё актуальных данных или заголовка
+Но не может быть записан поверх ещё актуальных данных или актуального заголовка
 кроме [`Header::Read`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Read).
 Это должно контролироваться за счёт учёта
 [`RingBufferWriteTx::capacity()`](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#method.capacity)
@@ -155,7 +155,7 @@ Single-Producer Single-Consumer (SPSC) очередь без ожидания (w
 всегда пишется только поверх мусора, который уже не нужен.
 Любой другой заголовок всегда пишется только поверх валидного заголовка:
 - Заголовок [`Header::Clear`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Clear) может быть переведён в [`Header::Written`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Written) или [`Header::Closed`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Closed).
-- Заголовок [`Header::Written`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Written) может быть переведён в [`Header::Read`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Read) или [`Header::Closed`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Closed).
+- Заголовок [`Header::Written`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Written) может быть переведён в [`Header::Read`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Read) или в мусор, когда читающая сторона подтверждает несколько записей единым заголовком [`Header::Read`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Read). А также может быть переведён в [`Header::Closed`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Closed).
 - Заголовок [`Header::Read`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Read) после прочтения пишущей стороной превращается в мусор.
 - Заголовок [`Header::Closed`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Closed) навсегда остаётся [`Header::Closed`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Closed), поверх него уже ничего не пишется.
 
@@ -168,6 +168,28 @@ Single-Producer Single-Consumer (SPSC) очередь без ожидания (w
 Тогда новый заголовок мы не пишем.
 
 ![](6-um-1-pipe-header-state-diagram.svg)
+
+
+### Жизненный цикл данных
+
+С точки зрения данных каждая последующая операция над этими данными либо имеет такой же размер, либо укрупняется и содержит целое количество операций предыдущего уровня:
+1) несколько write("a"), write("b"), write("c") укрупняются до write commit("abc");
+2) за write commit("abc") следует не укрупняющая операция read("abc");
+3) несколько read("abc"), read("def"), read("ghi") укрупняются до read commit("abcdefghi").
+
+1 этап жизни данных) несколько write("a"), write("b"), write("c") укрупняются до write commit("abc") --- одна транзакция писателя состоит из нескольких write();
+2 этап жизни данных) за write commit("abc") следует не укрупняющая операция read("abc") --- одна транзакция писателя превращается ровно в один read() читателя;
+3 этап жизни данных) несколько read("abc"), read("def"), read("ghi") укрупняются до read commit("abcdefghi") --- одна транзакция читателя состоит из нескольких read().
+
+Запись (record) и её границы не являются неизменными на протяжении операций с одними и теми же данными.
+Границы записи для write commit и для read совпадают. Но границы одной записи для read commit могут быть шире и включать целое количество записей от write commit.
+
+read commit пишет поверх заголовка record "abc" заголовок для единой record("abcXXdefXXghi"), где XX -- байты заголовков.
+То есть поверх заголовка "abc" read commit не просто меняет статус прочитанности записи, он ещё и меняет размер записи.
+
+Если бы read commit прошёлся по всем трём record "abc", "def", "ghi", чтобы поправить статус прочитанности каждой из них не меняя размеры, то ему нужно было бы либо помнить где эти заголовки лежат, либо ещё раз вычислить их положения.
+
+Оба варианта дольше и программно сложнее чем записать один общий заголовок record("abcXXdefXXghi"). Второй вариант ещё и более небезопасный, так как злонамеренный писатель мог конкурентно перезаписать промежуточные заголовки.
 
 
 ### Чуть подробнее про инварианты
