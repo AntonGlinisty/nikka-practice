@@ -14,13 +14,39 @@
 Её код находится в файле
 [`ku/src/lru/mod.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/lru/mod.rs).
 Вы можете следовать предложенному скелету реализации или же сделать всё по-своему.
+
 Добавьте вытеснение блоков в вашу реализацию
-[`BlockCache::trap_handler()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.trap_handler).
+[`BlockCache::register_usage()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.register_usage):
+
+```rust
+{{#include ../../kernel/src/fs/block_cache.rs:register_usage}}
+```
+
+Используйте этот метод в
+[`BlockCache::trap_handler()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.trap_handler)
+и
+[`BlockCache::emplace_block()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.emplace_block).
+Убедитесь, что вызов метода
+[`BlockCache::fill_block()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.fill_block)
+также приведёт к учёту доступа к блоку и возможному вытеснению другого блока из кэша.
 
 Добавьте работу с кэшем путей файлов
 [`FileSystem::resolve_cache`](../../doc/kernel/fs/struct.FileSystem.html#structfield.resolve_cache)
 в вашу реализацию метода
 [`FileSystem::open()`](../../doc/kernel/fs/file_system/struct.FileSystem.html#method.open).
+
+
+#### Статистики политики вытеснения
+
+Для интроспекции LRU поддерживает статистики:
+
+```rust
+{{#include ../../ku/src/collections/lru.rs:stats}}
+```
+
+С помощью этих статистик в тестах выполняются проверки,
+что файловая система использует LRU для блочного кэша и кэширования путей.
+Чтобы тесты проходили, не забывайте обновлять статистики LRU в соответствующих случаях.
 
 
 ### Проверьте себя
@@ -45,6 +71,49 @@ test stress ... ok
 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.54s
 ```
 
+Также должны отработать тесты собственно файловой системы,
+которые проверяют использование политики вытеснения в блочном кэше и кэше путей файлов:
+
+```console
+$ (cd kernel; cargo test --features cache-eviction --test 7-fs-3-inode)
+...
+7_fs_3_inode::big_file--------------------------------------
+22:32:09.141 0 I formatted the file system; free_space = 31.859 MiB; disk = { id: 1, io_port: 0x1F0, io_disk: 1 }; block_size = 4.000 KiB; block_count = 8192; blocks = 36..8192; inode_size = 64 B; inodes = 3..2048; directory_entry_size = 128 B; max_file_size = 513.002 GiB
+22:33:36.215 0 D file_block_count = 8074; file_size = 31.539 MiB
+22:35:15.605 0 D free_block_count = 65; used_block_count = 8091
+22:35:24.057 0 D block_cache_stats = Stats { discards: 8105, emplacements: 8091, evictions: 15215, reads: 8148, writes: 8134 }
+22:35:24.075 0 D disk_stats = Stats { errors: 0, flushes: 1, reads: 65184, timeouts: 0, writes: 65072 }
+22:35:32.399 0 D unmount; block_cache_stats = Stats { discards: 9129, emplacements: 8091, evictions: 15215, reads: 8148, writes: 8134 }; resolve_cache_stats = Stats { evictions: 0, hits: 0, misses: 0 }
+7_fs_3_inode::big_file----------------------------- [passed]
+...
+```
+
+```console
+$ (cd kernel; cargo test --features cache-eviction --test 7-fs-5-open)
+...
+7_fs_5_open::fs---------------------------------------------
+22:37:09.339 0 I formatted the file system; free_space = 31.859 MiB; disk = { id: 1, io_port: 0x1F0, io_disk: 1 }; block_size = 4.000 KiB; block_count = 8192; blocks = 36..8192; inode_size = 64 B; inodes = 3..2048; directory_entry_size = 128 B; max_file_size = 513.002 GiB
+22:37:18.639 0 I path = /file-1; entry = 3, file-1, File, 5678 B = 5.545 KiB, 2026-04-15 22:37:18.321 UTC
+22:37:18.689 0 I path = /file-2; entry = 5, file-2, File, 9876 B = 9.645 KiB, 2026-04-15 22:37:18.463 UTC
+22:37:18.721 0 I path = /dir-1; entry = 6, dir-1, Directory, 4096 B = 4.000 KiB, 2026-04-15 22:37:18.369 UTC
+22:37:18.761 0 I path = /dir-1/file-4; entry = 7, file-4, File, 0 B = 0 B, 2026-04-15 22:37:18.365 UTC
+22:37:18.789 0 I path = /dir-1/file-5; entry = 8, file-5, File, 0 B = 0 B, 2026-04-15 22:37:18.367 UTC
+22:37:18.821 0 I path = /dir-1/dir-2; entry = 9, dir-2, Directory, 4096 B = 4.000 KiB, 2026-04-15 22:37:18.375 UTC
+22:37:18.863 0 I path = /dir-1/dir-2/dir-3; entry = 10, dir-3, Directory, 4096 B = 4.000 KiB, 2026-04-15 22:37:18.379 UTC
+22:37:18.927 0 I path = /dir-1/dir-2/dir-3/file-3; entry = 11, file-3, File, 0 B = 0 B, 2026-04-15 22:37:18.381 UTC
+22:37:18.997 0 I removing; path = /file-1; entry = 3, file-1, File, 5678 B = 5.545 KiB, 2026-04-15 22:37:18.321 UTC
+22:37:19.043 0 I removing; path = /file-2; entry = 5, file-2, File, 9876 B = 9.645 KiB, 2026-04-15 22:37:18.463 UTC
+22:37:19.085 0 I removing; path = /dir-1; entry = 6, dir-1, Directory, 4096 B = 4.000 KiB, 2026-04-15 22:37:18.369 UTC
+22:37:19.127 0 I removing; path = /dir-1/file-4; entry = 7, file-4, File, 0 B = 0 B, 2026-04-15 22:37:18.365 UTC
+22:37:19.169 0 I removing; path = /dir-1/file-5; entry = 8, file-5, File, 0 B = 0 B, 2026-04-15 22:37:18.367 UTC
+22:37:19.213 0 I removing; path = /dir-1/dir-2; entry = 9, dir-2, Directory, 4096 B = 4.000 KiB, 2026-04-15 22:37:18.375 UTC
+22:37:19.257 0 I removing; path = /dir-1/dir-2/dir-3; entry = 10, dir-3, Directory, 4096 B = 4.000 KiB, 2026-04-15 22:37:18.379 UTC
+22:37:19.309 0 I removing; path = /dir-1/dir-2/dir-3/file-3; entry = 11, file-3, File, 0 B = 0 B, 2026-04-15 22:37:18.381 UTC
+22:37:19.401 0 D resolve_cache_stats = Stats { evictions: 4, hits: 35, misses: 16 }
+22:37:28.001 0 D unmount; block_cache_stats = Stats { discards: 1, emplacements: 11, evictions: 0, reads: 5, writes: 15 }; resolve_cache_stats = Stats { evictions: 4, hits: 35, misses: 16 }
+7_fs_5_open::fs------------------------------------ [passed]
+...
+```
 
 ### Ориентировочный объём работ этой части лабораторки
 

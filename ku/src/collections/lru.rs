@@ -255,6 +255,7 @@ where
     }
 }
 
+// ANCHOR: stats
 /// Статистика работы политики вытеснения LRU.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Stats {
@@ -267,3 +268,4 @@ pub struct Stats {
     /// Количество промахов мимо кэша.
     misses: usize,
 }
+// ANCHOR_END: stats

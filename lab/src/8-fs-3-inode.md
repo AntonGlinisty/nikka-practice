@@ -1,7 +1,5 @@
 ## Index node (inode)
 
-> [What does the "i" in inode stand for? Dennis Ritchie doesn't know either.](https://www.webcitation.org/619jSqQWH?url=http://lkml.indiana.edu/hypermail/linux/kernel/0207.2/1182.html)
-
 В [inode](https://en.wikipedia.org/wiki/Inode) хранится метаинформация об объекте с данными.
 Имя объекта не хранится, оно хранится в директории.
 Объектом может быть как файл, так и директория.
@@ -109,6 +107,12 @@
 и возвращает блок в памяти блочного кэша, где хранится заданный блок
 [`Inode`](../../doc/kernel/fs/inode/struct.Inode.html).
 
+Чтобы не читать с диска блок, который вы хотите перезаписать целиком,
+вам могут пригодиться методы
+[`BlockCache::emplace_block()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.emplace_block)
+и
+[`BlockCache::fill_block()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.fill_block).
+
 
 #### [`kernel::fs::inode::Inode::set_size()`](../../doc/kernel/fs/inode/struct.Inode.html#method.set_size)
 
@@ -140,6 +144,7 @@
 Вам могут пригодиться:
 
 - [`Inode::block_entry()`](../../doc/kernel/fs/inode/struct.Inode.html#method.block_entry).
+- [`BlockCache::fill_block()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.fill_block).
 - Функция [`core::cmp::min()`](https://doc.rust-lang.org/nightly/core/cmp/fn.min.html).
 - Метод [`slice::fill()`](https://doc.rust-lang.org/nightly/core/primitive.slice.html#method.fill) [срезов](https://doc.rust-lang.ru/book/ch04-03-slices.html). Заполнять нулями имеет смысл не побайтно, а целыми [`u64`](https://doc.rust-lang.org/nightly/core/primitive.u64.html) или [`usize`](https://doc.rust-lang.org/nightly/core/primitive.usize.html).
 
@@ -191,7 +196,11 @@
 Если `offset` превышает размер файла, --- это нормальная ситуация.
 Расширьте файл нулями до заданного `offset`.
 
-Вам могут пригодиться:
+Чтобы не читать с диска блок, который вы хотите перезаписать целиком,
+вам может пригодиться метод
+[`BlockCache::emplace_block()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.emplace_block).
+
+Также вам могут пригодиться:
 
 - [`Inode::block()`](../../doc/kernel/fs/inode/struct.Inode.html#method.block).
 - [`Inode::set_size()`](../../doc/kernel/fs/inode/struct.Inode.html#method.set_size).

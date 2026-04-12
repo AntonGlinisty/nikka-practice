@@ -68,6 +68,19 @@
 Параметр `capacity` задаёт ёмкость кэша, если вы реализуете вытеснение.
 
 
+#### Статистики блочного кэша
+
+Для интроспекции блочный кэш поддерживает статистики:
+
+```rust
+{{#include ../../kernel/src/fs/block_cache.rs:stats}}
+```
+
+С помощью этих статистик в тестах выполняются проверки,
+что файловая система при общении с диском не читает и не пишет лишние данные.
+Чтобы тесты проходили, не забывайте обновлять статистики блочного кэша в соответствующих случаях.
+
+
 #### Обращение к блоку в блочном кэше
 
 Реализуйте [метод](../../doc/kernel/fs/block_cache/struct.Cache.html#method.block)
@@ -96,6 +109,22 @@
 Если адрес, вызвавший Page Fault, не относится к блочному кэшу, верните `false`.
 Для чтения с диска используйте метод
 [`kernel::fs::disk::Disk::pio_read()`](../../doc/kernel/fs/disk/struct.Disk.html#method.pio_read).
+
+
+#### Пропуск чтения блока с диска
+
+Чтобы не читать с диска блок, который планируется перезаписать целиком, существуют методы
+[`BlockCache::emplace_block()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.emplace_block)
+и
+[`BlockCache::fill_block()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.fill_block).
+
+Реализуйте их:
+
+```rust
+{{#include ../../kernel/src/fs/block_cache.rs:emplace_block}}
+
+{{#include ../../kernel/src/fs/block_cache.rs:fill_block}}
+```
 
 
 #### Запись блока на диск
