@@ -1,6 +1,13 @@
 use core::mem;
 
-use ku::memory::size::MiB;
+use ku::memory::{
+    Virt,
+    mmu::{
+        KERNEL_RW,
+        PageTableFlags,
+    },
+    size::MiB,
+};
 
 use kernel::{
     Subsystems,
@@ -13,6 +20,13 @@ use kernel::{
         },
     },
     log::debug,
+    memory::{
+        BASE_ADDRESS_SPACE,
+        test_scaffolding::{
+            get_pte,
+            path,
+        },
+    },
 };
 
 mod init;
@@ -38,10 +52,14 @@ fn read_what_was_written() {
         } else {
             INVALID_DISK_PATTERN
         };
-        if *actual != expected || i.is_multiple_of(777) {
-            debug!(i, block, actual, expected);
+        let virt = Virt::from_ref(actual);
+        let actual = unsafe { virt.try_into_ptr::<usize>().unwrap().read_volatile() };
+        let flags = get_pte(&path(&mut BASE_ADDRESS_SPACE.lock(), virt)).unwrap().flags();
+        if actual != expected || i.is_multiple_of(777) {
+            debug!(i, block, %flags, actual, expected);
         }
-        assert_eq!(*actual, expected);
+        assert_eq!(actual, expected);
+        assert_eq!(flags, KERNEL_RW | PageTableFlags::ACCESSED);
     }
 
     debug!(block_cache_stats = ?BlockCache::stats());

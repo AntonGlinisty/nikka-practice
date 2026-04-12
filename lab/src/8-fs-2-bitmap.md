@@ -10,7 +10,7 @@
 ```
 
 Каждое значение в срезе
-[`Bitmap::bitmap`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#structfield.bitmap)
+[`Bitmap::bitmap.bitmap`](../../doc/ku/collections/bitmap/struct.Bitmap.html#structfield.bitmap)
 отвечает за 64 элемента.
 Элементу с меньшим номером соответствует бит с меньшим весом в соответствующем элементе.
 Элемент свободен тогда и только тогда, когда соответствующий ему бит равен `0`.
@@ -31,25 +31,7 @@
 чтобы для элементов, перечисленных в `elements`, соответствующие биты были равны нулю --- элементы свободны.
 А для всех остальных --- зарезервированных и отсутствующих в битовой карте элементов --- соответствующие биты были равны единице.
 
-Реализуйте [метод](../../doc/kernel/fs/bitmap/struct.Bitmap.html#method.allocate)
-
-```rust
-{{#include ../../kernel/src/fs/bitmap.rs:allocate}}
-```
-
-в файле
-[`kernel/src/fs/bitmap.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/fs/bitmap.rs).
-
-Функция должна найти по
-[`Bitmap::bitmap`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#structfield.bitmap)
-свободный элемент --- нулевой бит --- и выделить его.
-
-- Верните номер выделенного элемента.
-- После того как новый элемент выделен, сбросьте изменившийся блок самого [`Bitmap::bitmap`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#structfield.bitmap) на диск с помощью реализованной вами функции [`BlockCache::flush_block()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.flush_block). Когда меняете метаданные, лучше сразу сбрасывать их на диск, так меньше вероятность поломки файловой системы, например, при сбое питания.
-- Искать каждый раз с самого начала [`Bitmap::bitmap`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#structfield.bitmap) не эффективно. Лучше, например, обходить его по циклу с того места, на котором остановились в прошлый раз. Для хранения этой позиции между вызовами [`Bitmap::allocate()`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#method.allocate) служит поле [`Bitmap::cursor`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#structfield.cursor).
-- Проверять каждый бит тоже не эффективно. Лучше сначала найти значение в [`Bitmap::bitmap`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#structfield.bitmap), в котором есть хотя бы один свободный бит. Поэтому биты сгруппированы именно по [`u64`](https://doc.rust-lang.org/nightly/core/primitive.u64.html), а не например по [`u8`](https://doc.rust-lang.org/nightly/core/primitive.u8.html).
-- Верните ошибку [`Error::NoDisk`](../../doc/kernel/error/enum.Error.html#variant.NoDisk), если свободных элементов не осталось.
-- [`core::ops::Range`](https://doc.rust-lang.org/nightly/core/ops/struct.Range.html) можно создать как `start..end` --- `end` при этом не включается в диапазон, --- или как `start..=end` --- в этом случае `end` включается в получившийся [`Range`](https://doc.rust-lang.org/nightly/core/ops/struct.Range.html).
+У вас уже должна быть решена [задача про битовую карту](../../lab/book/3-allocator-2-bitmap.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-2--%D0%B2%D1%8B%D0%B4%D0%B5%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5-%D1%81%D0%B2%D0%BE%D0%B1%D0%BE%D0%B4%D0%BD%D0%BE%D0%B3%D0%BE-%D1%8D%D0%BB%D0%B5%D0%BC%D0%B5%D0%BD%D1%82%D0%B0-%D1%81-%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E-%D0%B1%D0%B8%D1%82%D0%BE%D0%B2%D0%BE%D0%B9-%D0%BA%D0%B0%D1%80%D1%82%D1%8B). Если это не так, сделайте её.
 
 
 ### Проверьте себя

@@ -1,5 +1,7 @@
 ## Index node (inode)
 
+> [What does the "i" in inode stand for? Dennis Ritchie doesn't know either.](https://www.webcitation.org/619jSqQWH?url=http://lkml.indiana.edu/hypermail/linux/kernel/0207.2/1182.html)
+
 В [inode](https://en.wikipedia.org/wiki/Inode) хранится метаинформация об объекте с данными.
 Имя объекта не хранится, оно хранится в директории.
 Объектом может быть как файл, так и директория.
@@ -76,7 +78,7 @@
 - А вот выделять блок для данных, на который указывает результирующая запись, не нужно.
 
 Этот метод похож на
-[`kernel::memory::mapping::Mapping::translate()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.translate),
+[`kernel::memory::mapping::Mapping::path()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.path),
 [который вы уже реализовали](../../lab/book/2-mm-4-translate.html#%D0%9E%D1%82%D0%BE%D0%B1%D1%80%D0%B0%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5-%D0%B2%D0%B8%D1%80%D1%82%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85-%D1%81%D1%82%D1%80%D0%B0%D0%BD%D0%B8%D1%86-%D0%BD%D0%B0-%D1%84%D0%B8%D0%B7%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B5-%D1%84%D1%80%D0%B5%D0%B9%D0%BC%D1%8B).
 Только в
 [`Inode`](../../doc/kernel/fs/inode/struct.Inode.html)
@@ -182,7 +184,7 @@
 [`Inode`](../../doc/kernel/fs/inode/struct.Inode.html)
 по смещению `offset` байты из буфера `buffer`.
 При необходимости расширяет размер файла.
-И возвращает количество записанных байт.
+Возвращает количество записанных байт.
 Если
 [`Inode`](../../doc/kernel/fs/inode/struct.Inode.html)
 не является файлом, верните ошибку [`Error::NotFile`](../../doc/kernel/error/enum.Error.html#variant.NotFile).

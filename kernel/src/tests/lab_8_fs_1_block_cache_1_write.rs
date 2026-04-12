@@ -1,6 +1,12 @@
 use core::mem;
 
-use ku::memory::size::MiB;
+use ku::memory::{
+    mmu::{
+        KERNEL_RW,
+        PageTableFlags,
+    },
+    size::MiB,
+};
 
 use kernel::{
     Subsystems,
@@ -14,6 +20,13 @@ use kernel::{
         },
     },
     log::debug,
+    memory::{
+        BASE_ADDRESS_SPACE,
+        test_scaffolding::{
+            get_pte,
+            path,
+        },
+    },
 };
 
 mod init;
@@ -37,9 +50,18 @@ fn write() {
     }
 
     for block in 0 .. (len * mem::size_of_val(&slice[0])).div_ceil(BLOCK_SIZE) {
+        let virt = cache.address(block * BLOCK_SIZE).unwrap();
+        let flags = get_pte(&path(&mut BASE_ADDRESS_SPACE.lock(), virt)).unwrap().flags();
+        assert_eq!(
+            flags,
+            KERNEL_RW | PageTableFlags::ACCESSED | PageTableFlags::DIRTY,
+        );
+
         if block.is_multiple_of(2) {
-            debug!(block, "flush");
             flush_block(block).unwrap();
+            let flags = get_pte(&path(&mut BASE_ADDRESS_SPACE.lock(), virt)).unwrap().flags();
+            debug!(block, %flags, "flush");
+            assert_eq!(flags, KERNEL_RW | PageTableFlags::ACCESSED);
         }
     }
 

@@ -1,6 +1,12 @@
 ## Вытеснение блоков из блочного кэша
 
 
+### Сравнительный анализ LRU и идеальной политики вытеснения
+
+Сравнительный анализ LRU и идеальной политики вытеснения приведён в статье
+["Amortized Efficiency of List Update and Paging Rules", Daniel D. Sleator & Robert E. Tarjan, 1985](https://www.cs.princeton.edu/courses/archive/fall07/cos521/handouts/amortized.pdf).
+
+
 ### Задача 6 --- LRU
 
 Реализуйте политику вытеснения давно неиспользуемых данных ---
@@ -10,6 +16,11 @@
 Вы можете следовать предложенному скелету реализации или же сделать всё по-своему.
 Добавьте вытеснение блоков в вашу реализацию
 [`BlockCache::trap_handler()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.trap_handler).
+
+Добавьте работу с кэшем путей файлов
+[`FileSystem::resolve_cache`](../../doc/kernel/fs/struct.FileSystem.html#structfield.resolve_cache)
+в вашу реализацию метода
+[`FileSystem::open()`](../../doc/kernel/fs/file_system/struct.FileSystem.html#method.open).
 
 
 ### Проверьте себя

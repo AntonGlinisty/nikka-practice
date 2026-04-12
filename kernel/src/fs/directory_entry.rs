@@ -70,13 +70,7 @@ impl DirectoryEntry {
     /// Возвращает ошибку [`Error::Medium`],
     /// если имя на диске не корректно.
     pub(super) fn name(&self) -> Result<&str> {
-        let len = self
-            .name
-            .iter()
-            .enumerate()
-            .find(|x| *x.1 == 0)
-            .map(|x| x.0)
-            .unwrap_or(MAX_NAME_LEN);
+        let len = self.name.iter().position(|&x| x == 0).unwrap_or(MAX_NAME_LEN);
 
         let name = str::from_utf8(&self.name[.. len]).map_err(|_| Medium)?;
 

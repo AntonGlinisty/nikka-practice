@@ -79,7 +79,7 @@ impl Disk {
         assert_eq!(mem::size_of_val(buffer), sectors.len() * SECTOR_SIZE);
 
         unsafe {
-            self.send_rw_command(Command::READ, sectors.start, sectors.len())?;
+            self.send_rw_command(Command::READ, sectors)?;
         }
 
         for sector in buffer.chunks_mut(SECTOR_SIZE / mem::size_of::<u32>()) {
@@ -113,7 +113,7 @@ impl Disk {
         assert_eq!(mem::size_of_val(buffer), sectors.len() * SECTOR_SIZE);
 
         unsafe {
-            self.send_rw_command(Command::WRITE, sectors.start, sectors.len())?;
+            self.send_rw_command(Command::WRITE, sectors)?;
         }
 
         for sector in buffer.chunks(SECTOR_SIZE / mem::size_of::<u32>()) {
@@ -151,19 +151,22 @@ impl Disk {
     /// Посылает в диск команду `command` для
     /// [программного ввода--вывода](https://en.wikipedia.org/wiki/Programmed_input%E2%80%93output)
     /// `sector_count` секторов начиная с сектора номер `start_sector`.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если количество секторов в `sectors` не помещается в `u8`.
     unsafe fn send_rw_command(
         &self,
         command: Command,
-        start_sector: usize,
-        sector_count: usize,
+        sectors: Range<usize>,
     ) -> Result<()> {
-        assert!(sector_count < (1 << 8));
+        let sector_count = u8::try_from(sectors.len()).expect("sector count is too big");
 
         self.wait_ready()?;
 
         unsafe {
-            io::outb(self.io_port + 2, sector_count as u8);
-            self.write_sector_number(start_sector);
+            io::outb(self.io_port + 2, sector_count);
+            self.write_sector_number(sectors.start);
             io::outb(self.io_port + 7, command.bits());
         }
 
@@ -180,6 +183,10 @@ impl Disk {
     }
 
     /// Записывает в регистры контроллера номер сектора.
+    ///
+    /// # Panics
+    ///
+    /// Паникует, если номер сектора не помещается в `u32`.
     unsafe fn write_sector_number(
         &self,
         sector: usize,
