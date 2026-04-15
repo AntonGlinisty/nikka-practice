@@ -683,8 +683,13 @@ deadlines:
         - task: lru
           score: 150
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-6-lru.html
+          dependencies:
+            - inode
+            - open
           check:
             - cd ku && cargo test --profile ci --test 7-fs-6-lru
+            - cd kernel && cargo test --profile ci --features cache-eviction --test 7-fs-3-inode
+            - cd kernel && cargo test --profile ci --features cache-eviction --test 7-fs-5-open
 
 
 allow_list:

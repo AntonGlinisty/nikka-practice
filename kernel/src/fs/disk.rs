@@ -7,6 +7,7 @@ use core::{
 
 use bitflags::bitflags;
 use chrono::Duration;
+use derive_getters::Getters;
 use derive_more::Display;
 use static_assertions::const_assert;
 use x86::io;
@@ -43,6 +44,9 @@ pub(super) struct Disk {
 
     /// Базовый [порт ввода--вывода](https://wiki.osdev.org/Port_IO) для операций с диском.
     io_port: u16,
+
+    /// Статистика работы диска.
+    stats: Stats,
 }
 
 impl Disk {
@@ -54,14 +58,18 @@ impl Disk {
             io_port: Self::io_port(id)?,
             io_disk: Self::io_disk(id),
             id,
+            stats: Stats::default(),
         })
     }
 
     /// Записывает содержимое кэша диска на физический носитель.
-    pub(super) fn flush(&self) -> Result<()> {
+    pub(super) fn flush(&mut self) -> Result<()> {
         let result = unsafe { self.send_command(Command::FLUSH_CACHE, 0) };
 
-        if result.is_err() {
+        if result.is_ok() {
+            self.stats.flushes += 1;
+        } else {
+            self.stats.errors += 1;
             error!(sector = self.read_sector_number(), "flush failed");
         }
 
@@ -72,7 +80,7 @@ impl Disk {
     /// в буфер `buffer` методом
     /// [программного ввода--вывода](https://en.wikipedia.org/wiki/Programmed_input%E2%80%93output).
     pub(super) fn pio_read(
-        &self,
+        &mut self,
         sectors: Range<usize>,
         buffer: &mut [u32],
     ) -> Result<()> {
@@ -88,13 +96,15 @@ impl Disk {
             unsafe {
                 ins32(self.io_port, sector);
             }
+
+            self.stats.reads += 1;
         }
 
         Ok(())
     }
 
     /// Количество блоков файловой системы, которые вмещает диск.
-    pub(super) fn block_count(&self) -> Result<usize> {
+    pub(super) fn block_count(&mut self) -> Result<usize> {
         unsafe { self.send_command(Command::READ_NATIVE_MAX_ADDRESS, LBA)? };
 
         let max_sector_number = self.read_sector_number();
@@ -106,7 +116,7 @@ impl Disk {
     /// из буфера `buffer` методом
     /// [программного ввода--вывода](https://en.wikipedia.org/wiki/Programmed_input%E2%80%93output).
     pub(super) fn pio_write(
-        &self,
+        &mut self,
         sectors: Range<usize>,
         buffer: &[u32],
     ) -> Result<()> {
@@ -122,16 +132,23 @@ impl Disk {
             unsafe {
                 outs32(self.io_port, sector);
             }
+
+            self.stats.writes += 1;
         }
 
         Ok(())
+    }
+
+    /// Статистика работы диска.
+    pub(super) fn stats(&self) -> Stats {
+        self.stats
     }
 
     /// Посылает в диск команду `command` для
     /// [программного ввода--вывода](https://en.wikipedia.org/wiki/Programmed_input%E2%80%93output)
     /// `sector_count` секторов начиная с сектора номер `start_sector`.
     unsafe fn send_command(
-        &self,
+        &mut self,
         command: Command,
         argument: u8,
     ) -> Result<()> {
@@ -156,7 +173,7 @@ impl Disk {
     ///
     /// Паникует, если количество секторов в `sectors` не помещается в `u8`.
     unsafe fn send_rw_command(
-        &self,
+        &mut self,
         command: Command,
         sectors: Range<usize>,
     ) -> Result<()> {
@@ -174,7 +191,7 @@ impl Disk {
     }
 
     /// Читает из регистров контроллера номер сектора.
-    fn read_sector_number(&self) -> usize {
+    fn read_sector_number(&mut self) -> usize {
         self.sector_number_ports()
             .rev()
             .map(|port| unsafe { io::inb(port) })
@@ -188,7 +205,7 @@ impl Disk {
     ///
     /// Паникует, если номер сектора не помещается в `u32`.
     unsafe fn write_sector_number(
-        &self,
+        &mut self,
         sector: usize,
     ) {
         assert_eq!((sector & !SECTOR_NUMBER_MASK), 0);
@@ -204,7 +221,7 @@ impl Disk {
     }
 
     /// Ожидает готовности диска к приёму команды.
-    fn wait_ready(&self) -> Result<()> {
+    fn wait_ready(&mut self) -> Result<()> {
         bitflags! {
             /// Регистр статуса.
             #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -229,6 +246,7 @@ impl Disk {
                 trace!(elapsed = %start.elapsed(), iterations, ?status, "waited for IDE");
 
                 return if status.intersects(Status::ERROR | Status::FAILURE) {
+                    self.stats.errors += 1;
                     Err(Medium)
                 } else {
                     Ok(())
@@ -239,6 +257,7 @@ impl Disk {
             iterations += 1;
         }
 
+        self.stats.timeouts += 1;
         error!(elapsed = %start.elapsed(), iterations, ?last_status, "timeout waiting for IDE");
 
         Err(Timeout)
@@ -273,6 +292,25 @@ impl Disk {
     fn sector_number_ports(&self) -> Range<u16> {
         (self.io_port + 3) .. (self.io_port + 7)
     }
+}
+
+/// Статистика работы диска.
+#[derive(Clone, Copy, Default, Debug, Eq, Getters, PartialEq)]
+pub struct Stats {
+    /// Количество ошибок, которые вернул диск.
+    errors: usize,
+
+    /// Количество сбросов кэша диска на физический носитель в [`Disk::flush()`].
+    flushes: usize,
+
+    /// Количество секторов, которые были прочитаны с диска в [`Disk::pio_read()`].
+    reads: usize,
+
+    /// Сколько раз при ожидании диска истекал тайм-аут.
+    timeouts: usize,
+
+    /// Количество секторов, которые были записаны на диск в [`Disk::pio_write()`].
+    writes: usize,
 }
 
 /// Записывает в порт ввода--вывода номер `port` данные из буфера `buffer`.

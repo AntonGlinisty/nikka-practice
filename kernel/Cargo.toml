@@ -13,6 +13,7 @@ acpi = "*"
 bitflags = "*"
 bootloader = { version = "0.9.*", features = ["recursive_page_table"] }
 chrono = { version = "*", default-features = false }
+derive-getters = "*"
 derive_more = { version = "*", default-features = false, features = ["full"] }
 duplicate = "*"
 itertools = { version = "*", default-features = false }
@@ -43,6 +44,7 @@ xmas-elf = "*"
 
 [features]
 allocator-statistics = ["ku/allocator-statistics"]
+cache-eviction = []
 # Отключает sentinel frame
 conservative-backtraces = ["ku/conservative-backtraces"]
 forbid-leaks = []

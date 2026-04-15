@@ -117,7 +117,10 @@ fn allocation() {
         assert_eq!(*i, j);
     }
 
-    debug!(block_cache_stats = ?BlockCache::stats());
+    let block_cache_stats = BlockCache::stats();
+    let disk_stats = BlockCache::disk_stats();
+    debug!(?block_cache_stats);
+    debug!(?disk_stats);
 }
 
 #[test_case]

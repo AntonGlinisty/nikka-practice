@@ -16,7 +16,10 @@ use kernel::{
         Kind,
         test_scaffolding::BLOCK_SIZE,
     },
-    log::info,
+    log::{
+        debug,
+        info,
+    },
 };
 
 mod init;
@@ -49,6 +52,14 @@ fn fs() {
     remove_all(&mut fs);
 
     test_list(&mut fs, &[]);
+
+    let resolve_cache_stats = fs.resolve_cache().stats();
+    debug!(?resolve_cache_stats);
+    if cfg!(feature = "cache-eviction") {
+        assert_eq!(*resolve_cache_stats.evictions(), 4);
+        assert_eq!(*resolve_cache_stats.hits(), 35);
+        assert_eq!(*resolve_cache_stats.misses(), 16);
+    }
 }
 
 fn test_basic_operations(fs: &mut FileSystem) {

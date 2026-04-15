@@ -3,6 +3,7 @@ use core::{
     sync::atomic::Ordering,
 };
 
+use derive_getters::Getters;
 use lazy_static::lazy_static;
 
 use ku::{
@@ -35,6 +36,7 @@ use crate::memory::{
 use super::{
     BLOCK_SIZE,
     disk::{
+        self,
         Disk,
         SECTOR_SIZE,
     },
@@ -85,6 +87,15 @@ impl BlockCache {
             Ok(block_cache.cache)
         } else {
             Err(NoDisk)
+        }
+    }
+
+    /// Статистика работы диска.
+    pub fn disk_stats() -> disk::Stats {
+        if let Some(block_cache) = BLOCK_CACHE.lock().as_mut() {
+            block_cache.disk.stats()
+        } else {
+            disk::Stats::default()
         }
     }
 
@@ -244,7 +255,7 @@ impl Cache {
 
 // ANCHOR: stats
 /// Статистика работы блочного кэша.
-#[derive(Clone, Copy, Default, Debug)]
+#[derive(Clone, Copy, Default, Debug, Eq, Getters, PartialEq)]
 pub struct Stats {
     /// Количество блоков, которые не пришлось записывать на диск в [`BlockCache::flush_block_impl()`].
     discards: usize,
@@ -290,6 +301,7 @@ pub mod test_scaffolding {
         memory::{
             Block,
             Page,
+            Virt,
         },
     };
 
@@ -311,6 +323,10 @@ pub mod test_scaffolding {
         Ok(BLOCK_CACHE.lock().as_ref().ok_or(NoDisk)?.cache.0)
     }
 
+    pub unsafe fn emplace_block(block_number: usize) -> Result<Block<Virt>> {
+        unsafe { BlockCache::emplace_block(block_number) }
+    }
+
     pub fn flush_block(block_number: usize) -> Result<()> {
         BlockCache::flush_block(block_number)
     }
@@ -320,4 +336,6 @@ pub mod test_scaffolding {
     }
 
     pub(super) static FLUSH_ENABLED: AtomicBool = AtomicBool::new(true);
+
+    pub static SECTORS_PER_BLOCK: usize = super::SECTORS_PER_BLOCK;
 }

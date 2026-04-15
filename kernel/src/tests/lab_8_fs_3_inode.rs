@@ -26,7 +26,9 @@ use kernel::{
         Kind,
         test_scaffolding::{
             BLOCK_SIZE,
+            SECTORS_PER_BLOCK,
             block_count,
+            flush,
             flush_block,
             make_file,
             remove_file,
@@ -97,7 +99,10 @@ fn block_entry() {
         assert_eq!(*entry, i);
     }
 
-    debug!(block_cache_stats = ?BlockCache::stats());
+    let block_cache_stats = BlockCache::stats();
+    let disk_stats = BlockCache::disk_stats();
+    debug!(?block_cache_stats);
+    debug!(?disk_stats);
 }
 
 #[test_case]
@@ -162,7 +167,10 @@ fn read_write_speed() {
         "disk write speed",
     );
 
-    debug!(block_cache_stats = ?BlockCache::stats());
+    let block_cache_stats = BlockCache::stats();
+    let disk_stats = BlockCache::disk_stats();
+    debug!(?block_cache_stats);
+    debug!(?disk_stats);
 
     fn throughput_per_second(
         size: Size,
@@ -214,7 +222,10 @@ fn write_read() {
         assert_eq!(*actual, expected);
     }
 
-    debug!(block_cache_stats = ?BlockCache::stats());
+    let block_cache_stats = BlockCache::stats();
+    let disk_stats = BlockCache::disk_stats();
+    debug!(?block_cache_stats);
+    debug!(?disk_stats);
 }
 
 #[test_case]
@@ -226,8 +237,6 @@ fn big_file() {
     let start_free_block_count = fs.free_space() / BLOCK_SIZE;
 
     let file_block_count = start_free_block_count * 99 / 100;
-    fs.set_size(&file, file_block_count * BLOCK_SIZE).unwrap();
-    debug!(file_block_count, file_size = %Size::bytes(fs.size(&file)));
 
     for file_block in 0 .. file_block_count {
         let data = format!("file block {file_block}");
@@ -237,6 +246,9 @@ fn big_file() {
             Ok(data_len),
         );
     }
+
+    fs.set_size(&file, file_block_count * BLOCK_SIZE).unwrap();
+    debug!(file_block_count, file_size = %Size::bytes(fs.size(&file)));
 
     for file_block in 0 .. file_block_count {
         let data = format!("file block {file_block}");
@@ -258,7 +270,22 @@ fn big_file() {
     let end_free_block_count = fs.free_space() / BLOCK_SIZE;
     assert_eq!(start_free_block_count, end_free_block_count);
 
-    debug!(block_cache_stats = ?BlockCache::stats());
+    flush(&mut fs).unwrap();
+    let block_cache_stats = BlockCache::stats();
+    let disk_stats = BlockCache::disk_stats();
+    let file_sector_count = file_block_count * SECTORS_PER_BLOCK;
+    let modified_blocks = file_block_count .. file_block_count * 105 / 100;
+    debug!(?block_cache_stats);
+    debug!(?disk_stats);
+    assert!(modified_blocks.contains(block_cache_stats.emplacements()));
+    assert!(modified_blocks.contains(block_cache_stats.writes()));
+    assert!((file_sector_count .. file_sector_count * 105 / 100).contains(disk_stats.writes()));
+    if cfg!(feature = "cache-eviction") {
+        let expected_evictions =
+            2 * modified_blocks.start - CACHE_BLOCK_COUNT .. 2 * modified_blocks.end;
+        assert!(expected_evictions.contains(block_cache_stats.evictions()));
+        assert!(modified_blocks.contains(block_cache_stats.discards()));
+    }
 }
 
 #[test_case]
@@ -268,6 +295,7 @@ fn set_size() {
     let file = make_file(&mut fs, Kind::File);
 
     let start_free_block_count = fs.free_space() / BLOCK_SIZE;
+    let mut max_file_size = 0;
 
     let filter = |x: &usize| (x + 2) % (BLOCK_SIZE / 3) <= 4;
 
@@ -279,6 +307,7 @@ fn set_size() {
             check_expansion_is_zero_filled(&mut fs, &file, offset, size);
             fs.set_size(&file, offset).unwrap();
             check_expansion_is_zero_filled(&mut fs, &file, offset, size);
+            max_file_size = cmp::max(max_file_size, fs.size(&file));
             fs.set_size(&file, offset).unwrap();
         }
     }
@@ -305,7 +334,14 @@ fn set_size() {
         assert!(buffer.iter().all(|&x| x == b'*'));
     }
 
-    debug!(block_cache_stats = ?BlockCache::stats());
+    flush(&mut fs).unwrap();
+    let block_cache_stats = BlockCache::stats();
+    let disk_stats = BlockCache::disk_stats();
+    debug!(?block_cache_stats);
+    debug!(?disk_stats);
+    let data_blocks = max_file_size.div_ceil(BLOCK_SIZE);
+    let min_indirect_blocks = (data_blocks - 1).div_ceil(BLOCK_SIZE / mem::size_of::<usize>());
+    assert!(*block_cache_stats.emplacements() >= min_indirect_blocks);
 }
 
 const CACHE_BLOCK_COUNT: usize = 1 << 10;

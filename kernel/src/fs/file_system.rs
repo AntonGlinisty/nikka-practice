@@ -87,7 +87,7 @@ impl FileSystem {
         block_cache_capacity: usize,
         resolve_cache_capacity: usize,
     ) -> Result<FileSystem> {
-        let disk = Disk::new(disk)?;
+        let mut disk = Disk::new(disk)?;
         let block_count = disk.block_count()?;
 
         BlockCache::init(disk, block_count, block_cache_capacity)?;
@@ -118,7 +118,7 @@ impl FileSystem {
 
     /// Форматирует файловую систему на диске номер `disk`.
     pub fn format(disk: usize) -> Result<()> {
-        let disk = Disk::new(disk)?;
+        let mut disk = Disk::new(disk)?;
         let block_count = disk.block_count()?;
 
         let default_blocks_per_inode = 4;
@@ -339,6 +339,15 @@ impl FileSystem {
     ) -> Result<()> {
         self.inodes[inode].remove(&mut self.block_bitmap)
     }
+
+    /// Кэш для определения
+    /// [inode](https://en.wikipedia.org/wiki/Inode)
+    /// файла по
+    /// [inode](https://en.wikipedia.org/wiki/Inode)
+    /// директории и имени файла в ней.
+    pub fn resolve_cache(&self) -> &Lru<(usize, String), usize> {
+        &self.resolve_cache
+    }
 }
 
 impl Drop for FileSystem {
@@ -423,6 +432,10 @@ pub mod test_scaffolding {
         FileSystem,
         Kind,
     };
+
+    pub fn flush(file_system: &mut FileSystem) -> Result<()> {
+        file_system.flush()
+    }
 
     pub fn make_file(
         file_system: &mut FileSystem,

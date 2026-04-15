@@ -8,6 +8,8 @@ use core::{
     fmt,
 };
 
+use derive_getters::Getters;
+
 /// Реализация политики вытеснения давно неиспользуемых данных
 /// ([Least Recently Used (LRU)](https://en.wikipedia.org/wiki/Cache_replacement_policies#LRU)).
 ///
@@ -257,7 +259,7 @@ where
 
 // ANCHOR: stats
 /// Статистика работы политики вытеснения LRU.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Default, Debug, Eq, Getters, PartialEq)]
 pub struct Stats {
     /// Количество вытеснений.
     evictions: usize,

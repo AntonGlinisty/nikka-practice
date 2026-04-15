@@ -15,6 +15,7 @@ use kernel::{
         BlockCache,
         test_scaffolding::{
             BLOCK_SIZE,
+            SECTORS_PER_BLOCK,
             block_cache_init,
             cache,
         },
@@ -44,6 +45,7 @@ fn read_what_was_written() {
 
     let len = 16 << 10;
     let slice = unsafe { cache.try_into_mut_slice::<usize>().unwrap() };
+    let read_count = (len * mem::size_of_val(&slice[0])).div_ceil(BLOCK_SIZE);
 
     for (i, actual) in slice[.. len].iter_mut().enumerate() {
         let block = i * mem::size_of_val(actual) / BLOCK_SIZE;
@@ -62,7 +64,17 @@ fn read_what_was_written() {
         assert_eq!(flags, KERNEL_RW | PageTableFlags::ACCESSED);
     }
 
-    debug!(block_cache_stats = ?BlockCache::stats());
+    let block_cache_stats = BlockCache::stats();
+    let disk_stats = BlockCache::disk_stats();
+    debug!(?block_cache_stats);
+    debug!(?disk_stats);
+    assert_eq!(*block_cache_stats.emplacements(), 0);
+    assert_eq!(*block_cache_stats.discards(), 0);
+    assert_eq!(*block_cache_stats.reads(), read_count);
+    assert_eq!(*block_cache_stats.writes(), 0);
+    assert_eq!(*disk_stats.flushes(), 0);
+    assert_eq!(*disk_stats.reads(), read_count * SECTORS_PER_BLOCK);
+    assert_eq!(*disk_stats.writes(), 0);
 }
 
 const FS_DISK: usize = 1;

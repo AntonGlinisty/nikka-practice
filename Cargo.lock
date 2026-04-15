@@ -660,6 +660,7 @@ dependencies = [
  "bitflags 2.6.0",
  "bootloader",
  "chrono",
+ "derive-getters",
  "derive_more",
  "duplicate",
  "enum-iterator",

@@ -101,7 +101,10 @@ fn basic_operations() {
     fs.remove(&file_2).unwrap();
     assert_eq!(fs.find(&directory, "file-2").unwrap_err(), FileNotFound);
 
-    debug!(block_cache_stats = ?BlockCache::stats());
+    let block_cache_stats = BlockCache::stats();
+    let disk_stats = BlockCache::disk_stats();
+    debug!(?block_cache_stats);
+    debug!(?disk_stats);
 }
 
 #[test_case]
@@ -129,7 +132,10 @@ fn big_directory() {
     let leaked_block_count = start_free_block_count - end_free_block_count;
     assert_eq!(leaked_block_count, 0);
 
-    debug!(block_cache_stats = ?BlockCache::stats());
+    let block_cache_stats = BlockCache::stats();
+    let disk_stats = BlockCache::disk_stats();
+    debug!(?block_cache_stats);
+    debug!(?disk_stats);
 }
 
 #[test_case]
@@ -157,7 +163,10 @@ fn max_name_len() {
         InvalidArgument,
     );
 
-    debug!(block_cache_stats = ?BlockCache::stats());
+    let block_cache_stats = BlockCache::stats();
+    let disk_stats = BlockCache::disk_stats();
+    debug!(?block_cache_stats);
+    debug!(?disk_stats);
 }
 
 const CACHE_BLOCK_COUNT: usize = 1 << 10;
