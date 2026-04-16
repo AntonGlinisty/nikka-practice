@@ -116,15 +116,8 @@ fn map_syscall_group() {
         }
     }
 
-    let additional_flag_sets = [
-        PageTableFlags::empty(),
-        PageTableFlags::ACCESSED,
-        PageTableFlags::DIRTY,
-        PageTableFlags::ACCESSED | PageTableFlags::DIRTY,
-    ];
-
     for flags in [USER_R, USER_RW] {
-        for additional_flags in additional_flag_sets {
+        for additional_flags in generate_flags() {
             let flags = flags | additional_flags;
 
             assert_eq!(
@@ -156,7 +149,7 @@ fn map_syscall_group() {
             );
         }
 
-        for additional_flags in additional_flag_sets {
+        for additional_flags in generate_flags() {
             let flags = flags | additional_flags;
 
             assert!(
@@ -420,4 +413,14 @@ fn user_space_memory_allocator() {
         0,
         "the user mode code has detected an error in the memory allocator implementation",
     );
+}
+
+fn generate_flags() -> impl Iterator<Item = PageTableFlags> {
+    gen {
+        for accessed in [PageTableFlags::empty(), PageTableFlags::ACCESSED] {
+            for dirty in [PageTableFlags::empty(), PageTableFlags::DIRTY] {
+                yield accessed | dirty
+            }
+        }
+    }
 }
