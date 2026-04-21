@@ -203,7 +203,9 @@ impl Phys2Virt {
 
         if !pte.is_present() {
             let frame = FrameGuard::allocate()?;
-            frame.store(pte, KERNEL_RW);
+            unsafe {
+                frame.replace(pte, KERNEL_RW);
+            }
 
             let node = unsafe {
                 Self::node(root_entry, recursive_mapping)

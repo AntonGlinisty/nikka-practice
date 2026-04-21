@@ -104,12 +104,20 @@ impl FrameGuard {
 
     /// Записывает [`Frame`] из данного [`FrameGuard`] в
     /// [`pte`][PageTableEntry] с заданными флагами [`flags`][PageTableFlags].
-    pub fn store(
+    /// Возвращает фрейм, который был отображён в [`pte`][PageTableEntry] раньше.
+    ///
+    /// # Safety
+    ///
+    /// Нельзя использовать эту функцию, если `pte` описывает большую страницу.
+    pub unsafe fn replace(
         self,
         pte: &mut PageTableEntry,
         flags: PageTableFlags,
-    ) {
+    ) -> Option<Self> {
+        let result = unsafe { Self::load(pte).ok() };
         pte.set_frame(self.take(), flags);
+
+        result
     }
 
     /// Забирает [`Frame`] из данного [`FrameGuard`].
