@@ -2,20 +2,26 @@ use std::{
     any,
     cell::UnsafeCell,
     cmp,
+    fmt::Debug,
     hint,
+    thread,
     time::{
         Duration,
         Instant,
     },
 };
 
+use affinity;
 use criterion::{
     BenchmarkGroup,
     BenchmarkId,
     measurement::WallTime,
 };
 
-use ku::collections::BoundedDeque;
+use ku::{
+    collections::BoundedDeque,
+    sync::Spsc,
+};
 
 use queue::{
     QueueWithFullFlag,
@@ -26,6 +32,7 @@ use queue::{
 #[path = "../queue/mod.rs"]
 mod queue;
 
+#[allow(unused)]
 pub(super) fn bounded_deque_sequential<T: Default, const N: usize, const ELEMENT_COUNT: usize>(
     id: &str,
     iteration_count: u64,
@@ -51,6 +58,7 @@ pub(super) fn bounded_deque_sequential<T: Default, const N: usize, const ELEMENT
     )
 }
 
+#[allow(unused)]
 pub(super) fn full_flag_sequential<T, const N: usize, const ELEMENT_COUNT: usize>(
     id: &str,
     iteration_count: u64,
@@ -80,6 +88,7 @@ where
     )
 }
 
+#[allow(unused)]
 pub(super) fn len_sequential<T, const N: usize, const ELEMENT_COUNT: usize>(
     id: &str,
     iteration_count: u64,
@@ -109,6 +118,7 @@ where
     )
 }
 
+#[allow(unused)]
 pub(super) fn sentinel_sequential<T, const N: usize, const ELEMENT_COUNT: usize>(
     id: &str,
     iteration_count: u64,
@@ -138,6 +148,7 @@ where
     )
 }
 
+#[allow(unused)]
 pub(super) fn reversed_stack_sequential<T: Default, const N: usize, const ELEMENT_COUNT: usize>(
     id: &str,
     iteration_count: u64,
@@ -166,6 +177,7 @@ pub(super) fn reversed_stack_sequential<T: Default, const N: usize, const ELEMEN
     )
 }
 
+#[allow(unused)]
 pub(super) fn stack_sequential<T: Default, const N: usize, const ELEMENT_COUNT: usize>(
     id: &str,
     iteration_count: u64,
@@ -195,6 +207,70 @@ pub(super) fn sequential_batch_count<const N: usize, const ELEMENT_COUNT: usize>
     cmp::min(cmp::max(ELEMENT_COUNT / 16, 1), N)
 }
 
+#[allow(unused)]
+pub(super) fn spsc_single_concurrent<
+    T: Default + Send,
+    const N: usize,
+    const ELEMENT_COUNT: usize,
+>(
+    id: &str,
+    iteration_count: u64,
+) -> Duration {
+    let spsc = Spsc::<T, N>::new();
+    let (mut producer, mut consumer) = spsc.channel().unwrap();
+    producer_consumer_concurrent(
+        id,
+        iteration_count,
+        move || producer_single_result(|value| producer.enqueue(value), ELEMENT_COUNT),
+        move || consumer_single_result(|| consumer.dequeue(), ELEMENT_COUNT),
+    )
+}
+
+#[allow(unused)]
+pub(super) fn spsc_tx_concurrent<
+    T: Copy + Debug + Default + Send,
+    const N: usize,
+    const ELEMENT_COUNT: usize,
+>(
+    id: &str,
+    iteration_count: u64,
+) -> Duration {
+    let spsc = Spsc::<T, N>::new();
+    let (mut producer, mut consumer) = spsc.channel().unwrap();
+    producer_consumer_concurrent(
+        id,
+        iteration_count,
+        move || {
+            producer_tx(
+                |element_count| {
+                    let mut tx = producer.tx();
+                    let count = cmp::min(tx.capacity(), element_count);
+                    for _ in 0 .. count {
+                        tx.enqueue(hint::black_box(T::default())).unwrap();
+                    }
+                    tx.commit();
+                    count
+                },
+                ELEMENT_COUNT,
+            )
+        },
+        move || {
+            consumer_tx(
+                |element_count| {
+                    let mut tx = consumer.tx();
+                    let count = cmp::min(tx.len(), element_count);
+                    for _ in 0 .. count {
+                        hint::black_box(tx.dequeue()).unwrap();
+                    }
+                    tx.commit();
+                    count
+                },
+                ELEMENT_COUNT,
+            )
+        },
+    )
+}
+
 pub(super) fn benchmark<T, F: FnMut(&str, u64) -> Duration + Clone>(
     group: &mut BenchmarkGroup<'_, WallTime>,
     capacity: usize,
@@ -219,6 +295,19 @@ pub(super) fn producer_single<T: Default, F: FnMut(T)>(
     while element_count > 0 {
         produce(hint::black_box(T::default()));
         element_count -= 1;
+    }
+}
+
+#[allow(unused)]
+#[inline(always)]
+pub(super) fn producer_single_option<T: Default, F: FnMut(T) -> Option<T>>(
+    mut produce: F,
+    mut element_count: usize,
+) {
+    while element_count > 0 {
+        if produce(hint::black_box(T::default())).is_none() {
+            element_count -= 1;
+        }
     }
 }
 
@@ -259,6 +348,28 @@ pub(super) fn consumer_single_result<T: Default, E, F: FnMut() -> Result<T, E>>(
     }
 }
 
+#[inline(always)]
+pub(super) fn producer_tx<F: FnMut(usize) -> usize>(
+    mut produce: F,
+    mut element_count: usize,
+) {
+    while element_count > 0 {
+        let count = hint::black_box(produce(element_count));
+        element_count -= count;
+    }
+}
+
+#[inline(always)]
+pub(super) fn consumer_tx<F: FnMut(usize) -> usize>(
+    mut consume: F,
+    mut element_count: usize,
+) {
+    while element_count > 0 {
+        let count = hint::black_box(consume(element_count));
+        element_count -= count;
+    }
+}
+
 pub(super) fn producer_consumer_sequential<P: FnMut(usize) -> (), C: FnMut(usize) -> ()>(
     _id: &str,
     iteration_count: u64,
@@ -290,4 +401,43 @@ pub(super) fn producer_consumer_sequential<P: FnMut(usize) -> (), C: FnMut(usize
     }
 
     timer.elapsed()
+}
+
+pub(super) fn producer_consumer_concurrent<P: FnMut() -> () + Send, C: FnMut() -> () + Send>(
+    id: &str,
+    iteration_count: u64,
+    mut producer: P,
+    mut consumer: C,
+) -> Duration {
+    let core_count = affinity::get_core_num();
+
+    thread::scope(|scope| {
+        let producer = thread::Builder::new()
+            .name(format!("{id} producer"))
+            .spawn_scoped(scope, || {
+                affinity::set_thread_affinity(&[0]).unwrap();
+                let start = Instant::now();
+                for _ in 0 .. iteration_count {
+                    producer();
+                }
+                start
+            })
+            .unwrap();
+
+        let consumer = thread::Builder::new()
+            .name(format!("{id} consumer"))
+            .spawn_scoped(scope, || {
+                affinity::set_thread_affinity(&[core_count / 2]).unwrap();
+                for _ in 0 .. iteration_count {
+                    consumer();
+                }
+                Instant::now()
+            })
+            .unwrap();
+
+        let start = producer.join().unwrap();
+        let end = consumer.join().unwrap();
+
+        end - start
+    })
 }

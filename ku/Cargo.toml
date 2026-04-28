@@ -35,13 +35,19 @@ x86_64 = "*"
 xmas-elf = "*"
 
 blink-alloc = { version = "*", features = ["sync"], optional = true }
+bounded-spsc-queue = { version = "*", optional = true }
+crossbeam-channel = { version = "*", optional = true }
 dlmalloc = { version = "*", features = ["global"], optional = true }
 frusa = { version = "*", optional = true }
+gil = { version = "*", optional = true }
 good_memory_allocator = { version = "*", optional = true }
 jemallocator = { version = "*", optional = true }
 mimalloc = { version = "*", optional = true }
 ring-alloc = { version = "*", optional = true }
+ringbuffer-spsc = { version = "*", optional = true }
 rlsf = { version = "*", optional = true }
+rtrb = { version = "*", optional = true }
+smallring = { version = "*", optional = true }
 talc = { version = "*", optional = true }
 tcmalloc-better = { version = "*", optional = true }
 wee_alloc = { version = "*", optional = true }
@@ -66,13 +72,19 @@ tracing-subscriber = { git = "https://github.com/tokio-rs/tracing", features = [
 allocator-statistics = []
 benchmark = [
     "blink-alloc",
+    "bounded-spsc-queue",
+    "crossbeam-channel",
     "dlmalloc",
     "frusa",
+    "gil",
     "good_memory_allocator",
     "jemallocator",
     "mimalloc",
     "ring-alloc",
+    "ringbuffer-spsc",
     "rlsf",
+    "rtrb",
+    "smallring",
     "talc",
     "tcmalloc-better",
     "wee_alloc",
@@ -83,4 +95,8 @@ forbid-leaks = []
 
 [[bench]]
 name = "8-queues-1-deque"
+harness = false
+
+[[bench]]
+name = "8-queues-2-spsc"
 harness = false
