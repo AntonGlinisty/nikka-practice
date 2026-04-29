@@ -2,8 +2,13 @@
 
 use core::{
     cell::UnsafeCell,
+    cmp,
     marker::PhantomData,
-    mem::MaybeUninit,
+    mem::{
+        self,
+        MaybeUninit,
+    },
+    slice,
     sync::atomic::{
         AtomicUsize,
         Ordering,
@@ -292,6 +297,20 @@ impl<'side, T: Copy, const CAPACITY: usize> SpscSide<'side, T, ConsumerTag, CAPA
         // TODO: your code here.
         unimplemented!();
     }
+
+    /// Извлекает из головы очереди элементы и записывает их в `slice`.
+    ///
+    /// Возвращает количество извлечённых элементов.
+    #[inline(always)]
+    pub fn dequeue_slice(
+        &mut self,
+        slice: &mut [T],
+    ) -> usize {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    // TODO: your code here.
 }
 
 impl<'side, T, const CAPACITY: usize> SpscSide<'side, T, ProducerTag, CAPACITY> {
@@ -335,6 +354,22 @@ impl<'side, T, const CAPACITY: usize> SpscSide<'side, T, ProducerTag, CAPACITY> 
     /// новые свободные слоты под элементы.
     #[inline(always)]
     pub fn update_capacity(&mut self) {
+        // TODO: your code here.
+        unimplemented!();
+    }
+
+    // TODO: your code here.
+}
+
+impl<'side, T: Copy, const CAPACITY: usize> SpscSide<'side, T, ProducerTag, CAPACITY> {
+    /// Записывает элементы `slice` в хвост очереди.
+    ///
+    /// Возвращает количество извлечённых элементов.
+    #[inline(always)]
+    pub fn enqueue_slice(
+        &mut self,
+        slice: &[T],
+    ) -> usize {
         // TODO: your code here.
         unimplemented!();
     }
@@ -419,6 +454,21 @@ impl<T: Copy, const CAPACITY: usize> SpscTx<'_, '_, T, ConsumerTag, CAPACITY> {
     pub fn abort(self) {
         self.0.abort();
     }
+
+    /// Извлекает из головы очереди элементы и записывает их в `slice`.
+    ///
+    /// Обновляет поля потребителя (читателя) [`SpscSide`],
+    /// но не трогает поля [`Spsc::head`] и [`Spsc::tail`].
+    ///
+    /// Возвращает количество извлечённых элементов.
+    #[inline(always)]
+    pub fn dequeue_slice(
+        &mut self,
+        slice: &mut [T],
+    ) -> usize {
+        // TODO: your code here.
+        unimplemented!();
+    }
 }
 
 impl<T, const CAPACITY: usize> SpscTx<'_, '_, T, ProducerTag, CAPACITY> {
@@ -442,6 +492,24 @@ impl<T, const CAPACITY: usize> SpscTx<'_, '_, T, ProducerTag, CAPACITY> {
         &mut self,
         value: T,
     ) -> Result<(), T> {
+        // TODO: your code here.
+        unimplemented!();
+    }
+}
+
+impl<T: Copy, const CAPACITY: usize> SpscTx<'_, '_, T, ProducerTag, CAPACITY> {
+    /// Записывает элементы `slice` в хвост очереди.
+    ///
+    /// Обновляет поля производителя (писателя) [`SpscSide`] и
+    /// разделяемый циклический буфер статистики [`Spsc::buf`],
+    /// но не трогает поля [`Spsc::head`] и [`Spsc::tail`].
+    ///
+    /// Возвращает количество извлечённых элементов.
+    #[inline(always)]
+    pub fn enqueue_slice(
+        &mut self,
+        slice: &[T],
+    ) -> usize {
         // TODO: your code here.
         unimplemented!();
     }

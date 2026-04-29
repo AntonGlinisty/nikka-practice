@@ -100,3 +100,7 @@ harness = false
 [[bench]]
 name = "8-queues-2-spsc"
 harness = false
+
+[[bench]]
+name = "8-queues-3-spsc-slice"
+harness = false
