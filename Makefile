@@ -139,6 +139,28 @@ test-gdb: install
 		done; \
 	)
 
+lab-bench: install
+	cd ku; \
+	cargo bench --bench 8-lf-1-deque invariants; \
+	cd - >/dev/null; \
+	cp target/criterion/invariants/1/report/violin.svg lab/src/8-lf-1-invariants-time.svg.criterion; \
+	cp target/criterion/invariants/report/lines_throughput.svg lab/src/8-lf-1-invariants-throughput.svg.criterion; \
+	cd ku; \
+	cargo bench --features benchmark --bench 8-lf-1-deque invariants; \
+	cd - >/dev/null; \
+	cp target/criterion/invariants/1/report/violin.svg lab/src/8-lf-1-invariants-vs-other-implementations-time.svg.criterion; \
+	cp target/criterion/invariants/report/lines_throughput.svg lab/src/8-lf-1-invariants-vs-other-implementations-throughput.svg.criterion; \
+	for i in lab/src/8-lf-1-invariants*.svg.criterion; do \
+		sed -i 's@rgb(178,  34,  34)@rgb(  0,   0, 192)@g;s@rgb( 46, 139,  87)@rgb(  0, 192,   0)@g;s@rgb(  0, 139, 139)@rgb(192,   0,   0)@g;s@rgb(255, 215,   0)@rgb( 96,  96,   0)@g;s@rgb(  0,   0, 139)@rgb( 96,   0,  96)@g;s@rgb(220,  20,  60)@rgb(  0,  96,  96)@g;s@rgb(139,   0, 139)@rgb( 96,  96,  96)@g;s@rgb(  0, 255, 127)@rgb(192, 192, 192)@g;' $$i; \
+	done; \
+	for element_count in 1 1000; do \
+		critcmp --filter "invariants/[0-9]\. .*/$$element_count$$" new | \
+			sed 's@^invariants/[0-9]*\. @@g;s@<.*>@@g;s@^\([^/]*\)/\([0-9]*\) *[0-9.]* *\([0-9.±]* *[^ ]*\) *\(.*\)@\2 | \1 | \3 | \4@g;' | \
+			tail --lines=+3 \
+			> lab/src/8-lf-1-invariants-vs-other-implementations.$$element_count.md; \
+		head --lines=4 lab/src/8-lf-1-invariants-vs-other-implementations.$$element_count.md > lab/src/8-lf-1-invariants.$$element_count.md; \
+	done
+
 lab: $(RUST_PATH)/mdbook doc lab/src/*.dot lab/src/*.md lab/src/*.puml
 	@( \
 		if grep --quiet 'compose::begin_private' ku/src/ipc/pipe.rs; then \
@@ -164,6 +186,7 @@ lab: $(RUST_PATH)/mdbook doc lab/src/*.dot lab/src/*.md lab/src/*.puml
 				--dump-group-dependencies lab-$${lab} > lab/src/$${dot}-0-intro-lab-dependencies.dot; \
 		done; \
 		cd lab/src; \
+		for i in *.svg.criterion; do sed 's@rgb(178,  34,  34)@rgb(  0,   0, 192)@g;s@rgb( 46, 139,  87)@rgb(  0, 192,   0)@g;s@rgb(  0, 139, 139)@rgb(192,   0,   0)@g;s@rgb(255, 215,   0)@rgb( 96,  96,   0)@g;s@rgb(  0,   0, 139)@rgb( 96,   0,  96)@g;s@rgb(220,  20,  60)@rgb(  0,  96,  96)@g;s@rgb(139,   0, 139)@rgb( 96,  96,  96)@g;s@rgb(  0, 255, 127)@rgb(192, 192, 192)@g;' < $$i > $${i%.criterion}; done; \
 		for i in *.dot; do dot -Tsvg $$i > $${i%dot}svg; done; \
 		for i in *.puml; do java -jar /usr/share/java/plantuml/plantuml.jar -tsvg $$i; done; \
 		for i in 3-allocator-7-*.tex 6-um-1-pipe*.tex; do \
@@ -250,6 +273,7 @@ install:
 	@(which rustfilt > /dev/null || (cargo install rustfilt))
 	@(which cargo-expand > /dev/null || (cargo install cargo-expand))
 	@(which cargo-spellcheck  > /dev/null || (cargo install cargo-spellcheck))
+	@(which critcmp > /dev/null || (cargo install critcmp))
 	@(which typos > /dev/null || (cargo install typos-cli))
 	@(which taplo > /dev/null || (cargo install taplo-cli))
 
