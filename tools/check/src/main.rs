@@ -294,16 +294,16 @@ fn read_config(opts: &Opts) -> Result<Config> {
 #[structopt()]
 struct Opts {
     /// Path to the student repository.
-    #[structopt(short = "s", long = "student-repo")]
+    #[structopt(short = "s", long = "student-repo", default_value = ".")]
     student_repo: PathBuf,
     /// Path to the original repo.
-    #[structopt(short = "o", long = "original-repo")]
+    #[structopt(short = "o", long = "original-repo", default_value = ".")]
     original_repo: PathBuf,
     /// CI branch name (e.g. "submit/add")
     #[structopt(short = "b", long = "ci-branch-name")]
     ci_branch_name: String,
     /// Gitlab User ID
-    #[structopt(short = "u", long = "user-id")]
+    #[structopt(short = "u", long = "user-id", default_value = ".")]
     user_id: String,
 
     #[structopt(long = "sandbox")]
@@ -415,6 +415,12 @@ fn do_main(opts: Opts) -> Result<()> {
         return Ok(());
     }
 
+    let default_allow_list = if opts.dry_run {
+        Some(vec![])
+    } else {
+        None
+    };
+
     if let Some(task) = config.find_task(task_name) {
         let orig_path = &opts.original_repo;
         let stud_path = &opts.student_repo;
@@ -423,6 +429,7 @@ fn do_main(opts: Opts) -> Result<()> {
             .allow_list
             .clone()
             .or(config.allow_list.clone())
+            .or(default_allow_list)
             .with_context(|| format!("no allow_list for task {task_name}"))?
         {
             let path = orig_path.join(pattern.as_str());
