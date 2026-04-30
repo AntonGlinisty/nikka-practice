@@ -15,6 +15,9 @@ pub mod panic;
 /// Примитив синхронизации [`SequenceLock`].
 pub mod sequence_lock;
 
+/// MPMC квазиочередь [`ShardedMpmc`].
+pub mod sharded_mpmc;
+
 /// Примитив синхронизации [`Spinlock`].
 pub mod spinlock;
 
@@ -32,6 +35,7 @@ pub use panic::{
     start_panicking,
 };
 pub use sequence_lock::SequenceLock;
+pub use sharded_mpmc::ShardedMpmc;
 pub use spinlock::{
     FastSpinlock,
     FastSpinlockGuard,

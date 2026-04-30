@@ -5,12 +5,14 @@
 //! Общая для пространств ядра и пользователя библиотека.
 //! ku --- **k**ernel && **u**ser.
 
+#![allow(incomplete_features)]
 #![allow(internal_features)]
 #![deny(warnings)]
 #![feature(adt_const_params)]
 #![feature(allocator_api)]
 #![feature(atomic_from_mut)]
 #![feature(core_intrinsics)]
+#![feature(generic_const_exprs)]
 #![feature(likely_unlikely)]
 #![feature(maybe_uninit_fill, maybe_uninit_slice)]
 #![feature(slice_ptr_get)]

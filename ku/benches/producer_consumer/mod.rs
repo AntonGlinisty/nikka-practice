@@ -441,3 +441,57 @@ pub(super) fn producer_consumer_concurrent<P: FnMut() -> () + Send, C: FnMut() -
         end - start
     })
 }
+
+#[allow(unused)]
+pub(super) fn producer_consumer_multiple_concurrent<
+    P: Clone + FnMut() -> () + Send,
+    C: Clone + FnMut() -> () + Send,
+>(
+    id: &str,
+    producer_count: usize,
+    iteration_count: u64,
+    producer: P,
+    consumer: C,
+) -> Duration {
+    let core_count = affinity::get_core_num();
+
+    thread::scope(|scope| {
+        let producers: Vec<_> = (0 .. producer_count)
+            .map(|n| (n, producer.clone()))
+            .map(|(n, mut producer)| {
+                thread::Builder::new()
+                    .name(format!("{id} producer #{n}"))
+                    .spawn_scoped(scope, move || {
+                        affinity::set_thread_affinity(&[0]).unwrap();
+                        let start = Instant::now();
+                        for _ in 0 .. iteration_count {
+                            producer();
+                        }
+                        start
+                    })
+                    .unwrap()
+            })
+            .collect();
+
+        let consumers: Vec<_> = (0 .. producer_count)
+            .map(|n| (n, consumer.clone()))
+            .map(|(n, mut consumer)| {
+                thread::Builder::new()
+                    .name(format!("{id} consumer {n}"))
+                    .spawn_scoped(scope, move || {
+                        affinity::set_thread_affinity(&[core_count / 2]).unwrap();
+                        for _ in 0 .. iteration_count {
+                            consumer();
+                        }
+                        Instant::now()
+                    })
+                    .unwrap()
+            })
+            .collect();
+
+        let start = producers.into_iter().map(|thread| thread.join().unwrap()).min().unwrap();
+        let end = consumers.into_iter().map(|thread| thread.join().unwrap()).max().unwrap();
+
+        end - start
+    })
+}
