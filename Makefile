@@ -207,7 +207,7 @@ lab-bench: install
 		cp target/criterion/invariants/1/report/violin.svg lab/src/8-lf-1-invariants-vs-other-implementations-time.svg.criterion; \
 		cp target/criterion/invariants/report/lines_throughput.svg lab/src/8-lf-1-invariants-vs-other-implementations-throughput.svg.criterion; \
 		for i in lab/src/*.svg.criterion; do \
-			sed -i 's@rgb(178,  34,  34)@rgb(  0,  96, 192)@g;s@rgb( 46, 139,  87)@rgb(  0,   0, 192)@g;s@rgb(  0, 139, 139)@rgb(  0, 192,   0)@g;s@rgb(255, 215,   0)@rgb(192,   0,   0)@g;s@rgb(  0,   0, 139)@rgb( 96,  96,   0)@g;s@rgb(220,  20,  60)@rgb( 96,   0,  96)@g;s@rgb(139,   0, 139)@rgb(  0,  96,  96)@g;s@rgb(  0, 255, 127)@rgb( 96,  96,  96)@g;' $$i; \
+			sed -i 's@rgb(178,  34,  34)@rgb(128, 192, 255)@g;s@rgb( 46, 139,  87)@rgb(112, 192, 160)@g;s@rgb(  0, 139, 139)@rgb(224, 128, 144)@g;s@rgb(255, 215,   0)@rgb(144, 144, 255)@g;s@rgb(  0,   0, 139)@rgb(176, 128, 224)@g;s@rgb(220,  20,  60)@rgb(160, 160, 192)@g;s@rgb(139,   0, 139)@rgb( 96, 144, 172)@g;s@rgb(  0, 255, 127)@rgb(176, 160, 144)@g;' $$i; \
 		done; \
 		for element_count in 1 1000; do \
 			critcmp --filter "invariants/[0-9]\. .*/$$element_count$$" new | \
