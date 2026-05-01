@@ -109,3 +109,7 @@ harness = false
 [[bench]]
 name = "8-queues-4-sharded-mpmc"
 harness = false
+
+[[bench]]
+name = "8-queues-5-reserving-mpmc"
+harness = false

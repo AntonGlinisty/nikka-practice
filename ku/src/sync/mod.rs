@@ -12,6 +12,9 @@ pub mod once_lock;
 /// Поведение блокировок при панике.
 pub mod panic;
 
+/// MPMC очередь [`ReservingMpmc`].
+pub mod reserving_mpmc;
+
 /// Примитив синхронизации [`SequenceLock`].
 pub mod sequence_lock;
 
@@ -34,6 +37,7 @@ pub use panic::{
     PanicStrategy,
     start_panicking,
 };
+pub use reserving_mpmc::ReservingMpmc;
 pub use sequence_lock::SequenceLock;
 pub use sharded_mpmc::ShardedMpmc;
 pub use spinlock::{
