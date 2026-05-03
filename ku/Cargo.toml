@@ -57,16 +57,25 @@ sentinel_frame = { path = "../sentinel_frame" }
 [dev-dependencies]
 affinity = "*"
 anyhow = "*"
+bounded-spsc-queue = "*"
 criterion = { version = "*", features = ["csv_output", "html_reports"] }
 #criterion-inverted-throughput = "*"
+crossbeam-channel = "*"
 ctor = "*"
 dtor = "*"
+fibre = "*"
+gil = "*"
 nix = { version = "0.27.*", features = ["mman"] }
 opt-level = "*"
 rand = { version = "*", default-features = false, features = ["alloc", "small_rng"] }
+ringbuffer-spsc = "*"
 rstest = "*"
+rtrb = "*"
 serde = { version = "*", default-features = false, features = ["alloc", "derive"] }
 serde_json = { version = "*", default-features = false, features = ["alloc"] }
+smallring = "*"
+spsc-bip-buffer = "*"
+tokio = { version = "*", features = ["sync"] }
 tracing-subscriber = { git = "https://github.com/tokio-rs/tracing", features = ["env-filter"] }
 
 [features]

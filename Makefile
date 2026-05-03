@@ -3,6 +3,8 @@ QEMU_GTK = $(QEMU_OPTIONS) -display gtk -serial file:serial.out
 QEMU_NOX = $(QEMU_OPTIONS) -nographic -serial mon:stdio
 QEMU_CURSES = $(QEMU_OPTIONS) -display curses -serial file:serial.out
 
+PLANTUML=$(shell ls /usr/share/java/plantuml/plantuml.jar /usr/share/plantuml/plantuml.jar 2>/dev/null | head --lines 1 || true)
+
 QUIT_MESSAGE = "To quit QEMU type Ctrl-A then X. For QEMU console type Ctrl-A then C.\n"
 WAIT_MESSAGE = "Will wait for GDB to attach. Run 'make gdb' in a separate console after qemu starts.\n"
 
@@ -166,7 +168,7 @@ lab: $(RUST_PATH)/mdbook doc lab/src/*.dot lab/src/*.md lab/src/*.puml
 		cd lab/src; \
 		for i in *.svg.criterion; do sed 's@rgb(178,  34,  34)@rgb(  0,   0, 192)@g;s@rgb( 46, 139,  87)@rgb(  0, 192,   0)@g;s@rgb(  0, 139, 139)@rgb(192,   0,   0)@g;s@rgb(255, 215,   0)@rgb( 96,  96,   0)@g;s@rgb(  0,   0, 139)@rgb( 96,   0,  96)@g;s@rgb(220,  20,  60)@rgb(  0,  96,  96)@g;s@rgb(139,   0, 139)@rgb( 96,  96,  96)@g;s@rgb(  0, 255, 127)@rgb(192, 192, 192)@g;' < $$i > $${i%.criterion}; done; \
 		for i in *.dot; do dot -Tsvg $$i > $${i%dot}svg; done; \
-		for i in *.puml; do java -jar /usr/share/java/plantuml/plantuml.jar -tsvg $$i; done; \
+		for i in *.puml; do java -jar $(PLANTUML) -tsvg $$i; done; \
 		for i in *.svg.criterion; do cp $$i $${i%.criterion}; done; \
 		for i in 3-allocator-7-*.tex 6-um-1-pipe*.tex; do \
 			sed -i 's@\s*$$@@g;' $$i; \
@@ -180,35 +182,35 @@ lab: $(RUST_PATH)/mdbook doc lab/src/*.dot lab/src/*.md lab/src/*.puml
 		cd lab; \
 		cp book-base.toml book.toml; \
 		mdbook build; \
-		cp book-linkcheck.toml book.toml; \
-		mdbook build; \
-		mv book/html html; \
-		rm --force --recursive book book.toml; \
-		mkdir book; \
-		mv html book/; \
-		mv book/html/* book/; \
-		cd - >/dev/null; \
-		rm --force lab/src/*.aux lab/src/*.log lab/src/*.pdf; \
 	)
+#		cp book-linkcheck.toml book.toml; \
+#		mdbook build; \
+#		mv book/html html; \
+#		rm --force --recursive book book.toml; \
+#		mkdir book; \
+#		mv html book/; \
+#		mv book/html/* book/; \
+#		cd - >/dev/null; \
+#		rm --force lab/src/*.aux lab/src/*.log lab/src/*.pdf; \
 
-lab-bench: install
+lab-bench: lab-bench-8-lf-1-deque lab-bench-8-lf-2-spsc
+
+lab-bench-8-lf-1-deque: install
 	@( \
 		cd ku; \
 		cargo bench --no-run; \
-		cargo bench --bench 8-lf-1-deque invariants 2>&1 | \
-			sed 's@/home/[a-z-]*/tmp/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/\.@/.../.@g' \
-			> ../lab/src/8-lf-1-deque-bench.md; \
+		cargo bench --bench 8-lf-1-deque invariants/ 2>&1 | \
+			sed 's@/home/[a-z-]*/tmp/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/\.@/.../.@g' | \
+			tee ../lab/src/8-lf-1-deque-bench.md; \
 		cd - >/dev/null; \
 		cp target/criterion/invariants/1/report/violin.svg lab/src/8-lf-1-invariants-time.svg.criterion; \
 		cp target/criterion/invariants/report/lines_throughput.svg lab/src/8-lf-1-invariants-throughput.svg.criterion; \
 		cd ku; \
-		cargo bench --features benchmark --bench 8-lf-1-deque invariants; \
+		cargo bench --features benchmark --bench 8-lf-1-deque invariants/; \
 		cd - >/dev/null; \
 		cp target/criterion/invariants/1/report/violin.svg lab/src/8-lf-1-invariants-vs-other-implementations-time.svg.criterion; \
 		cp target/criterion/invariants/report/lines_throughput.svg lab/src/8-lf-1-invariants-vs-other-implementations-throughput.svg.criterion; \
-		for i in lab/src/*.svg.criterion; do \
-			sed -i 's@rgb(178,  34,  34)@rgb(128, 192, 255)@g;s@rgb( 46, 139,  87)@rgb(112, 192, 160)@g;s@rgb(  0, 139, 139)@rgb(224, 128, 144)@g;s@rgb(255, 215,   0)@rgb(144, 144, 255)@g;s@rgb(  0,   0, 139)@rgb(176, 128, 224)@g;s@rgb(220,  20,  60)@rgb(160, 160, 192)@g;s@rgb(139,   0, 139)@rgb( 96, 144, 172)@g;s@rgb(  0, 255, 127)@rgb(176, 160, 144)@g;' $$i; \
-		done; \
+		cd ku; \
 		for element_count in 1 1000; do \
 			critcmp --filter "invariants/[0-9]\. .*/$$element_count$$" new | \
 				sed 's@^invariants/[0-9]*\. @@g;s@<.*>@@g;s@^\([^/]*\)/\([0-9]*\) *[0-9.]* *\([0-9.±]* *[^ ]*\) *\(.*\)@\2 | \1 | \3 | \4@g;' | \
@@ -217,15 +219,42 @@ lab-bench: install
 			head --lines=4 lab/src/8-lf-1-invariants-vs-other-implementations.$$element_count.md > lab/src/8-lf-1-invariants.$$element_count.md; \
 		done; \
 		critcmp --filter 'invariants/.*(infinite_indices|sentinel)' new > lab/src/8-lf-1-invariants-critcmp.md; \
+		for i in lab/src/*.svg.criterion; do \
+			sed -i 's@rgb(178,  34,  34)@rgb(128, 192, 255)@g;s@rgb( 46, 139,  87)@rgb(112, 192, 160)@g;s@rgb(  0, 139, 139)@rgb(224, 128, 144)@g;s@rgb(255, 215,   0)@rgb(144, 144, 255)@g;s@rgb(  0,   0, 139)@rgb(176, 128, 224)@g;s@rgb(220,  20,  60)@rgb(160, 160, 192)@g;s@rgb(139,   0, 139)@rgb( 96, 144, 172)@g;s@rgb(  0, 255, 127)@rgb(176, 160, 144)@g;' $$i; \
+		done; \
+	)
+
+lab-bench-8-lf-2-spsc: install
+	@( \
+		cd ku; \
+		cargo bench --no-run; \
+		cargo bench --bench 8-lf-2-spsc sequential/ 2>&1 | \
+			sed 's@/home/[a-z-]*/tmp/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/\.@/.../.@g' | \
+			tee ../lab/src/8-lf-2-sequential-bench.md; \
+		cargo bench --bench 8-lf-2-spsc concurrent/ 2>&1 | \
+			sed 's@/home/[a-z-]*/tmp/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/\.@/.../.@g' | \
+			tee ../lab/src/8-lf-2-concurrent-bench.md; \
+		cd - >/dev/null; \
+		cp target/criterion/sequential/1000/report/violin.svg lab/src/8-lf-2-sequential-time.svg.criterion; \
+		cp target/criterion/sequential/report/lines_throughput.svg lab/src/8-lf-2-sequential-throughput.svg.criterion; \
+		cp target/criterion/concurrent/1000000/report/violin.svg lab/src/8-lf-2-concurrent-time.svg.criterion; \
+		cp target/criterion/concurrent/report/lines_throughput.svg lab/src/8-lf-2-concurrent-throughput.svg.criterion; \
+		critcmp --filter 'sequential/.*(spsc|sentinel)' new > lab/src/8-lf-2-sequential-critcmp.md; \
+		critcmp --filter 'concurrent/.*(spsc|crossbeam)' new > lab/src/8-lf-2-concurrent-critcmp.md; \
+		for i in lab/src/*.svg.criterion; do \
+			sed -i 's@rgb(178,  34,  34)@rgb(128, 192, 255)@g;s@rgb( 46, 139,  87)@rgb(112, 192, 160)@g;s@rgb(  0, 139, 139)@rgb(224, 128, 144)@g;s@rgb(255, 215,   0)@rgb(144, 144, 255)@g;s@rgb(  0,   0, 139)@rgb(176, 128, 224)@g;s@rgb(220,  20,  60)@rgb(160, 160, 192)@g;s@rgb(139,   0, 139)@rgb( 96, 144, 172)@g;s@rgb(  0, 255, 127)@rgb(176, 160, 144)@g;' $$i; \
+		done; \
 	)
 
 lab-test: install
 	@( \
 		cd ku; \
 		cargo test --no-run; \
-		cargo test --test 8-lf-1-deque 2>&1 | \
-			sed 's@/home/[a-z-]*/tmp/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/\.@/.../.@g' \
-			> ../lab/src/8-lf-1-deque-test.md; \
+		for test in 8-lf-1-deque 8-lf-2-spsc; do \
+			cargo test --test $$test 2>&1 | \
+				sed 's@/home/[a-z-]*/tmp/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/\.@/.../.@g' \
+				> ../lab/src/$$test-test.md; \
+		done; \
 		cd - >/dev/null; \
 	)
 
