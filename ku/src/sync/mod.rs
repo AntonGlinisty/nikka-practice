@@ -5,6 +5,9 @@ pub mod cache_aligned;
 /// Примитив синхронизации [`IrqSpinlock`].
 pub mod irq_spinlock;
 
+/// Неблокирующая MPMC очередь [`Mpmc`].
+pub mod mpmc;
+
 /// Примитив синхронизации [`OnceLock`] для данных,
 /// которые один раз записываются, а потом только читаются.
 pub mod once_lock;
@@ -32,6 +35,7 @@ pub use irq_spinlock::{
     IrqSpinlock,
     IrqSpinlockGuard,
 };
+pub use mpmc::Mpmc;
 pub use once_lock::OnceLock;
 pub use panic::{
     PanicStrategy,
@@ -47,3 +51,8 @@ pub use spinlock::{
     SpinlockGuard,
 };
 pub use spsc::Spsc;
+
+#[doc(hidden)]
+pub mod test_scaffolding {
+    pub use super::mpmc::test_scaffolding::*;
+}
