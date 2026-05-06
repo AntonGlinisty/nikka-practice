@@ -139,9 +139,16 @@ impl Mapping {
     /// Поэтому копия может быть модифицирована независимо от оригинала.
     pub(super) fn duplicate(&self) -> Result<Self> {
         let mut result = Self::new(Frame::default(), self.phys2virt);
-        result.page_table_root = self
-            .duplicate_subtree(&mut result, self.page_table_root(), PAGE_TABLE_ROOT_LEVEL)?
-            .take();
+        result.page_table_root = result.allocate_node()?.take();
+
+        let page_table_root = result.page_table_root;
+        self.duplicate_subtree(
+            &mut result,
+            page_table_root,
+            self.page_table_root(),
+            PAGE_TABLE_ROOT_LEVEL,
+        )?;
+
         Ok(result)
     }
 
@@ -192,9 +199,10 @@ impl Mapping {
     fn duplicate_subtree(
         &self,
         dst: &mut Mapping,
+        dst_frame: Frame,
         src_frame: Frame,
         level: u32,
-    ) -> Result<FrameGuard> {
+    ) -> Result<()> {
         // TODO: your code here.
         unimplemented!();
     }

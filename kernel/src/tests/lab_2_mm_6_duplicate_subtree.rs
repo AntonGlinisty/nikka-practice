@@ -1,3 +1,8 @@
+use ku::{
+    memory::GiB,
+    sync::Spinlock,
+};
+
 use kernel::{
     Subsystems,
     error::Error::NoPage,
@@ -6,6 +11,7 @@ use kernel::{
         AddressSpace,
         BASE_ADDRESS_SPACE,
         FRAME_ALLOCATOR,
+        Frame,
         FrameGuard,
         KERNEL_RW,
         Page,
@@ -137,6 +143,47 @@ fn duplicate_and_drop() {
         }
 
         FRAME_ALLOCATOR.lock().count()
+    }
+}
+
+#[test_case]
+fn duplicate_error() {
+    let _guard = mm_helpers::forbid_frame_leaks();
+
+    let start_free_frames = FRAME_ALLOCATOR.lock().count();
+
+    let address_space_copy = duplicate(&BASE_ADDRESS_SPACE.lock()).unwrap();
+
+    let required_free_frames_for_duplicate =
+        start_free_frames.checked_sub(FRAME_ALLOCATOR.lock().count()).unwrap();
+    drop(address_space_copy);
+    debug!(required_free_frames_for_duplicate);
+
+    static FRAMES: Spinlock<[Option<FrameGuard>; GiB / Frame::SIZE]> =
+        Spinlock::new([const { None }; _]);
+
+    for free_frames in 0 .. required_free_frames_for_duplicate {
+        let _guard = mm_helpers::forbid_frame_leaks();
+
+        let mut frames = FRAMES.lock();
+        assert!(
+            frames.len() >= start_free_frames,
+            "reserve more memory for frames",
+        );
+
+        let mut frames_stolen = 0;
+        while FRAME_ALLOCATOR.lock().count() > free_frames {
+            frames[frames_stolen] = Some(FRAME_ALLOCATOR.lock().allocate().unwrap());
+            frames_stolen += 1;
+        }
+
+        debug!(free_frames = FRAME_ALLOCATOR.lock().count());
+
+        duplicate(&BASE_ADDRESS_SPACE.lock()).unwrap_err();
+
+        for i in 0 .. frames_stolen {
+            frames[i] = None;
+        }
     }
 }
 
