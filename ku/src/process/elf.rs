@@ -29,6 +29,7 @@ use crate::{
         Error::{
             Elf,
             InvalidArgument,
+            NoPage,
             Overflow,
             PermissionDenied,
         },
@@ -210,6 +211,13 @@ impl<'a, T: BigAllocatorPair> Loader<'a, T> {
         page_range: PageRange,
     ) -> Result<()> {
         // ANCHOR_END: finalize_mapping
+        // TODO: your code here.
+        unimplemented!();
+    }
+}
+
+impl<'a, T: BigAllocatorPair> Drop for Loader<'a, T> {
+    fn drop(&mut self) {
         // TODO: your code here.
         unimplemented!();
     }

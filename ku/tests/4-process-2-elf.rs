@@ -58,7 +58,6 @@ use ku::{
         KERNEL_R,
         Page,
         USER_R,
-        USER_RW,
         Virt,
         mmu::PageTableFlags,
         size,
@@ -481,29 +480,7 @@ fn validate_combine(
 }
 
 #[test]
-fn t06_initial_flags() {
-    let mut allocator = DummyAllocatorPair::new(1, USER_R);
-    let offset = allocator.dst.offset();
-
-    let file = [];
-
-    let next = FileRange::new(
-        Block::new(offset, (offset + Page::SIZE).unwrap()).unwrap(),
-        PageTableFlags::default(),
-        0 .. 0,
-    );
-
-    let mut loader = Loader::new(&mut allocator, &file);
-
-    loader.extend_mapping(&next).unwrap();
-    let initial_flags = allocator.src.pages[0].flags;
-
-    debug!(%initial_flags);
-    assert_eq!(initial_flags, USER_RW);
-}
-
-#[test]
-fn t07_extend_mapping() {
+fn t06_extend_mapping() {
     let mut rng = SmallRng::seed_from_u64(SEED);
 
     let block_flags: Vec<_> = generate_flags().collect();
@@ -566,6 +543,8 @@ fn t07_extend_mapping() {
             curr = Some(next.virt_range);
         }
 
+        drop(loader);
+
         for (index, (&page, expected)) in allocator.dst.pages.iter().zip(expected).enumerate() {
             assert_eq!(page, expected, "unexpected state of page #{index}");
         }
@@ -573,7 +552,7 @@ fn t07_extend_mapping() {
 }
 
 #[test]
-fn t08_load_program_header() {
+fn t07_load_program_header() {
     let mut rng = SmallRng::seed_from_u64(SEED);
 
     let block_flags: Vec<_> = generate_flags().collect();
@@ -685,6 +664,8 @@ fn t08_load_program_header() {
                     );
                     assert!(actual_memory[file_size ..].iter().all(|&x| x == 0));
                 }
+
+                drop(loader);
 
                 assert_eq!(allocator.dst.pages, expected_pages);
                 allocator.dst.validate_allocated_memory_state(&expected_memory);
