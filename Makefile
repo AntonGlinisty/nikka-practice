@@ -153,8 +153,9 @@ lab: $(RUST_PATH)/mdbook doc lab/src/*.dot lab/src/*.md lab/src/*.puml
 			cd - >/dev/null; \
 		fi; \
 		sed -i 's@/home/[a-z-]*/tmp/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/\.@/.../.@g' lab/src/*.md; \
+		sed -i 's@https://www.1024cores.net/.../nikka/bounded-mpmc-queue@https://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue@g' lab/src/*.md; \
 		cargo run --manifest-path tools/check/Cargo.toml -- --student-repo . --original-repo . --ci-branch-name submit/- --user-id - --dump-dependencies > lab/src/0-intro-1-nikka-lab-dependencies.dot; \
-		for i in 1-hw "2-memory 2-mm" 3-allocator 4-process 5-sync "6-user-memory-tricks 6-um" "7-file-system 7-fs"; do \
+		for i in 1-hw "2-memory 2-mm" 3-allocator 4-process 5-sync "6-user-memory-tricks 6-um" "7-file-system 7-fs" "8-queues 8-queues"; do \
 			lab_dot=$$(echo "$$i $$i"); \
 			lab=$$(echo "$$lab_dot" | cut -f1 -d' '); \
 			dot=$$(echo "$$lab_dot" | cut -f2 -d' '); \
@@ -166,7 +167,6 @@ lab: $(RUST_PATH)/mdbook doc lab/src/*.dot lab/src/*.md lab/src/*.puml
 				--dump-group-dependencies lab-$${lab} > lab/src/$${dot}-0-intro-lab-dependencies.dot; \
 		done; \
 		cd lab/src; \
-		for i in *.svg.criterion; do sed 's@rgb(178,  34,  34)@rgb(  0,   0, 192)@g;s@rgb( 46, 139,  87)@rgb(  0, 192,   0)@g;s@rgb(  0, 139, 139)@rgb(192,   0,   0)@g;s@rgb(255, 215,   0)@rgb( 96,  96,   0)@g;s@rgb(  0,   0, 139)@rgb( 96,   0,  96)@g;s@rgb(220,  20,  60)@rgb(  0,  96,  96)@g;s@rgb(139,   0, 139)@rgb( 96,  96,  96)@g;s@rgb(  0, 255, 127)@rgb(192, 192, 192)@g;' < $$i > $${i%.criterion}; done; \
 		for i in *.dot; do dot -Tsvg $$i > $${i%dot}svg; done; \
 		for i in *.puml; do java -jar $(PLANTUML) -tsvg $$i; done; \
 		for i in *.svg.criterion; do cp $$i $${i%.criterion}; done; \
@@ -193,56 +193,121 @@ lab: $(RUST_PATH)/mdbook doc lab/src/*.dot lab/src/*.md lab/src/*.puml
 #		cd - >/dev/null; \
 #		rm --force lab/src/*.aux lab/src/*.log lab/src/*.pdf; \
 
-lab-bench: lab-bench-8-lf-1-deque lab-bench-8-lf-2-spsc
+lab-bench: lab-bench-8-queues-1-deque lab-bench-8-queues-2-spsc lab-bench-8-queues-3-spsc-slice lab-bench-8-queues-5-reserving-mpmc lab-bench-8-queues-6-mpmc
 
-lab-bench-8-lf-1-deque: install
+lab-bench-8-queues-1-deque: install clean
 	@( \
 		cd ku; \
 		cargo bench --no-run; \
-		cargo bench --bench 8-lf-1-deque invariants/ 2>&1 | \
+		cargo bench --bench 8-queues-1-deque invariants/ 2>&1 | \
 			sed 's@/home/[a-z-]*/tmp/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/\.@/.../.@g' | \
-			tee ../lab/src/8-lf-1-deque-bench.md; \
+			tee ../lab/src/8-queues-1-deque-bench.md; \
 		cd - >/dev/null; \
-		cp target/criterion/invariants/1/report/violin.svg lab/src/8-lf-1-invariants-time.svg.criterion; \
-		cp target/criterion/invariants/report/lines_throughput.svg lab/src/8-lf-1-invariants-throughput.svg.criterion; \
+		cp target/criterion/invariants/1/report/violin.svg lab/src/8-queues-1-invariants-time.svg.criterion; \
+		cp target/criterion/invariants/report/lines_throughput.svg lab/src/8-queues-1-invariants-throughput.svg.criterion; \
 		cd ku; \
-		cargo bench --features benchmark --bench 8-lf-1-deque invariants/; \
+		cargo bench --features benchmark --bench 8-queues-1-deque invariants/; \
 		cd - >/dev/null; \
-		cp target/criterion/invariants/1/report/violin.svg lab/src/8-lf-1-invariants-vs-other-implementations-time.svg.criterion; \
-		cp target/criterion/invariants/report/lines_throughput.svg lab/src/8-lf-1-invariants-vs-other-implementations-throughput.svg.criterion; \
-		cd ku; \
+		cp target/criterion/invariants/1/report/violin.svg lab/src/8-queues-1-invariants-vs-other-implementations-time.svg.criterion; \
+		cp target/criterion/invariants/report/lines_throughput.svg lab/src/8-queues-1-invariants-vs-other-implementations-throughput.svg.criterion; \
 		for element_count in 1 1000; do \
 			critcmp --filter "invariants/[0-9]\. .*/$$element_count$$" new | \
 				sed 's@^invariants/[0-9]*\. @@g;s@<.*>@@g;s@^\([^/]*\)/\([0-9]*\) *[0-9.]* *\([0-9.±]* *[^ ]*\) *\(.*\)@\2 | \1 | \3 | \4@g;' | \
 				tail --lines=+3 \
-				> lab/src/8-lf-1-invariants-vs-other-implementations.$$element_count.md; \
-			head --lines=4 lab/src/8-lf-1-invariants-vs-other-implementations.$$element_count.md > lab/src/8-lf-1-invariants.$$element_count.md; \
+				> lab/src/8-queues-1-invariants-vs-other-implementations.$$element_count.md; \
+			head --lines=4 lab/src/8-queues-1-invariants-vs-other-implementations.$$element_count.md > lab/src/8-queues-1-invariants.$$element_count.md; \
 		done; \
-		critcmp --filter 'invariants/.*(infinite_indices|sentinel)' new > lab/src/8-lf-1-invariants-critcmp.md; \
+		critcmp --filter 'invariants/.*(infinite_indices|sentinel)' new > lab/src/8-queues-1-invariants-critcmp.md; \
 		for i in lab/src/*.svg.criterion; do \
-			sed -i 's@rgb(178,  34,  34)@rgb(128, 192, 255)@g;s@rgb( 46, 139,  87)@rgb(112, 192, 160)@g;s@rgb(  0, 139, 139)@rgb(224, 128, 144)@g;s@rgb(255, 215,   0)@rgb(144, 144, 255)@g;s@rgb(  0,   0, 139)@rgb(176, 128, 224)@g;s@rgb(220,  20,  60)@rgb(160, 160, 192)@g;s@rgb(139,   0, 139)@rgb( 96, 144, 172)@g;s@rgb(  0, 255, 127)@rgb(176, 160, 144)@g;' $$i; \
+			sed -i 's@\s*$$@@g;s@rgb(178,  34,  34)@rgb(128, 192, 255)@g;s@rgb( 46, 139,  87)@rgb(112, 192, 160)@g;s@rgb(  0, 139, 139)@rgb(224, 128, 144)@g;s@rgb(255, 215,   0)@rgb(144, 144, 255)@g;s@rgb(  0,   0, 139)@rgb(176, 128, 224)@g;s@rgb(220,  20,  60)@rgb(160, 160, 192)@g;s@rgb(139,   0, 139)@rgb( 96, 144, 172)@g;s@rgb(  0, 255, 127)@rgb(176, 160, 144)@g;' $$i; \
 		done; \
 	)
 
-lab-bench-8-lf-2-spsc: install
+lab-bench-8-queues-2-spsc: install clean
 	@( \
 		cd ku; \
 		cargo bench --no-run; \
-		cargo bench --bench 8-lf-2-spsc sequential/ 2>&1 | \
+		cargo bench --bench 8-queues-2-spsc sequential/ 2>&1 | \
 			sed 's@/home/[a-z-]*/tmp/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/\.@/.../.@g' | \
-			tee ../lab/src/8-lf-2-sequential-bench.md; \
-		cargo bench --bench 8-lf-2-spsc concurrent/ 2>&1 | \
+			tee ../lab/src/8-queues-2-sequential-bench.md; \
+		cargo bench --bench 8-queues-2-spsc concurrent/ 2>&1 | \
 			sed 's@/home/[a-z-]*/tmp/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/\.@/.../.@g' | \
-			tee ../lab/src/8-lf-2-concurrent-bench.md; \
+			tee ../lab/src/8-queues-2-concurrent-bench.md; \
+		cargo bench --bench 8-queues-2-spsc bulk/ 2>&1 | \
+			sed 's@/home/[a-z-]*/tmp/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/\.@/.../.@g' | \
+			tee ../lab/src/8-queues-2-bulk-bench.md; \
+		cargo bench --bench 8-queues-2-spsc roundtrip/ 2>&1 | \
+			sed 's@/home/[a-z-]*/tmp/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/\.@/.../.@g' | \
+			tee ../lab/src/8-queues-2-roundtrip-bench.md; \
+		cargo bench --features benchmark --bench 8-queues-2-spsc sequential/; \
+		cargo bench --features benchmark --bench 8-queues-2-spsc concurrent/; \
+		cargo bench --features benchmark --bench 8-queues-2-spsc bulk/; \
+		cargo bench --features benchmark --bench 8-queues-2-spsc roundtrip/; \
 		cd - >/dev/null; \
-		cp target/criterion/sequential/1000/report/violin.svg lab/src/8-lf-2-sequential-time.svg.criterion; \
-		cp target/criterion/sequential/report/lines_throughput.svg lab/src/8-lf-2-sequential-throughput.svg.criterion; \
-		cp target/criterion/concurrent/1000000/report/violin.svg lab/src/8-lf-2-concurrent-time.svg.criterion; \
-		cp target/criterion/concurrent/report/lines_throughput.svg lab/src/8-lf-2-concurrent-throughput.svg.criterion; \
-		critcmp --filter 'sequential/.*(spsc|sentinel)' new > lab/src/8-lf-2-sequential-critcmp.md; \
-		critcmp --filter 'concurrent/.*(spsc|crossbeam)' new > lab/src/8-lf-2-concurrent-critcmp.md; \
+		cp target/criterion/sequential/1000/report/violin.svg lab/src/8-queues-2-sequential-time.svg.criterion; \
+		cp target/criterion/sequential/report/lines_throughput.svg lab/src/8-queues-2-sequential-throughput.svg.criterion; \
+		cp target/criterion/concurrent/1000000/report/violin.svg lab/src/8-queues-2-concurrent-time.svg.criterion; \
+		cp target/criterion/concurrent/report/lines_throughput.svg lab/src/8-queues-2-concurrent-throughput.svg.criterion; \
+		cp target/criterion/bulk/1000000/report/violin.svg lab/src/8-queues-2-concurrent-time-bulk.svg.criterion; \
+		cp target/criterion/bulk/report/lines_throughput.svg lab/src/8-queues-2-concurrent-throughput-bulk.svg.criterion; \
+		cp 'target/criterion/roundtrip/spsc roundtrip_u32, 16384_/1/report/pdf.svg' lab/src/8-queues-2-roundtrip.svg.criterion; \
+		critcmp --filter 'sequential/.*(spsc|sentinel)' new > lab/src/8-queues-2-sequential-critcmp.md; \
+		critcmp --filter 'concurrent/1.*spsc' new > lab/src/8-queues-2-concurrent-critcmp.md; \
+		critcmp --filter 'bulk/' new > lab/src/8-queues-2-bulk-critcmp.md; \
 		for i in lab/src/*.svg.criterion; do \
-			sed -i 's@rgb(178,  34,  34)@rgb(128, 192, 255)@g;s@rgb( 46, 139,  87)@rgb(112, 192, 160)@g;s@rgb(  0, 139, 139)@rgb(224, 128, 144)@g;s@rgb(255, 215,   0)@rgb(144, 144, 255)@g;s@rgb(  0,   0, 139)@rgb(176, 128, 224)@g;s@rgb(220,  20,  60)@rgb(160, 160, 192)@g;s@rgb(139,   0, 139)@rgb( 96, 144, 172)@g;s@rgb(  0, 255, 127)@rgb(176, 160, 144)@g;' $$i; \
+			sed -i 's@\s*$$@@g;s@rgb(178,  34,  34)@rgb(128, 192, 255)@g;s@rgb( 46, 139,  87)@rgb(112, 192, 160)@g;s@rgb(  0, 139, 139)@rgb(224, 128, 144)@g;s@rgb(255, 215,   0)@rgb(144, 144, 255)@g;s@rgb(  0,   0, 139)@rgb(176, 128, 224)@g;s@rgb(220,  20,  60)@rgb(160, 160, 192)@g;s@rgb(139,   0, 139)@rgb( 96, 144, 172)@g;s@rgb(  0, 255, 127)@rgb(176, 160, 144)@g;' $$i; \
+		done; \
+	)
+
+lab-bench-8-queues-3-spsc-slice: install clean
+	@( \
+		cd ku; \
+		cargo bench --no-run; \
+		cargo bench --bench 8-queues-3-spsc-slice 2>&1 | \
+			sed 's@/home/[a-z-]*/tmp/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/\.@/.../.@g' | \
+			tee ../lab/src/8-queues-3-spsc-slice-bench.md; \
+		cargo bench --features benchmark --bench 8-queues-3-spsc-slice; \
+		cd - >/dev/null; \
+		cp target/criterion/slice/report/lines_throughput.svg lab/src/8-queues-3-spsc-slice-throughput.svg.criterion; \
+		critcmp --filter 'slice/.*(slice spsc|double)' new > lab/src/8-queues-3-spsc-slice-critcmp.md; \
+		for i in lab/src/*.svg.criterion; do \
+			sed -i 's@\s*$$@@g;s@rgb(178,  34,  34)@rgb(128, 192, 255)@g;s@rgb( 46, 139,  87)@rgb(112, 192, 160)@g;s@rgb(  0, 139, 139)@rgb(224, 128, 144)@g;s@rgb(255, 215,   0)@rgb(144, 144, 255)@g;s@rgb(  0,   0, 139)@rgb(176, 128, 224)@g;s@rgb(220,  20,  60)@rgb(160, 160, 192)@g;s@rgb(139,   0, 139)@rgb( 96, 144, 172)@g;s@rgb(  0, 255, 127)@rgb(176, 160, 144)@g;' $$i; \
+		done; \
+	)
+
+lab-bench-8-queues-5-reserving-mpmc: install clean
+	@( \
+		cd ku; \
+		cargo bench --no-run; \
+		cargo bench --bench 8-queues-5-reserving-mpmc 2>&1 | \
+			sed 's@/home/[a-z-]*/tmp/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/\.@/.../.@g' | \
+			tee ../lab/src/8-queues-5-reserving-mpmc-bench.md; \
+		cargo bench --features benchmark --bench 8-queues-5-reserving-mpmc; \
+		cd - >/dev/null; \
+		cp target/criterion/reserving_mpmc/1000000/report/violin.svg lab/src/8-queues-5-reserving-mpmc-time.svg.criterion; \
+		cp target/criterion/reserving_mpmc/report/lines_throughput.svg lab/src/8-queues-5-reserving-mpmc-throughput.svg.criterion; \
+		cp 'target/criterion/roundtrip/reserving mpmc roundtrip_u32, 16384_/1/report/pdf.svg' lab/src/8-queues-5-reserving-mpmc-roundtrip.svg.criterion; \
+		critcmp --filter 'reserving_mpmc/' new > lab/src/8-queues-5-reserving-mpmc-critcmp.md; \
+		for i in lab/src/*.svg.criterion; do \
+			sed -i 's@\s*$$@@g;s@rgb(178,  34,  34)@rgb(128, 192, 255)@g;s@rgb( 46, 139,  87)@rgb(112, 192, 160)@g;s@rgb(  0, 139, 139)@rgb(224, 128, 144)@g;s@rgb(255, 215,   0)@rgb(144, 144, 255)@g;s@rgb(  0,   0, 139)@rgb(176, 128, 224)@g;s@rgb(220,  20,  60)@rgb(160, 160, 192)@g;s@rgb(139,   0, 139)@rgb( 96, 144, 172)@g;s@rgb(  0, 255, 127)@rgb(176, 160, 144)@g;' $$i; \
+		done; \
+	)
+
+lab-bench-8-queues-6-mpmc: install clean
+	@( \
+		cd ku; \
+		cargo bench --no-run; \
+		cargo bench --bench 8-queues-6-mpmc 2>&1 | \
+			sed 's@/home/[a-z-]*/tmp/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/\.@/.../.@g' | \
+			tee ../lab/src/8-queues-6-mpmc-bench.md; \
+		cargo bench --features benchmark --bench 8-queues-6-mpmc; \
+		cd - >/dev/null; \
+		cp target/criterion/mpmc/1000000/report/violin.svg lab/src/8-queues-6-mpmc-time.svg.criterion; \
+		cp target/criterion/mpmc/report/lines_throughput.svg lab/src/8-queues-6-mpmc-throughput.svg.criterion; \
+		cp 'target/criterion/roundtrip/mpmc roundtrip_u32, 16384_/1/report/pdf.svg' lab/src/8-queues-6-mpmc-roundtrip.svg.criterion; \
+		critcmp --filter 'mpmc/' new > lab/src/8-queues-6-mpmc-critcmp.md; \
+		for i in lab/src/*.svg.criterion; do \
+			sed -i 's@\s*$$@@g;s@rgb(178,  34,  34)@rgb(128, 192, 255)@g;s@rgb( 46, 139,  87)@rgb(112, 192, 160)@g;s@rgb(  0, 139, 139)@rgb(224, 128, 144)@g;s@rgb(255, 215,   0)@rgb(144, 144, 255)@g;s@rgb(  0,   0, 139)@rgb(176, 128, 224)@g;s@rgb(220,  20,  60)@rgb(160, 160, 192)@g;s@rgb(139,   0, 139)@rgb( 96, 144, 172)@g;s@rgb(  0, 255, 127)@rgb(176, 160, 144)@g;' $$i; \
 		done; \
 	)
 
@@ -250,10 +315,11 @@ lab-test: install
 	@( \
 		cd ku; \
 		cargo test --no-run; \
-		for test in 8-lf-1-deque 8-lf-2-spsc; do \
+		for test in 8-queues-1-deque 8-queues-2-spsc 8-queues-3-spsc-slice 8-queues-4-sharded-mpmc 8-queues-5-reserving-mpmc 8-queues-6-mpmc; do \
 			cargo test --test $$test 2>&1 | \
 				sed 's@/home/[a-z-]*/tmp/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/[a-z-]*/@/.../nikka/@g;s@/home/[a-z-]*/\.@/.../.@g' \
-				> ../lab/src/$$test-test.md; \
+				> ../lab/src/$$test-test.md || \
+				exit 1; \
 		done; \
 		cd - >/dev/null; \
 	)

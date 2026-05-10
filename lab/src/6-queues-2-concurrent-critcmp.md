@@ -1,0 +1,35 @@
+group                                                   new
+-----                                                   ---
+concurrent/1. spsc<u32, 16384>/1                        1.00      3.1±0.60ns 303.8 MElem/sec
+concurrent/1. spsc<u32, 16384>/10                       1.00     35.6±2.71ns 267.9 MElem/sec
+concurrent/1. spsc<u32, 16384>/100                      1.00   334.8±39.17ns 284.8 MElem/sec
+concurrent/1. spsc<u32, 16384>/1000                     1.00      3.1±0.24µs 309.8 MElem/sec
+concurrent/1. spsc<u32, 16384>/10000                    1.00     30.8±2.55µs 310.0 MElem/sec
+concurrent/1. spsc<u32, 16384>/100000                   1.00   306.0±25.16µs 311.6 MElem/sec
+concurrent/1. spsc<u32, 16384>/1000000                  1.00      3.0±0.28ms 317.2 MElem/sec
+concurrent/2. bounded_spsc_queue<u32, 16384>/1          1.00     10.1±0.22ns 94.2 MElem/sec
+concurrent/2. bounded_spsc_queue<u32, 16384>/10         1.00    122.4±7.69ns 77.9 MElem/sec
+concurrent/2. bounded_spsc_queue<u32, 16384>/100        1.00  1180.7±39.08ns 80.8 MElem/sec
+concurrent/2. bounded_spsc_queue<u32, 16384>/1000       1.00     12.1±0.18µs 78.7 MElem/sec
+concurrent/2. bounded_spsc_queue<u32, 16384>/10000      1.00    118.6±3.43µs 80.4 MElem/sec
+concurrent/2. bounded_spsc_queue<u32, 16384>/100000     1.00  1357.6±18.25µs 70.2 MElem/sec
+concurrent/2. bounded_spsc_queue<u32, 16384>/1000000    1.00     16.4±6.22ms 58.2 MElem/sec
+concurrent/3. bounded_spsc_queue<u32, 16384>/1          1.00      2.7±1.10ns 354.3 MElem/sec
+concurrent/3. bounded_spsc_queue<u32, 16384>/10         1.00    106.2±3.56ns 89.8 MElem/sec
+concurrent/3. bounded_spsc_queue<u32, 16384>/100        1.00  1054.4±24.82ns 90.4 MElem/sec
+concurrent/3. bounded_spsc_queue<u32, 16384>/1000       1.00     10.7±0.30µs 89.3 MElem/sec
+concurrent/3. bounded_spsc_queue<u32, 16384>/10000      1.00    105.9±2.24µs 90.1 MElem/sec
+concurrent/3. bounded_spsc_queue<u32, 16384>/100000     1.00  1068.7±22.86µs 89.2 MElem/sec
+concurrent/3. bounded_spsc_queue<u32, 16384>/1000000    1.00     10.6±0.17ms 90.1 MElem/sec
+concurrent/7. ringbuffer_spsc<u32, 16384>/100           1.00  1380.2±581.36ns 69.1 MElem/sec
+concurrent/7. ringbuffer_spsc<u32, 16384>/1000          1.00    22.4±12.96µs 42.6 MElem/sec
+concurrent/7. ringbuffer_spsc<u32, 16384>/10000         1.00   166.4±74.30µs 57.3 MElem/sec
+concurrent/7. ringbuffer_spsc<u32, 16384>/100000        1.00  1409.3±591.81µs 67.7 MElem/sec
+concurrent/7. ringbuffer_spsc<u32, 16384>/1000000       1.00     14.6±5.84ms 65.3 MElem/sec
+concurrent/spsc throughput<u32, 16384>/1                1.00     33.4±3.90ns 28.6 MElem/sec
+concurrent/spsc throughput<u32, 16384>/10               1.00   376.7±13.69ns 25.3 MElem/sec
+concurrent/spsc throughput<u32, 16384>/100              1.00      3.7±0.37µs 25.9 MElem/sec
+concurrent/spsc throughput<u32, 16384>/1000             1.00     36.7±4.19µs 26.0 MElem/sec
+concurrent/spsc throughput<u32, 16384>/10000            1.00   371.7±16.31µs 25.7 MElem/sec
+concurrent/spsc throughput<u32, 16384>/100000           1.00      3.7±0.13ms 25.6 MElem/sec
+concurrent/spsc throughput<u32, 16384>/1000000          1.00     37.5±0.84ms 25.4 MElem/sec

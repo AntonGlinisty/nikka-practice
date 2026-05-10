@@ -700,5 +700,71 @@ deadlines:
             - cd kernel && cargo test --profile ci --features cache-eviction --test 7-fs-3-inode
             - cd kernel && cargo test --profile ci --features cache-eviction --test 7-fs-5-open
 
+    - group: lab-8-queues
+      start: 2026-05-11 18:00
+      steps:
+        0.5: 2026-05-20 23:59
+      end: 2026-06-29 23:59
+      enabled: true
+      tasks:
+        - task: deque
+          is_bonus: true
+          score: 50
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/8-queues-1-deque.html
+          check:
+            - cd ku && cargo test --profile ci --test 8-queues-1-deque
+            - cd ku && cargo bench --bench 8-queues-1-deque invariants
+            - fail_count=0; d=target/criterion/invariants; solution='1. infinite_indices_u32, 256_'; baseline='2. sentinel_u32, 256_'; for i in $(ls "$d/$solution" | grep [0-9]); do solution_time=$(jq .mean.point_estimate < "$d/$solution/$i/new/estimates.json"); baseline_time=$(jq .mean.point_estimate < "$d/$baseline/$i/new/estimates.json"); if echo $solution_time $baseline_time $i | awk '{ ratio = $1/$2; printf "ratio=%f element_count=%d solution_time=%f baseline_time=%f ", ratio, $3, $1, $2 } END { if (ratio <= 0.85) { print "OK"; exit 1 } else { print "FAIL"; exit 0 } }'; then fail_count=$((fail_count + 1)); fi; done; echo "fail_count=$fail_count"; if [ $fail_count -gt 1 ]; then echo "FAIL"; exit 1; else echo "OK"; fi
+
+        - task: spsc
+          is_bonus: true
+          score: 200
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/8-queues-2-spsc.html
+          check:
+            - cd ku && cargo test --profile ci --test 8-queues-2-spsc
+            - cd ku && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 8-queues-2-spsc
+            - cd ku && cargo bench --bench 8-queues-2-spsc sequential
+            - fail_count=0; d=target/criterion/sequential; solution='1. sequential spsc_u32, 16384_'; baseline='3. sentinel_u32, 16384_'; for i in $(ls "$d/$solution" | grep [0-9]); do solution_time=$(jq .mean.point_estimate < "$d/$solution/$i/new/estimates.json"); baseline_time=$(jq .mean.point_estimate < "$d/$baseline/$i/new/estimates.json"); if echo $solution_time $baseline_time $i | awk '{ ratio = $1/$2; printf "ratio=%f element_count=%d solution_time=%f baseline_time=%f ", ratio, $3, $1, $2 } END { if (ratio <= 1.25) { print "OK"; exit 1 } else { print "FAIL"; exit 0 } }'; then fail_count=$((fail_count + 1)); fi; done; echo "fail_count=$fail_count"; if [ $fail_count -gt 1 ]; then echo "FAIL"; exit 1; else echo "OK"; fi
+            - cd ku && cargo bench --bench 8-queues-2-spsc tx
+            - fail_count=0; d=target/criterion/tx; solution='1. single spsc_u32, 16384_'; baseline='4. sentinel_u32, 16384_'; for i in $(ls "$d/$solution" | grep [0-9]); do solution_time=$(jq .mean.point_estimate < "$d/$solution/$i/new/estimates.json"); baseline_time=$(jq .mean.point_estimate < "$d/$baseline/$i/new/estimates.json"); if echo $solution_time $baseline_time $i | awk '{ ratio = $1/$2; printf "ratio=%f element_count=%d solution_time=%f baseline_time=%f ", ratio, $3, $1, $2 } END { if (ratio <= 1.25) { print "OK"; exit 1 } else { print "FAIL"; exit 0 } }'; then fail_count=$((fail_count + 1)); fi; done; echo "fail_count=$fail_count"; if [ $fail_count -gt 1 ]; then echo "FAIL"; exit 1; else echo "OK"; fi
+            - fail_count=0; d=target/criterion/tx; solution='2. tx spsc_u32, 16384_'; baseline='4. sentinel_u32, 16384_'; for i in $(ls "$d/$solution" | grep [0-9]); do solution_time=$(jq .mean.point_estimate < "$d/$solution/$i/new/estimates.json"); baseline_time=$(jq .mean.point_estimate < "$d/$baseline/$i/new/estimates.json"); if echo $solution_time $baseline_time $i | awk '{ ratio = $1/$2; printf "ratio=%f element_count=%d solution_time=%f baseline_time=%f ", ratio, $3, $1, $2 } END { if (ratio <= 0.75) { print "OK"; exit 1 } else { print "FAIL"; exit 0 } }'; then fail_count=$((fail_count + 1)); fi; done; echo "fail_count=$fail_count"; if [ $fail_count -gt 1 ]; then echo "FAIL"; exit 1; else echo "OK"; fi
+
+        - task: spsc-slice
+          is_bonus: true
+          score: 100
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/8-queues-3-spsc-slice.html
+          dependencies:
+            - spsc
+          check:
+            - cd ku && cargo test --profile ci --test 8-queues-3-spsc-slice
+            - cd ku && cargo bench --bench 8-queues-3-spsc-slice
+            - fail_count=0; d=target/criterion/slice; solution='5. slice spsc_u32, 16384_'; baseline='7. double memory copy_u32, 16384_'; for i in $(ls "$d/$solution" | grep [0-9]); do solution_time=$(jq .mean.point_estimate < "$d/$solution/$i/new/estimates.json"); baseline_time=$(jq .mean.point_estimate < "$d/$baseline/$i/new/estimates.json"); if echo $solution_time $baseline_time $i | awk '{ ratio = $1/$2; printf "ratio=%f element_count=%d solution_time=%f baseline_time=%f ", ratio, $3, $1, $2 } END { if (ratio <= 2.) { print "OK"; exit 1 } else { print "FAIL"; exit 0 } }'; then fail_count=$((fail_count + 1)); fi; done; echo "fail_count=$fail_count"; if [ $fail_count -gt 1 ]; then echo "FAIL"; exit 1; else echo "OK"; fi
+
+        - task: sharded-mpmc
+          is_bonus: true
+          score: 50
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/8-queues-4-sharded-mpmc.html
+          dependencies:
+            - spsc
+          check:
+            - cd ku && cargo test --profile ci --test 8-queues-4-sharded-mpmc
+            - cd ku && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 8-queues-4-sharded-mpmc
+
+        - task: reserving-mpmc
+          is_bonus: true
+          score: 100
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/8-queues-5-reserving-mpmc.html
+          check:
+            - cd ku && cargo test --profile ci --test 8-queues-5-reserving-mpmc
+            - cd ku && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 8-queues-5-reserving-mpmc
+
+        - task: mpmc
+          is_bonus: true
+          score: 100
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/8-queues-6-mpmc.html
+          check:
+            - cd ku && cargo test --profile ci --test 8-queues-6-mpmc
+            - cd ku && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 8-queues-6-mpmc
+
 
 allow_list:
