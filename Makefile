@@ -182,6 +182,7 @@ lab: $(RUST_PATH)/mdbook doc lab/src/*.dot lab/src/*.md lab/src/*.puml
 		cd lab; \
 		cp book-base.toml book.toml; \
 		mdbook build; \
+		rm --force book.toml; \
 	)
 #		cp book-linkcheck.toml book.toml; \
 #		mdbook build; \
@@ -322,6 +323,7 @@ lab-test: install
 				exit 1; \
 		done; \
 		cd - >/dev/null; \
+		rm --force lab/src/*.aux lab/src/*.log lab/src/*.pdf; \
 	)
 
 lectures: $(LECTURES_PDF)
