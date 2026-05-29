@@ -673,8 +673,8 @@ pub enum MemoryType {
 
 /// [Page attribute table (PAT)](https://en.wikipedia.org/wiki/Page_attribute_table),
 /// которую нужно загрузить в процессор, чтобы:
-///   - Были доступны режимы кэширования [`PageTableFlags::WRITE_COMBINING`] и
-///     [`PageTableFlags::WRITE_PROTECTED`].
+///   - Были доступны режимы кэширования `PageTableFlags::WRITE_COMBINING` и
+///     `PageTableFlags::WRITE_PROTECTED`.
 ///   - Для остальных режимов кэширования не поменялось соответствие флагам [`PageTableFlags`].
 ///
 /// [AMD64 Architecture Programmer's Manual Volume 2: System Programming](https://github.com/tpn/pdfs/blob/master/AMD%20-%20AMD64%20Programmer's%20Manual%20-%20Volume%202%20-%20System%20Programming%20-%20Rev%203.30%20-%20Sept%202018%20(24593).pdf),

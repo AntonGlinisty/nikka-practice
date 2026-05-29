@@ -98,7 +98,7 @@ lint: install
 			echo "$$long_lines"; \
 			exit 1; \
 		fi; \
-		typos=$$(cat lab/src/*.md sem/*/*.md | sed 's@\(https://[w.]*youtube.com/[a-z?=]*\)[0-9A-Za-z_-]*@\1@g' | hunspell -d ru_RU,en_US -p tools/lint/spellcheck.exceptions -l); \
+		typos=$$(cat lab/src/*.md sem/*/*.md | sed 's@\(https://[w.]*youtube.com/[a-z?=]*\)[0-9A-Za-z_-]*@\1@g' | hunspell -d ru_RU,en_US -p tools/lint/spellcheck.exceptions -l | sort -u); \
 		if [ ! -z "$$typos" ]; then \
 			echo "Typos found."; \
 			echo "$$typos"; \
