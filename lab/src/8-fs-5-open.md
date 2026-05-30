@@ -3,7 +3,8 @@
 
 ### Задача 5 --- поиск файла по пути
 
-Реализуйте [метод](../../doc/kernel/fs/file_system/struct.FileSystem.html#method.open)
+Реализуйте метод
+[`FileSystem::open()`](../../doc/kernel/fs/file_system/struct.FileSystem.html#method.open)
 
 ```rust
 {{#include ../../kernel/src/fs/file_system.rs:open}}

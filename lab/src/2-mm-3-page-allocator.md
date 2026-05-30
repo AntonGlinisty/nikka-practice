@@ -192,7 +192,8 @@
 
 #### Выделение виртуальных страниц
 
-Реализуйте [метод](../../doc/ku/memory/block/struct.Block.html#method.tail)
+Реализуйте метод
+[`Block::tail()`](../../doc/ku/memory/block/struct.Block.html#method.tail)
 
 ```rust
 fn Block::tail(&mut self, count: usize) -> Option<Self>
@@ -247,7 +248,8 @@ $ (cd kernel; cargo test --test 2-mm-2-block)
 Применив [`Block::tail()`](../../doc/ku/memory/block/struct.Block.html#method.tail)
 к полю
 [`PageAllocator::block`](../../doc/kernel/memory/page_allocator/struct.PageAllocator.html#structfield.block)
-реализуйте [метод](../../doc/kernel/memory/page_allocator/struct.PageAllocator.html#method.allocate)
+реализуйте метод
+[`PageAllocator::allocate()`](../../doc/kernel/memory/page_allocator/struct.PageAllocator.html#method.allocate)
 
 ```rust
 {{#include ../../kernel/src/memory/page_allocator.rs:allocate}}

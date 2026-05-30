@@ -3,8 +3,8 @@
 
 #### Сериализация и десериализация заголовка
 
-Реализуйте
-[метод](../../doc/ku/ipc/pipe/struct.RingBuffer.html#method.read_header)
+Реализуйте метод
+[`RingBuffer::read_header()`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#method.read_header)
 
 ```rust
 fn RingBuffer::read_header(
@@ -13,8 +13,8 @@ fn RingBuffer::read_header(
 ) -> Header
 ```
 
-и
-[метод](../../doc/ku/ipc/pipe/struct.RingBuffer.html#method.write_header)
+и метод
+[`RingBuffer::write_header()`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#method.write_header)
 
 ```rust
 fn RingBuffer::write_header(
@@ -46,8 +46,8 @@ fn RingBuffer::write_header(
 в том числе как
 [`Header::Closed`](../../doc/ku/ipc/pipe/enum.Header.html#variant.Closed).
 
-Также реализуйте
-[метод](../../doc/ku/ipc/pipe/struct.RingBuffer.html#method.close)
+Также реализуйте метод
+[`RingBuffer::close()`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#method.close)
 
 ```rust
 fn RingBuffer::close(
@@ -96,7 +96,8 @@ fn RingBuffer::close(
 
 #### Читающая транзакция
 
-Реализуйте [метод](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#method.read)
+Реализуйте метод
+[`RingBufferTx::read()`](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#method.read)
 
 ```rust
 fn RingBufferTx<'_, ReadTag>::read(
@@ -109,8 +110,8 @@ fn RingBufferTx<'_, ReadTag>::read(
 При этом он обновляет поля только самой транзакции
 [`RingBufferTx`](../../doc/ku/ipc/pipe/struct.RingBufferTx.html).
 
-Реализуйте
-[метод](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#method.commit)
+Реализуйте метод
+[`RingBufferTx::commit()`](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#method.commit)
 
 ```rust
 fn RingBufferTx<'_, ReadTag>::commit(
@@ -131,7 +132,8 @@ fn RingBufferTx<'_, ReadTag>::commit(
 
 #### Пишущая транзакция
 
-Реализуйте [метод](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#method.write)
+Реализуйте метод
+[`RingBufferTx::write()`](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#method.write)
 
 ```rust
 fn RingBufferTx<'_, WriteTag>::write(
@@ -159,7 +161,8 @@ fn RingBufferTx<'_, WriteTag>::write(
 [`copy_from_slice()`](https://doc.rust-lang.org/nightly/core/primitive.slice.html#method.copy_from_slice)
 срезов.
 
-Реализуйте [метод](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#method.commit-1)
+Реализуйте метод
+[`RingBufferTx::commit-1()`](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#method.commit-1)
 
 ```rust
 fn RingBufferTx<'_, WriteTag>::commit(
@@ -180,8 +183,8 @@ fn RingBufferTx<'_, WriteTag>::commit(
 
 Реализуйте типаж
 [`core::ops::Drop`](https://doc.rust-lang.org/nightly/core/ops/trait.Drop.html)
-для транзакций обоих типов ---
-[метод](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#method.drop)
+для транзакций обоих типов --- метод
+[`RingBufferTx::drop()`](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#method.drop)
 
 ```rust
 fn RingBufferTx::drop(
@@ -201,8 +204,8 @@ fn RingBufferTx::drop(
 #### Отображение буфера в память
 
 
-Реализуйте
-[функцию](../../doc/ku/ipc/pipe/fn.make.html)
+Реализуйте функцию
+[`pipe::make()`](../../doc/ku/ipc/pipe/fn.make.html)
 
 ```rust
 fn make<T: BigAllocator>(

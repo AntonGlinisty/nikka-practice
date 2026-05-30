@@ -165,8 +165,8 @@ pub struct SpinlockGuard<'a, T, const PANIC_STRATEGY> {
 и в методе её создания
 [`Spinlock::new()`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#method.new).
 
-Реализуйте приватный
-[метод](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#method.try_lock_impl)
+Реализуйте приватный метод
+[`DebugSpinlock::try_lock_impl()`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#method.try_lock_impl)
 
 ```rust
 fn Spinlock::try_lock_impl(
@@ -211,15 +211,15 @@ fn Spinlock::try_lock_impl(
 
 Далее, с помощью реализованного метода
 [`Spinlock::try_lock_impl()`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#method.try_lock_impl),
-реализуйте публичный
-[метод](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#method.try_lock)
+реализуйте публичный метод
+[`DebugSpinlock::try_lock()`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#method.try_lock)
 
 ```rust
 fn Spinlock::try_lock(&self) -> Option<SpinlockGuard<'_, T, PANIC_STRATEGY>>
 ```
 
-и публичный
-[метод](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#method.lock)
+и публичный метод
+[`DebugSpinlock::lock()`](../../doc/ku/sync/spinlock/struct.DebugSpinlock.html#method.lock)
 
 ```rust
 fn Spinlock::lock(&self) -> SpinlockGuard<'_, T, PANIC_STRATEGY>
@@ -287,8 +287,8 @@ unsafe { &mut *self.spinlock.data.get() }
 Обеспечивает его алгоритм спин-блокировки.
 А проверяют уже тесты, а не компилятор.
 
-Реализуйте
-[метод](../../doc/ku/sync/spinlock/struct.DebugSpinlockGuard.html#method.drop)
+Реализуйте метод
+[`DebugSpinlockGuard::drop()`](../../doc/ku/sync/spinlock/struct.DebugSpinlockGuard.html#method.drop)
 
 ```rust
 fn SpinlockGuard::drop(&mut self)

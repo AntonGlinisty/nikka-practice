@@ -93,13 +93,11 @@ fn copy_address_space(child: Pid) -> Result<()> {
 }
 // ANCHOR_END: copy_address_space
 
-// ANCHOR: copy_page_table
 fn copy_page_table(
     child: Pid,
     level: u32,
     start: Virt,
 ) -> Result<()> {
-    // ANCHOR_END: copy_page_table
     // TODO: your code here.
     unimplemented!();
 }

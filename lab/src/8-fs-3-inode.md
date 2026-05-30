@@ -51,7 +51,8 @@
 
 #### [`kernel::fs::inode::Inode::block_entry()`](../../doc/kernel/fs/inode/struct.Inode.html#method.block_entry)
 
-Вспомогательный [метод](../../doc/kernel/fs/inode/struct.Inode.html#method.block_entry)
+Вспомогательный метод
+[`Inode::block_entry()`](../../doc/kernel/fs/inode/struct.Inode.html#method.block_entry)
 
 ```rust
 {{#include ../../kernel/src/fs/inode.rs:block_entry}}
@@ -96,7 +97,8 @@
 
 Или же структурировать код по-своему.
 
-Дополнительный [метод](../../doc/kernel/fs/inode/struct.Inode.html#method.block)
+Дополнительный метод
+[`Inode::block()`](../../doc/kernel/fs/inode/struct.Inode.html#method.block)
 
 ```rust
 {{#include ../../kernel/src/fs/inode.rs:block}}

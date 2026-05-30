@@ -1,11 +1,9 @@
 ## Нарезка больших блоков на маленькие
 
 Маленькими блоками в аллокаторе будет управлять структура
-[`ku::allocator::quarry::Quarry`](../../doc/ku/allocator/quarry/struct.Quarry.html):
+[`ku::allocator::quarry::Quarry`](../../doc/ku/allocator/quarry/struct.Quarry.html).
 
-```rust
-{{#include ../../ku/src/allocator/quarry.rs:quarry}}
-```
+{{#include ../../doc/ku/allocator/quarry/struct.Quarry.html.struct}}
 
 Как и в предыдущей задаче, будем экономить физические фреймы и
 более свободно расходовать виртуальное адресное пространство.
@@ -51,23 +49,18 @@
 А количество таких блоков, которые помещаются в одну плиту --- в поле
 [`Quarry::slab_allocation_count`](../../doc/ku/allocator/quarry/struct.Quarry.html#structfield.slab_allocation_count).
 
-Реализуйте
-[метод](../../doc/ku/allocator/quarry/struct.Quarry.html#method.reserve)
-
-```rust
-{{#include ../../ku/src/allocator/quarry.rs:reserve}}
-```
-
+Реализуйте метод
+[`Quarry::reserve()`](../../doc/ku/allocator/quarry/struct.Quarry.html#method.reserve)
 в файле
 [`ku/src/allocator/quarry.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/allocator/quarry.rs).
 
-Как и в предыдущей задаче, физические фреймы мы будем выделять максимально экономно.
-Доработайте
-[метод](../../doc/ku/allocator/quarry/struct.Quarry.html#method.map)
+{{#include ../../doc/ku/allocator/quarry/struct.Quarry.html.method.reserve}}
 
-```rust
-{{#include ../../ku/src/allocator/quarry.rs:map}}
-```
+Как и в предыдущей задаче, физические фреймы мы будем выделять максимально экономно.
+Доработайте метод
+[`Quarry::map()`](../../doc/ku/allocator/quarry/struct.Quarry.html#method.map).
+
+{{#include ../../doc/ku/allocator/quarry/struct.Quarry.html.method.map}}
 
 Этот метод возвращает количество физических фреймов,
 которые ему пришлось выделить дополнительно к имевшимся ранее.
@@ -90,12 +83,10 @@
 будет только один раз, вместе с удалением аллокатора.
 Это понадобится, в частности, для проверки что в аллокаторе нет утечек физических фреймов.
 
-Реализуйте
-[метод](../../doc/ku/allocator/quarry/struct.Quarry.html#method.unmap)
+Реализуйте метод
+[`Quarry::unmap()`](../../doc/ku/allocator/quarry/struct.Quarry.html#method.unmap).
 
-```rust
-{{#include ../../ku/src/allocator/quarry.rs:unmap}}
-```
+{{#include ../../doc/ku/allocator/quarry/struct.Quarry.html.method.unmap}}
 
 Не забудьте удалить и зарезервированные под плиты блоки виртуальной памяти.
 Верните количество освободившихся физических страниц.
@@ -106,19 +97,15 @@
 Этот индекс сквозной по всем плитам --- нулевой индекс отвечает нулевому маленькому блоку,
 выделенному из нулевой плиты, и не относится ни к какой другой плите.
 
-Реализуйте
-[метод](../../doc/ku/allocator/quarry/struct.Quarry.html#method.allocation)
+Реализуйте метод
+[`Quarry::allocation()`](../../doc/ku/allocator/quarry/struct.Quarry.html#method.allocation).
 
-```rust
-{{#include ../../ku/src/allocator/quarry.rs:allocation}}
-```
+{{#include ../../doc/ku/allocator/quarry/struct.Quarry.html.method.allocation}}
 
-и обратный к нему
-[метод](../../doc/ku/allocator/quarry/struct.Quarry.html#method.allocation_index)
+И обратный к нему метод
+[`Quarry::allocation_index()`](../../doc/ku/allocator/quarry/struct.Quarry.html#method.allocation_index).
 
-```rust
-{{#include ../../ku/src/allocator/quarry.rs:allocation_index}}
-```
+{{#include ../../doc/ku/allocator/quarry/struct.Quarry.html.method.allocation_index}}
 
 
 ### Проверьте себя

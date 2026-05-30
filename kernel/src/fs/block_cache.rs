@@ -41,7 +41,6 @@ use super::{
     },
 };
 
-// ANCHOR: block_cache
 /// [Блочный кэш](https://en.wikipedia.org/wiki/Page_cache)
 /// для ускорения работы с диском за счёт кэширования блоков файловой системы в памяти.
 #[derive(Clone, Debug)]
@@ -58,10 +57,8 @@ pub struct BlockCache {
     /// Статистика работы блочного кэша.
     stats: Stats,
 }
-// ANCHOR_END: block_cache
 
 impl BlockCache {
-    // ANCHOR: init
     /// Инициализирует блочный кэш в
     /// [синглтоне](https://en.wikipedia.org/wiki/Singleton_pattern)
     /// [`struct@BLOCK_CACHE`].
@@ -75,7 +72,6 @@ impl BlockCache {
         block_count: usize,
         capacity: usize,
     ) -> Result<()> {
-        // ANCHOR_END: init
         // TODO: your code here.
         unimplemented!();
     }
@@ -98,7 +94,6 @@ impl BlockCache {
         }
     }
 
-    // ANCHOR: emplace_block
     /// Гарантирует, что блок `block_number` отображён в память блочного кэша,
     /// не читая этот блок с диска.
     /// В памяти блок может содержать как произвольный мусор,
@@ -111,12 +106,10 @@ impl BlockCache {
     ///
     /// Вызывающая функция должна перезаписать блок в памяти целиком.
     pub(super) unsafe fn emplace_block(block_number: usize) -> Result<Block<Virt>> {
-        // ANCHOR_END: emplace_block
         // TODO: your code here.
         unimplemented!();
     }
 
-    // ANCHOR: fill_block
     /// Заполняет блок `block_number` в памяти блочного кэша значениями `value`,
     /// не читая этот блок с диска.
     /// Учитывает доступ к блоку в [`BlockCache::eviction_policy`].
@@ -126,7 +119,6 @@ impl BlockCache {
         block_number: usize,
         value: T,
     ) -> Result<Block<Virt>> {
-        // ANCHOR_END: fill_block
         // TODO: your code here.
         unimplemented!();
     }
@@ -162,13 +154,11 @@ impl BlockCache {
         }
     }
 
-    // ANCHOR: trap_handler
     /// Обрабатывает Page Fault, если адрес, который его вызвал, относится к блочному кэшу.
     /// Если это так и Page Fault успешно обработан, возвращает `true`.
     /// Учитывает доступ к блоку в [`BlockCache::eviction_policy`].
     /// Если адрес, вызвавший Page Fault, не относится к блочному кэшу, возвращает `false`.
     pub(crate) fn trap_handler(info: &Info) -> Result<bool> {
-        // ANCHOR_END: trap_handler
         // TODO: your code here.
         Ok(false) // TODO: remove before flight.
     }
@@ -182,7 +172,6 @@ impl BlockCache {
         }
     }
 
-    // ANCHOR: flush_block_impl
     /// Записывает блок `block_number` на диск, если:
     ///
     /// - Блок отображён в память. Это означает, что к нему были обращения.
@@ -206,19 +195,16 @@ impl BlockCache {
         &mut self,
         block_number: usize,
     ) -> Result<()> {
-        // ANCHOR_END: flush_block_impl
         // TODO: your code here.
         unimplemented!();
     }
 
-    // ANCHOR: register_usage
     /// Учитывает в [`BlockCache::eviction_policy`] доступ к блоку `block_number`.
     /// При необходимости вытесняет из кэша другой блок и записывает вытесненный блок на диск.
     fn register_usage(
         &mut self,
         block_number: usize,
     ) -> Result<()> {
-        // ANCHOR_END: register_usage
         // TODO: your code here.
         Ok(()) // TODO: remove before flight.
     }
@@ -239,20 +225,17 @@ impl Drop for BlockCache {
 pub(super) struct Cache(Block<Page>);
 
 impl Cache {
-    // ANCHOR: block
     /// Возвращает блок памяти блочного кэша,
     /// который отвечает блоку `block_number` диска.
     pub(super) fn block(
         &self,
         block_number: usize,
     ) -> Block<Virt> {
-        // ANCHOR_END: block
         // TODO: your code here.
         unimplemented!();
     }
 }
 
-// ANCHOR: stats
 /// Статистика работы блочного кэша.
 #[derive(Clone, Copy, Default, Debug, Eq, Getters, PartialEq)]
 pub struct Stats {
@@ -274,7 +257,6 @@ pub struct Stats {
     /// Количество блоков, которые были записаны на диск в [`BlockCache::flush_block_impl()`].
     writes: usize,
 }
-// ANCHOR_END: stats
 
 lazy_static! {
     /// Блочный кэш для ускорения работы с диском

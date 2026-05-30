@@ -63,7 +63,8 @@
 
 ![](2-mm-4-translate.svg)
 
-Вооружившись этими знаниями, реализуйте [метод](../../doc/kernel/memory/mapping/struct.Mapping.html#method.path)
+Вооружившись этими знаниями, реализуйте метод
+[`Mapping::path()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.path)
 ```rust
 fn Mapping::path(
     &mut self,
@@ -141,7 +142,8 @@ running 8 tests
 ...
 ```
 
-Далее реализуйте [метод](../../doc/kernel/memory/path/struct.Path.html#method.map)
+Далее реализуйте метод
+[`Path::map()`](../../doc/kernel/memory/path/struct.Path.html#method.map)
 ```rust
 pub fn Path::map(
     &mut self,
@@ -303,8 +305,8 @@ fn allocate_node(
 
 в файле [`kernel/src/memory/mapping.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/mapping.rs).
 
-Теперь реализуйте обратный
-[метод](../../doc/kernel/memory/path/struct.Path.html#method.unmap)
+Теперь реализуйте обратный метод
+[`Path::unmap()`](../../doc/kernel/memory/path/struct.Path.html#method.unmap)
 ```rust
 pub unsafe fn Path::unmap(&mut self) -> Result<()>
 ```

@@ -29,7 +29,6 @@ pub(super) fn is_printable(octet: u8) -> bool {
     (b' ' .. 0x7F).contains(&octet)
 }
 
-// ANCHOR: glyph
 /// Структура, описывающая один символ в памяти графического контроллера
 /// [Video Graphics Array (VGA)](https://en.wikipedia.org/wiki/Video_Graphics_Array)
 /// при работе в текстовом режиме.
@@ -44,7 +43,6 @@ pub struct Glyph {
     /// Атрибуты, с которыми отображается этот символ.
     attribute: Attribute,
 }
-// ANCHOR_END: glyph
 
 impl Glyph {
     /// Создаёт структуру, описывающую один символ в памяти графического контроллера
@@ -100,7 +98,6 @@ impl DerefMut for GlyphWrapper {
 /// при работе в текстовом режиме.
 pub(super) type Buffer = [Volatile<GlyphWrapper>];
 
-// ANCHOR: grid
 /// Структура, позволяющая работать в текстовом режиме графического контроллера
 /// [Video Graphics Array (VGA)](https://en.wikipedia.org/wiki/Video_Graphics_Array).
 pub struct Grid<'a> {
@@ -130,7 +127,6 @@ pub struct Grid<'a> {
     /// Количество пробелов в символе табуляции --- `\t`.
     tab_width: usize,
 }
-// ANCHOR_END: grid
 
 impl<'a> Grid<'a> {
     /// Возвращает структуру, позволяющую работать в текстовом режиме графического контроллера
@@ -254,18 +250,15 @@ impl<'a> Grid<'a> {
         position
     }
 
-    // ANCHOR: clear
     /// Очищает диапазон экрана, задаваемый `range`.
     /// Для этого заполняет его пробелами с текущими атрибутами [`Grid::attribute`].
     pub(super) fn clear(
         &mut self,
         range: Range<usize>,
     ) {
-        // ANCHOR_END: clear
         // TODO: your code here.
     }
 
-    // ANCHOR: print_character
     /// Отображает на экране символ `ch` в текущей позиции [`Grid::position()` и
     /// с текущими атрибутами [`Grid::attribute`].
     /// Специальным образом обрабатывает следующие символы:
@@ -277,32 +270,26 @@ impl<'a> Grid<'a> {
         &mut self,
         ch: char,
     ) {
-        // ANCHOR_END: print_character
         // TODO: your code here.
     }
 
-    // ANCHOR: scroll
     /// Выполняет прокрутку содержимого экрана на одну строку вверх,
     /// и очищает нижнюю строку.
     /// Используется в ситуации, когда весь экран заполнен текстом,
     /// и требуется перейти на следующую строку.
     pub(super) fn scroll(&mut self) {
-        // ANCHOR_END: scroll
         // TODO: your code here.
     }
 
-    // ANCHOR: adjust_position
     /// Корректирует значение [`Grid::column`] и значение [`Grid::row_start`],
     /// если первое из них вышло за пределы строки.
     /// При этом, если [`Grid::row_start`] выходит за пределы экрана,
     /// выполняет прокрутку содержимого экрана методом [`Grid::scroll()`].
     fn adjust_position(&mut self) {
-        // ANCHOR_END: adjust_position
         // TODO: your code here.
         unimplemented!();
     }
 
-    // ANCHOR: character
     /// Отображает на экране символ в текущей позиции [`Grid::position()`] и
     /// с текущими атрибутами [`Grid::attribute()`].
     /// После чего продвигает текущую позицию на единицу.
@@ -314,25 +301,20 @@ impl<'a> Grid<'a> {
         &mut self,
         ch: char,
     ) {
-        // ANCHOR_END: character
         // TODO: your code here.
         unimplemented!();
     }
 
-    // ANCHOR: newline
     /// Печатает на экране пробелы от текущей позиции [`Grid::position()`] и до конца строки.
     fn newline(&mut self) {
-        // ANCHOR_END: newline
         // TODO: your code here.
         unimplemented!();
     }
 
-    // ANCHOR: tab
     /// Печатает от одного до [`Grid::tab_width()`] пробелов,
     /// пока текущая позиция в строке не станет кратна [`Grid::tab_width()`] или
     /// не дойдёт до конца строки.
     fn tab(&mut self) {
-        // ANCHOR_END: tab
         // TODO: your code here.
         unimplemented!();
     }

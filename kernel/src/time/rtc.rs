@@ -233,7 +233,6 @@ bitflags! {
     }
 }
 
-// ANCHOR: date
 /// Структура для хранения даты
 /// (по [григорианскому календарю](https://en.wikipedia.org/wiki/Gregorian_calendar))
 /// и времени, прочитанных из микросхемы
@@ -270,7 +269,6 @@ struct Date {
     /// Секунда.
     second: u8,
 }
-// ANCHOR_END: date
 
 impl Date {
     /// [Пытается несколько раз прочитать данные из микросхемы RTC](https://wiki.osdev.org/CMOS#RTC_Update_In_Progress)

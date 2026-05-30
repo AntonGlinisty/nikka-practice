@@ -54,7 +54,6 @@ use crate::{
 #[allow(unused)]
 use crate::error::Error;
 
-// ANCHOR: load
 /// Загружает [ELF--файл](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format) `file`.
 /// Выделяет для него память в целевом адресном пространстве с помощью `allocator.dst()`.
 ///
@@ -74,12 +73,10 @@ pub unsafe fn load<T: BigAllocatorPair>(
     allocator: &mut T,
     file: &[u8],
 ) -> Result<Virt> {
-    // ANCHOR_END: load
     // TODO: your code here.
     unimplemented!();
 }
 
-// ANCHOR: loader
 /// Состояние загрузчика ELF--файлов.
 struct Loader<'a, T: BigAllocatorPair> {
     /// Пара страничных аллокаторов памяти для работы как с целевым адресным пространством,
@@ -97,7 +94,6 @@ struct Loader<'a, T: BigAllocatorPair> {
     /// после чего соответствующие физические фреймы переносятся в целевое адресное пространство.
     src_block: Block<Page>,
 }
-// ANCHOR_END: loader
 
 impl<'a, T: BigAllocatorPair> Loader<'a, T> {
     /// Инициализирует состояние загрузчика ELF--файлов.
@@ -113,7 +109,6 @@ impl<'a, T: BigAllocatorPair> Loader<'a, T> {
         }
     }
 
-    // ANCHOR: load_program_header
     /// Загружает диапазон [`next`][FileRange] со следующим сегментом
     /// [ELF--файла](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format).
     ///
@@ -134,12 +129,10 @@ impl<'a, T: BigAllocatorPair> Loader<'a, T> {
         &mut self,
         next: FileRange,
     ) -> Result<()> {
-        // ANCHOR_END: load_program_header
         // TODO: your code here.
         unimplemented!();
     }
 
-    // ANCHOR: finish
     /// Завершает загрузку ELF--файла в адресное пространство процесса.
     /// После вызова [`Loader::finish()`] в адресное пространство процесса
     /// больше не будут добавляться новые сегменты методом [`Loader::load_program_header()`].
@@ -147,12 +140,10 @@ impl<'a, T: BigAllocatorPair> Loader<'a, T> {
     /// С помощью метода [`Loader::finalize_mapping()`] переносит оставшиеся страницы из
     /// текущего адресного пространства в целевое для оставшегося диапазона [`Loader::curr`].
     fn finish(&mut self) -> Result<()> {
-        // ANCHOR_END: finish
         // TODO: your code here.
         unimplemented!();
     }
 
-    // ANCHOR: copy_to_memory
     /// Копирует из ELF--файла [`Loader::file`] в текущее адресное пространство
     /// диапазон памяти [`range`][FileRange].
     ///
@@ -162,12 +153,10 @@ impl<'a, T: BigAllocatorPair> Loader<'a, T> {
         &mut self,
         range: FileRange,
     ) -> Result<VirtRange> {
-        // ANCHOR_END: copy_to_memory
         // TODO: your code here.
         unimplemented!();
     }
 
-    // ANCHOR: extend_mapping
     /// Расширяет отображение целевого адресного пространства,
     /// чтобы гарантировать что блок, который описывает `next`, зарезервирован в памяти.
     ///
@@ -192,12 +181,10 @@ impl<'a, T: BigAllocatorPair> Loader<'a, T> {
         &mut self,
         next: &FileRange,
     ) -> Result<()> {
-        // ANCHOR_END: extend_mapping
         // TODO: your code here.
         unimplemented!();
     }
 
-    // ANCHOR: finalize_mapping
     /// Переносит заполненные физические фреймы для целевого диапазона
     /// [`page_range`][PageRange] из текущего адресного пространства в целевое
     /// с окончательными флагами.
@@ -210,7 +197,6 @@ impl<'a, T: BigAllocatorPair> Loader<'a, T> {
         &mut self,
         page_range: PageRange,
     ) -> Result<()> {
-        // ANCHOR_END: finalize_mapping
         // TODO: your code here.
         unimplemented!();
     }
@@ -223,7 +209,6 @@ impl<'a, T: BigAllocatorPair> Drop for Loader<'a, T> {
     }
 }
 
-// ANCHOR: memory_range
 /// Диапазон памяти процесса с заданными флагами доступа.
 #[derive(Clone, Copy, Debug, Display, Eq, PartialEq)]
 #[display("{{ memory: {}, flags: {} }}", memory, flags)]
@@ -234,7 +219,6 @@ struct MemoryRange<T: Memory<Address = Virt>> {
     /// Диапазон памяти процесса, который нужно отобразить в адресное пространство процесса.
     memory: Block<T>,
 }
-// ANCHOR_END: memory_range
 
 /// Не выровненный по границам страниц диапазон памяти,
 /// который нужно отобразить в адресное пространство процесса.
@@ -255,7 +239,6 @@ impl From<VirtRange> for PageRange {
     }
 }
 
-// ANCHOR: file_range
 /// Не выровненный по границам страниц диапазон памяти,
 /// который нужно скопировать из ELF--файла в адресное пространство процесса.
 ///
@@ -278,7 +261,6 @@ struct FileRange {
     /// который нужно отобразить в адресное пространство процесса.
     virt_range: VirtRange,
 }
-// ANCHOR_END: file_range
 
 impl TryFrom<ProgramHeader<'_>> for FileRange {
     type Error = Error;
@@ -307,7 +289,6 @@ impl TryFrom<ProgramHeader<'_>> for FileRange {
     }
 }
 
-// ANCHOR: combine
 /// Объединяет не выровненные по границам страниц
 /// текущий обрабатываемый диапазон [`curr`][VirtRange] и
 /// следующий за ним диапазон [`next`][VirtRange].
@@ -344,7 +325,6 @@ fn combine(
     curr: VirtRange,
     next: VirtRange,
 ) -> Result<(Option<PageRange>, Option<PageRange>, VirtRange)> {
-    // ANCHOR_END: combine
     // TODO: your code here.
     unimplemented!();
 }

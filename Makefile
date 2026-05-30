@@ -141,7 +141,7 @@ test-gdb: install
 		done; \
 	)
 
-lab: $(RUST_PATH)/mdbook doc lab/src/*.dot lab/src/*.md lab/src/*.puml
+lab: $(RUST_PATH)/mdbook lab/src/*.dot lab/src/*.md lab/src/*.puml FORCE
 	@( \
 		if grep --quiet 'compose::begin_private' ku/src/ipc/pipe.rs; then \
 			cd ku; \
@@ -334,11 +334,14 @@ lectures/%.pdf: lectures/%.md lectures/%.img/*
 fs-dump:
 	@xxd fs.img | sed 's@.*0000 0000 0000 0000 0000 0000 0000 0000.*@...@' | uniq
 
-doc:
+#		for crate in $(CRATES) user/lib; do \
+
+doc: FORCE
 	@( \
+		set -x; \
 		rm --force --recursive doc; \
 		mkdir doc; \
-		for crate in $(CRATES) user/lib; do \
+		for crate in kernel; do \
 			cd $$crate; \
 			if [ .$$crate = .ku ]; then \
 				feature_flags='--features allocator-statistics'; \
@@ -350,6 +353,32 @@ doc:
 			rm -rf doc/$$crate; \
 			for src in target/doc/*/; do dst=$${src#target/}; if [ ! -e $$dst ]; then mv $$src $$dst; fi; done; \
 			for src in target/kernel/doc/*/; do dst=$${src#target/kernel/}; if [ ! -e $$dst ]; then mv $$src $$dst; fi; done; \
+			for i in $$(find doc/$$(basename $$crate) -name struct.\*.html -o -name fn.\*.html); do \
+				sed 's@</details>@@g;s@<details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary>@@g;s@\(<a [^>]* *href="\)\([^#][^:">]*\)"@\1../../'$$(dirname $$i)'/\2"@g;s@\(<a [^>]* *href="\)#@\1../../'$$i'#@;' $$i > $$i.processed; \
+			done; \
+			for struct in $$(find doc/$$(basename $$crate) -name struct.\*.html); do \
+				sed 's@</div></details><h2 id="fields" class="fields section-header">Fields[^§]*§</a></h2>@<ul>@g;s@<span id="@<li><span id="@g;s@</div>@</div>\n@g;' $$struct.processed | \
+					sed '/<html/,/>Source<\/a>/d;/<h2 id="implementations" class="section-header">/,/<\/html>/d;' | \
+					sed 's@</span><div class="docblock"><p>@</span><p>@g;s@<div class="docblock"><p>@@g;s@</div>@</li>@g;s@\(<a href="[^>]*>\)§</a><code>\([^:]*\):@<code>\1\2</a>:@;' | \
+					sed '1i<blockquote>' | \
+					sed '$$a</ul>\n</blockquote>' \
+					> $$struct.struct; \
+				for method in $$(grep -o '<section id="method.[^"]*" class="method">' $$struct | cut --fields=2 --delimiter=. | cut --fields=1 --delimiter='"'); do \
+					sed 's@</div>@\0\n@g;s@class="method">@\0\n@g;' $$struct.processed | \
+					sed '/<html/,/<section id="method.'$$method'" class="method">/d;/<\/div>/,/<\/html>/d;' | \
+					sed 's@<a [^>]*class="fn"[^>]*>@\0'$$(basename $$struct | cut --fields=2 --delimiter=.)'::@g;s@<a [^>]*>\(Source\|§\)</a>@@g;s@<h4 class="code-header">@<pre><code>@g;s@</h4>@</code></pre>@g;s@<h5 id="[^"]*">@<h5>@g;' | \
+					sed '1i<blockquote>' | \
+					sed '$$a</div></blockquote>' \
+					> $$struct.method.$$method; \
+				done; \
+			done; \
+			for fn in $$(find doc/$$(basename $$crate) -name fn.\*.html); do \
+				sed 's@</div>@\0\n@g;s@<code>.* fn @\0'$$(dirname $$fn | sed 's@^doc/@@g;s@/@::@g;')'::@g;' $$fn.processed | \
+					sed '/<html/,/>Source<\/a>/d;/<\/div>/,/<\/html>/d;' | \
+					sed '1i<blockquote>' | \
+					sed '$$a</blockquote>' \
+					> $$fn.fn; \
+			done; \
 		done; \
 		cargo doc --document-private-items; \
 		for src in target/doc/*/; do dst=$${src#target/}; if [ ! -e $$dst ]; then mv $$src $$dst; fi; done; \

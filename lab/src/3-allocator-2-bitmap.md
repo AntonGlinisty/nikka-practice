@@ -22,7 +22,8 @@
 
 ### Задача 2 --- выделение свободного элемента с помощью битовой карты
 
-Реализуйте [метод](../../doc/ku/collections/bitmap/struct.Bitmap.html#method.allocate)
+Реализуйте метод
+[`Bitmap::allocate()`](../../doc/ku/collections/bitmap/struct.Bitmap.html#method.allocate)
 
 ```rust
 {{#include ../../ku/src/collections/bitmap.rs:allocate}}

@@ -126,8 +126,8 @@ initialized: AtomicU8,
 и в методе её создания
 [`OnceLock::new()`](../../doc/ku/sync/once_lock/struct.OnceLock.html#method.new).
 
-Реализуйте
-[метод](../../doc/ku/sync/once_lock/struct.OnceLock.html#method.set)
+Реализуйте метод
+[`OnceLock::set()`](../../doc/ku/sync/once_lock/struct.OnceLock.html#method.set)
 
 ```rust
 fn OnceLock::set(
@@ -142,8 +142,8 @@ fn OnceLock::set(
 Этот метод пытается захватить блокировку и инициализировать защищаемые ею данные заданным значением `value`.
 Заметьте, что если попытка записи в программе ровна одна, то она должна гарантированно завершиться успешно.
 
-В том же файле реализуйте
-[метод](../../doc/ku/sync/once_lock/struct.OnceLock.html#method.is_initialized)
+В том же файле реализуйте метод
+[`OnceLock::is_initialized()`](../../doc/ku/sync/once_lock/struct.OnceLock.html#method.is_initialized)
 
 ```rust
 fn OnceLock::is_initialized(

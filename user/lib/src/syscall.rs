@@ -198,7 +198,6 @@ pub fn set_state(
     .map(|_| ())
 }
 
-// ANCHOR: set_trap_handler
 /// Системный вызов [`syscall::set_trap_handler()`].
 ///
 /// Устанавливает для целевого процесса, заданного идентификатором `dst_pid`,
@@ -208,7 +207,6 @@ pub fn set_trap_handler(
     trap_handler: fn(&TrapInfo),
     trap_handler_stack: Block<Page>,
 ) -> Result<()> {
-    // ANCHOR_END: set_trap_handler
     TRAP_HANDLER.store(trap_handler as *mut _, Ordering::Relaxed);
 
     syscall(
@@ -222,7 +220,6 @@ pub fn set_trap_handler(
     .map(|_| ())
 }
 
-// ANCHOR: syscall
 /// Системный вызовов номер `number` с аргументами `arg0`--`arg4`.
 // Inline is needed for the correctness of exofork().
 #[inline(always)]
@@ -234,7 +231,6 @@ pub fn syscall(
     arg3: usize,
     arg4: usize,
 ) -> Result<usize> {
-    // ANCHOR_END: syscall
     // TODO: your code here.
     unimplemented!();
 }
@@ -267,7 +263,6 @@ extern "C" fn trap_handler_trampoline() -> ! {
     );
 }
 
-// ANCHOR: trap_handler_invoker
 /// Передаёт управление обработчику `trap_handler()`
 /// установленному с помощью [`syscall::set_trap_handler()`].
 #[cold]
@@ -276,7 +271,6 @@ extern "C" fn trap_handler_invoker(
     // rdi
     info: &mut TrapInfo,
 ) {
-    // ANCHOR_END: trap_handler_invoker
     let trap_handler = TRAP_HANDLER.load(Ordering::Relaxed);
     if !trap_handler.is_null() {
         unsafe {

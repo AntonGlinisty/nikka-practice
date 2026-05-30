@@ -23,7 +23,6 @@ use {
     ku::error::Error,
 };
 
-// ANCHOR: directory_entry
 /// Запись [директории](https://en.wikipedia.org/wiki/Directory_(computing)) с [`Inode`],
 /// который содержится в этой директории, и его именем.
 #[derive(Debug)]
@@ -35,7 +34,6 @@ pub(super) struct DirectoryEntry {
     /// Имя соответствующего записи файла или поддиректории.
     name: [u8; MAX_NAME_LEN],
 }
-// ANCHOR_END: directory_entry
 
 impl DirectoryEntry {
     /// Возвращает `true`, если запись директории свободна.

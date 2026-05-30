@@ -115,14 +115,12 @@ fn copy_address_space(
     )
 }
 
-// ANCHOR: copy_page_table
 fn copy_page_table(
     child: Pid,
     level: u32,
     trap_handler_stack: Block<Page>,
     start: Virt,
 ) -> Result<()> {
-    // ANCHOR_END: copy_page_table
     // TODO: your code here.
     unimplemented!();
 }

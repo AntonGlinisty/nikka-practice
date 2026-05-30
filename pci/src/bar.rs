@@ -58,7 +58,6 @@ pub enum Bar {
 }
 
 impl Bar {
-    // ANCHOR: new
     /// Читает BAR--регистр PCI--устройства, адресуемого `routing_id`,
     /// по смещению `offset` в пространстве конфигурации `config_space`.
     pub(super) fn new(
@@ -66,7 +65,6 @@ impl Bar {
         routing_id: RoutingId,
         offset: usize,
     ) -> Option<Self> {
-        // ANCHOR_END: new
         // TODO: your code here.
         None // TODO: remove before flight.
     }
@@ -82,7 +80,6 @@ impl Bar {
         }
     }
 
-    // ANCHOR: address_size
     /// Возвращает пару из адреса и размера области памяти или
     /// [портов ввода--вывода](https://en.wikipedia.org/wiki/Memory-mapped_I/O_and_port-mapped_I/O),
     /// задаваемой BAR--регистром PCI--устройства, адресуемого `routing_id`,
@@ -92,7 +89,6 @@ impl Bar {
         routing_id: RoutingId,
         offset: usize,
     ) -> (usize, usize) {
-        // ANCHOR_END: address_size
         // TODO: your code here.
         unimplemented!();
     }

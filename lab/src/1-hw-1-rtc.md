@@ -220,7 +220,8 @@
 
 #### Несогласованное чтение даты и времени из микросхемы RTC
 
-Реализуйте статический [метод](../../doc/kernel/time/rtc/struct.Date.html#method.read_inconsistent)
+Реализуйте статический метод
+[`Date::read_inconsistent()`](../../doc/kernel/time/rtc/struct.Date.html#method.read_inconsistent)
 
 ```rust
 fn Date::read_inconsistent() -> Date
@@ -370,7 +371,8 @@ fn kernel::time::rtc::parse_hour(
 
 #### Согласованное чтение даты и времени из микросхемы RTC
 
-Реализуйте статический [метод](../../doc/kernel/time/rtc/struct.Date.html#method.read)
+Реализуйте статический метод
+[`Date::read()`](../../doc/kernel/time/rtc/struct.Date.html#method.read)
 
 ```rust
 fn Date::read() -> Option<Date>

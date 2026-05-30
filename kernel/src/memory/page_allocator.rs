@@ -122,7 +122,6 @@ impl PageAllocator {
         }
     }
 
-    // ANCHOR: allocate
     /// Выделяет блок подряд идущих виртуальных страниц для хранения объекта,
     /// требования к размещению в памяти которого описывает `layout`.
     /// Ни выделения физической памяти, ни создания отображения станиц, не происходит.
@@ -133,7 +132,6 @@ impl PageAllocator {
         &mut self,
         layout: Layout,
     ) -> Result<Block<Page>> {
-        // ANCHOR_END: allocate
         // TODO: your code here.
         unimplemented!();
     }
@@ -178,7 +176,6 @@ impl PageAllocator {
         }
     }
 
-    // ANCHOR: find_unused_block
     /// Возвращает блок виртуальных страниц,
     /// соответствующий самой длинной последовательности пустых записей в
     /// диапазоне `allowed_elements` корневого узла таблицы страниц `page_table_root`.
@@ -192,7 +189,6 @@ impl PageAllocator {
         page_table_root: &PageTable,
         allowed_elements: Range<usize>,
     ) -> Option<Block<Page>> {
-        // ANCHOR_END: find_unused_block
         // TODO: your code here.
         unimplemented!();
     }

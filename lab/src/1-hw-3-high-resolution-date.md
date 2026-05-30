@@ -53,7 +53,8 @@
 > [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
 > с его [sequence lock](https://en.wikipedia.org/wiki/Seqlock).
 
-Основной [метод](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#method.datetime)
+Основной метод
+[`CorrelationInterval::datetime()`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#method.datetime)
 
 ```rust
 fn CorrelationInterval::datetime<const PARTS_PER_SECOND: i64>(
@@ -91,8 +92,8 @@ fn CorrelationInterval::datetime<const PARTS_PER_SECOND: i64>(
 [`CorrelationInterval::base`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#structfield.base) и
 [`CorrelationInterval::prev`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#structfield.prev) ---
 валидны и задают разные тики базовых часов.
-Если это так, он перекладывает основную работу на вспомогательный
-[метод](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#method.datetime_with_resolution)
+Если это так, он перекладывает основную работу на вспомогательный метод
+[`CorrelationInterval::datetime_with_resolution()`](../../doc/ku/time/correlation_interval/struct.CorrelationInterval.html#method.datetime_with_resolution)
 
 ```rust
 fn CorrelationInterval::datetime_with_resolution<const PARTS_PER_SECOND: i64>(

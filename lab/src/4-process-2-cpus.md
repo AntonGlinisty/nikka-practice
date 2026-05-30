@@ -29,7 +29,8 @@
 
 #### Инициализация TSS и регистра `TR`
 
-Реализуйте [метод](../../doc/kernel/smp/cpu/struct.Cpu.html#method.set_tss)
+Реализуйте метод
+[`Cpu::set_tss()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.set_tss)
 
 ```rust
 fn Cpu::set_tss()
@@ -68,7 +69,8 @@ CPU--local storage.
 Как вы уже догадались, сам CPU--local storage в Nikka --- это структура
 [`Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html).
 
-Реализуйте [метод](../../doc/kernel/smp/cpu/struct.Cpu.html#method.set_gs)
+Реализуйте метод
+[`Cpu::set_gs()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.set_gs)
 
 ```rust
 fn Cpu::set_gs()
@@ -125,7 +127,8 @@ fn Cpu::set_gs()
 
 #### Использование регистра `GS` для получения текущего [`kernel::smp::cpu::Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html)
 
-Реализуйте [метод](../../doc/kernel/smp/cpu/struct.Cpu.html#method.get)
+Реализуйте метод
+[`Cpu::get()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.get)
 
 ```rust
 unsafe fn Cpu::get() -> &'static mut Cpu
@@ -258,7 +261,8 @@ asm!(
 [`Cpu`](../../doc/kernel/smp/cpu/struct.Cpu.html),
 для них и для содержащихся в них стеках нужно выделить память.
 
-Реализуйте [функцию](../../doc/kernel/smp/cpu/fn.init_cpu_vec.html)
+Реализуйте функцию
+[`cpu::init_cpu_vec()`](../../doc/kernel/smp/cpu/fn.init_cpu_vec.html)
 
 ```rust
 fn init_cpu_vec(cpu_count: usize) -> Result<Vec<Cpu>>

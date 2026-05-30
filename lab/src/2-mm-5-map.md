@@ -14,7 +14,8 @@
 
 #### Отображение виртуальной страницы на физический фрейм
 
-Реализуйте [метод](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.map_page_to_frame)
+Реализуйте метод
+[`AddressSpace::map_page_to_frame()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.map_page_to_frame)
 
 ```rust
 unsafe fn AddressSpace::map_page_to_frame(
@@ -71,7 +72,8 @@ unsafe fn AddressSpace::map_page_to_frame(
 [`FRAME_ALLOCATOR`](../../doc/kernel/memory/struct.FRAME_ALLOCATOR.html)
 и
 [`AddressSpace::map_page_to_frame()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.map_page_to_frame)
-реализуйте [метод](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.map_page)
+реализуйте метод
+[`AddressSpace::map_page()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.map_page)
 
 ```rust
 unsafe fn AddressSpace::map_page(
@@ -89,7 +91,8 @@ unsafe fn AddressSpace::map_page(
 
 #### Удаление отображения заданной страницы
 
-Реализуйте [метод](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.unmap_page)
+Реализуйте метод
+[`AddressSpace::unmap_page()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.unmap_page)
 
 ```rust
 unsafe fn AddressSpace::unmap_page(
@@ -124,7 +127,8 @@ unsafe fn AddressSpace::unmap_page(
 
 ### Изучите как устроены отображения срезов
 
-С помощью реализованных вами функций [метод](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.map_slice_uninit)
+С помощью реализованных вами функций метод
+[`AddressSpace::map_slice_uninit()`](../../doc/kernel/memory/address_space/struct.AddressSpace.html#method.map_slice_uninit)
 
 ```rust
 fn AddressSpace::map_slice_uninit<T>(

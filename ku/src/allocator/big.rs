@@ -174,7 +174,6 @@ pub unsafe trait BigAllocator {
         flags: Option<PageTableFlags>,
     ) -> Result<()>;
 
-    // ANCHOR: grow
     /// Аналогично [`Allocator::grow()`]
     /// увеличивает ранее отображённый блок виртуальных страниц `old_block`.
     ///
@@ -203,12 +202,10 @@ pub unsafe trait BigAllocator {
         new_layout: Layout,
         flags: PageTableFlags,
     ) -> Result<Block<Page>> {
-        // ANCHOR_END: grow
         // TODO: your code here.
         unimplemented!();
     }
 
-    // ANCHOR: shrink
     /// Аналогично [`Allocator::shrink()`]
     /// уменьшает ранее отображённый блок виртуальных страниц `old_block`.
     /// Возвращает:
@@ -247,7 +244,6 @@ pub unsafe trait BigAllocator {
         old_block: Block<Page>,
         new_layout: Layout,
     ) -> Result<Block<Page>> {
-        // ANCHOR_END: shrink
         // TODO: your code here.
         unimplemented!();
     }

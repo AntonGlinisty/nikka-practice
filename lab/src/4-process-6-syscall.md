@@ -60,7 +60,8 @@
 
 #### Инициализация системных вызовов
 
-Реализуйте [функцию](../../doc/kernel/process/syscall/fn.init.html)
+Реализуйте функцию
+[`syscall::init()`](../../doc/kernel/process/syscall/fn.init.html)
 
 ```rust
 fn kernel::process::syscall::init()
@@ -79,7 +80,8 @@ fn kernel::process::syscall::init()
 
 #### Диспетчеризация системных вызовов
 
-Реализуйте на ассемблере [функцию](../../doc/kernel/process/syscall/fn.syscall_trampoline.html)
+Реализуйте на ассемблере функцию
+[`syscall::syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html)
 
 ```rust
 extern "C" fn syscall_trampoline() -> !
@@ -93,8 +95,8 @@ extern "C" fn syscall_trampoline() -> !
 
 Функция
 [`syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html)
-должна передать управление в написанную на Rust
-[функцию](../../doc/kernel/process/syscall/fn.syscall.html)
+должна передать управление в написанную на Rust функцию
+[`syscall::syscall()`](../../doc/kernel/process/syscall/fn.syscall.html)
 
 ```rust
 {{#include ../../kernel/src/process/syscall.rs:syscall}}
@@ -244,7 +246,8 @@ panicked at 'kernel mode trap #14 - Page Fault, context: { mode: kernel, cs:rip:
 
 #### Возврат из системного вызова
 
-Реализуйте на ассемблере [функцию](../../doc/kernel/process/syscall/fn.sysret.html)
+Реализуйте на ассемблере функцию
+[`syscall::sysret()`](../../doc/kernel/process/syscall/fn.sysret.html)
 
 ```rust
 {{#include ../../kernel/src/process/syscall.rs:sysret}}
@@ -264,7 +267,8 @@ panicked at 'kernel mode trap #14 - Page Fault, context: { mode: kernel, cs:rip:
 
 #### Системный вызов `exit`
 
-Реализуйте [функцию](../../doc/kernel/process/syscall/fn.exit.html)
+Реализуйте функцию
+[`syscall::exit()`](../../doc/kernel/process/syscall/fn.exit.html)
 
 ```rust
 {{#include ../../kernel/src/process/syscall.rs:exit}}
@@ -290,7 +294,8 @@ panicked at 'kernel mode trap #14 - Page Fault, context: { mode: kernel, cs:rip:
 
 #### Системный вызов `log_value`
 
-Реализуйте [функцию](../../doc/kernel/process/syscall/fn.log_value.html)
+Реализуйте функцию
+[`syscall::log_value()`](../../doc/kernel/process/syscall/fn.log_value.html)
 
 ```rust
 {{#include ../../kernel/src/process/syscall.rs:log_value}}
@@ -380,7 +385,8 @@ panicked at 'if the Page Fault was in the kernel mode, probably the `syscall` in
 
 #### Пользовательская сторона системного вызова
 
-Реализуйте [функцию](../../doc/lib/syscall/fn.syscall.html)
+Реализуйте функцию
+[`syscall::syscall()`](../../doc/lib/syscall/fn.syscall.html)
 
 ```rust
 {{#include ../../user/lib/src/syscall.rs:syscall}}

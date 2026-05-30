@@ -129,8 +129,8 @@
 
 ### Задача 4 --- реализация [`SequenceLock`](../../doc/ku/sync/sequence_lock/struct.SequenceLock.html)
 
-Реализуйте
-[метод](../../doc/ku/sync/sequence_lock/struct.SequenceLock.html#method.write_lock)
+Реализуйте метод
+[`SequenceLock::write_lock()`](../../doc/ku/sync/sequence_lock/struct.SequenceLock.html#method.write_lock)
 
 ```rust
 fn SequenceLock::write_lock(&self) -> SequenceLockGuard<'_, T>
@@ -146,8 +146,8 @@ fn SequenceLock::write_lock(&self) -> SequenceLockGuard<'_, T>
 из
 [предыдущей задачи](../../lab/book/5-sync-2-spinlock.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-2--%D1%80%D0%B5%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-spinlock).
 
-Реализуйте
-[метод](../../doc/ku/sync/sequence_lock/struct.SequenceLock.html#method.write)
+Реализуйте метод
+[`SequenceLock::write()`](../../doc/ku/sync/sequence_lock/struct.SequenceLock.html#method.write)
 
 ```rust
 unsafe fn SequenceLock::write(&self) -> SequenceLockGuard<'_, T>
@@ -190,8 +190,8 @@ unsafe fn SequenceLock::write(&self) -> SequenceLockGuard<'_, T>
 он требует определённых гарантий от вызывающего его кода.
 
 
-Реализуйте
-[метод](../../doc/ku/sync/sequence_lock/struct.SequenceLock.html#method.read)
+Реализуйте метод
+[`SequenceLock::read()`](../../doc/ku/sync/sequence_lock/struct.SequenceLock.html#method.read)
 
 ```rust
 fn SequenceLock::read(&self) -> T
@@ -223,8 +223,8 @@ let data = unsafe { atomic_memcpy::atomic_load(self.data.get(), Ordering::...) }
 let data = unsafe { data.assume_init() };
 ```
 
-Аналогичным образом реализуйте
-[метод](../../doc/ku/sync/sequence_lock/struct.SequenceLockGuard.html#method.get)
+Аналогичным образом реализуйте метод
+[`SequenceLockGuard::get()`](../../doc/ku/sync/sequence_lock/struct.SequenceLockGuard.html#method.get)
 
 ```rust
 fn SequenceLockGuard::get(&mut self) -> T
@@ -234,8 +234,8 @@ fn SequenceLockGuard::get(&mut self) -> T
 [`MaybeUninit::assume_init()`](https://doc.rust-lang.org/nightly/core/mem/union.MaybeUninit.html#method.assume_init)
 можно вызвать сразу, так как этот метод доступен только тому, кто держит блокировку на запись.
 
-Реализуйте и обратный
-[метод](../../doc/ku/sync/sequence_lock/struct.SequenceLockGuard.html#method.set)
+Реализуйте и обратный метод
+[`SequenceLockGuard::set()`](../../doc/ku/sync/sequence_lock/struct.SequenceLockGuard.html#method.set)
 
 ```rust
 fn SequenceLockGuard::set(&mut self)
@@ -250,8 +250,8 @@ unsafe {
 }
 ```
 
-Также реализуйте
-[метод](../../doc/ku/sync/sequence_lock/struct.SequenceLockGuard.html#method.drop)
+Также реализуйте метод
+[`SequenceLockGuard::drop()`](../../doc/ku/sync/sequence_lock/struct.SequenceLockGuard.html#method.drop)
 
 ```rust
 fn SequenceLockGuard::drop(&mut self)

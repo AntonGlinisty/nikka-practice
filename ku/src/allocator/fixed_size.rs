@@ -70,7 +70,6 @@ impl FixedSizeAllocator {
         self.bitmap.free() == 0
     }
 
-    // ANCHOR: allocate
     /// Выделяет свободный блок памяти из [`field@FixedSizeAllocator::quarry`].
     /// Возвращает указатель на выделенный блок или
     /// [`core::ptr::null_mut()`], если свободных блоков не осталось.
@@ -85,14 +84,12 @@ impl FixedSizeAllocator {
         &mut self,
         layout: Layout,
     ) -> *mut u8 {
-        // ANCHOR_END: allocate
         self.validate_layout(layout);
 
         // TODO: your code here.
         unimplemented!();
     }
 
-    // ANCHOR: deallocate
     /// Освобождает выделенные ранее методом [`FixedSizeAllocator::allocate()`]
     /// блок памяти, начинающийся по указателю `ptr`.
     ///
@@ -114,7 +111,6 @@ impl FixedSizeAllocator {
         ptr: *mut u8,
         layout: Layout,
     ) {
-        // ANCHOR_END: deallocate
         assert!(!ptr.is_null());
         self.validate_layout(layout);
 
@@ -122,7 +118,6 @@ impl FixedSizeAllocator {
         unimplemented!();
     }
 
-    // ANCHOR: fill_clip
     /// Заполняет `clip` до тех пор, пока либо в нём не будет `len` элементов,
     /// либо не исчерпаются свободные элементы [`FixedSizeAllocator`].
     pub(super) fn fill_clip(
@@ -130,19 +125,16 @@ impl FixedSizeAllocator {
         clip: &mut Clip,
         len: usize,
     ) {
-        // ANCHOR_END: fill_clip
         // TODO: your code here.
         unimplemented!();
     }
 
-    // ANCHOR: unfill_clip
     /// Освобождает `clip`, пока в нём не останется не более `len` блоков.
     pub(super) fn unfill_clip(
         &mut self,
         clip: &mut Clip,
         len: usize,
     ) {
-        // ANCHOR_END: unfill_clip
         // TODO: your code here.
         unimplemented!();
     }
@@ -170,7 +162,6 @@ impl FixedSizeAllocator {
         unimplemented!();
     }
 
-    // ANCHOR: unmap
     /// Освобождает как всю использованную [`FixedSizeAllocator`] физическую память,
     /// так и всё использованное им адресное пространство.
     /// Возвращает их в страничный аллокатор `fallback`.
@@ -189,7 +180,6 @@ impl FixedSizeAllocator {
         &mut self,
         fallback: &impl BigAllocatorGuard,
     ) -> Result<usize> {
-        // ANCHOR_END: unmap
         assert_eq!(self.info.allocations().balance(), 0);
         assert_eq!(self.info.allocated().balance(), 0);
         assert_eq!(self.info.requested().balance(), 0);

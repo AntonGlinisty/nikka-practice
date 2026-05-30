@@ -344,7 +344,6 @@ impl Process {
         }
     }
 
-    // ANCHOR: trap
     /// Подготавливает контекст `context` к вызову
     /// пользовательского обработчика исключения или прерывания номер `trap`, если он установлен.
     ///
@@ -357,7 +356,6 @@ impl Process {
         trap: Trap,
         info: Info,
     ) -> bool {
-        // ANCHOR_END: trap
         self.flush_log();
 
         let number = usize::from(trap);
@@ -466,7 +464,6 @@ impl fmt::Display for Process {
     }
 }
 
-// ANCHOR: trap_handler_context
 /// Контекст пользователя, в который передаются исключения и прерывания,
 /// относящиеся к данному процессу.
 /// Например, Page Fault при некорректном доступе к памяти в коде пользователя.
@@ -479,7 +476,6 @@ pub(super) struct TrapHandlerContext {
     /// пользовательского обработчика исключений и прерываний.
     stack: Block<Virt>,
 }
-// ANCHOR_END: trap_handler_context
 
 impl TrapHandlerContext {
     /// Создаёт контекст пользовательского обработчика исключений и прерываний.

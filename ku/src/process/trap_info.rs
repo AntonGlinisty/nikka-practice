@@ -20,7 +20,6 @@ use crate::process::RSP_OFFSET_IN_MINI_CONTEXT;
 
 use super::Trap;
 
-// ANCHOR: trap_info
 /// Информация об исключении процессора.
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
@@ -46,7 +45,6 @@ pub struct TrapInfo {
     /// существенных полей --- оно имеет тот же размер и расположение, как и адрес возврата.
     return_address_placeholder: [u8; Self::PLACEHOLDER_SIZE],
 }
-// ANCHOR_END: trap_info
 
 impl TrapInfo {
     /// Размер адреса возврата из функции, см. [`TrapInfo::return_address_placeholder`].

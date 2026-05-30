@@ -21,7 +21,6 @@ use super::{
 #[allow(unused)]
 use ku::error::Error;
 
-// ANCHOR: bitmap
 /// [Битовая карта](https://en.wikipedia.org/wiki/Free-space_bitmap)
 /// для отслеживания какие именно элементы
 /// (блоки или [inode](https://en.wikipedia.org/wiki/Inode) для соответствующей битовой карты)
@@ -39,7 +38,6 @@ pub(super) struct Bitmap {
     /// то есть диапазон `0 .. Bitmap::elements.start`, зарезервированы.
     elements: Range<usize>,
 }
-// ANCHOR_END: bitmap
 
 impl Bitmap {
     /// Возвращает битовую карту файловой системы или ошибку [`Error::Medium`],
@@ -54,7 +52,6 @@ impl Bitmap {
         bitmap.validate()
     }
 
-    // ANCHOR: format
     /// Форматирует часть диска, начинающуюся с блока `block` и
     /// отведённую под битовую карту для `elements.end` элементов,
     /// записывая на диск её начальное состояние.
@@ -66,7 +63,6 @@ impl Bitmap {
         block: usize,
         elements: Range<usize>,
     ) -> Result<()> {
-        // ANCHOR_END: format
         let bitmap = Self::bitmap(block, elements.clone());
 
         // TODO: your code here.

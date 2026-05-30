@@ -6,8 +6,8 @@
 блоки памяти, выделенные из аллокатора пользователю, были им возвращены.
 Это забота тестов.
 
-Доработайте
-[метод](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html#method.unmap)
+Доработайте метод
+[`FixedSizeAllocator::unmap()`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html#method.unmap)
 
 ```rust
 {{#include ../../ku/src/allocator/fixed_size.rs:unmap}}
@@ -17,8 +17,8 @@
 [`ku/src/allocator/fixed_size.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/allocator/fixed_size.rs).
 
 
-И
-[метод](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#method.unmap)
+И метод
+[`Dispatcher::unmap()`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#method.unmap)
 
 ```rust
 {{#include ../../ku/src/allocator/dispatcher.rs:unmap}}

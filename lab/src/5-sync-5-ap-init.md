@@ -130,7 +130,8 @@ BSP должен подготовить для AP код загрузчика, �
 а AP сигнализирует об окончании своей загрузки с помощью метода
 [`kernel::smp::cpu::Cpu::signal_initialized()`](../../doc/kernel/smp/cpu/struct.Cpu.html#method.signal_initialized).
 
-Реализуйте [функцию](../../doc/kernel/smp/ap_init/fn.switch_from_real_mode_to_long_mode.html)
+Реализуйте функцию
+[`ap_init::switch_from_real_mode_to_long_mode()`](../../doc/kernel/smp/ap_init/fn.switch_from_real_mode_to_long_mode.html)
 
 ```rust
 fn switch_from_real_mode_to_long_mode() -> !

@@ -92,14 +92,12 @@ impl<Q: Cache, T: Allocator + BigAllocatorGuard> Dispatcher<Q, T> {
         }
     }
 
-    // ANCHOR: unmap
     /// Освобождает всю виртуальную и физическую память, выделенную аллокатором.
     ///
     /// # Panics
     ///
     /// Паникует, если остались не освобождённые блоки памяти.
     pub fn unmap(&self) {
-        // ANCHOR_END: unmap
         let info = self.info();
         assert_eq!(info.allocations().balance(), 0);
         assert_eq!(info.allocated().balance(), 0);
@@ -154,7 +152,6 @@ impl<Q: Cache, T: Allocator + BigAllocatorGuard> Dispatcher<Q, T> {
         }
     }
 
-    // ANCHOR: fixed_size_allocate
     /// Выделяет блок памяти с помощью аллокатора
     /// по индексу `index` в массиве [`Dispatcher::fixed_size`].
     fn fixed_size_allocate(
@@ -162,12 +159,10 @@ impl<Q: Cache, T: Allocator + BigAllocatorGuard> Dispatcher<Q, T> {
         index: usize,
         layout: Layout,
     ) -> *mut u8 {
-        // ANCHOR_END: fixed_size_allocate
         // TODO: your code here.
         unimplemented!();
     }
 
-    // ANCHOR: fixed_size_deallocate
     /// Освобождает блок памяти с помощью аллокатора
     /// по индексу `index` в массиве [`Dispatcher::fixed_size`].
     ///
@@ -182,7 +177,6 @@ impl<Q: Cache, T: Allocator + BigAllocatorGuard> Dispatcher<Q, T> {
         ptr: *mut u8,
         layout: Layout,
     ) {
-        // ANCHOR_END: fixed_size_deallocate
         // TODO: your code here.
         unimplemented!();
     }

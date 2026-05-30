@@ -18,7 +18,8 @@ fn duplicate(&self) -> Result<Self> {
 [`Mapping::duplicate_subtree()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.duplicate_subtree),
 запуская корневой вызов рекурсии.
 
-Реализуйте [метод](../../doc/kernel/memory/mapping/struct.Mapping.html#method.duplicate_subtree)
+Реализуйте метод
+[`Mapping::duplicate_subtree()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.duplicate_subtree)
 ```rust
 fn Mapping::duplicate_subtree(
     &self,

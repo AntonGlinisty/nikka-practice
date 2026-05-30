@@ -10,7 +10,6 @@ use crate::error::{
     Result,
 };
 
-// ANCHOR: pid
 /// Идентификатор процесса.
 #[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Pid {
@@ -31,7 +30,6 @@ pub enum Pid {
         slot: u16,
     },
 }
-// ANCHOR_END: pid
 
 impl Pid {
     /// Максимальное поддерживаемое [`Pid`] количество одновременно работающих процессов.

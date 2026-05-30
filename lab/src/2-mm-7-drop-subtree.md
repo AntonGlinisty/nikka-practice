@@ -21,7 +21,8 @@ impl Drop for Mapping {
 Далее вся работа перекладывается на рекурсивный метод
 [`Mapping::drop_subtree()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.drop_subtree).
 
-Реализуйте [метод](../../doc/kernel/memory/mapping/struct.Mapping.html#method.drop_subtree)
+Реализуйте метод
+[`Mapping::drop_subtree()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.drop_subtree)
 ```rust
 fn Mapping::drop_subtree(
     &mut self,

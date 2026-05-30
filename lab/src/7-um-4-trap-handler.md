@@ -16,7 +16,8 @@
 
 ### Пользовательская часть системного вызова `set_trap_handler`
 
-Посмотрите на [функцию](../../doc/lib/syscall/fn.set_trap_handler.html)
+Посмотрите на функцию
+[`syscall::set_trap_handler()`](../../doc/lib/syscall/fn.set_trap_handler.html)
 
 ```rust
 {{#include ../../user/lib/src/syscall.rs:set_trap_handler}}
@@ -39,7 +40,8 @@
 
 ### Трамплин обработчика прерываний
 
-Реализуйте [функцию](../../doc/lib/syscall/fn.trap_handler_trampoline.html)
+Реализуйте функцию
+[`syscall::trap_handler_trampoline()`](../../doc/lib/syscall/fn.trap_handler_trampoline.html)
 
 ```rust
 extern "C" fn trap_handler_trampoline() -> !
@@ -66,7 +68,8 @@ extern "C" fn trap_handler_trampoline() -> !
 
 **Важно** также сохранить в стек текущее состояние регистра флагов `RFLAGS`.
 
-После сохранения регистров нужно вызвать [функцию](../../doc/lib/syscall/fn.trap_handler_invoker.html)
+После сохранения регистров нужно вызвать функцию
+[`syscall::trap_handler_invoker()`](../../doc/lib/syscall/fn.trap_handler_invoker.html)
 ```rust
 {{#include ../../user/lib/src/syscall.rs:trap_handler_invoker}}
 ```
@@ -163,8 +166,8 @@ pub const RSP_OFFSET_IN_TRAP_INFO: usize = offset_of!(TrapInfo, context) + RSP_O
 
 ### Передача прерывания из режима ядра в режим пользователя
 
-Реализуйте
-[метод](../../doc/kernel/process/process/struct.Process.html#method.trap):
+Реализуйте метод
+[`Process::trap()`](../../doc/kernel/process/process/struct.Process.html#method.trap):
 
 ```rust
 {{#include ../../kernel/src/process/process.rs:trap}}

@@ -264,8 +264,8 @@ ELF--файла в порядке адресов в памяти.
 [`Loader::load_program_header()`](../../doc/ku/process/elf/struct.Loader.html#method.load_program_header),
 функция
 [`load()`](../../doc/ku/process/elf/fn.load.html)
-должна вызывать
-[метод](../../doc/ku/process/elf/struct.Loader.html#method.finish)
+должна вызывать метод
+[`Loader::finish()`](../../doc/ku/process/elf/struct.Loader.html#method.finish)
 
 ```rust
 {{#include ../../ku/src/process/elf.rs:finish}}

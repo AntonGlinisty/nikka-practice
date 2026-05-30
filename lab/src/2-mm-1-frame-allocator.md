@@ -89,7 +89,8 @@ for region in memory_regions.iter() {
 
 #### Инициализация описателей фреймов
 
-Реализуйте [метод](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#method.init_frame_info)
+Реализуйте метод
+[`FrameAllocator::init_frame_info()`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#method.init_frame_info)
 
 ```rust
 {{#include ../../kernel/src/memory/frame_allocator.rs:init_frame_info}}
@@ -122,7 +123,8 @@ for region in memory_regions.iter() {
 
 #### Выделение фрейма
 
-Реализуйте [метод](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#method.allocate)
+Реализуйте метод
+[`FrameAllocator::allocate()`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#method.allocate)
 
 ```rust
 {{#include ../../kernel/src/memory/frame_allocator.rs:allocate}}
@@ -159,7 +161,8 @@ panic!("your {} message {:?}", ...);
 
 #### Освобождение фрейма
 
-Реализуйте [метод](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#method.deallocate)
+Реализуйте метод
+[`FrameAllocator::deallocate()`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#method.deallocate)
 
 ```rust
 {{#include ../../kernel/src/memory/frame_allocator.rs:deallocate}}
@@ -216,7 +219,8 @@ panic!("your {} message {:?}", ...);
 
 #### Увеличение счётчика использований фрейма
 
-Реализуйте [метод](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#method.reference)
+Реализуйте метод
+[`FrameAllocator::reference()`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#method.reference)
 
 ```rust
 {{#include ../../kernel/src/memory/frame_allocator.rs:reference}}

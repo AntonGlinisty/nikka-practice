@@ -82,7 +82,6 @@ pub(super) fn init(memory_regions: &MemoryRegions) -> FrameAllocator {
     frame_allocator
 }
 
-// ANCHOR: fn_resize
 /// Изменяет размер метаданных аллокатора [`FrameAllocator`] так,
 /// чтобы он мог хранить информацию про
 /// всю доступную в машине физическую память --- `physical_memory`.
@@ -94,7 +93,6 @@ pub(super) fn resize(
     physical_memory: Block<Frame>,
     memory_regions: &MemoryRegions,
 ) {
-    // ANCHOR_END: fn_resize
     // TODO: your code here.
 }
 
@@ -150,19 +148,16 @@ impl FrameAllocator {
         self.free_count
     }
 
-    // ANCHOR: allocate
     /// Выделяет ровно один физический фрейм.
     /// Возвращает [`FrameGuard`], владеющий ссылкой на этот фрейм.
     ///
     /// Если свободных физических фреймов не осталось,
     /// возвращает ошибку [`Error::NoFrame`].
     pub fn allocate(&mut self) -> Result<FrameGuard> {
-        // ANCHOR_END: allocate
         // TODO: your code here.
         unimplemented!();
     }
 
-    // ANCHOR: deallocate
     /// Уменьшает на единицу счётчик использований заданного физического фрейма `frame`.
     /// Физический фрейм освобождается, если на него не осталось других ссылок.
     ///
@@ -173,12 +168,10 @@ impl FrameAllocator {
         &mut self,
         frame: Frame,
     ) {
-        // ANCHOR_END: deallocate
         // TODO: your code here.
         unimplemented!();
     }
 
-    // ANCHOR: reference
     /// Увеличивает на единицу счётчик использований заданного физического фрейма `frame`.
     /// Возвращает [`FrameGuard`], владеющий новой ссылкой на этот фрейм.
     ///
@@ -189,7 +182,6 @@ impl FrameAllocator {
         &mut self,
         frame: Frame,
     ) -> FrameGuard {
-        // ANCHOR_END: reference
         // TODO: your code here.
         unimplemented!();
     }
@@ -217,7 +209,6 @@ impl FrameAllocator {
         !matches!(self.frame_info(frame), FrameInfo::Free { .. })
     }
 
-    // ANCHOR: init_frame_info
     /// Инициализирует метаданные аллокатора в диапазоне номеров
     /// физических фреймов `frames` по информации из `memory_regions`.
     fn init_frame_info(
@@ -225,12 +216,10 @@ impl FrameAllocator {
         memory_regions: &MemoryRegions,
         frames: Range<usize>,
     ) {
-        // ANCHOR_END: init_frame_info
         // TODO: your code here.
         unimplemented!();
     }
 
-    // ANCHOR: resize
     /// Переносит уже имеющиеся в [`FrameAllocator`] метаданные
     /// из временного хранилища в новое --- `frame_info`.
     /// Ещё не заполненные метаданные заполняет по информации из `memory_regions`.
@@ -241,7 +230,6 @@ impl FrameAllocator {
         frame_info: &'static mut [FrameInfo],
         memory_regions: &MemoryRegions,
     ) -> &'static mut [FrameInfo] {
-        // ANCHOR_END: resize
         assert!(
             !self.access_beyond_frame_info,
             "resize() after reference() of a frame beyond frame_info can break FrameAllocator's \

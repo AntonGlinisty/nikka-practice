@@ -126,8 +126,8 @@
 Реализуйте описанные алгоритмы чтения и записи.
 Читает из структуры
 [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
-её приватный
-[метод](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.try_load)
+её приватный метод
+[`AtomicCorrelationPoint::try_load()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.try_load)
 
 ```rust
 fn AtomicCorrelationPoint::try_load(&self) -> Option<CorrelationPoint>
@@ -138,8 +138,8 @@ fn AtomicCorrelationPoint::try_load(&self) -> Option<CorrelationPoint>
 [`core::option::Option::Some`](https://doc.rust-lang.org/nightly/core/option/enum.Option.html#variant.Some),
 если оно было прочитано согласованно.
 
-Публичный
-[метод](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.load)
+Публичный метод
+[`AtomicCorrelationPoint::load()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.load)
 
 ```rust
 fn AtomicCorrelationPoint::load(&self) -> CorrelationPoint
@@ -163,8 +163,8 @@ fn AtomicCorrelationPoint::load(&self) -> CorrelationPoint
 fn AtomicCorrelationPoint::store(&self, correlation_point: CorrelationPoint)
 ```
 
-записывает заданное `correlation_point` значение. А
-[метод](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.inc)
+записывает заданное `correlation_point` значение. А метод
+[`AtomicCorrelationPoint::inc()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.inc)
 
 ```rust
 fn AtomicCorrelationPoint::inc(&self, tsc: i64)

@@ -100,7 +100,8 @@ enum Slot {
 
 #### Инициализация таблицы
 
-Реализуйте [метод](../../doc/kernel/process/struct.Table.html#method.new)
+Реализуйте метод
+[`Table::new()`](../../doc/kernel/process/struct.Table.html#method.new)
 
 ```rust
 fn Table::new(len: usize) -> Self
@@ -123,7 +124,8 @@ fn Table::new(len: usize) -> Self
 
 #### Выделение слота под процесс
 
-Реализуйте [метод](../../doc/kernel/process/struct.Table.html#method.allocate)
+Реализуйте метод
+[`Table::allocate()`](../../doc/kernel/process/struct.Table.html#method.allocate)
 
 ```rust
 fn Table::allocate(mut process: Process) -> Result<Pid>
@@ -152,7 +154,8 @@ fn Table::allocate(mut process: Process) -> Result<Pid>
 
 #### Получение процесса по его идентификатору
 
-Реализуйте [метод](../../doc/kernel/process/struct.Table.html#method.get)
+Реализуйте метод
+[`Table::get()`](../../doc/kernel/process/struct.Table.html#method.get)
 
 ```rust
 fn Table::get(pid: Pid) -> Result<SpinlockGuard<'static, Process>>
@@ -208,7 +211,8 @@ unsafe fn forge_static_lifetime<T>(x: &T) -> &'static T
 
 #### Освобождение слота с уничтожением процесса
 
-Реализуйте [метод](../../doc/kernel/process/struct.Table.html#method.free)
+Реализуйте метод
+[`Table::free()`](../../doc/kernel/process/struct.Table.html#method.free)
 
 ``` rust
 fn Table::free(mut pid: Pid) -> Result<()>

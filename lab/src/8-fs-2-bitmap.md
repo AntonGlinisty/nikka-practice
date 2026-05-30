@@ -18,7 +18,8 @@
 
 ### Задача 2 --- битовая карта занятых блоков или inode
 
-Доделайте [метод](../../doc/kernel/fs/bitmap/struct.Bitmap.html#method.format)
+Доделайте метод
+[`Bitmap::format()`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#method.format)
 
 ```rust
 {{#include ../../kernel/src/fs/bitmap.rs:format}}

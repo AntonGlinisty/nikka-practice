@@ -149,7 +149,8 @@ let child_pid = syscall(Syscall::Exofork, 0, 0, 0, 0, 0)?;
 удобно использовать старый джедайский трюк ---
 [рекурсивное отображение памяти](https://os.phil-opp.com/page-tables/#recursive-mapping).
 
-Реализуйте [метод](../../doc/kernel/memory/mapping/struct.Mapping.html#method.make_recursive_mapping)
+Реализуйте метод
+[`Mapping::make_recursive_mapping()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.make_recursive_mapping)
 
 ```rust
 fn Mapping::make_recursive_mapping(&mut self) -> Result<usize>

@@ -49,8 +49,8 @@
 
 #### Инициализация
 
-Реализуйте
-[метод](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.init)
+Реализуйте метод
+[`BlockCache::init()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.init)
 инициализации блочного кэша
 
 ```rust
@@ -83,7 +83,8 @@
 
 #### Обращение к блоку в блочном кэше
 
-Реализуйте [метод](../../doc/kernel/fs/block_cache/struct.Cache.html#method.block)
+Реализуйте метод
+[`Cache::block()`](../../doc/kernel/fs/block_cache/struct.Cache.html#method.block)
 
 ```rust
 {{#include ../../kernel/src/fs/block_cache.rs:block}}
@@ -95,7 +96,8 @@
 
 #### Считывание блока с диска
 
-Реализуйте [метод](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.trap_handler)
+Реализуйте метод
+[`BlockCache::trap_handler()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.trap_handler)
 
 ```rust
 {{#include ../../kernel/src/fs/block_cache.rs:trap_handler}}
@@ -132,7 +134,8 @@
 Запись блока выполняется при необходимости вызовом
 [`BlockCache::flush_block()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.flush_block).
 
-Реализуйте [метод](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.flush_block_impl)
+Реализуйте метод
+[`BlockCache::flush_block_impl()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.flush_block_impl)
 
 ```rust
 {{#include ../../kernel/src/fs/block_cache.rs:flush_block_impl}}

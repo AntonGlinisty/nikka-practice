@@ -64,7 +64,8 @@ pub(crate) struct ModeContext {
 
 ### Задача 5 --- переключение процессора в режим пользователя и возврат из него
 
-Само переключение выполняет [метод](../../doc/kernel/process/registers/struct.Registers.html#method.switch_to)
+Само переключение выполняет метод
+[`Registers::switch_to()`](../../doc/kernel/process/registers/struct.Registers.html#method.switch_to)
 
 ```rust
 unsafe fn Registers::switch_to(registers: *const Registers)

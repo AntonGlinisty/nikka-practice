@@ -27,7 +27,6 @@ pub struct DeviceId {
 }
 
 impl DeviceId {
-    // ANCHOR: new
     /// Читает идентификатор PCI--устройства, адресуемого `routing_id`,
     /// из пространства конфигурации `config_space`.
     /// Если по адресу `routing_id` нет устройства, возвращает [`None`].
@@ -35,19 +34,16 @@ impl DeviceId {
         config_space: &mut impl ConfigSpace,
         routing_id: RoutingId,
     ) -> Option<Self> {
-        // ANCHOR_END: new
         // TODO: your code here.
         Some(Self::default()) // TODO: remove before flight.
     }
 }
 
-// ANCHOR: vendor_device
 /// Возвращает пару из идентификатора устройства и идентификатора производителя устройства,
 /// закодированные в значении `data`.
 /// Также подходит для декодирования пары из
 /// идентификатора подустройства и идентификатора производителя подустройства.
 pub(super) fn vendor_device(data: u32) -> Option<(Id<u16>, Id<u16>)> {
-    // ANCHOR_END: vendor_device
     // TODO: your code here.
     None // TODO: remove before flight.
 }

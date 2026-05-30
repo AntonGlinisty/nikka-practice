@@ -112,15 +112,15 @@
 [`Clip`](../../doc/ku/allocator/cache/struct.Clip.html)
 при удалении аллокатора, его нужно опустошить полностью.
 
-Реализуйте
-[метод](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html#method.fill_clip)
+Реализуйте метод
+[`FixedSizeAllocator::fill_clip()`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html#method.fill_clip)
 
 ```rust
 {{#include ../../ku/src/allocator/fixed_size.rs:fill_clip}}
 ```
 
-и обратный к нему
-[метод](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html#method.unfill_clip)
+и обратный к нему метод
+[`FixedSizeAllocator::unfill_clip()`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html#method.unfill_clip)
 
 ```rust
 {{#include ../../ku/src/allocator/fixed_size.rs:unfill_clip}}
@@ -134,8 +134,8 @@
 вам может захотеться выделять элементы
 [`ku::collections::bitmap::Bitmap`](../../doc/ku/collections/bitmap/struct.Bitmap.html)
 сразу целыми наборами.
-Для этого реализуйте
-[метод](../../doc/ku/collections/bitmap/struct.Bitmap.html#method.bulk_allocate)
+Для этого реализуйте метод
+[`Bitmap::bulk_allocate()`](../../doc/ku/collections/bitmap/struct.Bitmap.html#method.bulk_allocate)
 
 ```rust
 {{#include ../../ku/src/collections/bitmap.rs:bulk_allocate}}
@@ -163,15 +163,15 @@
 и
 [`FixedSizeAllocator::unfill_clip()`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html#method.unfill_clip).
 
-Доработайте
-[метод](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#method.fixed_size_allocate)
+Доработайте метод
+[`Dispatcher::fixed_size_allocate()`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#method.fixed_size_allocate)
 
 ```rust
 {{#include ../../ku/src/allocator/dispatcher.rs:fixed_size_allocate}}
 ```
 
-и
-[метод](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#method.fixed_size_deallocate)
+и метод
+[`Dispatcher::fixed_size_deallocate()`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#method.fixed_size_deallocate)
 
 ```rust
 {{#include ../../ku/src/allocator/dispatcher.rs:fixed_size_deallocate}}

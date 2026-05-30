@@ -34,7 +34,8 @@
 
 #### [`kernel::fs::inode::Iter::next()`](../../doc/kernel/fs/inode/struct.Iter.html#method.next)
 
-Реализуйте вспомогательный [метод](../../doc/kernel/fs/inode/struct.Iter.html#method.next) для
+Реализуйте вспомогательный метод
+[`Iter::next()`](../../doc/kernel/fs/inode/struct.Iter.html#method.next) для
 [`kernel::fs::inode::Inode::find_entry()`](../../doc/kernel/fs/inode/struct.Inode.html#method.find_entry) и
 [`kernel::fs::inode::Inode::list()`](../../doc/kernel/fs/inode/struct.Inode.html#method.list).
 
@@ -65,7 +66,8 @@
 
 #### [`kernel::fs::inode::Inode::find_entry()`](../../doc/kernel/fs/inode/struct.Inode.html#method.find_entry)
 
-Реализуйте вспомогательный [метод](../../doc/kernel/fs/inode/struct.Inode.html#method.find_entry) для
+Реализуйте вспомогательный метод
+[`Inode::find_entry()`](../../doc/kernel/fs/inode/struct.Inode.html#method.find_entry) для
 [`kernel::fs::inode::Inode::find()`](../../doc/kernel/fs/inode/struct.Inode.html#method.find) и
 [`kernel::fs::inode::Inode::insert()`](../../doc/kernel/fs/inode/struct.Inode.html#method.insert):
 
@@ -92,7 +94,8 @@
 
 #### [`kernel::fs::inode::Inode::insert()`](../../doc/kernel/fs/inode/struct.Inode.html#method.insert)
 
-Реализуйте [метод](../../doc/kernel/fs/inode/struct.Inode.html#method.insert)
+Реализуйте метод
+[`Inode::insert()`](../../doc/kernel/fs/inode/struct.Inode.html#method.insert)
 
 ```rust
 {{#include ../../kernel/src/fs/inode.rs:insert}}

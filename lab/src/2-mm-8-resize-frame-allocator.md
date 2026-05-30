@@ -4,21 +4,16 @@
 
 #### Инициализация описателей фреймов
 
-Реализуйте
-[метод](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#method.resize)
+Реализуйте метод
+[`FrameAllocator::resize()`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#method.resize)
+и функцию
+[`frame_allocator::resize()`](../../doc/kernel/memory/frame_allocator/fn.resize.html)
+в файле
+[`kernel/src/memory/frame_allocator.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/frame_allocator.rs).
 
-```rust
-{{#include ../../kernel/src/memory/frame_allocator.rs:resize}}
-```
+{{#include ../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html.method.resize}}
 
-и
-[функцию](../../doc/kernel/memory/frame_allocator/fn.resize.html)
-
-```rust
-{{#include ../../kernel/src/memory/frame_allocator.rs:fn_resize}}
-```
-
-в файле [`kernel/src/memory/frame_allocator.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/frame_allocator.rs).
+{{#include ../../doc/kernel/memory/frame_allocator/fn.resize.html.fn}}
 
 
 ### Проверьте себя

@@ -37,8 +37,8 @@
 [`BigAllocator::copy_mapping()`](../../doc/ku/allocator/big/trait.BigAllocator.html#tymethod.copy_mapping)
 это несложно было бы сделать.
 
-Реализуйте
-[метод](../../doc/ku/collections/dynamic_bitmap/struct.DynamicBitmap.html#method.reserve)
+Реализуйте метод
+[`DynamicBitmap::reserve()`](../../doc/ku/collections/dynamic_bitmap/struct.DynamicBitmap.html#method.reserve)
 
 ```rust
 {{#include ../../ku/src/collections/dynamic_bitmap.rs:reserve}}
@@ -66,8 +66,8 @@
 Также можно паниковать, если размер превышает возможности зарезервированного
 в предыдущем методе блока виртуальной памяти.
 
-Реализуйте
-[метод](../../doc/ku/collections/dynamic_bitmap/struct.DynamicBitmap.html#method.map)
+Реализуйте метод
+[`DynamicBitmap::map()`](../../doc/ku/collections/dynamic_bitmap/struct.DynamicBitmap.html#method.map)
 
 ```rust
 {{#include ../../ku/src/collections/dynamic_bitmap.rs:map}}
@@ -89,8 +89,8 @@
 вместе с удалением аллокатора, который её использует.
 Это понадобится, в частности, для проверки что в аллокаторе нет утечек физических фреймов.
 
-Реализуйте
-[метод](../../doc/ku/collections/dynamic_bitmap/struct.DynamicBitmap.html#method.unmap)
+Реализуйте метод
+[`DynamicBitmap::unmap()`](../../doc/ku/collections/dynamic_bitmap/struct.DynamicBitmap.html#method.unmap)
 
 ```rust
 {{#include ../../ku/src/collections/dynamic_bitmap.rs:unmap}}

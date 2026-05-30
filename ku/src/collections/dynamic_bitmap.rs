@@ -28,7 +28,6 @@ use super::Bitmap;
 #[allow(unused)]
 use crate::error::Error;
 
-// ANCHOR: bitmap
 /// [Битовая карта](https://en.wikipedia.org/wiki/Free-space_bitmap)
 /// расширяемого размера
 /// для отслеживания какие именно элементы заняты, а какие --- свободны.
@@ -48,7 +47,6 @@ pub struct DynamicBitmap {
     /// достаточная для хранения [`DynamicBitmap::bitmap`] текущего размера.
     pages: Block<Page>,
 }
-// ANCHOR_END: bitmap
 
 #[allow(rustdoc::private_intra_doc_links)]
 impl DynamicBitmap {
@@ -62,7 +60,6 @@ impl DynamicBitmap {
         }
     }
 
-    // ANCHOR: reserve
     /// С помощью `allocator` резервирует в адресном пространстве
     /// блок страниц [`field@DynamicBitmap::pages`], достаточный для хранения
     /// битовой карты [`DynamicBitmap::bitmap`] на `capacity` элементов (бит).
@@ -84,12 +81,10 @@ impl DynamicBitmap {
         guard_zone_page_count: usize,
         allocator: &impl BigAllocatorGuard,
     ) -> Result<()> {
-        // ANCHOR_END: reserve
         // TODO: your code here.
         unimplemented!();
     }
 
-    // ANCHOR: map
     /// С помощью `allocator` отображает в память
     /// часть блока страниц [`field@DynamicBitmap::pages`], достаточную для хранения
     /// битовой карты [`DynamicBitmap::bitmap`] на `new_len` элементов (бит).
@@ -110,12 +105,10 @@ impl DynamicBitmap {
         new_len: usize,
         allocator: &impl BigAllocatorGuard,
     ) -> Result<usize> {
-        // ANCHOR_END: map
         // TODO: your code here.
         unimplemented!();
     }
 
-    // ANCHOR: unmap
     /// С помощью `allocator`:
     ///   - Удаляет отображение в память битовой карты [`DynamicBitmap::bitmap`].
     ///   - Разрезервирует блок [`field@DynamicBitmap::pages`],
@@ -134,7 +127,6 @@ impl DynamicBitmap {
         &mut self,
         allocator: &impl BigAllocatorGuard,
     ) -> Result<usize> {
-        // ANCHOR_END: unmap
         assert_eq!(self.free(), self.len());
 
         // TODO: your code here.
