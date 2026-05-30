@@ -39,11 +39,9 @@
 [`text/src/grid.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/text/src/grid.rs).
 
 За элемент матрицы текстового содержимого экрана отвечает структура
-[`text::grid::Glyph`](../../doc/text/grid/struct.Glyph.html):
+[`text::grid::Glyph`](../../doc/text/grid/struct.Glyph.html).
 
-```rust
-{{#include ../../text/src/grid.rs:glyph}}
-```
+{{#include ../../doc/text/grid/struct.Glyph.html.declaration}}
 
 Для того, чтобы она имела в памяти такое же представление, которое контроллер
 [VGA](https://en.wikipedia.org/wiki/Video_Graphics_Array)
@@ -67,50 +65,27 @@
 [`text::grid::Grid`](../../doc/text/grid/struct.Grid.html)
 задаёт буфер текстового режима
 [`Grid::buffer`](../../doc/text/grid/struct.Grid.html#structfield.buffer)
-произвольного текстового разрешения:
+произвольного текстового разрешения.
 
-```rust
-{{#include ../../text/src/grid.rs:grid}}
-```
+{{#include ../../doc/text/grid/struct.Grid.html.declaration}}
 
-И содержит дополнительные поля, позволяющие работать с ним:
-- [`Grid::column_count`](../../doc/text/grid/struct.Grid.html#structfield.column_count) --- разрешение в символах по горизонтали, то есть количество символов в одной строке.
-- [`Grid::row_start`](../../doc/text/grid/struct.Grid.html#structfield.row_start) --- индекс в [`Grid::buffer`](../../doc/text/grid/struct.Grid.html#structfield.buffer), с которого начинается строка символов,  содержащая текущее положение. То есть, положение в котором находится курсор и в котором будет напечатан следующий символ.
-- [`Grid::column`](../../doc/text/grid/struct.Grid.html#structfield.column) --- номер колонки текущего положения. То есть, положения в котором находится курсор и в котором будет напечатан следующий символ.
-- [`Grid::tab_width`](../../doc/text/grid/struct.Grid.html#structfield.tab_width) --- количество пробелов в символе табуляции --- `\t`.
-- [`Grid::attribute`](../../doc/text/grid/struct.Grid.html#structfield.attribute) --- текущие атрибуты при печати. Они будут использованы при печати следующего символа.
+Вам нужно будет реализовать основные методы.
 
-Вам нужно будет реализовать основные методы:
+{{#include ../../doc/text/grid/struct.Grid.html.method.clear}}
 
-```rust
-{{#include ../../text/src/grid.rs:clear}}
-```
+{{#include ../../doc/text/grid/struct.Grid.html.method.print_character}}
 
-```rust
-{{#include ../../text/src/grid.rs:print_character}}
-```
+{{#include ../../doc/text/grid/struct.Grid.html.method.scroll}}
 
-```rust
-{{#include ../../text/src/grid.rs:scroll}}
-```
+Рекомендуется вынести часть их работы во вспомогательные методы.
 
-Рекомендуется вынести часть их работы во вспомогательные методы:
+{{#include ../../doc/text/grid/struct.Grid.html.method.adjust_position}}
 
-```rust
-{{#include ../../text/src/grid.rs:adjust_position}}
-```
+{{#include ../../doc/text/grid/struct.Grid.html.method.character}}
 
-```rust
-{{#include ../../text/src/grid.rs:character}}
-```
+{{#include ../../doc/text/grid/struct.Grid.html.method.newline}}
 
-```rust
-{{#include ../../text/src/grid.rs:newline}}
-```
-
-```rust
-{{#include ../../text/src/grid.rs:tab}}
-```
+{{#include ../../doc/text/grid/struct.Grid.html.method.tab}}
 
 Для чтения из элемента
 [`Grid::buffer`](../../doc/text/grid/struct.Grid.html#structfield.buffer)

@@ -23,17 +23,14 @@ let new_settings = ...
 он увеличивает счётчик прерываний от RTC в структуре
 [`kernel::trap::TRAP_STATS`](../../doc/kernel/trap/static.TRAP_STATS.html),
 которая является массивом элементов типа
-[`kernel::trap::Stats`](../../doc/kernel/trap/struct.Stats.html):
-
-```rust
-{{#include ../../kernel/src/trap/stats.rs:stats}}
-```
-
+[`kernel::trap::Stats`](../../doc/kernel/trap/struct.Stats.html).
 И кроме счётчика прерываний
 [`Stats::count`](../../doc/kernel/trap/struct.Stats.html#structfield.count),
 содержит также имя и короткую мнемонику конкретного прерывания.
 Достать значение счётчика из неё можно методом
 [`Stats::count()`](../../doc/kernel/trap/struct.Stats.html#method.count).
+
+{{#include ../../doc/kernel/trap/struct.Stats.html.declaration}}
 
 Основную работу
 [`kernel::trap::pic::rtc()`](../../doc/kernel/trap/pic/fn.rtc.html)

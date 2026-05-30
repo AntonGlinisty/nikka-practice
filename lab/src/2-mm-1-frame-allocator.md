@@ -91,12 +91,10 @@ for region in memory_regions.iter() {
 
 Реализуйте метод
 [`FrameAllocator::init_frame_info()`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#method.init_frame_info)
-
-```rust
-{{#include ../../kernel/src/memory/frame_allocator.rs:init_frame_info}}
-```
-
 в файле [`kernel/src/memory/frame_allocator.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/frame_allocator.rs).
+
+{{#include ../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html.method.init_frame_info}}
+
 Пройдите по `memory_regions` с картой памяти [`MemoryRegions`](../../doc/bootloader_api/info/struct.MemoryRegions.html).
 Обратите внимание, что на вход метод принимает также диапазон `frames`.
 Он содержит номера физических фреймов, которые нужно учесть.
@@ -125,12 +123,10 @@ for region in memory_regions.iter() {
 
 Реализуйте метод
 [`FrameAllocator::allocate()`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#method.allocate)
-
-```rust
-{{#include ../../kernel/src/memory/frame_allocator.rs:allocate}}
-```
-
 в файле [`kernel/src/memory/frame_allocator.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/frame_allocator.rs).
+
+{{#include ../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html.method.allocate}}
+
 Он выделяет и возвращает свободный фрейм.
 Количество ссылок на этот фрейм он выставляет равным единице.
 Фрейм возвращается обёрнутым в RAII
@@ -163,12 +159,10 @@ panic!("your {} message {:?}", ...);
 
 Реализуйте метод
 [`FrameAllocator::deallocate()`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#method.deallocate)
-
-```rust
-{{#include ../../kernel/src/memory/frame_allocator.rs:deallocate}}
-```
-
 в файле [`kernel/src/memory/frame_allocator.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/frame_allocator.rs).
+
+{{#include ../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html.method.deallocate}}
+
 Это обратный метод к
 [`FrameAllocator::allocate()`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#method.allocate).
 Он уменьшает количество ссылок на данный `frame` и помечает его как
@@ -221,12 +215,10 @@ panic!("your {} message {:?}", ...);
 
 Реализуйте метод
 [`FrameAllocator::reference()`](../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html#method.reference)
-
-```rust
-{{#include ../../kernel/src/memory/frame_allocator.rs:reference}}
-```
-
 в файле [`kernel/src/memory/frame_allocator.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/frame_allocator.rs).
+
+{{#include ../../doc/kernel/memory/frame_allocator/struct.FrameAllocator.html.method.reference}}
+
 Он наоборот, увеличивает количество ссылок на заданный `frame`.
 Если `frame` является
 [`FrameInfo::Free`](../../doc/kernel/memory/frame_allocator/enum.FrameInfo.html#variant.Free),

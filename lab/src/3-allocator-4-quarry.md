@@ -3,7 +3,7 @@
 Маленькими блоками в аллокаторе будет управлять структура
 [`ku::allocator::quarry::Quarry`](../../doc/ku/allocator/quarry/struct.Quarry.html).
 
-{{#include ../../doc/ku/allocator/quarry/struct.Quarry.html.struct}}
+{{#include ../../doc/ku/allocator/quarry/struct.Quarry.html.declaration}}
 
 Как и в предыдущей задаче, будем экономить физические фреймы и
 более свободно расходовать виртуальное адресное пространство.

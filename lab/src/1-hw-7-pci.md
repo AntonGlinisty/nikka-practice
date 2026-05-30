@@ -43,19 +43,15 @@
 ### Идентификатор PCI--устройства
 
 В этой задаче вам нужно реализовать метод
-[`pci::device_id::DeviceId::new()`](../../doc/pci/device_id/struct.DeviceId.html#method.new):
-```rust
-{{#include ../../pci/src/device_id.rs:new}}
-```
-
-И вспомогательную функцию
-[`pci::device_id::vendor_device()`](../../doc/pci/device_id/fn.vendor_device.html):
-```rust
-{{#include ../../pci/src/device_id.rs:vendor_device}}
-```
-
-Они находятся в файле
+[`pci::device_id::DeviceId::new()`](../../doc/pci/device_id/struct.DeviceId.html#method.new)
+и вспомогательную функцию
+[`pci::device_id::vendor_device()`](../../doc/pci/device_id/fn.vendor_device.html)
+в файле
 [`pci/src/device_id.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/pci/src/device_id.rs).
+
+{{#include ../../doc/pci/device_id/struct.DeviceId.html.method.new}}
+
+{{#include ../../doc/pci/device_id/fn.vendor_device.html.fn}}
 
 Тесты можно запустить так:
 ```console
@@ -74,13 +70,11 @@ pci/src/device_id.rs | 47 +++++++++++++++++++++++++++++++++++++++++------
 ### Класс PCI--устройства
 
 В этой задаче вам нужно реализовать метод
-[`pci::class::Class::new()`](../../doc/pci/class/struct.Class.html#method.new):
-```rust
-{{#include ../../pci/src/class.rs:new}}
-```
-
-Он находится в файле
+[`pci::class::Class::new()`](../../doc/pci/class/struct.Class.html#method.new)
+в файле
 [`pci/src/class.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/pci/src/class.rs).
+
+{{#include ../../doc/pci/class/struct.Class.html.method.new}}
 
 Тесты можно запустить так:
 ```console
@@ -99,28 +93,22 @@ pci/src/class.rs | 31 ++++++++++++++++++++++++++++---
 ### Base Address Register (BAR)
 
 В этой задаче вам нужно реализовать метод
-[`pci::bar::Bar::new()`](../../doc/pci/bar/enum.Bar.html#method.new):
-```rust
-{{#include ../../pci/src/bar.rs:new}}
-```
-
-И вспомогательный метод
-[`pci::bar::Bar::address_size()`](../../doc/pci/bar/enum.Bar.html#method.address_size):
-```rust
-{{#include ../../pci/src/bar.rs:address_size}}
-```
-
-Они находятся в файле
+[`pci::bar::Bar::new()`](../../doc/pci/bar/enum.Bar.html#method.new)
+и вспомогательный метод
+[`pci::bar::Bar::address_size()`](../../doc/pci/bar/enum.Bar.html#method.address_size)
+в файле
 [`pci/src/bar.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/pci/src/bar.rs).
 
-Также нужно реализовать метод
-[`pci::device::Device::read_bars()`](../../doc/pci/device/struct.Device.html#method.read_bars):
-```rust
-{{#include ../../pci/src/device.rs:read_bars}}
-```
+{{#include ../../doc/pci/bar/enum.Bar.html.method.new}}
 
-Он находится в файле
+{{#include ../../doc/pci/bar/enum.Bar.html.method.address_size}}
+
+Также нужно реализовать метод
+[`pci::device::Device::read_bars()`](../../doc/pci/device/struct.Device.html#method.read_bars)
+в файле
 [`pci/src/device.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/pci/src/device.rs).
+
+{{#include ../../doc/pci/device/struct.Device.html.method.read_bars}}
 
 Тесты можно запустить так:
 ```console
@@ -140,13 +128,11 @@ pci/src/device.rs | 15 +++++++++++++--
 ### Обычное (конечное) PCI--устройство
 
 В этой задаче вам нужно доработать метод
-[`pci::device::Device::new()`](../../doc/pci/device/struct.Device.html#method.new):
-```rust
-{{#include ../../pci/src/device.rs:new}}
-```
-
-Он находятся в файле
+[`pci::device::Device::new()`](../../doc/pci/device/struct.Device.html#method.new)
+в файле
 [`pci/src/device.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/pci/src/device.rs).
+
+{{#include ../../doc/pci/device/struct.Device.html.method.new}}
 
 Для идентификатора и производителя подустройства вам пригодится вспомогательная функция
 [`pci::device_id::vendor_device()`](../../doc/pci/device_id/fn.vendor_device.html).
@@ -168,19 +154,15 @@ pci/src/device.rs | 26 +++++++++++++++++++++-----
 ### PCI--PCI мост
 
 В этой задаче вам нужно доработать метод
-[`pci::device::Device::new()`](../../doc/pci/device/struct.Device.html#method.new):
-```rust
-{{#include ../../pci/src/device.rs:new}}
-```
-
-И реализовать вспомогательный метод
-[`pci::device::Device::read_bridge()`](../../doc/pci/device/struct.Device.html#method.read_bridge):
-```rust
-{{#include ../../pci/src/device.rs:read_bridge}}
-```
-
-Они находится в файле
+[`pci::device::Device::new()`](../../doc/pci/device/struct.Device.html#method.new)
+и реализовать вспомогательный метод
+[`pci::device::Device::read_bridge()`](../../doc/pci/device/struct.Device.html#method.read_bridge)
+в файле
 [`pci/src/device.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/pci/src/device.rs).
+
+{{#include ../../doc/pci/device/struct.Device.html.method.new}}
+
+{{#include ../../doc/pci/device/struct.Device.html.method.read_bridge}}
 
 Тесты можно запустить так:
 ```console

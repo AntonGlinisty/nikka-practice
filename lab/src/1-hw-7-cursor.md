@@ -9,23 +9,15 @@
 Прочитайте исходный код в файле
 [`text/src/cursor.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/text/src/cursor.rs),
 он очень простой.
-Нам нужно будет реализовать четыре метода:
+Нам нужно будет реализовать четыре метода.
 
-```rust
-{{#include ../../text/src/cursor.rs:get}}
-```
+{{#include ../../doc/text/cursor/trait.Cursor.html.method.get}}
 
-```rust
-{{#include ../../text/src/cursor.rs:set}}
-```
+{{#include ../../doc/text/cursor/trait.Cursor.html.method.set}}
 
-```rust
-{{#include ../../text/src/cursor.rs:set_disable}}
-```
+{{#include ../../doc/text/cursor/trait.Cursor.html.method.set_disable}}
 
-```rust
-{{#include ../../text/src/cursor.rs:set_height}}
-```
+{{#include ../../doc/text/cursor/trait.Cursor.html.method.set_height}}
 
 
 ### Управление позицией курсора

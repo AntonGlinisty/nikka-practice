@@ -228,12 +228,10 @@ fn Date::read_inconsistent() -> Date
 ```
 
 в файле [`kernel/src/time/rtc.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/time/rtc.rs),
-который считывает из микросхемы RTC показания даты и времени и возвращает их в виде
-[структуры](../../doc/kernel/time/rtc/struct.Date.html)
+который считывает из микросхемы RTC показания даты и времени и возвращает их в виде структуры
+[`kernel::time::rtc::Date`](../../doc/kernel/time/rtc/struct.Date.html).
 
-```rust
-{{#include ../../kernel/src/time/rtc.rs:date}}
-```
+{{#include ../../doc/kernel/time/rtc/struct.Date.html.declaration}}
 
 Метод называется `...inconsistent()`, потому что может вернуть некорректное значение
 [`Date`](../../doc/kernel/time/rtc/struct.Date.html),
