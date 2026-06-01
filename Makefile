@@ -341,7 +341,7 @@ doc: FORCE
 		set -x; \
 		rm --force --recursive doc; \
 		mkdir doc; \
-		for crate in ku pci text kernel; do \
+		for crate in ku text user/lib user/cow_fork user/eager_fork kernel; do \
 			cd $$crate; \
 			if [ .$$crate = .ku ]; then \
 				feature_flags='--features allocator-statistics'; \
@@ -350,24 +350,31 @@ doc: FORCE
 			fi; \
 			cargo doc --document-private-items $$feature_flags; \
 			cd - >/dev/null; \
-			rm -rf doc/$$crate; \
+			rm -rf doc/$$(basename $$crate); \
 			for src in target/doc/*/; do dst=$${src#target/}; if [ ! -e $$dst ]; then mv $$src $$dst; fi; done; \
 			for src in target/kernel/doc/*/; do dst=$${src#target/kernel/}; if [ ! -e $$dst ]; then mv $$src $$dst; fi; done; \
-			for i in $$(find doc/$$(basename $$crate) -name enum.\*.html -o -name struct.\*.html -o -name trait.\*.html -o -name fn.\*.html); do \
-				sed 's@</details>@@g;s@<details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary>@@g;s@\(<a [^>]* *href="\)\([^#][^:">]*\)"@\1../../'$$(dirname $$i)'/\2"@g;s@\(<a [^>]* *href="\)#@\1../../'$$i'#@g;' $$i | \
+			for i in $$(find doc/$$(basename $$crate) -name enum.\*.html -o -name struct.\*.html -o -name type.\*.html -o -name trait.\*.html -o -name fn.\*.html); do \
+				sed 's@<html[^>]*>@\0\n@g;s@</html>@\n\0@g;s@<pre [^>]*>@\n\0@g;s@</pre>@</pre>\n@g;s@</details>@@g;s@<details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary>@@g;s@<details class="toggle type-contents-toggle"><summary class="hideme"><span>Show [^ ]* variants</span></summary>@@g;s@\(<a [^>]* *href="\)\([^#][^:">]*\)"@\1../../'$$(dirname $$i)'/\2"@g;s@\(<a [^>]* *href="\)#@\1../../'$$i'#@g;s@\<pub\(([^)]*)\)\? [ a-zC86&;-]*\(fn\|enum\|struct\|trait\)\>@\2@g;' $$i | \
 					sed 's@\( href=[^ >]*["/]\)[^/.]*/\.\./@\1@g;' | \
 					sed 's@\( href=[^ >]*["/]\)[^/.]*/\.\./@\1@g;' \
 					> $$i.processed; \
 			done; \
-			for type in $$(find doc/$$(basename $$crate) -name enum.\*.html -o -name struct.\*.html); do \
-				sed 's@</div><h2 id="fields" class="fields section-header">Fields[^§]*§</a></h2>@<ul>@g;s@<span id="@<li><span id="@g;s@</div>@</div>\n@g;' $$type.processed | \
-					sed '/<html/,/>Source<\/a>/d;/<h2 id="implementations" class="section-header">/,/<\/html>/d;' | \
-					sed 's@</span><div class="docblock"><p>@</span><p>@g;s@<div class="docblock"><p>@@g;s@^</div>@</li>@g;s@\(<a href="[^>]*>\)§</a><code>\([^:]*\):@<code>\1\2</a>:@g;' | \
+			for type in $$(find doc/$$(basename $$crate) -name enum.\*.html -o -name struct.\*.html -o -name type.\*.html); do \
+				sed 's@<pre class="rust item-decl">@\n\0@g;s@<h2 id="implementations" class="section-header">@\n\0\n@' $$type.processed | \
+					sed '/<html/,/>Source<\/a>/d;/<h2 id="[a-z-]*implementations" class="section-header">/,/<\/html>/d;' | \
+					sed 's@<span id="structfield\.[^"]*" class="structfield section-header">@<li>\0@g;' | \
+					sed 's@<div class="sub-variant-field"><span id="variant\.[^.]*\.field.[^"]*" class="section-header">@<li>\0@g;' | \
+					sed 's@<h2 id="fields" class="fields section-header">[^<]*Fields[^§]*§</a></h2>@<ul>\n@g;' | \
+					sed 's@<h2 id="variants" class="variants section-header">Variants[^§]*§</a></h2>@<ul>\n@g;' | \
+					sed 's@\(<div class="sub-variant" id="variant\.[^"]*">\)<h4>Fields</h4>@\1\n<ul>\n@g;' | \
+					sed 's@<section id="variant\.[^"]*"[^>]*>\(<a href=[^>]*>\)§</a><h3 class="code-header">\(.*\)</h3></section>@<li><code>\1\2</a></code>@g;' | \
+					sed 's@\(<a href="[^>]*>\)§</a><code>\([^:]*\):@<code>\1\2</a>:@g;' | \
+					sed 's@</div><li>@</div></li>\n<li>@g;' | \
 					sed '1i<blockquote>' | \
-					sed '$$a</ul>\n</blockquote>' \
+					sed '$$a</blockquote>' \
 					> $$type.declaration; \
 			done; \
-			for type in $$(find doc/$$(basename $$crate) -name enum.\*.html -o -name struct.\*.html -o -name trait.\*.html); do \
+			for type in $$(find doc/$$(basename $$crate) -name enum.\*.html -o -name struct.\*.html -o -name type.\*.html -o -name trait.\*.html); do \
 				for method in $$(grep -o '<section id="\(ty\)\?method.[^"]*"' $$type | cut --fields=2 --delimiter=. | cut --fields=1 --delimiter='"'); do \
 					sed 's@</div>@\n\0\n@g;s@class="method trait-impl">@\0\n@g;s@class="method">@\0\n@g;' $$type.processed | \
 					sed '/<html/,/<section id="\(ty\)\?method.'$$method'"/d;/<\/div>/,/<\/html>/d;' | \
@@ -378,8 +385,9 @@ doc: FORCE
 				done; \
 			done; \
 			for fn in $$(find doc/$$(basename $$crate) -name fn.\*.html); do \
-				sed 's@</div>@\0\n@g;s@<code>.* fn @\0'$$(dirname $$fn | sed 's@^doc/@@g;s@/@::@g;')'::@g;' $$fn.processed | \
+				sed 's@</div>@\0\n@g;s@<code>.*\<fn @\0'$$(dirname $$fn | sed 's@^doc/@@g;s@/@::@g;')'::@g;' $$fn.processed | \
 					sed '/<html/,/>Source<\/a>/d;/<\/div>/,/<\/html>/d;' | \
+					sed 's@<a [^>]*>§</a>@@g;s@<h2@<h5@g;s@</h2>@</h5>@g;' | \
 					sed '1i<blockquote>' | \
 					sed '$$a</blockquote>' \
 					> $$fn.fn; \

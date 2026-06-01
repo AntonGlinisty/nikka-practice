@@ -225,20 +225,14 @@ Rust предоставляет
 
 Реализуйте метод
 [`FixedSizeAllocator::allocate()`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html#method.allocate)
-
-```rust
-{{#include ../../ku/src/allocator/fixed_size.rs:allocate}}
-```
-
 и обратный к нему метод
 [`FixedSizeAllocator::deallocate()`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html#method.deallocate)
-
-```rust
-{{#include ../../ku/src/allocator/fixed_size.rs:deallocate}}
-```
-
 в файле
 [`ku/src/allocator/fixed_size.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/allocator/fixed_size.rs).
+
+{{#include ../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html.method.allocate}}
+
+{{#include ../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html.method.deallocate}}
 
 
 ### Проверьте себя

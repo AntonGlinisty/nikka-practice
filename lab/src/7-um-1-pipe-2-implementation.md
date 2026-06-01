@@ -71,12 +71,10 @@ fn RingBuffer::close(
 
 #### Получение актуальной головы
 
-Реализуйте
-[метод](../../doc/ku/ipc/pipe/type.WriteBuffer.html#method.advance_head)
+Реализуйте метод
+[`WriteBuffer::advance_head()`](../../doc/ku/ipc/pipe/type.WriteBuffer.html#method.advance_head).
 
-```rust
-{{#include ../../ku/src/ipc/pipe.rs:advance_head}}
-```
+{{#include ../../doc/ku/ipc/pipe/type.WriteBuffer.html.method.advance_head}}
 
 Он должен обновить поле
 [`WriteBuffer::head`](../../doc/ku/ipc/pipe/type.WriteBuffer.html#structfield.head).
@@ -151,11 +149,9 @@ fn RingBufferTx<'_, WriteTag>::write(
 и
 [`RingBuffer::tail`](../../doc/ku/ipc/pipe/struct.RingBufferTx.html#structfield.tail).
 Если в буфере не остаётся места под `data`, верните ошибку
-[`Error::Overflow`](../../doc/ku/ipc/pipe/enum.Error.html#variant.Overflow):
+[`Error::Overflow`](../../doc/ku/ipc/pipe/enum.Error.html#variant.Overflow).
 
-```rust
-{{#include ../../ku/src/ipc/pipe.rs:error}}
-```
+{{#include ../../doc/ku/ipc/pipe/enum.Error.html.declaration}}
 
 Вам может пригодиться метод
 [`copy_from_slice()`](https://doc.rust-lang.org/nightly/core/primitive.slice.html#method.copy_from_slice)

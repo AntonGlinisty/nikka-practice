@@ -96,11 +96,9 @@ extern "C" fn syscall_trampoline() -> !
 Функция
 [`syscall_trampoline()`](../../doc/kernel/process/syscall/fn.syscall_trampoline.html)
 должна передать управление в написанную на Rust функцию
-[`syscall::syscall()`](../../doc/kernel/process/syscall/fn.syscall.html)
+[`syscall::syscall()`](../../doc/kernel/process/syscall/fn.syscall.html).
 
-```rust
-{{#include ../../kernel/src/process/syscall.rs:syscall}}
-```
+{{#include ../../doc/kernel/process/syscall/fn.syscall.html.fn}}
 
 Указание
 [`extern "C"`](https://doc.rust-lang.ru/book/ch19-01-unsafe-rust.html#%D0%98%D1%81%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5-extern-%D1%84%D1%83%D0%BD%D0%BA%D1%86%D0%B8%D0%B9-%D0%B4%D0%BB%D1%8F-%D0%B2%D1%8B%D0%B7%D0%BE%D0%B2%D0%B0-%D0%B2%D0%BD%D0%B5%D1%88%D0%BD%D0%B5%D0%B3%D0%BE-%D0%BA%D0%BE%D0%B4%D0%B0)
@@ -248,12 +246,9 @@ panicked at 'kernel mode trap #14 - Page Fault, context: { mode: kernel, cs:rip:
 
 Реализуйте на ассемблере функцию
 [`syscall::sysret()`](../../doc/kernel/process/syscall/fn.sysret.html)
-
-```rust
-{{#include ../../kernel/src/process/syscall.rs:sysret}}
-```
-
 в файле [`kernel/src/process/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/syscall.rs).
+
+{{#include ../../doc/kernel/process/syscall/fn.sysret.html.fn}}
 
 Она
 
@@ -269,12 +264,9 @@ panicked at 'kernel mode trap #14 - Page Fault, context: { mode: kernel, cs:rip:
 
 Реализуйте функцию
 [`syscall::exit()`](../../doc/kernel/process/syscall/fn.exit.html)
-
-```rust
-{{#include ../../kernel/src/process/syscall.rs:exit}}
-```
-
 в файле [`kernel/src/process/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/syscall.rs).
+
+{{#include ../../doc/kernel/process/syscall/fn.exit.html.fn}}
 
 Она выполняет системный вызов `exit(code)` с одним аргументом `code`.
 Код можно, например, записать в журнал как
@@ -296,12 +288,9 @@ panicked at 'kernel mode trap #14 - Page Fault, context: { mode: kernel, cs:rip:
 
 Реализуйте функцию
 [`syscall::log_value()`](../../doc/kernel/process/syscall/fn.log_value.html)
-
-```rust
-{{#include ../../kernel/src/process/syscall.rs:log_value}}
-```
-
 в файле [`kernel/src/process/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/syscall.rs).
+
+{{#include ../../doc/kernel/process/syscall/fn.log_value.html.fn}}
 
 Это системный вызов, который принимает четыре аргумента.
 В аргументе `level` передаётся уровень журналирования в виде символа, см. функции [`ku::log::level_into_symbol()`](../../doc/ku/log/fn.level_into_symbol.html) и [`ku::log::level_try_from_symbol()`](../../doc/ku/log/fn.level_try_from_symbol.html).
@@ -387,12 +376,9 @@ panicked at 'if the Page Fault was in the kernel mode, probably the `syscall` in
 
 Реализуйте функцию
 [`syscall::syscall()`](../../doc/lib/syscall/fn.syscall.html)
-
-```rust
-{{#include ../../user/lib/src/syscall.rs:syscall}}
-```
-
 в файле [`user/lib/src/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/user/lib/src/syscall.rs).
+
+{{#include ../../doc/lib/syscall/fn.syscall.html.fn}}
 
 Она работает в режиме пользователя.
 Её задача:

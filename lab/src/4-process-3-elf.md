@@ -17,12 +17,12 @@ process::create(LOOP_ELF);
 которая поддерживает только статические ELF--файлы,
 без [релокаций](https://wiki.osdev.org/ELF#Relocation), обработки
 [секций](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format#Section_header) и символов.
-Она содержится в файле [`ku/src/process/elf.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/process/elf.rs).
-Основной является [функция](../../doc/ku/process/elf/fn.load.html)
+Основной является функция
+[`elf::load()`](../../doc/ku/process/elf/fn.load.html)
+в файле
+[`ku/src/process/elf.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/process/elf.rs).
 
-```rust
-{{#include ../../ku/src/process/elf.rs:load}}
-```
+{{#include ../../doc/ku/process/elf/fn.load.html.fn}}
 
 Она принимает на вход
 
@@ -123,26 +123,22 @@ unsafe fn copy_mapping(
 
 ### Методы [`BigAllocator::grow()`](../../doc/ku/allocator/big/trait.BigAllocator.html#method.grow) и [`BigAllocator::shrink()`](../../doc/ku/allocator/big/trait.BigAllocator.html#method.shrink)
 
-Вам может пригодиться
-[`метод`](../../doc/ku/allocator/big/trait.BigAllocator.html#method.grow)
+Вам может пригодиться метод
+[`BigAllocator::grow()`](../../doc/ku/allocator/big/trait.BigAllocator.html#method.grow)
 в файле
-[`ku/src/allocator/big.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/allocator/big.rs):
+[`ku/src/allocator/big.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/allocator/big.rs).
 
-```rust
-{{#include ../../ku/src/allocator/big.rs:grow}}
-```
+{{#include ../../doc/ku/allocator/big/trait.BigAllocator.html.method.grow}}
 
 Его реализацию вы можете выделить из вашей реализации метода
 [`ku::allocator::dry::DryAllocator::dry_grow()`](../../doc/ku/allocator/dry/trait.DryAllocator.html#tymethod.dry_grow)
 для типажа
 [`BigAllocator`](../../doc/ku/allocator/big/trait.BigAllocator.html).
 
-Также есть и парный
-[`метод`](../../doc/ku/allocator/big/trait.BigAllocator.html#method.shrink)
+Также есть и парный метод
+[`BigAllocator::shrink()`](../../doc/ku/allocator/big/trait.BigAllocator.html#method.shrink).
 
-```rust
-{{#include ../../ku/src/allocator/big.rs:shrink}}
-```
+{{#include ../../doc/ku/allocator/big/trait.BigAllocator.html.method.shrink}}
 
 Реализацию которого вы можете выделить из вашей реализации метода
 [`ku::allocator::dry::DryAllocator::dry_shrink()`](../../doc/ku/allocator/dry/trait.DryAllocator.html#tymethod.dry_shrink)
@@ -185,11 +181,9 @@ ELF--файла в порядке адресов в памяти.
 Нам придётся отслеживать пару диапазонов адресов --- `curr` и `next`,
 каждый со своими флагами.
 Для их хранения используется структура
-[`ku::process::elf::FileRange`](../../doc/ku/process/elf/struct.FileRange.html):
+[`ku::process::elf::FileRange`](../../doc/ku/process/elf/struct.FileRange.html).
 
-```rust
-{{#include ../../ku/src/process/elf.rs:file_range}}
-```
+{{#include ../../doc/ku/process/elf/struct.FileRange.html.declaration}}
 
 А также её часть, связанная только с памятью ---
 [`FileRange::virt_range`](../../doc/ku/process/elf/struct.FileRange.html#structfield.virt_range).
@@ -220,27 +214,21 @@ ELF--файла в порядке адресов в памяти.
 [`Virt`](../../doc/ku/memory/addr/type.Virt.html)
 и
 [`Page`](../../doc/ku/memory/frage/type.Page.html)
-соответственно:
+соответственно.
 
-```rust
-{{#include ../../ku/src/process/elf.rs:memory_range}}
-```
+{{#include ../../doc/ku/process/elf/struct.MemoryRange.html.declaration}}
 
 Основная функция, которая объединяет или разбивает соседние диапазоны
 `curr` и `next` ---
-[`ku::process::elf::combine()`](../../doc/ku/process/elf/fn.combine.html):
+[`ku::process::elf::combine()`](../../doc/ku/process/elf/fn.combine.html).
 
-```rust
-{{#include ../../ku/src/process/elf.rs:combine}}
-```
+{{#include ../../doc/ku/process/elf/fn.combine.html.fn}}
 
 Метод
 [`ku::process::elf::Loader::copy_to_memory()`](../../doc/ku/process/elf/struct.Loader.html#method.copy_to_memory)
-копирует байты сегмента из ELF--файла в память:
+копирует байты сегмента из ELF--файла в память.
 
-```rust
-{{#include ../../ku/src/process/elf.rs:copy_to_memory}}
-```
+{{#include ../../doc/ku/process/elf/struct.Loader.html.method.copy_to_memory}}
 
 Обратите внимание на то, что размер сегмента в файле
 [`ProgramHeader::file_size()`](../../doc/xmas_elf/program/enum.ProgramHeader.html#method.file_size)
@@ -265,54 +253,41 @@ ELF--файла в порядке адресов в памяти.
 функция
 [`load()`](../../doc/ku/process/elf/fn.load.html)
 должна вызывать метод
-[`Loader::finish()`](../../doc/ku/process/elf/struct.Loader.html#method.finish)
+[`Loader::finish()`](../../doc/ku/process/elf/struct.Loader.html#method.finish).
 
-```rust
-{{#include ../../ku/src/process/elf.rs:finish}}
-```
-
-Он завершает обработку последнего сегмента, зная что никаких больше данных
-загружать в целевое адресное пространство не нужно.
+{{#include ../../doc/ku/process/elf/struct.Loader.html.method.finish}}
 
 
 ### Структура загрузчика ELF--файла
 
 Для загрузки файла используется вспомогательная структура
 [`ku::process::elf::Loader`](../../doc/ku/process/elf/struct.Loader.html)
-и её методы:
+и её методы.
 
-```rust
-{{#include ../../ku/src/process/elf.rs:loader}}
-```
+{{#include ../../doc/ku/process/elf/struct.Loader.html.declaration}}
 
 Метод
 [`Loader::load_program_header()`](../../doc/ku/process/elf/struct.Loader.html#method.load_program_header)
 загружает в память диапазон `next` и переносит в целевое адресное пространство
-заполненные физические фреймы, для которых стали известны флаги доступа:
+заполненные физические фреймы, для которых стали известны флаги доступа.
 
-```rust
-{{#include ../../ku/src/process/elf.rs:load_program_header}}
-```
+{{#include ../../doc/ku/process/elf/struct.Loader.html.method.load_program_header}}
 
 Метод
 [`Loader::extend_mapping()`](../../doc/ku/process/elf/struct.Loader.html#method.extend_mapping)
 расширяет отображение целевого адресного пространства, чтобы можно было записать
-из ELF--файла в память блок, который описывает `next`:
+из ELF--файла в память блок, который описывает `next`.
 
-```rust
-{{#include ../../ku/src/process/elf.rs:extend_mapping}}
-```
+{{#include ../../doc/ku/process/elf/struct.Loader.html.method.extend_mapping}}
 
 Метод
 [`Loader::finalize_mapping()`](../../doc/ku/process/elf/struct.Loader.html#method.finalize_mapping)
 с помощью
 [`BigAllocatorPair::copy_mapping()`](../../doc/ku/allocator/big_pair/trait.BigAllocatorPair.html#tymethod.copy_mapping)
 переносит в целевое адресное пространство заполненные физические фреймы,
-для которых стали известны флаги доступа --- диапазон `page_range`:
+для которых стали известны флаги доступа --- диапазон `page_range`.
 
-```rust
-{{#include ../../ku/src/process/elf.rs:finalize_mapping}}
-```
+{{#include ../../doc/ku/process/elf/struct.Loader.html.method.finalize_mapping}}
 
 
 ### Задача 3 --- загрузка ELF--файла

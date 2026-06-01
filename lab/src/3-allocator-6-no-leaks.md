@@ -8,24 +8,17 @@
 
 Доработайте метод
 [`FixedSizeAllocator::unmap()`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html#method.unmap)
-
-```rust
-{{#include ../../ku/src/allocator/fixed_size.rs:unmap}}
-```
-
 в файле
 [`ku/src/allocator/fixed_size.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/allocator/fixed_size.rs).
 
+{{#include ../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html.method.unmap}}
 
 И метод
 [`Dispatcher::unmap()`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#method.unmap)
-
-```rust
-{{#include ../../ku/src/allocator/dispatcher.rs:unmap}}
-```
-
 в файле
 [`ku/src/allocator/dispatcher.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/allocator/dispatcher.rs).
+
+{{#include ../../doc/ku/allocator/dispatcher/struct.Dispatcher.html.method.unmap}}
 
 
 ### Проверьте себя

@@ -114,20 +114,14 @@
 
 Реализуйте метод
 [`FixedSizeAllocator::fill_clip()`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html#method.fill_clip)
-
-```rust
-{{#include ../../ku/src/allocator/fixed_size.rs:fill_clip}}
-```
-
 и обратный к нему метод
 [`FixedSizeAllocator::unfill_clip()`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html#method.unfill_clip)
-
-```rust
-{{#include ../../ku/src/allocator/fixed_size.rs:unfill_clip}}
-```
-
 в файле
 [`ku/src/allocator/fixed_size.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/allocator/fixed_size.rs).
+
+{{#include ../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html.method.fill_clip}}
+
+{{#include ../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html.method.unfill_clip}}
 
 В коде метода
 [`FixedSizeAllocator::fill_clip()`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html#method.fill_clip)
@@ -136,13 +130,10 @@
 сразу целыми наборами.
 Для этого реализуйте метод
 [`Bitmap::bulk_allocate()`](../../doc/ku/collections/bitmap/struct.Bitmap.html#method.bulk_allocate)
-
-```rust
-{{#include ../../ku/src/collections/bitmap.rs:bulk_allocate}}
-```
-
 в файле
 [`ku/src/collections/bitmap.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/collections/bitmap.rs).
+
+{{#include ../../doc/ku/collections/bitmap/struct.Bitmap.html.method.bulk_allocate}}
 
 При реализации
 [`FixedSizeAllocator::unfill_clip()`](../../doc/ku/allocator/fixed_size/struct.FixedSizeAllocator.html#method.unfill_clip)
@@ -165,20 +156,14 @@
 
 Доработайте метод
 [`Dispatcher::fixed_size_allocate()`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#method.fixed_size_allocate)
-
-```rust
-{{#include ../../ku/src/allocator/dispatcher.rs:fixed_size_allocate}}
-```
-
 и метод
 [`Dispatcher::fixed_size_deallocate()`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#method.fixed_size_deallocate)
-
-```rust
-{{#include ../../ku/src/allocator/dispatcher.rs:fixed_size_deallocate}}
-```
-
 в файле
 [`ku/src/allocator/dispatcher.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/allocator/dispatcher.rs).
+
+{{#include ../../doc/ku/allocator/dispatcher/struct.Dispatcher.html.method.fixed_size_allocate}}
+
+{{#include ../../doc/ku/allocator/dispatcher/struct.Dispatcher.html.method.fixed_size_deallocate}}
 
 Для анализа насколько кэш улучшает производительность, в тестах есть реализация типажа
 [`Cache`](../../doc/ku/allocator/cache/trait.Cache.html)

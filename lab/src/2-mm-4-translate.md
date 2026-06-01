@@ -295,7 +295,8 @@ pub fn Path::map(
 Выделение физического фрейма под отсутствующую промежуточную таблицу
 [`PageTable`](../../doc/ku/memory/mmu/type.PageTable.html)
 и его зануление
-рекомендуется вынести во вспомогательную [функцию](../../doc/kernel/memory/mapping/struct.Mapping.html#method.allocate_node)
+рекомендуется вынести во вспомогательную функцию
+[`Mapping::allocate_node()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.allocate_node)
 
 ```rust
 fn allocate_node(

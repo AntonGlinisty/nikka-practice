@@ -27,18 +27,11 @@ Nikka воплощает некоторые идеи [экзоядра](https://
 
 ### Системный вызов [`kernel::process::syscall::exofork()`](../../doc/kernel/process/syscall/fn.exofork.html)
 
-Реализуйте [системный вызов](../../doc/kernel/process/syscall/fn.exofork.html)
-
-```rust
-{{#include ../../kernel/src/process/syscall.rs:exofork}}
-```
-
+Реализуйте системный вызов
+[`syscall::exofork()`](../../doc/kernel/process/syscall/fn.exofork.html)
 в файле [`kernel/src/process/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/syscall.rs).
 
-Он создаёт копию вызывающего процесса `process` и возвращает его
-[`Pid`](../../doc/ku/process/pid/enum.Pid.html).
-При этом новый процесс создаётся практически без адресного пространства и не готовый к работе.
-Поэтому он, в частности, не ставится в очередь планировщика.
+{{#include ../../doc/kernel/process/syscall/fn.exofork.html.fn}}
 
 Этот системный вызов использует создание копии системной части адресного пространства процесса `process`,
 которое
@@ -87,17 +80,12 @@ let child_pid = syscall(Syscall::Exofork, 0, 0, 0, 0, 0)?;
 
 ### Системный вызов [`kernel::process::syscall::set_state()`](../../doc/kernel/process/syscall/fn.set_state.html)
 
-Реализуйте [системный вызов](../../doc/kernel/process/syscall/fn.set_state.html)
-
-```rust
-{{#include ../../kernel/src/process/syscall.rs:set_state}}
-```
-
+Реализуйте системный вызов
+[`syscall::set_state()`](../../doc/kernel/process/syscall/fn.set_state.html)
 в файле [`kernel/src/process/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/syscall.rs).
 
-Он переводит целевой процесс, заданный идентификатором `dst_pid`, в заданное состояние `state`.
-И ставит его в очередь планировщика в случае
-[`State::Runnable`](../../doc/ku/process/enum.State.html#variant.Runnable).
+{{#include ../../doc/kernel/process/syscall/fn.set_state.html.fn}}
+
 Не забудьте
 проверить права доступа
 процесса `process` к процессу `dst_pid` с помощью реализованного вами ранее
@@ -237,9 +225,7 @@ unsafe fn page_table(address: Virt, level: u32) -> &'static PageTable
 
 #### `copy_page_table()`
 
-```rust
-{{#include ../../user/eager_fork/src/main.rs:copy_page_table}}
-```
+{{#include ../../doc/eager_fork/fn.copy_page_table.html.fn}}
 
 Копирует таблицу страниц уровня `level` для виртуального адреса `start`
 из своего адресного пространства в пространство дочернего процесса `child`.

@@ -10,11 +10,9 @@
 Для динамического управления размером
 [`ku::collections::bitmap::Bitmap`](../../doc/ku/collections/bitmap/struct.Bitmap.html)
 обернём её в структуру
-[`ku::collections::dynamic_bitmap::DynamicBitmap`](../../doc/ku/collections/dynamic_bitmap/struct.DynamicBitmap.html):
+[`ku::collections::dynamic_bitmap::DynamicBitmap`](../../doc/ku/collections/dynamic_bitmap/struct.DynamicBitmap.html).
 
-```rust
-{{#include ../../ku/src/collections/dynamic_bitmap.rs:bitmap}}
-```
+{{#include ../../doc/ku/collections/dynamic_bitmap/struct.DynamicBitmap.html.declaration}}
 
 В дополнение к знакомой нам битовой карте
 [`DynamicBitmap::bitmap`](../../doc/ku/collections/dynamic_bitmap/struct.DynamicBitmap.html#structfield.bitmap)
@@ -39,13 +37,10 @@
 
 Реализуйте метод
 [`DynamicBitmap::reserve()`](../../doc/ku/collections/dynamic_bitmap/struct.DynamicBitmap.html#method.reserve)
-
-```rust
-{{#include ../../ku/src/collections/dynamic_bitmap.rs:reserve}}
-```
-
 в файле
 [`ku/src/collections/dynamic_bitmap.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/collections/dynamic_bitmap.rs).
+
+{{#include ../../doc/ku/collections/dynamic_bitmap/struct.DynamicBitmap.html.method.reserve}}
 
 Получить
 [`BigAllocator`](../../doc/ku/allocator/big/trait.BigAllocator.html)
@@ -67,11 +62,9 @@
 в предыдущем методе блока виртуальной памяти.
 
 Реализуйте метод
-[`DynamicBitmap::map()`](../../doc/ku/collections/dynamic_bitmap/struct.DynamicBitmap.html#method.map)
+[`DynamicBitmap::map()`](../../doc/ku/collections/dynamic_bitmap/struct.DynamicBitmap.html#method.map).
 
-```rust
-{{#include ../../ku/src/collections/dynamic_bitmap.rs:map}}
-```
+{{#include ../../doc/ku/collections/dynamic_bitmap/struct.DynamicBitmap.html.method.map}}
 
 Этот метод возвращает количество физических фреймов,
 которые ему пришлось выделить дополнительно к имевшимся ранее.
@@ -90,11 +83,9 @@
 Это понадобится, в частности, для проверки что в аллокаторе нет утечек физических фреймов.
 
 Реализуйте метод
-[`DynamicBitmap::unmap()`](../../doc/ku/collections/dynamic_bitmap/struct.DynamicBitmap.html#method.unmap)
+[`DynamicBitmap::unmap()`](../../doc/ku/collections/dynamic_bitmap/struct.DynamicBitmap.html#method.unmap).
 
-```rust
-{{#include ../../ku/src/collections/dynamic_bitmap.rs:unmap}}
-```
+{{#include ../../doc/ku/collections/dynamic_bitmap/struct.DynamicBitmap.html.method.unmap}}
 
 Не забудьте удалить и зарезервированный под битовую карту блок виртуальной памяти
 [`DynamicBitmap::pages`](../../doc/ku/collections/dynamic_bitmap/struct.DynamicBitmap.html#structfield.pages).

@@ -10,9 +10,7 @@
 
 #### Ленивое копирование адресного пространства
 
-```rust
-{{#include ../../user/cow_fork/src/main.rs:copy_page_table}}
-```
+{{#include ../../doc/cow_fork/fn.copy_page_table.html.fn}}
 
 Выполняется аналогично [соответствующей процедуре](../../lab/book/6-um-3-eager-fork.html#copy_page_table) `eager_fork`.
 Отличается от которой в паре моментов:

@@ -2,11 +2,9 @@
 
 
 Для отслеживания какие именно элементы заняты, а какие свободны, служит структура
-[`ku::collections::bitmap::Bitmap`](../../doc/ku/collections/bitmap/struct.Bitmap.html):
+[`ku::collections::bitmap::Bitmap`]().
 
-```rust
-{{#include ../../ku/src/collections/bitmap.rs:bitmap}}
-```
+{{#include ../../doc/ku/collections/bitmap/struct.Bitmap.html.declaration}}
 
 В этой лабораторной работе интересующими нас элементами будут блоки памяти аллокатора.
 А в одной из последующих лабораторных работ --- блоки и
@@ -24,22 +22,15 @@
 
 Реализуйте метод
 [`Bitmap::allocate()`](../../doc/ku/collections/bitmap/struct.Bitmap.html#method.allocate)
-
-```rust
-{{#include ../../ku/src/collections/bitmap.rs:allocate}}
-```
-
 в файле
 [`ku/src/collections/bitmap.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/collections/bitmap.rs).
 
-Функция должна найти по
-[`Bitmap::bitmap`](../../doc/ku/collections/bitmap/struct.Bitmap.html#structfield.bitmap)
-свободный элемент --- нулевой бит --- и выделить его.
+{{#include ../../doc/ku/collections/bitmap/struct.Bitmap.html.method.allocate}}
 
-- Верните номер выделенного элемента.
+При реализации учтите пару моментов:
+
 - Искать каждый раз с самого начала [`Bitmap::bitmap`](../../doc/ku/collections/bitmap/struct.Bitmap.html#structfield.bitmap) не эффективно. Лучше, например, обходить его по циклу с того места, на котором остановились в прошлый раз. Для хранения этой позиции между вызовами [`Bitmap::allocate()`](../../doc/ku/collections/bitmap/struct.Bitmap.html#method.allocate) служит поле [`Bitmap::cursor`](../../doc/ku/collections/bitmap/struct.Bitmap.html#structfield.cursor).
 - Проверять каждый бит тоже не эффективно. Лучше сначала найти значение в [`Bitmap::bitmap`](../../doc/ku/collections/bitmap/struct.Bitmap.html#structfield.bitmap), в котором есть хотя бы один свободный бит. Поэтому биты сгруппированы именно по [`u64`](https://doc.rust-lang.org/nightly/core/primitive.u64.html), а не например по [`u8`](https://doc.rust-lang.org/nightly/core/primitive.u8.html).
-- Верните [`Option::None`](https://doc.rust-lang.org/nightly/core/option/enum.Option.html#variant.None), если свободных элементов не осталось.
 
 
 ### Проверьте себя

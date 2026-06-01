@@ -19,11 +19,9 @@
 [`kernel::fs::superblock::Superblock`](../../doc/kernel/fs/superblock/struct.Superblock.html)
 хранит основную информацию о файловой системе.
 Она нужна, например, при монтировании.
-У нас он очень простой:
+У нас он очень простой.
 
-```rust
-{{#include ../../kernel/src/fs/superblock.rs:superblock}}
-```
+{{#include ../../doc/kernel/fs/superblock/struct.Superblock.html.declaration}}
 
 
 ### Дамп диска в шестнадцатеричном виде

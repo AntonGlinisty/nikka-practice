@@ -5,24 +5,16 @@
 
 ### Идентификаторы процессов [`ku::process::pid::Pid`](../../doc/ku/process/pid/enum.Pid.html)
 
-В файле [`ku/src/process/pid.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/process/pid.rs) описана структура
+В файле
+[`ku/src/process/pid.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/process/pid.rs)
+описана структура
+[`ku::process::pid::Pid`](../../doc/ku/process/pid/enum.Pid.html).
 
-```rust
-{{#include ../../ku/src/process/pid.rs:pid}}
-```
+{{#include ../../doc/ku/process/pid/enum.Pid.html.declaration}}
 
-Она позволяет отдельно указывать либо
-[`Pid::Current`](../../doc/ku/process/pid/enum.Pid.html#variant.Current) ---
-текущий процесс, это удобно для использования тех системных вызовов, что принимают на вход
-[`Pid`](../../doc/ku/process/pid/enum.Pid.html).
-Либо конкретный процесс
-[`Pid::Id`](../../doc/ku/process/pid/enum.Pid.html#variant.Id),
-идентификатор которого состоит из номера слота в таблице процессов
+Поле
 [`slot`](../../doc/ku/process/pid/enum.Pid.html#variant.Id.field.slot)
-и эпохи этого слота
-[`epoch`](../../doc/ku/process/pid/enum.Pid.html#variant.Id.field.epoch).
-Поле [`slot`](../../doc/ku/process/pid/enum.Pid.html#variant.Id.field.slot) позволяет быстро находить процесс по его идентификатору в таблице процессов, ---
-она может быть устроена как вектор, а не как хеш-таблица.
+позволяет использовать в качестве таблицы процессов вектор, а не, например, хеш-таблицу.
 А [`epoch`](../../doc/ku/process/pid/enum.Pid.html#variant.Id.field.epoch) позволяет сделать идентификаторы процессов уникальными на протяжении всего времени работы системы.
 
 Например, в Unix есть гонка, из-за того что одно и то же значение `pid_t` может в разное время ссылаться на разные процессы.

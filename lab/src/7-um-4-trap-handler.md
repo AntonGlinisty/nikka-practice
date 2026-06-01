@@ -18,13 +18,10 @@
 
 Посмотрите на функцию
 [`syscall::set_trap_handler()`](../../doc/lib/syscall/fn.set_trap_handler.html)
-
-```rust
-{{#include ../../user/lib/src/syscall.rs:set_trap_handler}}
-```
-
 в файле
 [`user/lib/src/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/user/lib/src/syscall.rs).
+
+{{#include ../../doc/lib/syscall/fn.set_trap_handler.html.fn}}
 
 Она делает не совсем то, чего можно было бы ожидать.
 А именно, она не передаёт адрес функции `trap_handler` в системный вызов.
@@ -70,9 +67,9 @@ extern "C" fn trap_handler_trampoline() -> !
 
 После сохранения регистров нужно вызвать функцию
 [`syscall::trap_handler_invoker()`](../../doc/lib/syscall/fn.trap_handler_invoker.html)
-```rust
-{{#include ../../user/lib/src/syscall.rs:trap_handler_invoker}}
-```
+
+{{#include ../../doc/lib/syscall/fn.trap_handler_invoker.html.fn}}
+
 Передайте ей в регистре `RDI` адрес
 [`ku::trap::trap_info::TrapInfo`](../../doc/ku/trap/trap_info/struct.TrapInfo.html),
 на который указывал регистр `RSP` в момент вызова
@@ -106,14 +103,11 @@ extern "C" fn trap_handler_trampoline() -> !
 должна переключить `RSP` на этот адрес и выполнить инструкцию
 [`ret`](https://www.felixcloutier.com/x86/ret).
 Лежит нужный нам `RSP` в поле
-[`TrapInfo::context`](../../doc/ku/trap/trap_info/struct.TrapInfo.html#structfield.context)
-структуры
+[`TrapInfo::context`](../../doc/ku/trap/trap_info/struct.TrapInfo.html#structfield.context).
 
-```rust
-{{#include ../../ku/src/trap/trap_info.rs:trap_info}}
-```
+{{#include ../../doc/ku/trap/trap_info/struct.TrapInfo.html.declaration}}
 
-И к нему можно обратиться по
+К `RSP` можно обратиться по
 [смещению](../../doc/ku/process/trap_info/constant.RSP_OFFSET_IN_TRAP_INFO.html)
 
 ```rust
@@ -128,19 +122,13 @@ pub const RSP_OFFSET_IN_TRAP_INFO: usize = offset_of!(TrapInfo, context) + RSP_O
 ### Ядерная часть системного вызова `set_trap_handler`
 
 Реализуйте
-[системный вызов](../../doc/kernel/process/syscall/fn.set_trap_handler.html)
-
-```rust
-{{#include ../../kernel/src/process/syscall.rs:set_trap_handler}}
-```
-
+системный вызов
+[`syscall::set_trap_handler()`](../../doc/kernel/process/syscall/fn.set_trap_handler.html)
 в файле
 [`kernel/src/process/syscall.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/syscall.rs).
 
-Он устанавливает для целевого процесса, заданного идентификатором `dst_pid`,
-пользовательский обработчик прерывания с виртуальным адресом `rip`.
-И стеком, который задаётся блоком виртуальных адресов начиная с `stack_address` и размера `stack_size`.
-Стек может быть не выровнен по границе страниц.
+{{#include ../../doc/kernel/process/syscall/fn.set_trap_handler.html.fn}}
+
 Проверять его на права доступа пока бессмысленно, так как пользовательский код может изменить доступы к этим адресам позже.
 Проверять права доступа к памяти надо непосредственно перед доступом.
 В случае обработчика прерываний доступ будет позднее, в методе
@@ -157,24 +145,20 @@ pub const RSP_OFFSET_IN_TRAP_INFO: usize = offset_of!(TrapInfo, context) + RSP_O
 и его стека
 [`TrapHandlerContext::stack`](../../doc/kernel/process/process/struct.TrapHandlerContext.html#structfield.stack),
 который нужен для определения рекурсивности прерывания в функции
-[`Process::trap()`](../../doc/kernel/process/process/struct.Process.html#method.trap):
+[`Process::trap()`](../../doc/kernel/process/process/struct.Process.html#method.trap).
 
-```rust
-{{#include ../../kernel/src/process/process.rs:trap_handler_context}}
-```
+{{#include ../../doc/kernel/process/process/struct.TrapHandlerContext.html.declaration}}
 
 
 ### Передача прерывания из режима ядра в режим пользователя
 
 Реализуйте метод
 [`Process::trap()`](../../doc/kernel/process/process/struct.Process.html#method.trap):
-
-```rust
-{{#include ../../kernel/src/process/process.rs:trap}}
-```
-
 в файле
 [`kernel/src/process/process.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/process/process.rs).
+
+{{#include ../../doc/kernel/process/process/struct.Process.html.method.trap}}
+
 Он вызывается из функции
 [`kernel::trap::handler::generic_trap()`](../../doc/kernel/trap/handler/fn.generic_trap.html) в файле
 [`kernel/src/trap/mod.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/trap/mod.rs),

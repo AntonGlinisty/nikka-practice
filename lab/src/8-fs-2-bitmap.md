@@ -3,11 +3,9 @@
 
 Для отслеживания какие именно элементы --- блоки или inode --- файловой системы заняты,
 а какие свободны, служит структура
-[`kernel::fs::bitmap::Bitmap`](../../doc/kernel/fs/bitmap/struct.Bitmap.html):
+[`kernel::fs::bitmap::Bitmap`](../../doc/kernel/fs/bitmap/struct.Bitmap.html).
 
-```rust
-{{#include ../../kernel/src/fs/bitmap.rs:bitmap}}
-```
+{{#include ../../doc/kernel/fs/bitmap/struct.Bitmap.html.declaration}}
 
 Каждое значение в срезе
 [`Bitmap::bitmap.bitmap`](../../doc/ku/collections/bitmap/struct.Bitmap.html#structfield.bitmap)
@@ -20,17 +18,10 @@
 
 Доделайте метод
 [`Bitmap::format()`](../../doc/kernel/fs/bitmap/struct.Bitmap.html#method.format)
-
-```rust
-{{#include ../../kernel/src/fs/bitmap.rs:format}}
-```
-
 в файле
 [`kernel/src/fs/bitmap.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/fs/bitmap.rs).
 
-Вам нужно инициализировать массив `bitmap.bitmap` так,
-чтобы для элементов, перечисленных в `elements`, соответствующие биты были равны нулю --- элементы свободны.
-А для всех остальных --- зарезервированных и отсутствующих в битовой карте элементов --- соответствующие биты были равны единице.
+{{#include ../../doc/kernel/fs/bitmap/struct.Bitmap.html.method.format}}
 
 У вас уже должна быть решена [задача про битовую карту](../../lab/book/3-allocator-2-bitmap.html#%D0%97%D0%B0%D0%B4%D0%B0%D1%87%D0%B0-2--%D0%B2%D1%8B%D0%B4%D0%B5%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5-%D1%81%D0%B2%D0%BE%D0%B1%D0%BE%D0%B4%D0%BD%D0%BE%D0%B3%D0%BE-%D1%8D%D0%BB%D0%B5%D0%BC%D0%B5%D0%BD%D1%82%D0%B0-%D1%81-%D0%BF%D0%BE%D0%BC%D0%BE%D1%89%D1%8C%D1%8E-%D0%B1%D0%B8%D1%82%D0%BE%D0%B2%D0%BE%D0%B9-%D0%BA%D0%B0%D1%80%D1%82%D1%8B). Если это не так, сделайте её.
 

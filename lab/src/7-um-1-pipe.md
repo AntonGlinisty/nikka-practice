@@ -117,11 +117,9 @@ Single-Producer Single-Consumer (SPSC) очередь без ожидания (w
 
 Количество байт заголовка, выделяемых под размер пользовательских данных,
 определяется по максимальному размеру одной транзакции данного объекта методом
-[`RingBuffer::header_size()`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#method.header_size):
+[`RingBuffer::header_size()`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#method.header_size).
 
-```rust
-{{#include ../../ku/src/ipc/pipe.rs:header_size}}
-```
+{{#include ../../doc/ku/ipc/pipe/struct.RingBuffer.html.method.header_size}}
 
 Пример одной зафиксированной пишущей транзакции:
 
@@ -237,22 +235,17 @@ read commit пишет поверх заголовка record "abc" заголо
 [`ku/src/ipc/pipe.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/ipc/pipe.rs)
 определён
 [циклический буфер](https://en.wikipedia.org/wiki/Circular_buffer)
-[`RingBuffer`](../../doc/ku/ipc/pipe/struct.RingBuffer.html).
-
-```rust
-{{#include ../../ku/src/ipc/pipe.rs:ring_buffer}}
-```
-
+[`RingBuffer`](../../doc/ku/ipc/pipe/struct.RingBuffer.html)
 ёмкости
 [`RingBuffer::REAL_SIZE`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#associatedconstant.REAL_SIZE).
 
+{{#include ../../doc/ku/ipc/pipe/struct.RingBuffer.html.declaration}}
+
 Поле
 [`RingBuffer::stats`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#structfield.stats)
-поддерживает статистики чтения или записи в буфер:
+поддерживает статистики чтения или записи в буфер.
 
-```rust
-{{#include ../../ku/src/ipc/pipe.rs:ring_buffer_stats}}
-```
+{{#include ../../doc/ku/ipc/pipe/struct.RingBufferStats.html.declaration}}
 
 Для того чтобы при использовании буфера
 [`RingBuffer`](../../doc/ku/ipc/pipe/struct.RingBuffer.html)
@@ -273,11 +266,9 @@ read commit пишет поверх заголовка record "abc" заголо
 
 Сами транзакции
 [`RingBufferTx`](../../doc/ku/ipc/pipe/struct.RingBufferTx.html)
-устроены так:
+устроены так.
 
-```rust
-{{#include ../../ku/src/ipc/pipe.rs:ring_buffer_tx}}
-```
+{{#include ../../doc/ku/ipc/pipe/struct.RingBufferTx.html.declaration}}
 
 
 ### Разделяемые и не разделяемые данные
@@ -313,11 +304,9 @@ read commit пишет поверх заголовка record "abc" заголо
 [`RingBuffer::header_size()`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#method.header_size).
 
 В десериализованном виде заголовок описывает перечисление
-[`ku::ipc::pipe::Header`](../../doc/ku/ipc/pipe/enum.Header.html):
+[`ku::ipc::pipe::Header`](../../doc/ku/ipc/pipe/enum.Header.html).
 
-```rust
-{{#include ../../ku/src/ipc/pipe.rs:header}}
-```
+{{#include ../../doc/ku/ipc/pipe/enum.Header.html.declaration}}
 
 Вариантам этого перечисления соответствуют константы с
 [`Header::CLEAR`](../../doc/ku/ipc/pipe/enum.Header.html#associatedconstant.CLEAR)

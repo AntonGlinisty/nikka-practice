@@ -5,17 +5,11 @@
 
 Реализуйте метод
 [`FileSystem::open()`](../../doc/kernel/fs/file_system/struct.FileSystem.html#method.open)
-
-```rust
-{{#include ../../kernel/src/fs/file_system.rs:open}}
-```
-
 в файле
 [`kernel/src/fs/file_system.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/fs/file_system.rs).
 
-Он должен пройти от корня файловой системы по заданному полному пути `path`.
-И вернуть соответствующий
-[`kernel::fs::file::File`](../../doc/kernel/fs/file/struct.File.html).
+{{#include ../../doc/kernel/fs/file_system/struct.FileSystem.html.method.open}}
+
 Вам пригодится метод
 [`kernel::fs::inode::Inode::find()`](../../doc/kernel/fs/inode/struct.Inode.html#method.find).
 

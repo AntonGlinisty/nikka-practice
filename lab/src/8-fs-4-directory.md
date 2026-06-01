@@ -5,11 +5,11 @@
 с фиксированным форматом данных.
 А именно, размер данных для директорий должен быть кратен размеру блока.
 А сами данные --- это массив записей типа
-[`kernel::fs::directory_entry::DirectoryEntry`](../../doc/kernel/fs/directory_entry/struct.DirectoryEntry.html):
+[`kernel::fs::directory_entry::DirectoryEntry`](../../doc/kernel/fs/directory_entry/struct.DirectoryEntry.html).
+
+{{#include ../../doc/kernel/fs/directory_entry/struct.DirectoryEntry.html.declaration}}
 
 ```rust
-{{#include ../../kernel/src/fs/directory_entry.rs:directory_entry}}
-
 {{#include ../../kernel/src/fs/directory_entry.rs:max_name_len}}
 ```
 
@@ -40,13 +40,12 @@
 [`kernel::fs::inode::Inode::list()`](../../doc/kernel/fs/inode/struct.Inode.html#method.list).
 
 Он продвигает итератор
-
-```rust
-{{#include ../../kernel/src/fs/inode.rs:iter}}
-```
-
+[`Iter`](../../doc/kernel/fs/inode/struct.Iter.html)
 по записям директории
 [`Iter::inode`](../../doc/kernel/fs/inode/struct.Iter.html#structfield.inode).
+
+{{#include ../../doc/kernel/fs/inode/struct.Iter.html.declaration}}
+
 Поле
 [`Iter::block_number`](../../doc/kernel/fs/inode/struct.Iter.html#structfield.block_number)
 задаёт номер блока внутри данных
@@ -69,11 +68,9 @@
 Реализуйте вспомогательный метод
 [`Inode::find_entry()`](../../doc/kernel/fs/inode/struct.Inode.html#method.find_entry) для
 [`kernel::fs::inode::Inode::find()`](../../doc/kernel/fs/inode/struct.Inode.html#method.find) и
-[`kernel::fs::inode::Inode::insert()`](../../doc/kernel/fs/inode/struct.Inode.html#method.insert):
+[`kernel::fs::inode::Inode::insert()`](../../doc/kernel/fs/inode/struct.Inode.html#method.insert).
 
-```rust
-{{#include ../../kernel/src/fs/inode.rs:find_entry}}
-```
+{{#include ../../doc/kernel/fs/inode/struct.Inode.html.method.find_entry}}
 
 Он находит запись в директории с именем `name`.
 Если такой записи нет, то верните свободную запись, ---
@@ -95,11 +92,9 @@
 #### [`kernel::fs::inode::Inode::insert()`](../../doc/kernel/fs/inode/struct.Inode.html#method.insert)
 
 Реализуйте метод
-[`Inode::insert()`](../../doc/kernel/fs/inode/struct.Inode.html#method.insert)
+[`Inode::insert()`](../../doc/kernel/fs/inode/struct.Inode.html#method.insert).
 
-```rust
-{{#include ../../kernel/src/fs/inode.rs:insert}}
-```
+{{#include ../../doc/kernel/fs/inode/struct.Inode.html.method.insert}}
 
 Он вставляет в директорию запись с именем `name`.
 Если запись с таким именем уже есть, верните ошибку

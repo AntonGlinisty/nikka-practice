@@ -21,11 +21,10 @@
 
 ### Задача 3 --- [`Phys2Virt::make()`](../../doc/kernel/memory/phys2virt/struct.Phys2Virt.html#method.make)
 
-Напишите реализацию [метода](../../doc/kernel/memory/phys2virt/struct.Phys2Virt.html#method.make)
+Напишите реализацию метода
+[`Phys2Virt::make()`](../../doc/kernel/memory/phys2virt/struct.Phys2Virt.html#method.make).
 
-```rust
-{{#include ../../kernel/src/memory/phys2virt.rs:make}}
-```
+{{#include ../../doc/kernel/memory/phys2virt/struct.Phys2Virt.html.method.make}}
 
 Вы можете придерживаться структуры кода эталонного решения, используя вспомогательные методы:
 

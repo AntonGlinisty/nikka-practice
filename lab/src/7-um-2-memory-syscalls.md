@@ -70,16 +70,8 @@ fn check_frame(
 
 #### [`kernel::process::syscall::lock_set::LockSet::new()`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#method.new)
 
-```rust
-{{#include ../../kernel/src/process/syscall.rs:lock_set}}
-```
+{{#include ../../doc/kernel/process/syscall/lock_set/enum.LockSet.html.method.new}}
 
-Проверяет, что процесс `src` имеет право модифицировать целевой процесс, заданный своим идентификатором `dst_pid`.
-Модифицировать можно либо самого себя, задавая
-[`Pid::Current`](../../doc/ku/process/pid/enum.Pid.html#variant.Current)
-или явно собственный идентификатор
-[`Pid::Id`](../../doc/ku/process/pid/enum.Pid.html#variant.Id).
-Либо свой непосредственно дочерний процесс, задавая его идентификатор.
 Аргумент `process_set` типа
 [`kernel::process::syscall::lock_set::ProcessSet`](../../doc/kernel/process/syscall/lock_set/enum.ProcessSet.html)
 указывает, будет ли вызывающий код в дальнейшем пользоваться
@@ -93,10 +85,6 @@ fn check_frame(
 - [`LockSet::Different`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#variant.Different) с двумя блокировками на исходный [`LockSet::Different::src`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#variant.Different.field.src) и целевой [`LockSet::Different::dst`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#variant.Different.field.dst) процессы, когда они разные.
 - [`LockSet::Same`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#variant.Same) с блокировкой [`LockSet::Same::src_dst`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#variant.Same.field.src_dst), когда вызывающий код запросил обе блокировки, но целевой процесс совпадает с исходным.
 - [`LockSet::Dst`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#variant.Dst) с блокировкой [`LockSet::Dst::dst`](../../doc/kernel/process/syscall/lock_set/enum.LockSet.html#variant.Dst.field.dst) на целевой процесс, когда вызывающему коду нужна только она.
-
-В реализации этой функции легко посадить ошибку, которая может привести к
-[взаимоблокировке](https://en.wikipedia.org/wiki/Deadlock).
-Вспомните о правилах захвата нескольких блокировок, чтобы избежать этой неприятности.
 
 Вам пригодится метод
 [`Pid::from_usize()`](../../doc/ku/process/pid/enum.Pid.html#method.from_usize).
@@ -118,9 +106,7 @@ fn check_frame(
 
 #### [`kernel::process::syscall::map()`](../../doc/kernel/process/syscall/fn.map.html)
 
-```rust
-{{#include ../../kernel/src/process/syscall.rs:map}}
-```
+{{#include ../../doc/kernel/process/syscall/fn.map.html.fn}}
 
 Отображает в памяти процесса, заданного `dst_pid`, блок страниц размера `dst_size` байт начиная с виртуального адреса `dst_address` с флагами доступа `flags`.
 Если `dst_address` равен нулю, ядро само выбирает свободный участок адресного пространства размера `dst_size`.
@@ -151,20 +137,12 @@ fn check_frame(
 
 ### [`kernel::process::syscall::unmap()`](../../doc/kernel/process/syscall/fn.unmap.html)
 
-```rust
-{{#include ../../kernel/src/process/syscall.rs:unmap}}
-```
-
-Выполняет противоположную
-[`kernel::process::syscall::map()`](../../doc/kernel/process/syscall/fn.map.html)
-операцию --- удаляет заданный диапазон из виртуальной памяти целевого процесса.
+{{#include ../../doc/kernel/process/syscall/fn.unmap.html.fn}}
 
 
 ### [`kernel::process::syscall::copy_mapping()`](../../doc/kernel/process/syscall/fn.copy_mapping.html)
 
-```rust
-{{#include ../../kernel/src/process/syscall.rs:copy_mapping}}
-```
+{{#include ../../doc/kernel/process/syscall/fn.copy_mapping.html.fn}}
 
 Создаёт копию отображения виртуальной памяти из вызывающего процесса в процесс, заданный `dst_pid`.
 Исходный диапазон начинается с виртуального адреса `src_address`, целевой --- с виртуального адреса `dst_address`.

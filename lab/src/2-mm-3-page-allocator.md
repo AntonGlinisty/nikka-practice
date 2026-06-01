@@ -140,13 +140,12 @@
 
 #### Инициализация аллокатора страниц
 
-Реализуйте вспомогательную [функцию](../../doc/kernel/memory/page_allocator/struct.PageAllocator.html#method.find_unused_block)
-
-```rust
-{{#include ../../kernel/src/memory/page_allocator.rs:find_unused_block}}
-```
-
+Реализуйте вспомогательную функцию
+[`PageAllocator::find_unused_block()`](../../doc/kernel/memory/page_allocator/struct.PageAllocator.html#method.find_unused_block)
 в файле [`kernel/src/memory/page_allocator.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/page_allocator.rs).
+
+{{#include ../../doc/kernel/memory/page_allocator/struct.PageAllocator.html.method.find_unused_block}}
+
 Эта функция принимает на вход таблицу страниц
 [`ku::memory::mmu::PageTable`](../../doc/ku/memory/mmu/type.PageTable.html)
 корневого уровня и `allowed_elements` ---
@@ -250,12 +249,10 @@ $ (cd kernel; cargo test --test 2-mm-2-block)
 [`PageAllocator::block`](../../doc/kernel/memory/page_allocator/struct.PageAllocator.html#structfield.block)
 реализуйте метод
 [`PageAllocator::allocate()`](../../doc/kernel/memory/page_allocator/struct.PageAllocator.html#method.allocate)
-
-```rust
-{{#include ../../kernel/src/memory/page_allocator.rs:allocate}}
-```
-
 в файле [`kernel/src/memory/page_allocator.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/memory/page_allocator.rs).
+
+{{#include ../../doc/kernel/memory/page_allocator/struct.PageAllocator.html.method.allocate}}
+
 Она принимает размер и выравнивание запрошенного блока в виде структуры
 [`core::alloc::Layout`](https://doc.rust-lang.org/nightly/core/alloc/struct.Layout.html).
 И возвращает подходящий блок свободных виртуальных страниц
