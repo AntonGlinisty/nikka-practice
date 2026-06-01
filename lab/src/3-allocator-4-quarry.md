@@ -78,6 +78,8 @@
 [`Quarry::allocation_coordinates()`](../../doc/ku/allocator/quarry/struct.Quarry.html#method.allocation_coordinates),
 который придётся реализовать самостоятельно.
 
+{{#include ../../doc/ku/allocator/quarry/struct.Quarry.html.method.allocation_coordinates}}
+
 Как и битовые карты, удаляться
 [`Quarry`](../../doc/ku/allocator/quarry/struct.Quarry.html)
 будет только один раз, вместе с удалением аллокатора.
