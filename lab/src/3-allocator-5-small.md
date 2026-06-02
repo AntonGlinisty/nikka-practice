@@ -100,11 +100,9 @@ Rust предоставляет
 Доработайте метод
 [`Dispatcher::alloc()`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#method.alloc)
 в файле
-[`ku/src/allocator/dispatcher.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/allocator/dispatcher.rs):
+[`ku/src/allocator/dispatcher.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/ku/src/allocator/dispatcher.rs).
 
-```rust
-{{#include ../../ku/src/allocator/dispatcher.rs:alloc}}
-```
+{{#include ../../doc/ku/allocator/dispatcher/struct.Dispatcher.html.method.alloc}}
 
 [Описание этого метода](https://doc.rust-lang.org/nightly/core/alloc/trait.GlobalAlloc.html#tymethod.alloc),
 как и остальных реализуемых нами методов типажа
@@ -162,22 +160,18 @@ Rust предоставляет
 Симметрично
 [`Dispatcher::alloc()`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#method.alloc)
 доработайте метод
-[`Dispatcher::dealloc()`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#method.dealloc):
+[`Dispatcher::dealloc()`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#method.dealloc).
 
-```rust
-{{#include ../../ku/src/allocator/dispatcher.rs:dealloc}}
-```
+{{#include ../../doc/ku/allocator/dispatcher/struct.Dispatcher.html.method.dealloc}}
 
 Главное, что вы должны помнить --- возвращать блок нужно строго в тот аллокатор, из которого он выделялся.
 
 Аналогично
 [`Dispatcher::alloc()`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#method.alloc)
 доработайте метод
-[`Dispatcher::alloc_zeroed()`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#method.alloc_zeroed):
+[`Dispatcher::alloc_zeroed()`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#method.alloc_zeroed).
 
-```rust
-{{#include ../../ku/src/allocator/dispatcher.rs:alloc_zeroed}}
-```
+{{#include ../../doc/ku/allocator/dispatcher/struct.Dispatcher.html.method.alloc_zeroed}}
 
 Он должен заполнить нулями выделяемый блок памяти.
 Обратите внимание, что из `fallback.allocate_zeroed()`
@@ -185,11 +179,9 @@ Rust предоставляет
 
 Доработайте метод
 [`Dispatcher::realloc()`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#method.realloc),
-который изменяет размер ранее выделенной памяти:
+который изменяет размер ранее выделенной памяти.
 
-```rust
-{{#include ../../ku/src/allocator/dispatcher.rs:realloc}}
-```
+{{#include ../../doc/ku/allocator/dispatcher/struct.Dispatcher.html.method.realloc}}
 
 Если и старый и новый размеры относятся к
 [`Dispatcher::fallback`](../../doc/ku/allocator/dispatcher/struct.Dispatcher.html#structfield.fallback),

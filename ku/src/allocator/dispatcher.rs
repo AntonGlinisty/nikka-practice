@@ -219,12 +219,10 @@ impl<Q: Cache, T: Allocator + BigAllocatorGuard> Dispatcher<Q, T> {
 }
 
 unsafe impl<Q: Cache, T: Allocator + BigAllocatorGuard> GlobalAlloc for Dispatcher<Q, T> {
-    // ANCHOR: alloc
     unsafe fn alloc(
         &self,
         layout: Layout,
     ) -> *mut u8 {
-        // ANCHOR_END: alloc
         Self::validate_layout(layout);
 
         // TODO: your code here.
@@ -232,13 +230,11 @@ unsafe impl<Q: Cache, T: Allocator + BigAllocatorGuard> GlobalAlloc for Dispatch
         self.fallback_allocate(layout, Initialize::Garbage)
     }
 
-    // ANCHOR: dealloc
     unsafe fn dealloc(
         &self,
         ptr: *mut u8,
         layout: Layout,
     ) {
-        // ANCHOR_END: dealloc
         Self::validate_layout(layout);
 
         // TODO: your code here.
@@ -252,12 +248,10 @@ unsafe impl<Q: Cache, T: Allocator + BigAllocatorGuard> GlobalAlloc for Dispatch
         self.update_fallback_info(Operation::Deallocation, layout);
     }
 
-    // ANCHOR: alloc_zeroed
     unsafe fn alloc_zeroed(
         &self,
         layout: Layout,
     ) -> *mut u8 {
-        // ANCHOR_END: alloc_zeroed
         Self::validate_layout(layout);
 
         // TODO: your code here.
@@ -265,14 +259,12 @@ unsafe impl<Q: Cache, T: Allocator + BigAllocatorGuard> GlobalAlloc for Dispatch
         self.fallback_allocate(layout, Initialize::Zero)
     }
 
-    // ANCHOR: realloc
     unsafe fn realloc(
         &self,
         old_ptr: *mut u8,
         old_layout: Layout,
         new_size: usize,
     ) -> *mut u8 {
-        // ANCHOR_END: realloc
         let new_layout = Layout::from_size_align(new_size, old_layout.align())
             .expect("bad `old_layout` or `new_size` for realloc");
 
