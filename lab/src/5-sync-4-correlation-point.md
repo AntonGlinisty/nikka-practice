@@ -157,7 +157,8 @@ fn AtomicCorrelationPoint::load(&self) -> CorrelationPoint
 Пишут в
 [`AtomicCorrelationPoint`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html)
 два других метода.
-[Метод](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.store)
+Метод
+[`AtomicCorrelationPoint::store()`](../../doc/ku/time/correlation_point/struct.AtomicCorrelationPoint.html#method.store)
 
 ```rust
 fn AtomicCorrelationPoint::store(&self, correlation_point: CorrelationPoint)

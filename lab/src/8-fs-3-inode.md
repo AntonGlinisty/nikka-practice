@@ -11,17 +11,11 @@
 доступная через метод
 [`kernel::fs::superblock::Superblock::root()`](../../doc/kernel/fs/superblock/struct.Superblock.html#method.root).
 
-Структура `Inode` выглядит так:
+Структура `Inode` выглядит так.
 
-```rust
-{{#include ../../kernel/src/fs/inode.rs:inode}}
+{{#include ../../doc/kernel/fs/inode/struct.Inode.html.declaration}}
 
-{{#include ../../kernel/src/fs/inode.rs:kind}}
-
-{{#include ../../kernel/src/fs/inode.rs:forest}}
-
-{{#include ../../kernel/src/fs/inode.rs:max_height}}
-```
+{{#include ../../doc/kernel/fs/inode/enum.Kind.html.declaration}}
 
 
 ### Блоки данных inode
@@ -51,30 +45,18 @@
 
 #### [`kernel::fs::inode::Inode::block_entry()`](../../doc/kernel/fs/inode/struct.Inode.html#method.block_entry)
 
-Вспомогательный метод
-[`Inode::block_entry()`](../../doc/kernel/fs/inode/struct.Inode.html#method.block_entry)
+Реализуйте вспомогательный метод
+[`Inode::block_entry()`](../../doc/kernel/fs/inode/struct.Inode.html#method.block_entry).
 
-```rust
-{{#include ../../kernel/src/fs/inode.rs:block_entry}}
-```
+{{#include ../../doc/kernel/fs/inode/struct.Inode.html.method.block_entry}}
 
-по номеру блока `inode_block_number` внутри данных
-[`Inode`](../../doc/kernel/fs/inode/struct.Inode.html)
-возвращает ссылку на запись из метаданных этого
-[`Inode`](../../doc/kernel/fs/inode/struct.Inode.html).
-Эта запись предназначена для номера блока на диске, хранящего указанный блок данных
-[`Inode`](../../doc/kernel/fs/inode/struct.Inode.html).
-С помощью этого метода происходит отображение смещения внутри данных файла в номер блока на диске,
-хранящего эти данные.
-Номер `inode_block_number` равен смещению внутри данных файла, делённому на размер блока.
 Нужная запись находится либо непосредственно в
 [`Inode`](../../doc/kernel/fs/inode/struct.Inode.html),
 и тогда это `&mut Inode::root_blocks[0]`.
 Либо в одном из листьевых косвенных блоков леса
 [`Inode::root_blocks`](../../doc/kernel/fs/inode/struct.Inode.html#structfield.root_blocks).
-
-- Если на пути к листу встречается не выделенный косвенный блок, то его нужно выделить из `bitmap`. Не выделенные блоки имеют зарезервированный номер [`kernel::fs::inode::NO_BLOCK`](../../doc/kernel/fs/inode/constant.NO_BLOCK.html). Если при этом `bitmap` равен `None`, верните ошибку [`Error::NoDisk`](../../doc/kernel/error/enum.Error.html#variant.NoDisk).
-- А вот выделять блок для данных, на который указывает результирующая запись, не нужно.
+Не выделенные блоки имеют зарезервированный номер [`kernel::fs::inode::NO_BLOCK`](../../doc/kernel/fs/inode/constant.NO_BLOCK.html).
+Выделять блок для данных, на который указывает результирующая запись, не нужно.
 
 Этот метод похож на
 [`kernel::memory::mapping::Mapping::path()`](../../doc/kernel/memory/mapping/struct.Mapping.html#method.path),
@@ -83,31 +65,23 @@
 [`Inode`](../../doc/kernel/fs/inode/struct.Inode.html)
 для блоков не одно дерево фиксированной высоты, а последовательность деревьев возрастающей высоты.
 
-Вы можете использовать вспомогательные методы работы с лесом:
+Вы можете использовать следующие вспомогательные методы работы с лесом
+или же структурировать код по-своему.
 
-```rust
-{{#include ../../kernel/src/fs/inode.rs:find_leaf}}
+{{#include ../../doc/kernel/fs/inode/fn.find_leaf.html.fn}}
 
-{{#include ../../kernel/src/fs/inode.rs:remove_tree}}
+{{#include ../../doc/kernel/fs/inode/fn.remove_tree.html.fn}}
 
-{{#include ../../kernel/src/fs/inode.rs:traverse}}
+{{#include ../../doc/kernel/fs/inode/fn.traverse.html.fn}}
 
-{{#include ../../kernel/src/fs/inode.rs:next_level}}
-```
-
-Или же структурировать код по-своему.
+{{#include ../../doc/kernel/fs/inode/fn.next_level.html.fn}}
 
 Дополнительный метод
 [`Inode::block()`](../../doc/kernel/fs/inode/struct.Inode.html#method.block)
-
-```rust
-{{#include ../../kernel/src/fs/inode.rs:block}}
-```
-
 оборачивает реализованный вами
-[`Inode::block_entry()`](../../doc/kernel/fs/inode/struct.Inode.html#method.block_entry)
-и возвращает блок в памяти блочного кэша, где хранится заданный блок
-[`Inode`](../../doc/kernel/fs/inode/struct.Inode.html).
+[`Inode::block_entry()`](../../doc/kernel/fs/inode/struct.Inode.html#method.block_entry).
+
+{{#include ../../doc/kernel/fs/inode/struct.Inode.html.method.block}}
 
 Чтобы не читать с диска блок, который вы хотите перезаписать целиком,
 вам могут пригодиться методы
@@ -118,16 +92,14 @@
 
 #### [`kernel::fs::inode::Inode::set_size()`](../../doc/kernel/fs/inode/struct.Inode.html#method.set_size)
 
-[Метод](../../doc/kernel/fs/inode/struct.Inode.html#method.set_size)
-
-```rust
-{{#include ../../kernel/src/fs/inode.rs:set_size}}
-```
-
+Метод
+[`Inode::set_size()`](../../doc/kernel/fs/inode/struct.Inode.html#method.set_size)
 изменяет размер данных
 [`Inode`](../../doc/kernel/fs/inode/struct.Inode.html)
 в большую или меньшую сторону.
-При этом он должен отдавать в `bitmap` не используемые больше блоки данных.
+
+{{#include ../../doc/kernel/fs/inode/struct.Inode.html.method.set_size}}
+
 Если новый размер `size` равен `0`, то все косвенные блоки также нужно освободить.
 Так как с таким аргументом этот метод вызывается при удалении
 [`Inode`](../../doc/kernel/fs/inode/struct.Inode.html).
@@ -153,24 +125,10 @@
 
 #### [`kernel::fs::inode::Inode::read()`](../../doc/kernel/fs/inode/struct.Inode.html#method.read)
 
-[Метод](../../doc/kernel/fs/inode/struct.Inode.html#method.read)
+Реализуйте метод
+[`Inode::read()`](../../doc/kernel/fs/inode/struct.Inode.html#method.read).
 
-```rust
-{{#include ../../kernel/src/fs/inode.rs:read}}
-```
-
-читает из данных
-[`Inode`](../../doc/kernel/fs/inode/struct.Inode.html)
-по смещению `offset` в буфер `buffer` столько байт,
-сколько остаётся до конца файла или до конца буфера.
-И возвращает количество прочитанных байт.
-Если
-[`Inode`](../../doc/kernel/fs/inode/struct.Inode.html)
-не является файлом, верните ошибку
-[`Error::NotFile`](../../doc/kernel/error/enum.Error.html#variant.NotFile).
-Если `offset` превышает размер файла, верните ошибку
-[`Error::InvalidArgument`](../../doc/kernel/error/enum.Error.html#variant.InvalidArgument).
-Если `offset` равен размеру файла, верните `0` прочитанных байт.
+{{#include ../../doc/kernel/fs/inode/struct.Inode.html.method.read}}
 
 Вам могут пригодиться:
 
@@ -181,22 +139,10 @@
 
 #### [`kernel::fs::inode::Inode::write()`](../../doc/kernel/fs/inode/struct.Inode.html#method.write)
 
-[Метод](../../doc/kernel/fs/inode/struct.Inode.html#method.read)
+Реализуйте метод
+[`Inode::write()`](../../doc/kernel/fs/inode/struct.Inode.html#method.write).
 
-```rust
-{{#include ../../kernel/src/fs/inode.rs:write}}
-```
-
-записывает в данные
-[`Inode`](../../doc/kernel/fs/inode/struct.Inode.html)
-по смещению `offset` байты из буфера `buffer`.
-При необходимости расширяет размер файла.
-Возвращает количество записанных байт.
-Если
-[`Inode`](../../doc/kernel/fs/inode/struct.Inode.html)
-не является файлом, верните ошибку [`Error::NotFile`](../../doc/kernel/error/enum.Error.html#variant.NotFile).
-Если `offset` превышает размер файла, --- это нормальная ситуация.
-Расширьте файл нулями до заданного `offset`.
+{{#include ../../doc/kernel/fs/inode/struct.Inode.html.method.write}}
 
 Чтобы не читать с диска блок, который вы хотите перезаписать целиком,
 вам может пригодиться метод

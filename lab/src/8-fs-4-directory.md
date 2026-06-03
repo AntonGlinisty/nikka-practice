@@ -9,10 +9,6 @@
 
 {{#include ../../doc/kernel/fs/directory_entry/struct.DirectoryEntry.html.declaration}}
 
-```rust
-{{#include ../../kernel/src/fs/directory_entry.rs:max_name_len}}
-```
-
 Отсутствующие или удалённые записи при этом имеют зарезервированный номер `inode` равный
 [`DirectoryEntry::UNUSED`](../../doc/kernel/fs/directory_entry/struct.DirectoryEntry.html#associatedconstant.UNUSED).
 Проверить свободна ли запись можно методом
@@ -46,17 +42,6 @@
 
 {{#include ../../doc/kernel/fs/inode/struct.Iter.html.declaration}}
 
-Поле
-[`Iter::block_number`](../../doc/kernel/fs/inode/struct.Iter.html#structfield.block_number)
-задаёт номер блока внутри данных
-[`Inode`](../../doc/kernel/fs/inode/struct.Inode.html)
-в котором находится текущая запись.
-Поле
-[`Iter::block`](../../doc/kernel/fs/inode/struct.Iter.html#structfield.block) ---
-сам этот блок в памяти блочного кэша.
-А [`Iter::entry`](../../doc/kernel/fs/inode/struct.Iter.html#structfield.entry) ---
-номер текущей записи внутри блока.
-
 Вам могут пригодиться:
 
 - [`Inode::block()`](../../doc/kernel/fs/inode/struct.Inode.html#method.block).
@@ -72,11 +57,6 @@
 
 {{#include ../../doc/kernel/fs/inode/struct.Inode.html.method.find_entry}}
 
-Он находит запись в директории с именем `name`.
-Если такой записи нет, то верните свободную запись, ---
-[`DirectoryEntry::is_free()`](../../doc/kernel/fs/directory_entry/struct.DirectoryEntry.html#method.is_free).
-Если и таких нет, и при этом `bitmap` является `Some`, попробуйте расширить директорию
-и вернуть новую свободную запись.
 Директорию имеет смысл расширять несколькими записями сразу на один целый блок.
 Так как блок в любом случае будет выделен, его стоит сразу весь отдать под записи директории.
 
@@ -96,12 +76,6 @@
 
 {{#include ../../doc/kernel/fs/inode/struct.Inode.html.method.insert}}
 
-Он вставляет в директорию запись с именем `name`.
-Если запись с таким именем уже есть, верните ошибку
-[`Error::FileExists`](../../doc/kernel/error/enum.Error.html#variant.FileExists).
-Используйте любую свободную запись ---
-[`DirectoryEntry::is_free()`](../../doc/kernel/fs/directory_entry/struct.DirectoryEntry.html#method.is_free).
-Не забудьте обновить время модификации директории.
 Используйте вспомогательный метод
 [`Inode::find_entry()`](../../doc/kernel/fs/inode/struct.Inode.html#method.find_entry).
 

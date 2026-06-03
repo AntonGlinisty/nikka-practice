@@ -16,11 +16,9 @@
 Вы можете следовать предложенному скелету реализации или же сделать всё по-своему.
 
 Добавьте вытеснение блоков в вашу реализацию
-[`BlockCache::register_usage()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.register_usage):
+[`BlockCache::register_usage()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.register_usage).
 
-```rust
-{{#include ../../kernel/src/fs/block_cache.rs:register_usage}}
-```
+{{#include ../../doc/kernel/fs/block_cache/struct.BlockCache.html.method.register_usage}}
 
 Используйте этот метод в
 [`BlockCache::trap_handler()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.trap_handler)
@@ -38,11 +36,10 @@
 
 #### Статистики политики вытеснения
 
-Для интроспекции LRU поддерживает статистики:
+Для интроспекции LRU поддерживает статистики
+[`ku::collections::lru::Stats`](../../doc/ku/collections/lru/struct.Stats.html.declaration).
 
-```rust
-{{#include ../../ku/src/collections/lru.rs:stats}}
-```
+{{#include ../../doc/ku/collections/lru/struct.Stats.html.declaration}}
 
 С помощью этих статистик в тестах выполняются проверки,
 что файловая система использует LRU для блочного кэша и кэширования путей.

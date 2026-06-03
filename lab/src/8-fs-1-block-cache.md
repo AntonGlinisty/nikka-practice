@@ -3,11 +3,9 @@
 В Nikka диск отображается в память, чтобы с ним было удобнее работать.
 Для отслеживания с какого диска, сколько блоков и куда именно в памяти отображено, служит структура
 [блочного кэша](https://en.wikipedia.org/wiki/Page_cache)
-[`kernel::fs::block_cache::BlockCache`](../../doc/kernel/fs/block_cache/struct.BlockCache.html):
+[`kernel::fs::block_cache::BlockCache`](../../doc/kernel/fs/block_cache/struct.BlockCache.html).
 
-```rust
-{{#include ../../kernel/src/fs/block_cache.rs:block_cache}}
-```
+{{#include ../../doc/kernel/fs/block_cache/struct.BlockCache.html.declaration}}
 
 Она является [синглтоном](https://en.wikipedia.org/wiki/Singleton_pattern)
 [`static ref BLOCK_CACHE: FastSpinlock<Option<BlockCache>>`](../../doc/kernel/fs/block_cache/struct.BLOCK_CACHE.html).
@@ -52,29 +50,18 @@
 Реализуйте метод
 [`BlockCache::init()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.init)
 инициализации блочного кэша
-
-```rust
-{{#include ../../kernel/src/fs/block_cache.rs:init}}
-```
-
 в файле
 [`kernel/src/fs/block_cache.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/fs/block_cache.rs).
 
-Он должен зарезервировать в
-[`kernel::memory::BASE_ADDRESS_SPACE`](../../doc/kernel/memory/static.BASE_ADDRESS_SPACE.html)
-блок виртуальных страниц, достаточный для хранения `block_count` блоков файловой системы.
-И записать соответствующее значение в
-[`BLOCK_CACHE`](../../doc/kernel/fs/block_cache/struct.BLOCK_CACHE.html).
-Параметр `capacity` задаёт ёмкость кэша, если вы реализуете вытеснение.
+{{#include ../../doc/kernel/fs/block_cache/struct.BlockCache.html.method.init}}
 
 
 #### Статистики блочного кэша
 
-Для интроспекции блочный кэш поддерживает статистики:
+Для интроспекции блочный кэш поддерживает статистики
+[`kernel::fs::block_cache::Stats`](../../doc/kernel/fs/block_cache/struct.Stats.html).
 
-```rust
-{{#include ../../kernel/src/fs/block_cache.rs:stats}}
-```
+{{#include ../../doc/kernel/fs/block_cache/struct.Stats.html.declaration}}
 
 С помощью этих статистик в тестах выполняются проверки,
 что файловая система при общении с диском не читает и не пишет лишние данные.
@@ -85,48 +72,35 @@
 
 Реализуйте метод
 [`Cache::block()`](../../doc/kernel/fs/block_cache/struct.Cache.html#method.block)
+в файле
+[`kernel/src/fs/block_cache.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/fs/block_cache.rs).
 
-```rust
-{{#include ../../kernel/src/fs/block_cache.rs:block}}
-```
-
-Он возвращает блок памяти блочного кэша,
-который отвечает блоку `block_number` диска.
+{{#include ../../doc/kernel/fs/block_cache/struct.Cache.html.method.block}}
 
 
 #### Считывание блока с диска
 
 Реализуйте метод
 [`BlockCache::trap_handler()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.trap_handler)
-
-```rust
-{{#include ../../kernel/src/fs/block_cache.rs:trap_handler}}
-```
-
 в файле
 [`kernel/src/fs/block_cache.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/fs/block_cache.rs).
 
-Он должен обработать Page Fault, если адрес, который его вызвал, относится к блочному кэшу.
-Если это так и Page Fault успешно обработан, верните `true`.
-Если адрес, вызвавший Page Fault, не относится к блочному кэшу, верните `false`.
+{{#include ../../doc/kernel/fs/block_cache/struct.BlockCache.html.method.trap_handler}}
+
 Для чтения с диска используйте метод
 [`kernel::fs::disk::Disk::pio_read()`](../../doc/kernel/fs/disk/struct.Disk.html#method.pio_read).
 
 
 #### Пропуск чтения блока с диска
 
-Чтобы не читать с диска блок, который планируется перезаписать целиком, существуют методы
+Чтобы не читать с диска блок, который планируется перезаписать целиком, реализуйте методы
 [`BlockCache::emplace_block()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.emplace_block)
 и
 [`BlockCache::fill_block()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.fill_block).
 
-Реализуйте их:
+{{#include ../../doc/kernel/fs/block_cache/struct.BlockCache.html.method.emplace_block}}
 
-```rust
-{{#include ../../kernel/src/fs/block_cache.rs:emplace_block}}
-
-{{#include ../../kernel/src/fs/block_cache.rs:fill_block}}
-```
+{{#include ../../doc/kernel/fs/block_cache/struct.BlockCache.html.method.fill_block}}
 
 
 #### Запись блока на диск
@@ -136,33 +110,13 @@
 
 Реализуйте метод
 [`BlockCache::flush_block_impl()`](../../doc/kernel/fs/block_cache/struct.BlockCache.html#method.flush_block_impl)
-
-```rust
-{{#include ../../kernel/src/fs/block_cache.rs:flush_block_impl}}
-```
-
 в файле
 [`kernel/src/fs/block_cache.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/fs/block_cache.rs).
 
+{{#include ../../doc/kernel/fs/block_cache/struct.BlockCache.html.method.flush_block_impl}}
+
 Он записывает заданный блок на диск методом
 [`kernel::fs::disk::Disk::pio_write()`](../../doc/kernel/fs/disk/struct.Disk.html#method.pio_write).
-Запись нужно делать только если:
-
-- Блок отображён в память. Это означает что к нему были обращения.
-- И помечен как [`PageTableFlags::DIRTY`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.DIRTY). То есть, в память были записи, а значит блок на диске потенциально содержит устаревшие данные. Если обращения к блоку были только на чтение, то данные в памяти такие же как на диске, и можно их не записывать. А процессор в этом случае не установит бит [`PageTableFlags::DIRTY`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.DIRTY).
-
-После записи блока, сбросьте бит
-[`PageTableFlags::DIRTY`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.DIRTY).
-Он фактически означает неодинаковость данных на диске и в памяти блочного кэша.
-Которая только что устранена.
-При этом нужно сбросить и соответствующую запись в
-[TLB](https://en.wikipedia.org/wiki/Translation_lookaside_buffer)
-с помощью функции
-[`kernel::memory::mmu::flush()`](../../doc/kernel/memory/mmu/fn.flush.html).
-Иначе процессор не узнает, что вы сбросили
-[`PageTableFlags::DIRTY`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.DIRTY)
-и не проставит его в таблице страниц при следующей записи.
-А обновлённый блок на диск в следующий раз записан не будет.
 
 
 ### Проверьте себя

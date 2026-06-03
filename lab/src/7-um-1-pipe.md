@@ -319,7 +319,8 @@ read commit пишет поверх заголовка record "abc" заголо
 
 ### Закрытие буфера
 
-[Метод](../../doc/ku/ipc/pipe/struct.RingBuffer.html#method.close)
+Метод
+[`RingBuffer::close()`](../../doc/ku/ipc/pipe/struct.RingBuffer.html#method.close)
 
 ```rust
 fn RingBuffer::close(

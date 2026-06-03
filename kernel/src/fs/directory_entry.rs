@@ -130,7 +130,5 @@ impl fmt::Display for DirectoryEntry {
 
 const_assert!(BLOCK_SIZE.is_multiple_of(mem::size_of::<DirectoryEntry>()));
 
-// ANCHOR: max_name_len
 /// Максимальный размер имён файлов и директорий.
 pub const MAX_NAME_LEN: usize = (1 << 7) - mem::size_of::<usize>();
-// ANCHOR_END: max_name_len
