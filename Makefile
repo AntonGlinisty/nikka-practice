@@ -360,12 +360,13 @@ doc: FORCE
 					> $$i.processed; \
 			done; \
 			for type in $$(find doc/$$(basename $$crate) -name enum.\*.html -o -name struct.\*.html -o -name type.\*.html); do \
-				sed 's@<pre class="rust item-decl">@\n\0@g;s@<h2 id="implementations" class="section-header">@\n\0\n@' $$type.processed | \
-					sed '/<html/,/>Source<\/a>/d;/<h2 id="[a-z-]*implementations" class="section-header">/,/<\/html>/d;' | \
+				sed 's@<pre class="rust item-decl">@\n\0@g;s@<h2 id="implementations" class="section-header">@\n\0\n@g;s@<details@\n\0@g;s@</section>@\n\0@g;' $$type.processed | \
+					sed '/<html/,/>Source<\/a>/d;/\(<h2 id="[a-zA-Z-]*\(implementations\|methods\)[a-zA-Z-]*" class="section-header">\|<\/section>\)/,/<\/html>/d;' | \
 					sed 's@<span id="structfield\.[^"]*" class="structfield section-header">@<li>\0@g;' | \
 					sed 's@<div class="sub-variant-field"><span id="variant\.[^.]*\.field.[^"]*" class="section-header">@<li>\0@g;' | \
 					sed 's@<h2 id="fields" class="fields section-header">[^<]*Fields[^§]*§</a></h2>@<ul>\n@g;' | \
 					sed 's@<h2 id="variants" class="variants section-header">Variants[^§]*§</a></h2>@<ul>\n@g;' | \
+					sed 's@<h2 id="[^"]*"><a [^>]*>§</a>\([^<]*\)</h2>@<h5>\1</h5>@g;' | \
 					sed 's@\(<div class="sub-variant" id="variant\.[^"]*">\)<h4>Fields</h4>@\1\n<ul>\n@g;' | \
 					sed 's@<section id="variant\.[^"]*"[^>]*>\(<a href=[^>]*>\)§</a><h3 class="code-header">\(.*\)</h3></section>@<li><code>\1\2</a></code>@g;' | \
 					sed 's@\(<a href="[^>]*>\)§</a><code>\([^:]*\):@<code>\1\2</a>:@g;' | \
