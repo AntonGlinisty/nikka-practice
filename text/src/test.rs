@@ -916,13 +916,10 @@ impl Display for Filler {
 }
 
 mod format {
-    use core::{
-        cmp,
-        fmt::{
-            Debug,
-            Formatter,
-            Result,
-        },
+    use core::fmt::{
+        Debug,
+        Formatter,
+        Result,
     };
 
     use super::super::grid::{
@@ -962,13 +959,7 @@ mod format {
             format_header(formatter, 2, self.column_count, 10, 5)?;
             writeln!(formatter)?;
 
-            let mut end = self.len();
-            while end >= 1 && self.buffer[end - 1].read().character() == b'\0' {
-                end -= 1;
-            }
-            end = cmp::min(end.next_multiple_of(self.column_count), self.len());
-
-            for (index, glyph) in self.buffer[.. end].iter().enumerate() {
+            for (index, glyph) in self.buffer[.. self.len()].iter().enumerate() {
                 let mut ch = glyph.read().character();
                 if !is_graphical(ch) {
                     ch = b' ';
@@ -985,7 +976,7 @@ mod format {
                 write!(formatter, "{}", ch as char)?;
             }
 
-            if end > 0 {
+            if self.len() > 0 {
                 writeln!(formatter, "│")?;
             }
 
