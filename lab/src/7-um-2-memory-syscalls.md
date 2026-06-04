@@ -108,19 +108,9 @@ fn check_frame(
 
 {{#include ../../doc/kernel/process/syscall/fn.map.html.fn}}
 
-Отображает в памяти процесса, заданного `dst_pid`, блок страниц размера `dst_size` байт начиная с виртуального адреса `dst_address` с флагами доступа `flags`.
-Если `dst_address` равен нулю, ядро само выбирает свободный участок адресного пространства размера `dst_size`.
-Выбранный виртуальный адрес возвращается как результирующее значение системного вызова.
-Размер при этом не возвращается, так как он должен быть равен аргументу `dst_address`.
-
-Также системный вызов
-[`kernel::process::syscall::map()`](../../doc/kernel/process/syscall/fn.map.html)
-должен поддерживать отсутствие флага
-[`PageTableFlags::PRESENT`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.PRESENT)
-во входном аргументе `flags`.
-В этом случае происходит выделение адресного пространства --- виртуальных страниц.
-Но не происходит выделения физических фреймов и их отображения.
-Такой режим используется для реализации
+Режим, когда во `flags` отсутствует
+[`PageTableFlags::PRESENT`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.PRESENT),
+используется для реализации
 [`lib::allocator::map::MapAllocator::reserve()`](../../doc/lib/allocator/map/struct.MapAllocator.html#method.reserve).
 Сама структура
 [`lib::allocator::map::MapAllocator`](../../doc/lib/allocator/map/struct.MapAllocator.html),
@@ -143,18 +133,6 @@ fn check_frame(
 ### [`kernel::process::syscall::copy_mapping()`](../../doc/kernel/process/syscall/fn.copy_mapping.html)
 
 {{#include ../../doc/kernel/process/syscall/fn.copy_mapping.html.fn}}
-
-Создаёт копию отображения виртуальной памяти из вызывающего процесса в процесс, заданный `dst_pid`.
-Исходный диапазон начинается с виртуального адреса `src_address`, целевой --- с виртуального адреса `dst_address`.
-Размер диапазона --- `dst_size` байт.
-Системный вызов должен отобразить целевой диапазон в целевой процесс с флагами `flags`.
-Естественно,
-[`kernel::process::syscall::copy_mapping()`](../../doc/kernel/process/syscall/fn.copy_mapping.html)
-не должен допускать целевое отображение с более широким по логическим привилегиям набором флагов, чем исходное.
-При этом флаги
-[`PageTableFlags::WRITABLE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.WRITABLE) и
-[`PageTableFlags::COPY_ON_WRITE`](../../doc/ku/memory/mmu/struct.PageTableFlags.html#associatedconstant.COPY_ON_WRITE)
-с точки зрения ядра имеют одинаковые логические привилегии, --- доступность страницы на запись.
 
 Как и в
 [`BigAllocator::copy_mapping()`](../../doc/ku/allocator/big/trait.BigAllocator.html#tymethod.copy_mapping)
