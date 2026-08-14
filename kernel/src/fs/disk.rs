@@ -34,7 +34,7 @@ use super::block_cache::SECTORS_PER_BLOCK;
 /// [PATA](https://en.wikipedia.org/wiki/Parallel_ATA)--диск.
 #[derive(Clone, Copy, Debug, Display)]
 #[display("{{ id: {}, io_port: {:#04X}, io_disk: {} }}", id, io_port, io_disk)]
-pub(super) struct Disk {
+pub(crate) struct Disk {
     /// Идентификатор диска --- `0 .. 4`.
     id: u8,
 
@@ -51,7 +51,7 @@ pub(super) struct Disk {
 
 impl Disk {
     /// Возвращает диск с заданным `id`.
-    pub(super) fn new(id: usize) -> Result<Self> {
+    pub(crate) fn new(id: usize) -> Result<Self> {
         let id = id.try_into().map_err(|_| NoDisk)?;
 
         Ok(Self {
@@ -79,7 +79,7 @@ impl Disk {
     /// Читает с диска диапазон секторов `sectors` размера [`SECTOR_SIZE`]
     /// в буфер `buffer` методом
     /// [программного ввода--вывода](https://en.wikipedia.org/wiki/Programmed_input%E2%80%93output).
-    pub(super) fn pio_read(
+    pub(crate) fn pio_read(
         &mut self,
         sectors: Range<usize>,
         buffer: &mut [u32],
@@ -352,7 +352,7 @@ unsafe fn ins32(
 }
 
 /// Размер сектора [PATA](https://en.wikipedia.org/wiki/Parallel_ATA)--диска.
-pub(super) const SECTOR_SIZE: usize = 1 << 9;
+pub(crate) const SECTOR_SIZE: usize = 1 << 9;
 
 /// Тайм-аут ожидания готовности диска к приёму команды в секундах.
 const TIMEOUT_IN_SECONDS: i64 = 10;

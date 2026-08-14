@@ -1,5 +1,4 @@
-use kernel::{
-    Subsystems,
+use crate::{
     process::{
         Scheduler,
         Table,
@@ -11,16 +10,14 @@ use kernel::{
     },
 };
 
-mod init;
-mod mm_helpers;
-mod process_helpers;
+use super::{
+    mm_helpers,
+    process_helpers,
+};
 
-init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::PROCESS);
+const TRAP_HANDLER_ELF: &[u8] = page_aligned!("../../../target/kernel/user/trap_handler");
 
-const TRAP_HANDLER_ELF: &[u8] = page_aligned!("../../target/kernel/user/trap_handler");
-
-#[test_case]
-fn trap_handler() {
+pub(super) fn trap_handler() {
     let _trap_guard = process_helpers::forbid_traps_except(&[Trap::PageFault]);
     let _guard = mm_helpers::forbid_frame_leaks();
 

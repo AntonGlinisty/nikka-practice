@@ -6,8 +6,7 @@ use x86_64::instructions;
 
 use ku::time;
 
-use kernel::{
-    Subsystems,
+use crate::{
     log::debug,
     time::test_scaffolding::{
         RegisterB,
@@ -19,12 +18,7 @@ use kernel::{
     },
 };
 
-mod init;
-
-init!(Subsystems::empty());
-
-#[test_case]
-fn different_rtc_formats() {
+pub(super) fn different_rtc_formats() {
     for hour_24 in 0 .. 24 {
         let pm = hour_24 / 12;
         let hour_12 = ((hour_24 + 11) % 12) + 1;
@@ -64,8 +58,7 @@ fn different_rtc_formats() {
     }
 }
 
-#[test_case]
-fn rtc_read_inconsistent() {
+pub(super) fn rtc_read_inconsistent() {
     debug!("waiting for the RTC to tick at least once");
     while TRAP_STATS[Trap::Rtc].count() == 0 {
         instructions::hlt();

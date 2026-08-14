@@ -1,5 +1,3 @@
-extern crate alloc;
-
 use alloc::format;
 use core::str;
 
@@ -14,8 +12,7 @@ use ku::{
     memory::size::Size,
 };
 
-use kernel::{
-    Subsystems,
+use crate::{
     fs::{
         BlockCache,
         FileSystem,
@@ -30,12 +27,7 @@ use kernel::{
     log::debug,
 };
 
-mod init;
-
-init!(Subsystems::MEMORY);
-
-#[test_case]
-fn basic_operations() {
+pub(super) fn basic_operations() {
     FileSystem::format(FS_DISK).unwrap();
     let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
     let directory = make_file(&mut fs, Kind::Directory);
@@ -107,8 +99,7 @@ fn basic_operations() {
     debug!(?disk_stats);
 }
 
-#[test_case]
-fn big_directory() {
+pub(super) fn big_directory() {
     FileSystem::format(FS_DISK).unwrap();
     let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
     let directory = make_file(&mut fs, Kind::Directory);
@@ -138,8 +129,7 @@ fn big_directory() {
     debug!(?disk_stats);
 }
 
-#[test_case]
-fn max_name_len() {
+pub(super) fn max_name_len() {
     FileSystem::format(FS_DISK).unwrap();
     let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
     let directory = make_file(&mut fs, Kind::Directory);

@@ -1,5 +1,3 @@
-extern crate alloc;
-
 use alloc::{
     format,
     string::String,
@@ -18,8 +16,7 @@ use ku::{
     sync::Spinlock,
 };
 
-use kernel::{
-    Subsystems,
+use crate::{
     log::debug,
     memory::test_scaffolding::switch_to,
     process::{
@@ -38,17 +35,15 @@ use kernel::{
     },
 };
 
-mod init;
-mod mm_helpers;
-mod process_helpers;
+use super::{
+    mm_helpers,
+    process_helpers,
+};
 
-init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::PROCESS);
+const EAGER_FORK_ELF: &[u8] = page_aligned!("../../../target/kernel/user/eager_fork");
+const EXIT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/exit");
 
-const EAGER_FORK_ELF: &[u8] = page_aligned!("../../target/kernel/user/eager_fork");
-const EXIT_ELF: &[u8] = page_aligned!("../../target/kernel/user/exit");
-
-#[test_case]
-fn t1_exofork_syscall() {
+pub(super) fn exofork_syscall() {
     let _trap_guard = process_helpers::forbid_traps_except(&[Trap::PageFault]);
     let _guard = mm_helpers::forbid_frame_leaks();
 
@@ -126,8 +121,7 @@ fn t1_exofork_syscall() {
     Table::get(child_pid).expect_err("the child process has not run up to its completion");
 }
 
-#[test_case]
-fn t2_eager_fork() {
+pub(super) fn eager_fork() {
     let _trap_guard = process_helpers::forbid_traps();
 
     let start_page_fault_count = TRAP_STATS[Trap::PageFault].count();

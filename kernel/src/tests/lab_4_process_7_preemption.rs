@@ -1,7 +1,6 @@
 use ku::process::State;
 
-use kernel::{
-    Subsystems,
+use crate::{
     log::debug,
     process::{
         Process,
@@ -10,17 +9,15 @@ use kernel::{
     },
 };
 
-mod init;
-mod mm_helpers;
-mod process_helpers;
+use super::{
+    mm_helpers,
+    process_helpers,
+};
 
-init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::PROCESS);
+const CHECK_CONTEXT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/check_context");
+const LOOP_ELF: &[u8] = page_aligned!("../../../target/kernel/user/loop");
 
-const CHECK_CONTEXT_ELF: &[u8] = page_aligned!("../../target/kernel/user/check_context");
-const LOOP_ELF: &[u8] = page_aligned!("../../target/kernel/user/loop");
-
-#[test_case]
-fn preemption() {
+pub(super) fn preemption() {
     let _trap_guard = process_helpers::forbid_traps();
     let _guard = mm_helpers::forbid_frame_leaks();
 
@@ -35,8 +32,7 @@ fn preemption() {
     process_helpers::free(pid);
 }
 
-#[test_case]
-fn flags_and_registers_are_saved() {
+pub(super) fn flags_and_registers_are_saved() {
     let _trap_guard = process_helpers::forbid_traps();
     let _guard = mm_helpers::forbid_frame_leaks();
 

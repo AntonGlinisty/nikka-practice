@@ -37,6 +37,12 @@ pub use file::File;
 pub use file_system::FileSystem;
 pub use inode::Kind;
 
+#[cfg(feature = "tests")]
+pub(crate) use disk::{
+    Disk,
+    SECTOR_SIZE,
+};
+
 // Used in docs.
 #[allow(unused)]
 use {

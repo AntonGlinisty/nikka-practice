@@ -9,8 +9,7 @@ use ku::memory::{
     size::MiB,
 };
 
-use kernel::{
-    Subsystems,
+use crate::{
     fs::{
         BlockCache,
         test_scaffolding::{
@@ -27,12 +26,7 @@ use kernel::{
     },
 };
 
-mod init;
-
-init!(Subsystems::MEMORY);
-
-#[test_case]
-fn read_what_was_written() {
+pub(super) fn read_what_was_written() {
     let block_count = FS_SIZE / BLOCK_SIZE;
     debug!(block_count);
 

@@ -21,8 +21,7 @@ use ku::{
     },
 };
 
-use kernel::{
-    Subsystems,
+use crate::{
     log::debug,
     trap::{
         self,
@@ -32,12 +31,7 @@ use kernel::{
     },
 };
 
-mod init;
-
-init!(Subsystems::empty());
-
-#[test_case]
-fn correlation_point_reader() {
+pub(super) fn correlation_point_reader() {
     trap::test_scaffolding::set_debug_handler(writer);
 
     reader();
@@ -89,8 +83,7 @@ fn correlation_point_reader() {
     }
 }
 
-#[test_case]
-fn correlation_point_writer() {
+pub(super) fn correlation_point_writer() {
     trap::test_scaffolding::set_debug_handler(reader);
 
     writer();
@@ -155,8 +148,7 @@ fn correlation_point_writer() {
 
 // ANCHOR: down_the_rabbit_hole
 #[allow(dead_code)]
-// #[test_case] // Uncomment it if you wish.
-fn down_the_rabbit_hole() {
+pub(super) fn down_the_rabbit_hole() {
     trap::test_scaffolding::set_debug_handler(collect_statistics);
 
     wait_for_two_correlation_points();

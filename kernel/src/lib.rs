@@ -5,16 +5,19 @@
 //! Библиотека ядра.
 //! Позволяет подключать ядро как при обычном запуске, так и при запуске интеграционных тестов.
 
-#![cfg_attr(test, no_main)]
+#![cfg_attr(feature = "tests", feature(gen_blocks))]
+#![cfg_attr(feature = "tests", feature(iter_is_partitioned))]
+#![cfg_attr(feature = "tests", feature(ptr_as_uninit))]
+#![cfg_attr(feature = "tests", feature(yield_expr))]
 #![deny(warnings)]
 #![feature(abi_x86_interrupt)]
 #![feature(alloc_error_handler)]
 #![feature(allocator_api)]
 #![feature(custom_test_frameworks)]
 #![feature(maybe_uninit_fill, maybe_uninit_slice)]
+#![feature(never_type)]
 #![feature(slice_ptr_get)]
 #![no_std]
-#![reexport_test_harness_main = "test_main"]
 #![test_runner(crate::test_runner)]
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(missing_docs)]
@@ -47,6 +50,10 @@ pub mod serial;
 /// ([Symmetric multiprocessing](https://en.wikipedia.org/wiki/Symmetric_multiprocessing), SMP).
 pub mod smp;
 
+/// Тесты, запускающиеся в режиме ядра.
+#[cfg(feature = "tests")]
+pub mod tests;
+
 /// Здесь находится часть работы со временем, которая происходит только в ядре.
 pub mod time;
 
@@ -59,7 +66,6 @@ pub mod time;
 pub mod trap;
 
 use core::{
-    any,
     mem,
     panic::PanicInfo,
 };
@@ -77,9 +83,12 @@ use x86::io;
 use ku::{
     self,
     SystemInfo,
-    backtrace::Backtrace,
     error::Error::NoPage,
+    sync,
 };
+
+#[cfg(not(feature = "tests"))]
+use ku::backtrace::Backtrace;
 
 use log::info;
 use memory::{
@@ -144,15 +153,10 @@ bitflags! {
     }
 }
 
-/// Инициализация части подсистем ядра для тестов.
-/// Аргумент `boot_info` содержит информацию от `bootloader`,
-/// `subsystems` задаёт набор подсистем, которые нужно инициализировать.
+/// Первоначальная инициализация обязательной части подсистем ядра для тестов.
 #[cold]
 #[inline(never)]
-pub fn init_subsystems(
-    boot_info: &'static BootInfo,
-    subsystems: Subsystems,
-) {
+fn preinit() {
     ku::set_system_info(&SYSTEM_INFO);
 
     smp::preinit();
@@ -164,7 +168,17 @@ pub fn init_subsystems(
 
     gdt::init();
     trap::init();
+}
 
+/// Инициализация части подсистем ядра для тестов.
+/// Аргумент `boot_info` содержит информацию от `bootloader`,
+/// `subsystems` задаёт набор подсистем, которые нужно инициализировать.
+#[cold]
+#[inline(never)]
+fn init_subsystems(
+    boot_info: &'static BootInfo,
+    subsystems: Subsystems,
+) {
     let phys2virt = if subsystems.intersects(Subsystems::MEMORY) {
         memory::init(boot_info, subsystems)
     } else {
@@ -191,6 +205,7 @@ pub fn init_subsystems(
 #[cold]
 #[inline(never)]
 pub fn init(boot_info: &'static BootInfo) {
+    preinit();
     init_subsystems(boot_info, Subsystems::all());
 }
 
@@ -210,62 +225,26 @@ pub fn exit_qemu(exit_code: ExitCode) -> ! {
     }
 }
 
-/// Определяет интерфейс запуска теста.
-pub trait Testable {
-    /// Запускает тест.
-    fn run(&self);
-}
-
-impl<T> Testable for T
-where
-    T: Fn(),
-{
-    fn run(&self) {
-        println!("\n{:-<60}", any::type_name::<T>());
-        self();
-        println!("{:-<51} [passed]", any::type_name::<T>());
-    }
-}
-
-/// Запускает набор тестов `tests`.
-pub fn test_runner(tests: &[&dyn Testable]) {
-    println!("running {} tests", tests.len());
-
-    for test in tests {
-        test.run();
-    }
-
-    exit_qemu(ExitCode::SUCCESS);
-}
-
-/// Отмечает интеграционный тест как проваленный.
-pub fn fail_test(panic_info: &PanicInfo) -> ! {
-    println!("{}", panic_info);
-
-    if let Ok(backtrace) = Backtrace::current() {
-        println!("{backtrace:?}");
-    }
-
-    println!("{:-<51} [failed]", "");
-
-    exit_qemu(ExitCode::FAILURE)
-}
-
-/// Отмечает интеграционный тест как прошедший.
-pub fn pass_test() -> ! {
-    println!("{:-<51} [passed]", "");
-
-    exit_qemu(ExitCode::SUCCESS)
-}
-
 /// Обработчик паники.
-#[cfg(test)]
 #[cold]
 #[inline(never)]
 #[panic_handler]
 fn panic(panic_info: &PanicInfo) -> ! {
-    ku::sync::start_panicking();
-    fail_test(panic_info)
+    sync::start_panicking();
+
+    #[cfg(feature = "tests")]
+    tests::fail_test(panic_info);
+
+    #[cfg(not(feature = "tests"))]
+    {
+        println!("{panic_info}");
+
+        if let Ok(backtrace) = Backtrace::current() {
+            println!("{backtrace:?}");
+        }
+
+        unsafe { ku::halt() }
+    }
 }
 
 /// Конфигурация `bootloader`, с которой он будет запускать ядро.

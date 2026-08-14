@@ -39,7 +39,7 @@ use ku::{
     },
 };
 
-use kernel::memory::{
+use crate::memory::{
     AddressSpace,
     BASE_ADDRESS_SPACE,
     FRAME_ALLOCATOR,

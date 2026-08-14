@@ -2,8 +2,15 @@ use core::mem;
 
 use itertools::Itertools;
 
-use kernel::{
-    Subsystems,
+use ku::{
+    memory::{
+        Frame,
+        GiB,
+    },
+    sync::Spinlock,
+};
+
+use crate::{
     error::Error::{
         NoFrame,
         NoPage,
@@ -33,20 +40,15 @@ use kernel::{
     },
 };
 
-mod init;
-mod mm_helpers;
+use super::mm_helpers;
 
-init!(Subsystems::PHYS_MEMORY | Subsystems::VIRT_MEMORY);
-
-#[test_case]
-fn t00_path() {
+pub(super) fn check_path() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     mm_helpers::test_path(&mut BASE_ADDRESS_SPACE.lock());
 }
 
-#[test_case]
-fn t01_translate() {
+pub(super) fn check_translate() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     mm_helpers::test_translate(&mut BASE_ADDRESS_SPACE.lock());
@@ -60,20 +62,19 @@ fn do_not_loose_intermediate_flags(virt: Virt) {
     mm_helpers::check_intermediate_flags(&mut BASE_ADDRESS_SPACE.lock(), virt, USER_RW);
 }
 
-#[test_case]
-fn t02_map_intermediate() {
+pub(super) fn map_intermediate() {
     let _guard = mm_helpers::forbid_frame_leaks();
     mm_helpers::check_map_intermediate(mm_helpers::unique_user_virt());
     do_not_loose_intermediate_flags(mm_helpers::unique_user_virt());
 }
 
-#[test_case]
-fn t03_no_excessive_intermediate_flags() {
+pub(super) fn no_excessive_intermediate_flags() {
+    let _guard = mm_helpers::forbid_frame_leaks();
+
     mm_helpers::test_no_excessive_intermediate_flags(mm_helpers::unique_user_virt());
 }
 
-#[test_case]
-fn t04_huge_page() {
+pub(super) fn huge_page() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
@@ -91,8 +92,7 @@ fn t04_huge_page() {
     );
 }
 
-#[test_case]
-fn t05_no_page() {
+pub(super) fn no_page() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
@@ -103,8 +103,7 @@ fn t05_no_page() {
     assert_eq!(result, Err(NoPage));
 }
 
-#[test_case]
-fn t06_build_map() {
+pub(super) fn build_map() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
@@ -128,8 +127,7 @@ fn t06_build_map() {
     }
 }
 
-#[test_case]
-fn t07_shared_memory() {
+pub(super) fn shared_memory() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let frame = FrameGuard::allocate().expect("failed to allocate a frame");
@@ -182,8 +180,7 @@ fn t07_shared_memory() {
     }
 }
 
-#[test_case]
-fn t08_garbage_after_unmap() {
+pub(super) fn garbage_after_unmap() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
@@ -218,8 +215,7 @@ fn t08_garbage_after_unmap() {
     }
 }
 
-#[test_case]
-fn t09_tlb_flush() {
+pub(super) fn tlb_flush() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let old_mark = 1111111;
@@ -320,8 +316,7 @@ fn t09_tlb_flush() {
     }
 }
 
-#[test_case]
-fn t10_path_after_map() {
+pub(super) fn path_after_map() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
@@ -348,17 +343,29 @@ fn t10_path_after_map() {
     assert_eq!(pte_a, pte_b);
 }
 
-#[test_case]
-fn t99_no_frame() {
+pub(super) fn no_frame() {
+    let _guard = mm_helpers::forbid_frame_leaks();
+
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
     let frame_count = FRAME_ALLOCATOR.lock().count();
     let frame = FrameGuard::allocate().unwrap();
     let mut real_frame_count = 1;
 
+    static FRAMES: Spinlock<[Option<FrameGuard>; GiB / Frame::SIZE]> =
+        Spinlock::new([const { None }; _]);
+    let mut frames = FRAMES.lock();
+    assert!(
+        frames.len() >= frame_count,
+        "reserve more memory for frames",
+    );
+
+    let mut frames_stolen = 0;
+
     while let Ok(frame) = FrameGuard::allocate() {
-        mem::forget(frame);
+        frames[frames_stolen] = Some(frame);
         real_frame_count += 1;
+        frames_stolen += 1;
     }
 
     debug!(
@@ -375,4 +382,6 @@ fn t99_no_frame() {
         unsafe { path.map(frame, PageTableFlags::empty()) },
         Err(NoFrame),
     );
+
+    frames.fill_with(|| None);
 }

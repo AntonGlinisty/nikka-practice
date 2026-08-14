@@ -3,8 +3,7 @@ use ku::{
     sync::Spinlock,
 };
 
-use kernel::{
-    Subsystems,
+use crate::{
     error::Error::NoPage,
     log::debug,
     memory::{
@@ -34,13 +33,9 @@ use kernel::{
     },
 };
 
-mod init;
-mod mm_helpers;
+use super::mm_helpers;
 
-init!(Subsystems::PHYS_MEMORY | Subsystems::VIRT_MEMORY);
-
-#[test_case]
-fn basic() {
+pub(super) fn basic() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let variable =
@@ -85,8 +80,7 @@ fn basic() {
     }
 }
 
-#[test_case]
-fn duplicate_and_drop() {
+pub(super) fn duplicate_and_drop() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
@@ -146,8 +140,7 @@ fn duplicate_and_drop() {
     }
 }
 
-#[test_case]
-fn duplicate_error() {
+pub(super) fn duplicate_error() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
@@ -187,8 +180,7 @@ fn duplicate_error() {
     }
 }
 
-#[test_case]
-fn duplicate_path() {
+pub(super) fn duplicate_path() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space_copy = duplicate(&BASE_ADDRESS_SPACE.lock()).unwrap();
@@ -197,8 +189,7 @@ fn duplicate_path() {
     mm_helpers::test_path(&mut address_space_copy);
 }
 
-#[test_case]
-fn duplicate_translate() {
+pub(super) fn duplicate_translate() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space_copy = duplicate(&BASE_ADDRESS_SPACE.lock()).unwrap();
@@ -207,8 +198,7 @@ fn duplicate_translate() {
     mm_helpers::test_translate(&mut address_space_copy);
 }
 
-#[test_case]
-fn all_frames_are_freed_on_drop() {
+pub(super) fn all_frames_are_freed_on_drop() {
     const PAGES_PER_ROOT_LEVEL_ENTRY: usize = PAGE_TABLE_ENTRY_COUNT.pow(PAGE_TABLE_ROOT_LEVEL);
 
     let _guard = mm_helpers::forbid_frame_leaks();
@@ -228,8 +218,7 @@ fn all_frames_are_freed_on_drop() {
     }
 }
 
-#[test_case]
-fn garbage_in_duplicate() {
+pub(super) fn garbage_in_duplicate() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let virt = Virt::new(0x0000_0300_0000_0000).unwrap();
@@ -272,8 +261,7 @@ fn garbage_in_duplicate() {
     }
 }
 
-#[test_case]
-fn duplicate_only_kernel() {
+pub(super) fn duplicate_only_kernel() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let page = BASE_ADDRESS_SPACE
@@ -309,8 +297,7 @@ fn duplicate_only_kernel() {
     }
 }
 
-#[test_case]
-fn duplicate_works() {
+pub(super) fn duplicate_works() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let variable =

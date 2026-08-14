@@ -1,5 +1,4 @@
-use kernel::{
-    Subsystems,
+use crate::{
     error::Error::NoPage,
     log::debug,
     memory::{
@@ -18,13 +17,9 @@ use kernel::{
     },
 };
 
-mod init;
-mod mm_helpers;
+use super::mm_helpers;
 
-init!(Subsystems::MEMORY);
-
-#[test_case]
-fn user_rw() {
+pub(super) fn user_rw() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
@@ -55,8 +50,7 @@ fn user_rw() {
     }
 }
 
-#[test_case]
-fn non_present() {
+pub(super) fn non_present() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
@@ -91,8 +85,7 @@ fn non_present() {
     }
 }
 
-#[test_case]
-fn stress() {
+pub(super) fn stress() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();

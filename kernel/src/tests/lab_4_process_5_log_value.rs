@@ -18,8 +18,7 @@ use ku::{
     sync::spinlock::Spinlock,
 };
 
-use kernel::{
-    Subsystems,
+use crate::{
     memory::test_scaffolding::{
         switch_to,
         user_pages,
@@ -30,15 +29,11 @@ use kernel::{
     },
 };
 
-mod init;
-mod process_helpers;
+use super::process_helpers;
 
-init!(Subsystems::MEMORY | Subsystems::SYSCALL);
+const LOOP_ELF: &[u8] = page_aligned!("../../../target/kernel/user/loop");
 
-const LOOP_ELF: &[u8] = page_aligned!("../../target/kernel/user/loop");
-
-#[test_case]
-fn log_value_implementation() {
+pub(super) fn log_value_implementation() {
     let process = Spinlock::new(process_helpers::make(LOOP_ELF));
     set_pid(&mut process.lock(), Pid::new(0));
     switch_to(process.lock().address_space());

@@ -1,5 +1,3 @@
-extern crate alloc;
-
 use alloc::{
     alloc::{
         Allocator,
@@ -41,8 +39,7 @@ use ku::{
     },
 };
 
-use kernel::{
-    Subsystems,
+use crate::{
     allocator,
     log::debug,
     memory::{
@@ -71,23 +68,17 @@ use kernel::{
     },
 };
 
-mod init;
-mod mm_helpers;
+use super::mm_helpers;
 
-init!(Subsystems::MEMORY);
-
-#[test_case]
-fn basic() {
+pub(super) fn basic() {
     memory_allocator_basic();
 }
 
-#[test_case]
-fn alignment() {
+pub(super) fn alignment() {
     memory_allocator_alignment();
 }
 
-#[test_case]
-fn grow_and_shrink_unmap_old_block() {
+pub(super) fn grow_and_shrink_unmap_old_block() {
     for initialize in [Initialize::Garbage, Initialize::Zero] {
         grow_and_shrink_unmap_old_block_and_initialize_memory(initialize);
     }
@@ -173,8 +164,7 @@ fn grow_and_shrink_unmap_old_block_and_initialize_memory(initialize: Initialize)
     }
 }
 
-#[test_case]
-fn shrink_is_not_a_noop() {
+pub(super) fn shrink_is_not_a_noop() {
     for initialize in [Initialize::Garbage, Initialize::Zero] {
         shrink_is_not_a_noop_and_initializes_memory(initialize);
     }
@@ -212,8 +202,7 @@ fn shrink_is_not_a_noop_and_initializes_memory(initialize: Initialize) {
     }
 }
 
-#[test_case]
-fn copy_mapping_frame_references() {
+pub(super) fn copy_mapping_frame_references() {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
     let layout = Page::layout_array(3);
 
@@ -325,8 +314,7 @@ fn copy_mapping_frame_references() {
     }
 }
 
-#[test_case]
-fn copy_mapping_same_block() {
+pub(super) fn copy_mapping_same_block() {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
     let layout = Page::layout_array(3);
 
@@ -360,8 +348,7 @@ fn copy_mapping_same_block() {
     assert!(slice.iter().all(|&x| x == value));
 }
 
-#[test_case]
-fn copy_mapping_corner_cases() {
+pub(super) fn copy_mapping_corner_cases() {
     let start = user_root_level_entries().start * PAGES_PER_ROOT_LEVEL_ENTRY;
 
     let big_1 = Block::from_index(start + 5, start + 10).unwrap();
@@ -457,13 +444,11 @@ fn copy_mapping_corner_cases() {
     }
 }
 
-#[test_case]
-fn grow_and_shrink() {
+pub(super) fn grow_and_shrink() {
     memory_allocator_grow_and_shrink();
 }
 
-#[test_case]
-fn paged_realloc_is_cheap() {
+pub(super) fn paged_realloc_is_cheap() {
     #[repr(C, align(4096))]
     pub struct PagedType(u8);
 
@@ -492,8 +477,7 @@ fn paged_realloc_is_cheap() {
     assert!(prev_frames.is_empty());
 }
 
-#[test_case]
-fn stress() {
+pub(super) fn stress() {
     let values = 10_000;
     let max_fragmentation_loss = |values| cmp::max(8 * KiB * values, 16 * MiB);
     memory_allocator_stress(values, max_fragmentation_loss);

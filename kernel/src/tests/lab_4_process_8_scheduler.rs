@@ -1,5 +1,4 @@
-use kernel::{
-    Subsystems,
+use crate::{
     log::debug,
     process::{
         Process,
@@ -13,18 +12,16 @@ use kernel::{
     },
 };
 
-mod init;
-mod mm_helpers;
-mod process_helpers;
+use super::{
+    mm_helpers,
+    process_helpers,
+};
 
-init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::PROCESS);
+const EXIT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/exit");
+const PAGE_FAULT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/page_fault");
+const SCHED_YIELD_ELF: &[u8] = page_aligned!("../../../target/kernel/user/sched_yield");
 
-const EXIT_ELF: &[u8] = page_aligned!("../../target/kernel/user/exit");
-const PAGE_FAULT_ELF: &[u8] = page_aligned!("../../target/kernel/user/page_fault");
-const SCHED_YIELD_ELF: &[u8] = page_aligned!("../../target/kernel/user/sched_yield");
-
-#[test_case]
-fn syscall_sched_yield() {
+pub(super) fn syscall_sched_yield() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut process = process_helpers::allocate(SCHED_YIELD_ELF);
@@ -60,8 +57,7 @@ fn syscall_sched_yield() {
     process_helpers::free(pid);
 }
 
-#[test_case]
-fn scheduler() {
+pub(super) fn scheduler() {
     let exit_pid = process_helpers::allocate(EXIT_ELF).pid();
     let page_fault_pid = process_helpers::allocate(PAGE_FAULT_ELF).pid();
 
@@ -75,8 +71,7 @@ fn scheduler() {
         .expect_err("the 'page_fault' process was not run up to its completion");
 }
 
-#[test_case]
-fn sched_yield_reschedules() {
+pub(super) fn sched_yield_reschedules() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut process = process_helpers::allocate(SCHED_YIELD_ELF);

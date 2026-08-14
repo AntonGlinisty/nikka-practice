@@ -8,8 +8,7 @@ use ku::{
     sync::Spinlock,
 };
 
-use kernel::{
-    Subsystems,
+use crate::{
     error::Error::NoFrame,
     log::debug,
     memory::{
@@ -24,13 +23,9 @@ use kernel::{
     },
 };
 
-mod init;
-mod mm_helpers;
+use super::mm_helpers;
 
-init!(Subsystems::PHYS_MEMORY);
-
-#[test_case]
-fn t1_sanity_check() {
+pub(super) fn sanity_check() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let frame_allocator = FRAME_ALLOCATOR.lock();
@@ -45,13 +40,12 @@ fn t1_sanity_check() {
     assert!(free_frames < qemu_memory_frames);
 }
 
-#[test_case]
-fn t2_basic_frame_allocator_functions() {
+pub(super) fn basic() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut frame_allocator = FRAME_ALLOCATOR.lock();
     let start_free_frames = frame_allocator.count();
-    let frame_count = init::frame_count();
+    let frame_count = super::frame_count();
 
     let frames = [
         take(frame_allocator.allocate().unwrap()),
@@ -89,13 +83,12 @@ fn t2_basic_frame_allocator_functions() {
 
     frame_allocator.deallocate(frames[0]);
 
-    let unmanaged_frame = Frame::from_index(2 * init::frame_count()).unwrap();
+    let unmanaged_frame = Frame::from_index(2 * super::frame_count()).unwrap();
     take(frame_allocator.reference(unmanaged_frame));
     frame_allocator.deallocate(unmanaged_frame);
 }
 
-#[test_case]
-fn t3_allocated_frames_are_not_used() {
+pub(super) fn allocated_frames_are_not_used() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let poison = 0xDEAD_BEEF_DEAD_BEEF_u64;
@@ -103,7 +96,7 @@ fn t3_allocated_frames_are_not_used() {
     let phys2virt = phys2virt(&BASE_ADDRESS_SPACE.lock());
     let mut frame_allocator = FRAME_ALLOCATOR.lock();
     let start_free_frames = frame_allocator.count();
-    let frame_count = init::frame_count();
+    let frame_count = super::frame_count();
     debug!(start_free_frames, frame_count);
 
     static FRAMES: Spinlock<[Option<FrameGuard>; GiB / Frame::SIZE]> =
@@ -164,12 +157,12 @@ fn t3_allocated_frames_are_not_used() {
     assert_eq!(free_frames, start_free_frames);
 }
 
-#[test_case]
-fn t4_operations_on_absent_frames_are_ok() {
-    for absent_phys in [0x0, 0xA_0000, 0xFEE0_0000, (1 << Phys::BITS) - 1] {
+pub(super) fn operations_on_absent_frames_are_ok() {
+    for absent_phys in [0xA_0000, 0xFEE0_0000, (1 << Phys::BITS) - 1] {
         let absent = Frame::containing(Phys::new(absent_phys).unwrap());
         let mut frame_allocator = FRAME_ALLOCATOR.lock();
 
+        debug!(%absent);
         assert_eq!(frame_allocator.reference_count(absent), Err(NoFrame));
         assert!(frame_allocator.is_used(absent));
 

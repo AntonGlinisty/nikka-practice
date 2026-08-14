@@ -1,5 +1,3 @@
-extern crate alloc;
-
 use alloc::{
     alloc::{
         Allocator,
@@ -27,33 +25,24 @@ use ku::{
     },
 };
 
-use kernel::{
-    Subsystems,
+use crate::{
     allocator,
     log::debug,
 };
 
-mod init;
-
-init!(Subsystems::MEMORY);
-
-#[test_case]
-fn basic() {
+pub(super) fn basic() {
     memory_allocator_basic();
 }
 
-#[test_case]
-fn alignment() {
+pub(super) fn alignment() {
     memory_allocator_alignment();
 }
 
-#[test_case]
-fn grow_and_shrink() {
+pub(super) fn grow_and_shrink() {
     memory_allocator_grow_and_shrink();
 }
 
-#[test_case]
-fn stress() {
+pub(super) fn stress() {
     let values = 100_000;
     let max_fragmentation_loss = |values| cmp::max(6 * values, 2 * MiB);
     let pages_for_values = memory_allocator_stress(values, max_fragmentation_loss);

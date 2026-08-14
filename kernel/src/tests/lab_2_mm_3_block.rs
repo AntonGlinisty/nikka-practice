@@ -1,7 +1,6 @@
 use ku::memory::block::Memory;
 
-use kernel::{
-    Subsystems,
+use crate::{
     log::debug,
     memory::{
         Block,
@@ -10,17 +9,11 @@ use kernel::{
     },
 };
 
-mod init;
-
-init!(Subsystems::empty());
-
-#[test_case]
-fn block_page() {
+pub(super) fn block_page() {
     test_block::<Page>();
 }
 
-#[test_case]
-fn block_virt() {
+pub(super) fn block_virt() {
     test_block::<Virt>();
 }
 

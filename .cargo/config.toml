@@ -1,3 +1,6 @@
+[alias]
+t = "run --profile ci --features tests --"
+
 [build]
 rustflags = [
     "--codegen",

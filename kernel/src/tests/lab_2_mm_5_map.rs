@@ -5,8 +5,7 @@ use core::{
 
 use ku::memory::size::MiB;
 
-use kernel::{
-    Subsystems,
+use crate::{
     error::{
         Error::{
             NoPage,
@@ -39,19 +38,15 @@ use kernel::{
     },
 };
 
-mod init;
-mod mm_helpers;
+use super::mm_helpers;
 
-init!(Subsystems::PHYS_MEMORY | Subsystems::VIRT_MEMORY);
-
-#[test_case]
-fn map_slice() {
+pub(super) fn map_slice() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
-    let frame_count = init::frame_count();
+    let frame_count = super::frame_count();
     let len = cmp::min(frame_count * Frame::SIZE / 2, 16 * MiB) / mem::size_of::<usize>();
     let slice = address_space.map_slice(len, KERNEL_RW, usize::default).unwrap();
     let slice_frames = mem::size_of_val(slice).div_ceil(Frame::SIZE);
@@ -78,8 +73,7 @@ fn map_slice() {
     assert!(free_frames + slice_frames <= end_free_frames);
 }
 
-#[test_case]
-fn map_readable() {
+pub(super) fn map_readable() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
@@ -133,8 +127,7 @@ fn check_map_writable(
     }
 }
 
-#[test_case]
-fn map_writable() {
+pub(super) fn map_writable() {
     for remap in [false, true] {
         for map_neighbour in [false, true] {
             let virt = mm_helpers::unique_kernel_virt();
@@ -143,8 +136,7 @@ fn map_writable() {
     }
 }
 
-#[test_case]
-fn map_twice() {
+pub(super) fn map_twice() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let virt = mm_helpers::unique_kernel_virt();
@@ -175,8 +167,7 @@ fn map_twice() {
     }
 }
 
-#[test_case]
-fn unmap_nonmapped_page() {
+pub(super) fn unmap_nonmapped_page() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let virt = mm_helpers::unique_kernel_virt();
@@ -194,8 +185,7 @@ fn unmap_nonmapped_page() {
     }
 }
 
-#[test_case]
-fn kernel_and_user_are_separated() {
+pub(super) fn kernel_and_user_are_separated() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let checks_per_root_level_entry = 16;

@@ -7,26 +7,19 @@
 #![feature(maybe_uninit_slice)]
 #![no_std]
 #![no_main]
-#![reexport_test_harness_main = "test_main"]
 #![test_runner(kernel::test_runner)]
 
 extern crate alloc;
-
-use core::panic::PanicInfo;
 
 use bootloader_api::{
     BootInfo,
     entry_point,
 };
 
-use ku::{
-    self,
-    backtrace::Backtrace,
-    sync,
-    time::{
-        pit8254::Pit,
-        rtc::Rtc,
-    },
+#[cfg(not(feature = "tests"))]
+use ku::time::{
+    pit8254::Pit,
+    rtc::Rtc,
 };
 
 #[cfg(not(feature = "conservative-backtraces"))]
@@ -35,10 +28,15 @@ use sentinel_frame::with_sentinel_frame;
 use kernel::{
     self,
     BOOTLOADER_CONFIG,
+};
+
+#[cfg(feature = "tests")]
+use kernel::tests;
+
+#[cfg(not(feature = "tests"))]
+use kernel::{
     ExitCode,
-    Subsystems,
     log::debug,
-    println,
     time,
     trap::{
         TRAP_STATS,
@@ -52,10 +50,17 @@ entry_point!(kernel_main, config = &BOOTLOADER_CONFIG);
 #[cold]
 #[inline(never)]
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
-    kernel::init_subsystems(boot_info, Subsystems::MEMORY);
+    #[cfg(feature = "tests")]
+    tests::main(boot_info);
 
-    #[cfg(test)]
-    test_main();
+    #[cfg(not(feature = "tests"))]
+    main(boot_info);
+}
+
+#[cfg(not(feature = "tests"))]
+#[inline(always)]
+fn main(boot_info: &'static mut BootInfo) -> ! {
+    kernel::init(boot_info);
 
     while TRAP_STATS[Trap::Rtc].count() < 10 {
         if let Some(frequency) = Pit::tsc_per_second() {
@@ -81,23 +86,4 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     }
 
     kernel::exit_qemu(ExitCode::SUCCESS);
-}
-
-#[cold]
-#[inline(never)]
-#[panic_handler]
-fn panic(panic_info: &PanicInfo) -> ! {
-    sync::start_panicking();
-
-    if cfg!(test) {
-        kernel::fail_test(panic_info)
-    } else {
-        println!("{panic_info}");
-
-        if let Ok(backtrace) = Backtrace::current() {
-            println!("{backtrace:?}");
-        }
-
-        unsafe { ku::halt() }
-    }
 }

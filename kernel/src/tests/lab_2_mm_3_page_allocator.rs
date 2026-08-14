@@ -12,8 +12,7 @@ use ku::memory::{
     },
 };
 
-use kernel::{
-    Subsystems,
+use crate::{
     log::debug,
     memory::{
         BASE_ADDRESS_SPACE,
@@ -29,13 +28,9 @@ use kernel::{
     },
 };
 
-mod init;
-mod mm_helpers;
+use super::mm_helpers;
 
-init!(Subsystems::PHYS_MEMORY | Subsystems::VIRT_MEMORY);
-
-#[test_case]
-fn sanity_check() {
+pub(super) fn sanity_check() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let page_allocator_block = page_allocator_block(&BASE_ADDRESS_SPACE.lock());
@@ -46,8 +41,7 @@ fn sanity_check() {
     assert!(page_allocator_block.size() < 128 * TiB);
 }
 
-#[test_case]
-fn some_used_entries() {
+pub(super) fn some_used_entries() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let tests: [&[usize]; 6] = [&[], &[0], &[2], &[31], &[31, 254], &[0, 2, 31, 254]];
@@ -78,8 +72,7 @@ fn some_used_entries() {
     }
 }
 
-#[test_case]
-fn allocate_block() {
+pub(super) fn allocate_block() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
@@ -103,8 +96,7 @@ fn allocate_block() {
     }
 }
 
-#[test_case]
-fn allocate_page() {
+pub(super) fn allocate_page() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let page = BASE_ADDRESS_SPACE
@@ -120,8 +112,7 @@ fn allocate_page() {
     assert_ne!(page.index(), 0);
 }
 
-#[test_case]
-fn allocate_two_pages() {
+pub(super) fn allocate_two_pages() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();
@@ -137,8 +128,7 @@ fn allocate_two_pages() {
     assert_ne!(pages[0], pages[1]);
 }
 
-#[test_case]
-fn alignment() {
+pub(super) fn alignment() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let mut address_space = BASE_ADDRESS_SPACE.lock();

@@ -13,10 +13,25 @@ use ku::{
 
 use crate::SYSTEM_INFO;
 
+#[cfg(feature = "tests")]
+use {
+    crate::trap::TRAP_STATS,
+    ku::{
+        memory::size,
+        time::pit8254::TICKS_PER_SECOND,
+        trap::Trap,
+    },
+};
+
 /// Обработчик прерываний PIT.
 pub(crate) fn interrupt() {
     let pit = SYSTEM_INFO.pit();
     pit.inc_prev(ku::tsc());
+
+    #[cfg(feature = "tests")]
+    if TRAP_STATS[Trap::Pit].count() > size::from(600 * TICKS_PER_SECOND) {
+        panic!("Test timeout");
+    }
 }
 
 /// Инициализация PIT.

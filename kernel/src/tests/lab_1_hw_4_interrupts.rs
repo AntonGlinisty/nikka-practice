@@ -7,14 +7,7 @@ use ku::{
     },
 };
 
-use kernel::Subsystems;
-
-mod init;
-
-init!(Subsystems::empty());
-
-#[test_case]
-fn interrupts_enabled() {
+pub(super) fn interrupts_enabled() {
     let spinlock = IrqSpinlock::<_, { PanicStrategy::KnockDown }>::new(0);
 
     check_interrupts("start", true);
@@ -37,8 +30,7 @@ fn interrupts_enabled() {
     check_interrupts("unlocked", true);
 }
 
-#[test_case]
-fn interrupts_disabled() {
+pub(super) fn interrupts_disabled() {
     let spinlock = IrqSpinlock::<_, { PanicStrategy::KnockDown }>::new(0);
 
     disable_interrupts();
@@ -64,8 +56,7 @@ fn interrupts_disabled() {
     enable_interrupts();
 }
 
-#[test_case]
-fn failed_try_lock() {
+pub(super) fn failed_try_lock() {
     let spinlock = IrqSpinlock::<_, { PanicStrategy::KnockDown }>::new(0);
 
     check_interrupts("start", true);
@@ -85,8 +76,7 @@ fn failed_try_lock() {
     check_interrupts("unlocked", true);
 }
 
-#[test_case]
-fn nested() {
+pub(super) fn nested() {
     let outer = IrqSpinlock::<_, { PanicStrategy::KnockDown }>::new(0);
     let inner = IrqSpinlock::<_, { PanicStrategy::KnockDown }>::new(0);
 

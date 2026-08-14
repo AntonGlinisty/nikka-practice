@@ -62,8 +62,11 @@ fn make_fs_image(
     path: &str,
     size: usize,
 ) -> Result<(), std::io::Error> {
-    fs::remove_file(path).unwrap_or(());
-    fs::write(path, vec![INVALID_DISK_PATTERN; size])
+    if fs::exists(path).unwrap_or(false) {
+        Ok(())
+    } else {
+        fs::write(path, vec![INVALID_DISK_PATTERN; size])
+    }
 }
 
 const INVALID_DISK_PATTERN: u8 = 0xAA;

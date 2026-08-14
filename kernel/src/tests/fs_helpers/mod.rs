@@ -1,6 +1,6 @@
 use ku::memory::size::MiB;
 
-use kernel::{
+use crate::{
     fs::{
         Kind,
         test_scaffolding::{

@@ -1,9 +1,6 @@
-extern crate alloc;
-
 use alloc::vec::Vec;
 
-use kernel::{
-    Subsystems,
+use crate::{
     log::debug,
     process::test_scaffolding::{
         PROCESS_SLOT_COUNT,
@@ -11,14 +8,12 @@ use kernel::{
     },
 };
 
-mod init;
-mod mm_helpers;
-mod process_helpers;
+use super::{
+    mm_helpers,
+    process_helpers,
+};
 
-init!(Subsystems::MEMORY | Subsystems::PROCESS);
-
-#[test_case]
-fn basic() {
+pub(super) fn basic() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let pid_1 = dummy_process().unwrap();
@@ -33,7 +28,7 @@ fn basic() {
 
 // Temporarily disabled for being too slow.
 #[allow(unused)]
-fn full_capacity() {
+pub(super) fn full_capacity() {
     let mut pids = Vec::with_capacity(PROCESS_SLOT_COUNT);
     let mut slots = Vec::with_capacity(PROCESS_SLOT_COUNT);
 

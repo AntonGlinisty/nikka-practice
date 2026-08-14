@@ -1,5 +1,3 @@
-extern crate alloc;
-
 use alloc::vec::Vec;
 
 use chrono::Duration;
@@ -13,8 +11,7 @@ use ku::{
     },
 };
 
-use kernel::{
-    Subsystems,
+use crate::{
     fs::{
         BlockCache,
         Kind,
@@ -27,13 +24,9 @@ use kernel::{
     log::debug,
 };
 
-mod fs_helpers;
-mod init;
+use super::fs_helpers;
 
-init!(Subsystems::MEMORY);
-
-#[test_case]
-fn reserved_elements() {
+pub(super) fn reserved_elements() {
     let block = 2;
 
     block_cache_init(fs_helpers::FS_DISK, block + 1, block + 1).unwrap();
@@ -57,8 +50,7 @@ fn reserved_elements() {
     }
 }
 
-#[test_case]
-fn allocation() {
+pub(super) fn allocation() {
     let (mut block_bitmap, ..) = fs_helpers::simple_fs(Kind::File);
 
     let free_block_count = (0 .. fs_helpers::BLOCK_COUNT)
@@ -124,8 +116,7 @@ fn allocation() {
     debug!(?disk_stats);
 }
 
-#[test_case]
-fn allocation_has_amortized_constant_complexity() {
+pub(super) fn allocation_has_amortized_constant_complexity() {
     disable_flush();
 
     let bitmap_block = 0;

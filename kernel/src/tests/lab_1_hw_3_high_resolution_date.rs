@@ -22,8 +22,7 @@ use ku::{
     },
 };
 
-use kernel::{
-    Subsystems,
+use crate::{
     log::{
         debug,
         error,
@@ -34,12 +33,7 @@ use kernel::{
     },
 };
 
-mod init;
-
-init!(Subsystems::empty());
-
-#[test_case]
-fn points_beyond_interval() {
+pub(super) fn points_beyond_interval() {
     wait_for_two_correlation_points();
 
     let a_few_seconds_in_tsc = 10_000_000_000;
@@ -72,8 +66,7 @@ fn points_beyond_interval() {
     }
 }
 
-#[test_case]
-fn stress() {
+pub(super) fn stress() {
     wait_for_two_correlation_points();
 
     stress::<1, 1_000_000>(2_000, 4_000, 3, 7);
@@ -152,8 +145,7 @@ fn stress() {
     }
 }
 
-#[test_case]
-fn high_resolution_date() {
+pub(super) fn high_resolution_date() {
     wait_for_two_correlation_points();
 
     const PIT_TICKS: i64 = 102;

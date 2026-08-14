@@ -1,9 +1,6 @@
-extern crate alloc;
-
 use alloc::vec::Vec;
 
-use kernel::{
-    Subsystems,
+use crate::{
     error::Error::NoPage,
     log::info,
     memory::{
@@ -16,17 +13,12 @@ use kernel::{
     smp::test_scaffolding::{
         cpu_count,
         cpu_id,
-        id,
         kernel_stack_zones,
     },
+    trap::test_scaffolding::id,
 };
 
-mod init;
-
-init!(Subsystems::MEMORY | Subsystems::CPUS);
-
-#[test_case]
-fn initialized() {
+pub(super) fn initialized() {
     let cpu = cpu_id();
     let local_apic_id = id();
     info!(%cpu, %local_apic_id);
@@ -34,8 +26,7 @@ fn initialized() {
     assert_eq!(cpu, local_apic_id);
 }
 
-#[test_case]
-fn kernel_stacks() {
+pub(super) fn kernel_stacks() {
     let mut stacks = Vec::with_capacity(cpu_count());
 
     for cpu in 0 .. cpu_count() {

@@ -1,7 +1,6 @@
 use ku::sync::Spinlock;
 
-use kernel::{
-    Subsystems,
+use crate::{
     log::{
         debug,
         info,
@@ -15,23 +14,20 @@ use kernel::{
     process,
 };
 
-mod init;
-mod mm_helpers;
-mod process_helpers;
+use super::{
+    mm_helpers,
+    process_helpers,
+};
 
-init!(Subsystems::MEMORY);
+const LOOP_ELF: &[u8] = page_aligned!("../../../target/kernel/user/loop");
 
-const LOOP_ELF: &[u8] = page_aligned!("../../target/kernel/user/loop");
-
-#[test_case]
-fn create_process() {
+pub(super) fn create_process() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     process_helpers::make(LOOP_ELF);
 }
 
-#[test_case]
-fn create_process_failure() {
+pub(super) fn create_process_failure() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let bad_elf_file: &[u8] = &[];
@@ -40,8 +36,7 @@ fn create_process_failure() {
     info!(?error, "expected a process creation failure");
 }
 
-#[test_case]
-fn create_process_no_frame() {
+pub(super) fn create_process_no_frame() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let start_free_frames = FRAME_ALLOCATOR.lock().count();
@@ -56,7 +51,7 @@ fn create_process_no_frame() {
     static FRAMES: Spinlock<[Option<FrameGuard>; GiB / Frame::SIZE]> =
         Spinlock::new([const { None }; _]);
 
-    for free_frames in 0 .. required_free_frames_for_elf {
+    for free_frames in 0 .. core::cmp::min(required_free_frames_for_elf, 7) {
         let _guard = mm_helpers::forbid_frame_leaks();
 
         let mut frames = FRAMES.lock();

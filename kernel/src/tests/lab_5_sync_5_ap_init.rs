@@ -8,8 +8,9 @@ use x86_64::instructions::{
     interrupts,
 };
 
-use kernel::{
+use crate::{
     Subsystems,
+    acpi::ACPI,
     log::info,
     memory::{
         BASE_ADDRESS_SPACE,
@@ -23,16 +24,11 @@ use kernel::{
     },
 };
 
-mod init;
-
-init!(Subsystems::MEMORY);
-
-#[test_case]
-fn ap_init() {
+pub(super) fn ap_init() {
     set_handler(ap_loop);
 
     let phys2virt = phys2virt(&BASE_ADDRESS_SPACE.lock());
-    init_smp(phys2virt, Subsystems::SMP).unwrap();
+    init_smp(&ACPI.lock(), phys2virt, Subsystems::SMP).unwrap();
 
     let cpu_count = 4;
 

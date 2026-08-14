@@ -23,23 +23,15 @@ use ku::{
     },
 };
 
-use kernel::{
-    Subsystems,
-    memory::test_scaffolding::{
-        PAGES_PER_ROOT_LEVEL_ENTRY,
-        make_phys2virt,
-    },
+use crate::memory::test_scaffolding::{
+    PAGES_PER_ROOT_LEVEL_ENTRY,
+    make_phys2virt,
 };
 
-mod init;
-
-init!(Subsystems::PHYS_MEMORY);
-
-#[test_case]
-fn basic() {
+pub(super) fn basic() {
     let mut iteration: usize = 0;
 
-    if let Some(recursive_mapping) = init::recursive_mapping() {
+    if let Some(recursive_mapping) = super::recursive_mapping() {
         for physical_memory_size in itertools::chain(
             itertools::chain(
                 (128 * MiB .. 4 * GiB).step_by(3 * MiB),

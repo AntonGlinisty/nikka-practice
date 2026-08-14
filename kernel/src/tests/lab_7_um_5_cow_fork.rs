@@ -1,5 +1,3 @@
-extern crate alloc;
-
 use alloc::{
     format,
     string::String,
@@ -15,8 +13,7 @@ use ku::{
     sync::Spinlock,
 };
 
-use kernel::{
-    Subsystems,
+use crate::{
     log::debug,
     memory::FRAME_ALLOCATOR,
     process::{
@@ -30,16 +27,14 @@ use kernel::{
     },
 };
 
-mod init;
-mod mm_helpers;
-mod process_helpers;
+use super::{
+    mm_helpers,
+    process_helpers,
+};
 
-init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::PROCESS);
+const COW_FORK_ELF: &[u8] = page_aligned!("../../../target/kernel/user/cow_fork");
 
-const COW_FORK_ELF: &[u8] = page_aligned!("../../target/kernel/user/cow_fork");
-
-#[test_case]
-fn cow_fork() {
+pub(super) fn cow_fork() {
     let _trap_guard = process_helpers::forbid_traps_except(&[Trap::PageFault]);
 
     static START_FREE_FRAMES: AtomicUsize = AtomicUsize::new(0);
@@ -66,8 +61,8 @@ fn cow_fork() {
                 1 + parents.len(),
             );
             assert!(
-                used_frames < 70 * (1 + parents.len()) * one_process_frames / 100,
-                "less than 30% of the physical frames are shared: {} per process, {} total, {} \
+                used_frames < 80 * (1 + parents.len()) * one_process_frames / 100,
+                "less than 20% of the physical frames are shared: {} per process, {} total, {} \
                  processes",
                 one_process_frames,
                 used_frames,

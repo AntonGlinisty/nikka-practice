@@ -25,8 +25,7 @@ use ku::{
     sync::spinlock::Spinlock,
 };
 
-use kernel::{
-    Subsystems,
+use crate::{
     memory::test_scaffolding::{
         path,
         switch_to,
@@ -51,16 +50,14 @@ use kernel::{
     },
 };
 
-mod init;
-mod mm_helpers;
-mod process_helpers;
+use super::{
+    mm_helpers,
+    process_helpers,
+};
 
-init!(Subsystems::MEMORY | Subsystems::SMP | Subsystems::PROCESS);
+const MEMORY_ALLOCATOR_ELF: &[u8] = page_aligned!("../../../target/kernel/user/memory_syscalls");
 
-const MEMORY_ALLOCATOR_ELF: &[u8] = page_aligned!("../../target/kernel/user/memory_syscalls");
-
-#[test_case]
-fn map_syscall_group() {
+pub(super) fn map_syscall_group() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let process = Spinlock::new(process_helpers::make(MEMORY_ALLOCATOR_ELF));
@@ -258,8 +255,7 @@ fn map_over_kernel(
     }
 }
 
-#[test_case]
-fn copy_mapping_of_intersecting_blocks() {
+pub(super) fn copy_mapping_of_intersecting_blocks() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let process = Spinlock::new(process_helpers::make(MEMORY_ALLOCATOR_ELF));
@@ -356,8 +352,7 @@ fn copy_mapping_of_intersecting_blocks() {
     );
 }
 
-#[test_case]
-fn copy_mapping_of_enormous_blocks() {
+pub(super) fn copy_mapping_of_enormous_blocks() {
     let _guard = mm_helpers::forbid_frame_leaks();
 
     let process = Spinlock::new(process_helpers::make(MEMORY_ALLOCATOR_ELF));
@@ -399,8 +394,7 @@ fn copy_mapping_of_enormous_blocks() {
     debug!(iterations, %elapsed, "iterations of copy_mapping()");
 }
 
-#[test_case]
-fn user_space_memory_allocator() {
+pub(super) fn user_space_memory_allocator() {
     let _trap_guard = process_helpers::forbid_traps();
     let _guard = mm_helpers::forbid_frame_leaks();
 

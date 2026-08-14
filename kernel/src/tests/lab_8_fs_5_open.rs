@@ -1,5 +1,3 @@
-extern crate alloc;
-
 use alloc::{
     format,
     string::String,
@@ -8,8 +6,7 @@ use alloc::{
 };
 use core::str;
 
-use kernel::{
-    Subsystems,
+use crate::{
     fs::{
         File,
         FileSystem,
@@ -22,12 +19,7 @@ use kernel::{
     },
 };
 
-mod init;
-
-init!(Subsystems::MEMORY);
-
-#[test_case]
-fn fs() {
+pub(super) fn fs() {
     FileSystem::format(FS_DISK).unwrap();
     let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
 

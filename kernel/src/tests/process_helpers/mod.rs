@@ -8,7 +8,7 @@ use xmas_elf::ElfFile;
 
 use ku::sync::spinlock::SpinlockGuard;
 
-use kernel::{
+use crate::{
     log::{
         debug,
         info,
@@ -140,6 +140,9 @@ pub(super) fn forbid_traps_except(allowed_traps: &[Trap]) -> impl Drop {
     }
 }
 
+/// Добавляет в скомпилированный образ ядра заданный путём `path` бинарный файл.
+/// Работает аналогично макросу [`include_bytes!()`],
+/// дополнительно выравнивая размещаемый файл на начало станицы памяти.
 #[macro_export]
 macro_rules! page_aligned {
     ($path:expr) => {{

@@ -1,5 +1,3 @@
-extern crate alloc;
-
 use alloc::{
     format,
     vec,
@@ -17,8 +15,7 @@ use ku::memory::size::{
     Size,
 };
 
-use kernel::{
-    Subsystems,
+use crate::{
     fs::{
         BlockCache,
         File,
@@ -42,13 +39,9 @@ use kernel::{
     },
 };
 
-mod fs_helpers;
-mod init;
+use super::fs_helpers;
 
-init!(Subsystems::MEMORY);
-
-#[test_case]
-fn block_entry() {
+pub(super) fn block_entry() {
     let (mut block_bitmap, _, mut inodes) = fs_helpers::simple_fs(Kind::File);
     let inode = &mut inodes[0];
 
@@ -105,8 +98,7 @@ fn block_entry() {
     debug!(?disk_stats);
 }
 
-#[test_case]
-fn read_write_speed() {
+pub(super) fn read_write_speed() {
     FileSystem::format(FS_DISK).unwrap();
     let block_count = block_count(FS_DISK).unwrap();
     let mut fs = FileSystem::mount(FS_DISK, block_count, RESOLVE_CACHE_SIZE).unwrap();
@@ -183,8 +175,7 @@ fn read_write_speed() {
     }
 }
 
-#[test_case]
-fn write_read() {
+pub(super) fn write_read() {
     FileSystem::format(FS_DISK).unwrap();
     let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
     let file = make_file(&mut fs, Kind::File);
@@ -228,8 +219,7 @@ fn write_read() {
     debug!(?disk_stats);
 }
 
-#[test_case]
-fn big_file() {
+pub(super) fn big_file() {
     FileSystem::format(FS_DISK).unwrap();
     let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
     let file = make_file(&mut fs, Kind::File);
@@ -288,8 +278,7 @@ fn big_file() {
     }
 }
 
-#[test_case]
-fn set_size() {
+pub(super) fn set_size() {
     FileSystem::format(FS_DISK).unwrap();
     let mut fs = FileSystem::mount(FS_DISK, CACHE_BLOCK_COUNT, RESOLVE_CACHE_SIZE).unwrap();
     let file = make_file(&mut fs, Kind::File);
