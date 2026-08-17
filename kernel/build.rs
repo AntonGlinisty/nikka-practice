@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let terminate = || panic!("failed to build user binary {bin}");
 
         let output = Command::new("cargo")
-            .args(["build", "--profile", "user"])
+            .args(["-Zjson-target-spec", "build", "--profile", "user"])
             .current_dir(format!("../user/{bin}"))
             .env_clear()
             .env("PATH", env::var("PATH")?)

@@ -20,7 +20,7 @@ use super::{
     process_helpers,
 };
 
-const PAGE_FAULT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/page_fault");
+const PAGE_FAULT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/page-fault");
 
 pub(super) fn user_mode_page_fault() {
     let _trap_guard = process_helpers::forbid_traps_except(&[Trap::PageFault]);

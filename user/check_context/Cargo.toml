@@ -2,7 +2,7 @@
 authors = ["Oleg Shatov <oleq.shatov@yandex.ru>"]
 edition = "2024"
 license = "AGPL-3.0-or-later"
-name = "check_context"
+name = "check-context"
 version = "0.5.0"
 
 [dependencies]

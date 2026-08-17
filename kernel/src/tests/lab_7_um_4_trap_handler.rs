@@ -15,7 +15,7 @@ use super::{
     process_helpers,
 };
 
-const TRAP_HANDLER_ELF: &[u8] = page_aligned!("../../../target/kernel/user/trap_handler");
+const TRAP_HANDLER_ELF: &[u8] = page_aligned!("../../../target/kernel/user/trap-handler");
 
 pub(super) fn trap_handler() {
     let _trap_guard = process_helpers::forbid_traps_except(&[Trap::PageFault]);

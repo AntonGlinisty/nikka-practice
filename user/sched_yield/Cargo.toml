@@ -4,7 +4,7 @@ description = "Nikka is an educational operating system"
 edition = "2024"
 homepage = "https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/index.html"
 license = "AGPL-3.0-or-later"
-name = "sched_yield"
+name = "sched-yield"
 repository = "https://gitlab.com/sergey-v-galtsev/nikka-public"
 version = "0.5.0"
 

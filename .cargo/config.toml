@@ -9,6 +9,7 @@ rustflags = [
     "relocation-model=dynamic-no-pic",
     "--codegen",
     "debuginfo=full",
+    "-Znext-solver=coherence",
 ]
 
 [unstable]

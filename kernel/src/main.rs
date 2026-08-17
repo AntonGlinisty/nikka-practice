@@ -4,7 +4,6 @@
 
 #![deny(warnings)]
 #![feature(custom_test_frameworks)]
-#![feature(maybe_uninit_slice)]
 #![no_std]
 #![no_main]
 #![test_runner(kernel::test_runner)]

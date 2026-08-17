@@ -12,7 +12,7 @@ use crate::{
 use super::process_helpers;
 
 const EXIT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/exit");
-const LOG_VALUE_ELF: &[u8] = page_aligned!("../../../target/kernel/user/log_value");
+const LOG_VALUE_ELF: &[u8] = page_aligned!("../../../target/kernel/user/log-value");
 
 pub(super) fn syscall_exit() {
     let _trap_guard = process_helpers::forbid_traps();

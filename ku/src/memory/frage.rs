@@ -424,6 +424,10 @@ impl<const SIZE: usize> Step for ElasticPage<SIZE> {
         Self::from_index(advanced).ok()
     }
 
+    fn forward_overflowing(_start: Self, _count: usize) -> (Self, bool) {
+        panic!("ElasticPage does not support forward_overflowing() intentionally");
+    }
+
     fn backward_checked(
         start: Self,
         count: usize,
@@ -437,6 +441,10 @@ impl<const SIZE: usize> Step for ElasticPage<SIZE> {
         }
 
         Some(Self::from_index(advanced).expect("wrong advancement formula"))
+    }
+
+    fn backward_overflowing(_start: Self, _count: usize) -> (Self, bool) {
+        panic!("ElasticPage does not support backward_overflowing() intentionally");
     }
 }
 

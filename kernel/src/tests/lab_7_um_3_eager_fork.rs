@@ -40,7 +40,7 @@ use super::{
     process_helpers,
 };
 
-const EAGER_FORK_ELF: &[u8] = page_aligned!("../../../target/kernel/user/eager_fork");
+const EAGER_FORK_ELF: &[u8] = page_aligned!("../../../target/kernel/user/eager-fork");
 const EXIT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/exit");
 
 pub(super) fn exofork_syscall() {

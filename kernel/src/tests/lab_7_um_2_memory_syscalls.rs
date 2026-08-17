@@ -55,7 +55,7 @@ use super::{
     process_helpers,
 };
 
-const MEMORY_ALLOCATOR_ELF: &[u8] = page_aligned!("../../../target/kernel/user/memory_syscalls");
+const MEMORY_ALLOCATOR_ELF: &[u8] = page_aligned!("../../../target/kernel/user/memory-syscalls");
 
 pub(super) fn map_syscall_group() {
     let _guard = mm_helpers::forbid_frame_leaks();

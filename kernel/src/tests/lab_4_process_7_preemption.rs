@@ -14,7 +14,7 @@ use super::{
     process_helpers,
 };
 
-const CHECK_CONTEXT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/check_context");
+const CHECK_CONTEXT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/check-context");
 const LOOP_ELF: &[u8] = page_aligned!("../../../target/kernel/user/loop");
 
 pub(super) fn preemption() {

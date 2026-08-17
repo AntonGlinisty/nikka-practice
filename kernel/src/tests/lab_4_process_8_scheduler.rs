@@ -18,8 +18,8 @@ use super::{
 };
 
 const EXIT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/exit");
-const PAGE_FAULT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/page_fault");
-const SCHED_YIELD_ELF: &[u8] = page_aligned!("../../../target/kernel/user/sched_yield");
+const PAGE_FAULT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/page-fault");
+const SCHED_YIELD_ELF: &[u8] = page_aligned!("../../../target/kernel/user/sched-yield");
 
 pub(super) fn syscall_sched_yield() {
     let _guard = mm_helpers::forbid_frame_leaks();
