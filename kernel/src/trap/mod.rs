@@ -73,7 +73,7 @@ pub(super) fn init() {
 
     IDT.load();
 
-    LocalApic::init().expect("failed to initialize the local APIC");
+    let _ = LocalApic::init();
 
     interrupts::enable();
 

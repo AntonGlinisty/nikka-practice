@@ -13,7 +13,6 @@
 #![feature(core_intrinsics)]
 #![feature(generic_const_exprs)]
 #![feature(likely_unlikely)]
-#![feature(maybe_uninit_fill)]
 #![feature(slice_ptr_get)]
 #![feature(step_trait)]
 #![feature(trait_alias)]
