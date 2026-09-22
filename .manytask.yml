@@ -2,14 +2,14 @@ version: 1
 
 
 settings:
-  course_name: OS 2025-2026
+  course_name: OS 2026-2027
 
   gitlab_base_url: https://gitlab.manytask.org
-  public_repo: os/public-2025-2026
-  students_group: os/students-2025-2026
+  public_repo: os/public-2026-2027
+  students_group: os/students-2026-2027
 
 
-report_url: https://app.manytask.org/api/os-2026-spring/report
+report_url: https://app.manytask.org/api/os-2026-fall/report
 
 
 ui:
@@ -18,8 +18,8 @@ ui:
   links:
     Announcements: https://t.me/+6hudiffitLU5MTYy
     Chat: https://t.me/+PAXh6qX5Nzg1MDcy
-    Zoom: https://yandex.zoom.us/j/96772346576
-    LMS: https://lk.dataschool.yandex.ru/courses/2026-spring/7.1709-advanced_caos/
+    Zoom: https://yandex.zoom.us/j/92135959687
+    LMS: https://lk.dataschool.yandex.ru/courses/2026-autumn/7.1804-arkhitektura-kompiutera-i-operatsionnye-sistemy
 
 
 grades:
@@ -52,11 +52,11 @@ deadlines:
   deadlines: hard
 
   schedule:
-    - group: syscalls
-      start: 2025-09-16 18:00
+    - group: lab-1-hardware-a
+      start: 2026-09-22 18:00
       steps:
-        0.5: 2025-10-07 23:59
-      end: 2026-02-01 23:59
+        0.5: 2026-10-02 23:59
+      end: 2027-02-01 23:59
       enabled: true
       tasks:
         - task: hello_world
@@ -67,107 +67,52 @@ deadlines:
           check:
             - cd sem/hello_world && cargo test
 
-        - task: rsh_fork
-          score: 100
-          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/sem/rsh/README.md
-          allow_list: &allow_list_rsh
-            - sem/rsh/src/*.rs
-          check:
-            - cd sem/rsh && cargo test simple
-
-        - task: rsh_file
-          score: 100
-          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/sem/rsh/README.md#file
-          allow_list: *allow_list_rsh
-          check:
-            - cd sem/rsh && cargo test file
-
-        - task: rsh_pipe
-          score: 100
-          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/sem/rsh/README.md#pipe
-          allow_list: *allow_list_rsh
-          check:
-            - cd sem/rsh && cargo test pipe
-
-        - task: jobserver
-          score: 100
-          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/sem/jobserver/README.md
-          allow_list:
-            - sem/jobserver/src/*.rs
-          check:
-            - cd sem/jobserver && cargo build && ./test.sh
-
-    - group: lab-1-hardware
-      start: 2025-09-30 18:00
-      steps:
-        0.5: 2025-12-20 23:59
-      end: 2026-02-01 23:59
-      enabled: true
-      tasks:
         - task: rtc
-          is_bonus: true
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-1-rtc.html
           check:
-            - cd kernel && cargo test --profile ci --test 1-hw-1-rtc
-            - cd kernel && cargo test --profile ci --test 1-hw-1-rtc -- -rtc base=2050-12-31T23:59:53
-            - cd kernel && cargo test --profile ci --test 1-hw-1-rtc -- -rtc base=2050-01-01T11:59:53
+            - cargo run --profile ci --features tests -- --test 1-hw-1-rtc
 
         - task: high-resolution-date
-          is_bonus: true
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-3-high-resolution-date.html
           dependencies:
             - rtc
           check:
-            - cd kernel && cargo test --profile ci --test 1-hw-3-high-resolution-date
+            - cargo run --profile ci --features tests -- --test 1-hw-3-high-resolution-date
 
         - task: interrupts
-          is_bonus: true
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-4-interrupts.html
           check:
-            - cd kernel && cargo test --profile ci --test 1-hw-4-interrupts
+            - cargo run --profile ci --features tests -- --test 1-hw-4-interrupts
 
-        - task: cursor
-          is_bonus: true
-          score: 50
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-8-cursor.html
-          check:
-            - cd text && cargo test --profile ci --lib cursor
-
-        - task: text
-          is_bonus: true
-          score: 100
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-9-grid.html
-          dependencies:
-            - cursor
-          check:
-            - cd text && cargo test --profile ci --lib
-
+    - group: lab-1-hardware-b
+      start: 2026-09-29 18:00
+      steps:
+        0.5: 2026-10-09 23:59
+      end: 2027-02-01 23:59
+      enabled: true
+      tasks:
         - task: pci-device-id
-          is_bonus: true
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-10-pci.html
           check:
             - cd pci && cargo test --profile ci --lib device_id
 
         - task: pci-class
-          is_bonus: true
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-10-pci.html
           check:
             - cd pci && cargo test --profile ci --lib class
 
         - task: pci-bar
-          is_bonus: true
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-10-pci.html
           check:
             - cd pci && cargo test --profile ci --lib bar
 
         - task: pci-normal
-          is_bonus: true
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-10-pci.html
           dependencies:
@@ -178,7 +123,6 @@ deadlines:
             - cd pci && cargo test --profile ci --lib normal
 
         - task: pci-bridge
-          is_bonus: true
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/1-hw-10-pci.html
           dependencies:
@@ -188,24 +132,18 @@ deadlines:
           check:
             - cd pci && cargo test --profile ci --lib bridge
 
-    - group: lab-2-memory
-      start: 2025-10-14 18:00
+    - group: lab-2-memory-a
+      start: 2026-10-06 18:00
       steps:
-        0.5: 2025-11-05 23:59
-      end: 2026-02-01 23:59
+        0.5: 2026-10-16 23:59
+      end: 2027-02-01 23:59
       enabled: true
       tasks:
         - task: frame-allocator
           score: 150
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-1-frame-allocator.html
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-1-frame-allocator
-
-        - task: page-allocator
-          score: 100
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-2-page-allocator.html
-          check:
-            - cd kernel && cargo test --profile ci --test 2-mm-2-block --test 2-mm-2-page-allocator
+            - cargo run --profile ci --features tests -- --test 2-mm-1-frame-allocator
 
         - task: phys2virt
           score: 100
@@ -213,7 +151,20 @@ deadlines:
           dependencies:
             - frame-allocator
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-3-phys2virt
+            - cargo run --profile ci --features tests -- --test 2-mm-3-phys2virt
+
+    - group: lab-2-memory-b
+      start: 2026-10-13 18:00
+      steps:
+        0.5: 2026-10-23 23:59
+      end: 2027-02-01 23:59
+      enabled: true
+      tasks:
+        - task: page-allocator
+          score: 100
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-2-page-allocator.html
+          check:
+            - cargo run --profile ci --features tests -- --test 2-mm-2-block --test 2-mm-2-page-allocator
 
         - task: translate
           score: 100
@@ -221,7 +172,7 @@ deadlines:
           dependencies:
             - frame-allocator
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-4-translate
+            - cargo run --profile ci --features tests -- --test 2-mm-4-translate
 
         - task: map
           score: 50
@@ -230,15 +181,22 @@ deadlines:
             - translate
             - page-allocator
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-5-map
+            - cargo run --profile ci --features tests -- --test 2-mm-5-map
 
+    - group: lab-2-memory-c
+      start: 2026-10-20 18:00
+      steps:
+        0.5: 2026-10-30 23:59
+      end: 2027-02-01 23:59
+      enabled: true
+      tasks:
         - task: duplicate
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/2-mm-6-duplicate-subtree.html
           dependencies:
             - map
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-6-duplicate-subtree
+            - cargo run --profile ci --features tests -- --test 2-mm-6-duplicate-subtree
 
         - task: no-leaks-in-memory
           score: 50
@@ -246,7 +204,7 @@ deadlines:
           dependencies:
             - duplicate
           check:
-            - cd kernel && cargo test --profile ci --features forbid-leaks --test 2-mm-1-frame-allocator --test 2-mm-2-page-allocator --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-6-duplicate-subtree --test 2-mm-7-drop-subtree
+            - cargo run --profile ci --features tests --features forbid-leaks -- --test 2-mm-1-frame-allocator --test 2-mm-2-page-allocator --test 2-mm-4-translate --test 2-mm-5-map --test 2-mm-6-duplicate-subtree --test 2-mm-7-drop-subtree
 
         - task: resize-frame-allocator
           score: 100
@@ -254,13 +212,13 @@ deadlines:
           dependencies:
             - map
           check:
-            - cd kernel && cargo test --profile ci --test 2-mm-8-resize-frame-allocator
+            - cargo run --profile ci --features tests -- --test 2-mm-8-resize-frame-allocator
 
     - group: asm
-      start: 2025-10-21 18:00
+      start: 2026-10-27 18:00
       steps:
-        0.5: 2025-11-11 23:59
-      end: 2026-02-01 23:59
+        0.5: 2026-11-06 23:59
+      end: 2027-02-01 23:59
       enabled: true
       tasks:
         - task: gdb
@@ -272,30 +230,17 @@ deadlines:
             - cd sem/gdb && ./binary.static
 
         - task: asm
-          score: 100
+          score: 50
           url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/asm
           check:
             - cd sem/asm && cargo test
 
-        - task: rop
-          score: 100
-          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/rop
-          check:
-            - cd sem/rop && cargo test
-
         - task: asm_syscall
-          score: 100
+          score: 50
           url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/asm_syscall
           check:
             - cd sem/asm_syscall && cargo test
 
-    - group: backtrace
-      start: 2025-10-21 18:00
-      steps:
-        0.5: 2025-11-11 23:59
-      end: 2026-02-01 23:59
-      enabled: true
-      tasks:
         - task: backtrace
           score: 100
           url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/backtrace
@@ -304,11 +249,17 @@ deadlines:
           check:
             - cd sem/backtrace && cargo test -- --nocapture --test-threads=1
 
-    - group: lab-3-allocator
-      start: 2025-11-04 18:00
+        - task: rop
+          score: 100
+          url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/rop
+          check:
+            - cd sem/rop && cargo test
+
+    - group: lab-3-allocator-a
+      start: 2026-11-03 18:00
       steps:
-        0.5: 2025-11-25 23:59
-      end: 2026-02-01 23:59
+        0.5: 2026-11-13 23:59
+      end: 2027-02-01 23:59
       enabled: true
       tasks:
         - task: big-allocator
@@ -317,7 +268,7 @@ deadlines:
           dependencies:
             - map
           check:
-            - cd kernel && cargo test --profile ci --test 3-allocator-1-big
+            - cargo run --profile ci --features tests -- --test 3-allocator-1-big
 
         - task: no-leaks-in-big-allocator
           score: 25
@@ -326,7 +277,7 @@ deadlines:
             - no-leaks-in-memory
             - big-allocator
           check:
-            - cd kernel && cargo test --profile ci --features forbid-leaks --test 3-allocator-1-big
+            - cargo run --profile ci --features tests --features forbid-leaks -- --test 3-allocator-1-big
 
         - task: static-bitmap
           score: 50
@@ -342,6 +293,13 @@ deadlines:
           check:
             - cd ku && cargo test --profile ci --test 3-allocator-3-dynamic-bitmap
 
+    - group: lab-3-allocator-b
+      start: 2026-11-10 18:00
+      steps:
+        0.5: 2026-11-20 23:59
+      end: 2027-02-01 23:59
+      enabled: true
+      tasks:
         - task: quarry
           score: 150
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-4-quarry.html
@@ -356,9 +314,16 @@ deadlines:
             - dynamic-bitmap
             - quarry
           check:
-            - cd kernel && cargo test --profile ci --test 3-allocator-5-small
+            - cargo run --profile ci --features tests -- --test 3-allocator-5-small
             - cd ku && cargo test --profile ci --test 3-allocator-5-small -- --nocapture --test-threads=1
 
+    - group: lab-3-allocator-c
+      start: 2026-11-17 18:00
+      steps:
+        0.5: 2026-11-27 23:59
+      end: 2027-02-01 23:59
+      enabled: true
+      tasks:
         - task: no-leaks-in-small-allocator
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-6-no-leaks.html
@@ -366,7 +331,7 @@ deadlines:
             - no-leaks-in-big-allocator
             - small-allocator
           check:
-            - cd kernel && cargo test --profile ci --features forbid-leaks --test 3-allocator-5-small
+            - cargo run --profile ci --features tests --features forbid-leaks -- --test 3-allocator-5-small
             - cd ku && cargo test --profile ci --features forbid-leaks --test 3-allocator-5-small -- --nocapture --test-threads=1
 
         - task: allocator-cache
@@ -378,37 +343,28 @@ deadlines:
             - cd ku && ALLOWED_RATIO=1.50 cargo test --profile benchmark --features benchmark --test 3-allocator-5-small -- --test-threads=1
 
         - task: allocator-statistics
-          is_bonus: true
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/3-allocator-8-statistics.html 
           dependencies:
             - allocator-cache
           check:
-            - cd kernel && cargo test --profile ci --features allocator-statistics --test 3-allocator-1-big --test 3-allocator-5-small
+            - cargo run --profile ci --features tests --features allocator-statistics -- --test 3-allocator-1-big --test 3-allocator-5-small
             - cd ku && cargo test --profile ci --features allocator-statistics --test 3-allocator-5-small -- --test-threads=1
 
-    - group: lab-4-process
-      start: 2025-11-25 18:00
+    - group: lab-4-process-a
+      start: 2026-11-24 18:00
       steps:
-        0.5: 2025-12-16 23:59
-      end: 2026-02-01 23:59
+        0.5: 2026-12-04 23:59
+      end: 2027-02-01 23:59
       enabled: true
       tasks:
-        - task: local-apic
-          score: 50
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-1-local-apic.html
-          dependencies:
-            - big-allocator
-          check:
-            - cd kernel && cargo test --profile ci --test 4-process-1-local-apic
-
         - task: cpus
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-2-cpus.html
           dependencies:
             - big-allocator
           check:
-            - cd kernel && cargo test --profile ci --test 4-process-2-cpus
+            - cargo run --profile ci --features tests -- --test 4-process-2-cpus
 
         - task: elf
           score: 200
@@ -418,7 +374,7 @@ deadlines:
             - duplicate
           check:
             - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --test 4-process-3-elf -- --test-threads=1
-            - cd kernel && cargo test --profile ci --test 4-process-3-elf
+            - cargo run --profile ci --features tests -- --test 4-process-3-elf
 
         - task: permission-checks
           score: 50
@@ -426,8 +382,15 @@ deadlines:
           dependencies:
             - map
           check:
-            - cd kernel && cargo test --profile ci --test 4-process-4-permission-checks
+            - cargo run --profile ci --features tests -- --test 4-process-4-permission-checks
 
+    - group: lab-4-process-b
+      start: 2026-12-01 18:00
+      steps:
+        0.5: 2026-12-11 23:59
+      end: 2027-02-01 23:59
+      enabled: true
+      tasks:
         - task: user-mode
           score: 150
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-5-user-mode.html
@@ -435,16 +398,7 @@ deadlines:
             - elf
             - cpus
           check:
-            - cd kernel && cargo test --profile ci --test 4-process-5-user-mode
-
-        - task: syscall
-          score: 200
-          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-6-syscall.html
-          dependencies:
-            - permission-checks
-            - user-mode
-          check:
-            - cd kernel && cargo test --profile ci --test 4-process-6-syscall --test 4-process-6-log-value
+            - cargo run --profile ci --features tests -- --test 4-process-5-user-mode
 
         - task: table
           score: 100
@@ -452,16 +406,31 @@ deadlines:
           dependencies:
             - elf
           check:
-            - cd kernel && cargo test --profile ci --test 4-process-7-table
+            - cargo run --profile ci --features tests -- --test 4-process-7-table
 
         - task: preemption
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-8-preemption.html
           dependencies:
-            - local-apic
             - table
           check:
-            - cd kernel && cargo test --profile ci --test 4-process-8-preemption
+            - cargo run --profile ci --features tests -- --test 4-process-8-preemption
+
+    - group: lab-4-process-c
+      start: 2026-12-08 18:00
+      steps:
+        0.5: 2026-12-18 23:59
+      end: 2027-02-01 23:59
+      enabled: true
+      tasks:
+        - task: syscall
+          score: 200
+          url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/4-process-6-syscall.html
+          dependencies:
+            - permission-checks
+            - user-mode
+          check:
+            - cargo run --profile ci --features tests -- --test 4-process-6-syscall --test 4-process-6-log-value
 
         - task: scheduler
           score: 50
@@ -470,7 +439,7 @@ deadlines:
             - preemption
             - syscall
           check:
-            - cd kernel && cargo test --profile ci --test 4-process-9-scheduler
+            - cargo run --profile ci --features tests -- --test 4-process-9-scheduler
 
         - task: no-leaks-in-process
           score: 25
@@ -480,13 +449,13 @@ deadlines:
             - scheduler
           check:
             - cd ku && RUST_LOG="4_process_3_elf=info,ku=info" cargo test --profile ci --features forbid-leaks --test 4-process-3-elf -- --test-threads=1
-            - cd kernel && cargo test --profile ci --features forbid-leaks --test 4-process-3-elf --test 4-process-5-user-mode --test 4-process-7-table --test 4-process-8-preemption --test 4-process-9-scheduler
+            - cargo run --profile ci --features tests --features forbid-leaks -- --test 4-process-3-elf --test 4-process-5-user-mode --test 4-process-7-table --test 4-process-8-preemption --test 4-process-9-scheduler
 
     - group: locks
-      start: 2026-02-23 18:00
+      start: 2027-02-23 18:00
       steps:
-        0.5: 2026-03-15 23:59
-      end: 2026-06-29 23:59
+        0.5: 2027-03-15 23:59
+      end: 2027-06-29 23:59
       enabled: true
       tasks:
         - task: atomic
@@ -496,7 +465,7 @@ deadlines:
             - cd sem/atomic && cargo test -- --nocapture --test-threads=1
 
         - task: rwlock
-          score: 150
+          score: 100
           url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/rwlock
           check:
             - cd sem/rwlock && cargo test -- --nocapture --test-threads=1
@@ -504,8 +473,7 @@ deadlines:
             - cd sem/rwlock && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test -- --nocapture --test-threads=1
 
         - task: ticket-lock
-          is_bonus: true
-          score: 100
+          score: 50
           url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/ticket_lock
           check:
             - cd sem/ticket_lock && cargo test -- --nocapture --test-threads=1
@@ -513,7 +481,7 @@ deadlines:
             - cd sem/ticket_lock && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test -- --nocapture --test-threads=1
 
         - task: mcs-lock
-          score: 200
+          score: 100
           url: https://gitlab.com/sergey-v-galtsev/nikka-public/-/tree/master/sem/mcs_lock
           check:
             - cd sem/mcs_lock && cargo test -- --nocapture --test-threads=1
@@ -521,14 +489,14 @@ deadlines:
             - cd sem/mcs_lock && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test -- --nocapture --test-threads=1
 
     - group: lab-5-sync
-      start: 2026-03-02 18:00
+      start: 2027-03-02 18:00
       steps:
-        0.5: 2026-03-22 23:59
-      end: 2026-06-29 23:59
+        0.5: 2027-03-22 23:59
+      end: 2027-06-29 23:59
       enabled: true
       tasks:
         - task: once-lock
-          score: 50
+          score: 25
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-1-once-lock.html
           check:
             - cd ku && cargo test --profile ci --test 5-sync-1-once-lock -- --test-threads=1
@@ -536,7 +504,7 @@ deadlines:
             - cd ku && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 5-sync-1-once-lock
 
         - task: spinlock
-          score: 100
+          score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-2-spinlock.html
           check:
             - cd ku && RUST_LOG="ku::sync::spinlock=trace" cargo test --profile ci --test 5-sync-2-spinlock -- --test-threads=1
@@ -544,7 +512,7 @@ deadlines:
             - cd ku && MIRIFLAGS="-Zmiri-disable-isolation" RUST_LOG="ku::sync::spinlock=trace" cargo miri test --test 5-sync-2-spinlock
 
         - task: sequence-lock
-          score: 100
+          score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-3-sequence-lock.html
           check:
             - cd ku && RUST_LOG="ku::sync::spinlock=trace" cargo test --profile ci --test 5-sync-3-sequence-lock --test 5-sync-2-deadlock -- --test-threads=1
@@ -552,7 +520,7 @@ deadlines:
             - cd ku && MIRIFLAGS="-Zmiri-disable-isolation" RUST_LOG="ku::sync::spinlock=trace" cargo miri test --test 5-sync-3-sequence-lock
 
         - task: correlation-point
-          score: 100
+          score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-4-correlation-point.html
           check:
             - cd ku && cargo test --profile ci --test 5-sync-4-correlation-point -- --test-threads=1
@@ -564,16 +532,15 @@ deadlines:
           score: 150
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/5-sync-5-ap-init.html
           dependencies:
-            - local-apic
             - cpus
           check:
             - cd kernel && cargo test --profile ci --test 5-sync-5-ap-init
 
     - group: lab-6-user-memory-tricks
-      start: 2026-03-23 18:00
+      start: 2027-03-23 18:00
       steps:
-        0.5: 2026-04-12 23:59
-      end: 2026-06-29 23:59
+        0.5: 2027-04-12 23:59
+      end: 2027-06-29 23:59
       enabled: true
       tasks:
         - task: pipe
@@ -636,10 +603,10 @@ deadlines:
             - cd kernel && cargo test --profile ci --features forbid-leaks --test 6-um-2-memory-syscalls --test 6-um-3-eager-fork --test 6-um-4-trap-handler --test 6-um-5-cow-fork
 
     - group: lab-7-file-system
-      start: 2026-04-13 18:00
+      start: 2027-04-13 18:00
       steps:
-        0.5: 2026-05-03 23:59
-      end: 2026-06-29 23:59
+        0.5: 2027-05-03 23:59
+      end: 2027-06-29 23:59
       enabled: true
       tasks:
         - task: block-cache
@@ -693,7 +660,6 @@ deadlines:
           score: 150
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/7-fs-6-lru.html
           dependencies:
-            - inode
             - open
           check:
             - cd ku && cargo test --profile ci --test 7-fs-6-lru
@@ -701,14 +667,13 @@ deadlines:
             - cd kernel && cargo test --profile ci --features cache-eviction --test 7-fs-5-open
 
     - group: lab-8-queues
-      start: 2026-05-11 18:00
+      start: 2027-05-11 18:00
       steps:
-        0.5: 2026-05-20 23:59
-      end: 2026-06-29 23:59
+        0.5: 2027-05-20 23:59
+      end: 2027-06-29 23:59
       enabled: true
       tasks:
         - task: deque
-          is_bonus: true
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/8-queues-1-deque.html
           check:
@@ -717,7 +682,6 @@ deadlines:
             - fail_count=0; d=target/criterion/invariants; solution='1. infinite_indices_u32, 256_'; baseline='2. sentinel_u32, 256_'; for i in $(ls "$d/$solution" | grep [0-9]); do solution_time=$(jq .mean.point_estimate < "$d/$solution/$i/new/estimates.json"); baseline_time=$(jq .mean.point_estimate < "$d/$baseline/$i/new/estimates.json"); if echo $solution_time $baseline_time $i | awk '{ ratio = $1/$2; printf "ratio=%f element_count=%d solution_time=%f baseline_time=%f ", ratio, $3, $1, $2 } END { if (ratio <= 0.85) { print "OK"; exit 1 } else { print "FAIL"; exit 0 } }'; then fail_count=$((fail_count + 1)); fi; done; echo "fail_count=$fail_count"; if [ $fail_count -gt 1 ]; then echo "FAIL"; exit 1; else echo "OK"; fi
 
         - task: spsc
-          is_bonus: true
           score: 200
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/8-queues-2-spsc.html
           check:
@@ -730,7 +694,6 @@ deadlines:
             - fail_count=0; d=target/criterion/tx; solution='2. tx spsc_u32, 16384_'; baseline='4. sentinel_u32, 16384_'; for i in $(ls "$d/$solution" | grep [0-9]); do solution_time=$(jq .mean.point_estimate < "$d/$solution/$i/new/estimates.json"); baseline_time=$(jq .mean.point_estimate < "$d/$baseline/$i/new/estimates.json"); if echo $solution_time $baseline_time $i | awk '{ ratio = $1/$2; printf "ratio=%f element_count=%d solution_time=%f baseline_time=%f ", ratio, $3, $1, $2 } END { if (ratio <= 0.75) { print "OK"; exit 1 } else { print "FAIL"; exit 0 } }'; then fail_count=$((fail_count + 1)); fi; done; echo "fail_count=$fail_count"; if [ $fail_count -gt 1 ]; then echo "FAIL"; exit 1; else echo "OK"; fi
 
         - task: spsc-slice
-          is_bonus: true
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/8-queues-3-spsc-slice.html
           dependencies:
@@ -741,7 +704,6 @@ deadlines:
             - fail_count=0; d=target/criterion/slice; solution='5. slice spsc_u32, 16384_'; baseline='7. double memory copy_u32, 16384_'; for i in $(ls "$d/$solution" | grep [0-9]); do solution_time=$(jq .mean.point_estimate < "$d/$solution/$i/new/estimates.json"); baseline_time=$(jq .mean.point_estimate < "$d/$baseline/$i/new/estimates.json"); if echo $solution_time $baseline_time $i | awk '{ ratio = $1/$2; printf "ratio=%f element_count=%d solution_time=%f baseline_time=%f ", ratio, $3, $1, $2 } END { if (ratio <= 2.) { print "OK"; exit 1 } else { print "FAIL"; exit 0 } }'; then fail_count=$((fail_count + 1)); fi; done; echo "fail_count=$fail_count"; if [ $fail_count -gt 1 ]; then echo "FAIL"; exit 1; else echo "OK"; fi
 
         - task: sharded-mpmc
-          is_bonus: true
           score: 50
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/8-queues-4-sharded-mpmc.html
           dependencies:
@@ -751,7 +713,6 @@ deadlines:
             - cd ku && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 8-queues-4-sharded-mpmc
 
         - task: reserving-mpmc
-          is_bonus: true
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/8-queues-5-reserving-mpmc.html
           check:
@@ -759,7 +720,6 @@ deadlines:
             - cd ku && MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --test 8-queues-5-reserving-mpmc
 
         - task: mpmc
-          is_bonus: true
           score: 100
           url: https://sergey-v-galtsev.gitlab.io/labs-description/lab/book/8-queues-6-mpmc.html
           check:

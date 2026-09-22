@@ -1,4 +1,6 @@
 #![allow(dead_code)]
+#![allow(unused_features)]
+#![allow(unused_features)]
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 

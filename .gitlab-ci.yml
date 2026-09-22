@@ -1,5 +1,5 @@
 grade:
-  image: gitlab.manytask.org:5050/os/public-2025-2026/nikka-public
+  image: gitlab.manytask.org:5050/os/public-2026-2027/nikka-public
   script:
     - if [[ "$CI_COMMIT_REF_NAME" == submit/* ]]; then
         cargo run

@@ -9,8 +9,8 @@ build-image:
     - docker
   stage: deploy
   script:
-    - docker build -t gitlab.manytask.org:5050/os/public-2025-2026/nikka-public .
-    - docker push gitlab.manytask.org:5050/os/public-2025-2026/nikka-public:latest
+    - docker build -t gitlab.manytask.org:5050/os/public-2026-2027/nikka-public .
+    - docker push gitlab.manytask.org:5050/os/public-2026-2027/nikka-public:latest
     - docker image prune -f --filter "until=24h"
     - docker system prune -f
 
@@ -36,4 +36,4 @@ deploy-manytask:
   script:
     - 'curl --fail --silent -X POST -H "Authorization: Bearer $TESTER_TOKEN"
         -H "Content-type: application/x-yaml" --data-binary "@.manytask.yml"
-        "https://app.manytask.org/api/os-2026-spring/update_config"'
+        "https://app.manytask.org/api/os-2026-fall/update_config"'

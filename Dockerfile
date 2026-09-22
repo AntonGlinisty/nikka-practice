@@ -1,4 +1,4 @@
-FROM rust:1.89
+FROM rust:1.97.1
 
 RUN apt-get update
 RUN apt-get install sudo qemu-system-x86 llvm libclang-dev hunspell-ru hunspell-en-us texlive-science -y
@@ -19,7 +19,7 @@ RUN cargo miri setup
 RUN cd sem && cargo build
 RUN cd tools && cargo build
 RUN cd ku && cargo build
-RUN cd kernel && cargo build
+RUN cargo build
 
 RUN grep --files-with-matches --recursive 'compose::begin_private' \
       $(find . -name \*.rs\* -o -name \*.s\*) | \

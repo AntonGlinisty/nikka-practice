@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![allow(unused_features)]
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
@@ -25,6 +26,7 @@ use itertools::Itertools;
 use structopt::StructOpt;
 
 const ALLOW_DEAD_CODE: &str = r#"#![allow(dead_code)]
+#![allow(unused_features)]
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
