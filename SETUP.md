@@ -14,13 +14,13 @@
 ### Настройка окружения
 
 Для работы на курсе вам потребуется ноутбук с установленной операционной системой Linux.
-Мы рекомендуем использовать Ubuntu 22.04 или более новую, так как там есть весь необходимый софт достаточно свежих версий.
+Мы рекомендуем использовать Ubuntu 24.04 или более новую, так как там есть весь необходимый софт достаточно свежих версий.
 
 #### Регистрация в системе
 
-Зарегистрируйтесь в проверяющей системе. Если вы уже зарегистрировались в manytask.org на другом курсе, вместо этого шага зайдите на [https://app.manytask.org/os-2026-spring](https://https://app.manytask.org/os-2026-spring) и нажмите Login.
+Зарегистрируйтесь в проверяющей системе. Если вы уже зарегистрировались в manytask.org на другом курсе, вместо этого шага зайдите на [https://app.manytask.org/os-2026-fall](https://https://app.manytask.org/os-2026-fall) и нажмите Login.
 
-  - Заполните форму и зайдите в систему: [https://app.manytask.org/os-2026-spring](https://https://app.manytask.org/os-2026-spring). Secret code – `deadbeef`.
+  - Заполните форму и зайдите в систему: [https://app.manytask.org/os-2026-fall](https://https://app.manytask.org/os-2026-fall). Secret code – `deadbeef`.
   - Сгенерируйте ssh ключ и добавьте его в систему.
     1. `$ ssh-keygen -N "" -f ~/.ssh/id_rsa` – сгенерирует пару файлов `id_rsa` и `id_rsa.pub`. (Если у вас уже есть ключ, этот шаг не нужен).
     2. Скопируйте содержимое файла id_rsa.pub (`cat ~/.ssh/id_rsa.pub`) в [https://gitlab.manytask.org/-/user_settings/ssh_keys](https://gitlab.manytask.org/-/user_settings/ssh_keys).
@@ -50,7 +50,7 @@ git config --global user.name "Vasya Pupkin"
 git config --global user.email vasya@pupkin.ru
 ```
 
-- Откройте страницу своего приватного репозитория в браузере. Для этого перейдите по ссылке `My Repo` на странице с задачами [https://app.manytask.org/os-2026-spring](https://https://app.manytask.org/os-2026-spring).
+- Откройте страницу своего приватного репозитория в браузере. Для этого перейдите по ссылке `My Repo` на странице с задачами [https://app.manytask.org/os-2026-fall](https://https://app.manytask.org/os-2026-fall).
 - Добавьте в git свой приватный репозиторий. Для этого запустите из директории репозитория команду:
 
 ```
@@ -58,7 +58,7 @@ git remote add student $ADDRESS
 ```
 
 `$ADDRESS` нужно скопировать со страницы репозитория. Синяя кнопка `Clone` -> `Clone with SSH`.
-Выглядеть он будет примерно как `git@gitlab.manytask.org:os/students-2025-2026/XXXXXX.git`.
+Выглядеть он будет примерно как `git@gitlab.manytask.org:os/students-2026-2027/XXXXXX.git`.
 
 Каждую неделю после занятий вам надо будет обновлять репозиторий, чтобы у вас появились условия
 новых задач:
@@ -77,15 +77,17 @@ git pull --rebase
 sudo apt install qemu-system-x86 qemu-utils llvm
 ```
 
-В корне репозитория выполните команду
+Поставьте Rust nightly той версии, которая указана в `rust-toolchain.toml` репозитория.
+Например, можно в корне репозитория выполнить команду
 
 ```
 make install
 ```
 
-она поставит Rust в вашу домашнюю директорию.
-Можно использовать конфигурацию по умолчанию – выбрать пункт `1) Proceed with installation (default)`.
-В любом случае в конце-концов установится версия `nightly`, которая прописана в файле
+Она поставит Rust в вашу домашнюю директорию.
+При этом можно использовать конфигурацию по умолчанию –
+выбрать пункт `1) Proceed with installation (default)`.
+В любом случае, в конце-концов установится версия `nightly`, которая прописана в файле
 `rust-toolchain.toml` репозитория.
 
 **Переоткройте терминал, чтобы в `$PATH` стали доступны новые команды.**
@@ -100,5 +102,5 @@ make install
 1. Напишите правильную реализацию функции `sum` в `src/lib.rs`.
 1. Снова запустите команду `cargo test`. На этот раз тест должен пройти.
 1. Закомитьте изменения: `git commit -a -m 'Solve task: hello_world'`. Сообщения выбирайте такие, по которым потом сможете вспомнить что вы меняли в коммите.
-1. Отправьте своё решение на сервер: `git push student HEAD:submit/TASK_NAME`, где TASK_NAME нужно заменить на название задачи (hello_world). Название можно взять из таблицы gdoc или с сайта manytask.org. Ваш сабмит должен появиться по ссылке `My Submits` на [https://app.manytask.org/os-2026-spring](https://https://app.manytask.org/os-2026-spring).
+1. Отправьте своё решение на сервер: `git push student HEAD:submit/TASK_NAME`, где `TASK_NAME` нужно заменить на название задачи (`hello_world`). Название можно взять из таблицы gdoc или с сайта manytask.org. Ваш сабмит должен появиться по ссылке `My Submits` на [https://app.manytask.org/os-2026-fall](https://https://app.manytask.org/os-2026-fall).
 1. После успешного прохождения тестов вам должно начислиться 100 баллов в таблице с баллами.
