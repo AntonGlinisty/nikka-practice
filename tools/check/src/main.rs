@@ -1,8 +1,3 @@
-#![allow(dead_code)]
-#![allow(unused_features)]
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-
 use std::{
     collections::{
         HashMap,
@@ -30,6 +25,7 @@ use structopt::StructOpt;
 const CONFIG_NAME: &str = ".manytask.yml";
 const SUDO_PRESERVE_ENVS: &[&str] = &["PATH", "HOME", "CARGO_HOME", "RUSTUP_HOME"];
 const TESTER_TOKEN_ENV: &str = "TESTER_TOKEN";
+const REPORT_URL_ENV: &str = "REPORT_URL";
 
 #[derive(Deserialize, Clone)]
 struct Task {
@@ -55,7 +51,6 @@ struct Deadlines {
 struct Config {
     allow_list: Option<Vec<String>>,
     deadlines: Deadlines,
-    report_url: String,
 }
 
 impl Config {
@@ -471,7 +466,9 @@ fn do_main(opts: Opts) -> Result<()> {
 
         let tester_token = env::var(TESTER_TOKEN_ENV)
             .with_context(|| format!("envirnnment variable '{}' is not set", TESTER_TOKEN_ENV))?;
-        submit_report(&opts.user_id, task_name, &tester_token, &config.report_url)
+        let report_url = env::var(REPORT_URL_ENV)
+            .with_context(|| format!("envirnnment variable '{}' is not set", REPORT_URL_ENV))?;
+        submit_report(&opts.user_id, task_name, &tester_token, &report_url)
             .context("failed to submit report")
     } else {
         bail!("task {} is not defined in {}", task_name, CONFIG_NAME)
