@@ -8,6 +8,7 @@ use acpi::{
     AcpiHandler,
     AcpiTables,
     PhysicalMapping,
+    fadt::Fadt,
     platform::{
         ProcessorInfo,
         ProcessorState,
@@ -28,6 +29,7 @@ use crate::{
         Phys,
         Phys2Virt,
     },
+    time::rtc,
     trap::CpuId,
 };
 
@@ -67,6 +69,11 @@ impl Acpi {
                 return Err(Unimplemented);
             },
         };
+
+        match acpi_tables.find_table::<Fadt>() {
+            Ok(fadt) => rtc::set_century_register(fadt.century),
+            Err(acpi_error) => warn!(?acpi_error, "failed to find FADT"),
+        }
 
         let platform_info = match acpi_tables.platform_info() {
             Ok(platform_info) => platform_info,
