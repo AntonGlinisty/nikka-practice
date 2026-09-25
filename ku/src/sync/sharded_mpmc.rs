@@ -3,6 +3,7 @@
 use core::marker::PhantomData;
 
 use crate::collections::bounded_deque::{
+    BoundedDeque,
     Error::{
         Empty,
         Full,
@@ -48,15 +49,8 @@ where
     /// Multi--Producer--Multy--Consumer (MPMC) очередь
     /// на основе [циклического буфера](https://en.wikipedia.org/wiki/Circular_buffer).
     pub fn new() -> Self {
-        assert!(SHARD_COUNT <= CAPACITY);
-        assert!(
-            CAPACITY > 0 && CAPACITY & (CAPACITY - 1) == 0,
-            "capacity should be a power of two",
-        );
-        assert!(
-            SHARD_COUNT > 0 && SHARD_COUNT & (SHARD_COUNT - 1) == 0,
-            "capacity should be a power of two",
-        );
+        let () = BoundedDeque::<(), CAPACITY>::ASSERT_CAPACITY_IS_POWER_OF_TWO;
+        let () = Self::ASSERT_SHARD_COUNT_DIVIDES_CAPACITY;
 
         Self {
             shards: [const { Spsc::new() }; SHARD_COUNT],
@@ -85,6 +79,40 @@ where
     pub fn producer(&self) -> ShardedMpmcProducer<'_, T, CAPACITY, SHARD_COUNT> {
         CacheAligned(ShardedMpmcSide::new(self))
     }
+
+    /// Ассоциированная константа, проверяющая, что количество шардов делит ёмкость нацело.
+    /// Используется вместо inline `const { ... }`,
+    /// т.к. выражения в константном контексте работают некорректно с `generic_const_exprs`.
+    /// См.: [https://github.com/rust-lang/rust/issues/124167].
+    ///
+    /// Не допускает указание не поддерживаемого значения `SHARD_COUNT`:
+    ///   - Не поддерживается `SHARD_COUNT == 0`:
+    ///     ```compile_fail
+    ///     # use ku::sync::ShardedMpmc;
+    ///     let _ = ShardedMpmc::<u32, 1, 0>::new();
+    ///     ```
+    ///   - Не поддерживается `SHARD_COUNT`, не являющаяся степенью двойки:
+    ///     ```compile_fail
+    ///     # use ku::sync::ShardedMpmc;
+    ///     let _ = ShardedMpmc::<u32, 8, 3>::new();
+    ///     ```
+    ///   - Не поддерживается `SHARD_COUNT > CAPACITY`:
+    ///     ```compile_fail
+    ///     # use ku::sync::ShardedMpmc;
+    ///     let _ = ShardedMpmc::<u32, 1, 2>::new();
+    ///     ```
+    ///
+    /// Допускает только указание `SHARD_COUNT <= CAPACITY`, и являющегося степенью двойки:
+    /// ```no_run
+    /// # use ku::sync::ShardedMpmc;
+    /// let _ = ShardedMpmc::<u32, 16, 2>::new();
+    /// ```
+    const ASSERT_SHARD_COUNT_DIVIDES_CAPACITY: () = {
+        assert!(
+            CAPACITY % SHARD_COUNT == 0,
+            "shard cound should divide capacity",
+        );
+    };
 }
 
 impl<T, const CAPACITY: usize, const SHARD_COUNT: usize> Default

@@ -21,6 +21,7 @@ use derive_more::{
 };
 
 use crate::collections::bounded_deque::{
+    BoundedDeque,
     Error::{
         Empty,
         Full,
@@ -88,10 +89,7 @@ impl<T, const CAPACITY: usize> Spsc<T, CAPACITY> {
     /// [без ожидания](https://en.wikipedia.org/wiki/Non-blocking_algorithm#Wait-freedom)
     /// на основе [циклического буфера](https://en.wikipedia.org/wiki/Circular_buffer).
     pub const fn new() -> Self {
-        assert!(
-            CAPACITY > 0 && CAPACITY & (CAPACITY - 1) == 0,
-            "capacity should be a power of two",
-        );
+        let () = BoundedDeque::<(), CAPACITY>::ASSERT_CAPACITY_IS_POWER_OF_TWO;
 
         Self {
             // TODO: your code here.

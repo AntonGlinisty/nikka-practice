@@ -9,6 +9,7 @@
 #![allow(incomplete_features)]
 #![allow(internal_features)]
 #![deny(warnings)]
+#![doc(test(attr(feature(generic_const_exprs))))]
 #![feature(adt_const_params)]
 #![feature(allocator_api)]
 #![feature(core_intrinsics)]

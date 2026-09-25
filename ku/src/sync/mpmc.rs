@@ -11,6 +11,7 @@ use core::{
 
 use crate::{
     collections::bounded_deque::{
+        BoundedDeque,
         Error::{
             Empty,
             Full,
@@ -194,11 +195,8 @@ impl<const CAPACITY: usize> MpmcU32<CAPACITY> {
     /// Multi--Producer--Multy--Consumer (MPMC) очередь
     /// на основе [циклического буфера](https://en.wikipedia.org/wiki/Circular_buffer).
     fn new() -> Self {
-        assert!(
-            CAPACITY > 0 && CAPACITY & (CAPACITY - 1) == 0,
-            "capacity should be a power of two",
-        );
-        assert!(CAPACITY <= 1 << Entry::PAYLOAD_BIT_COUNT);
+        let () = BoundedDeque::<(), CAPACITY>::ASSERT_CAPACITY_IS_POWER_OF_TWO;
+        let () = Self::ASSERT_CAPACITY_IS_SUPPORTED;
 
         Self {
             buf: CacheAligned([const { AtomicUsize::new(0) }; CAPACITY]),
@@ -262,6 +260,26 @@ impl<const CAPACITY: usize> MpmcU32<CAPACITY> {
     }
 
     // TODO: your code here.
+
+    /// Ассоциированная константа, проверяющая что заданная ёмкость поддерживается реализацией.
+    /// Используется вместо inline `const { ... }`,
+    /// т.к. выражения в константном контексте работают некорректно с `generic_const_exprs`.
+    /// См.: [https://github.com/rust-lang/rust/issues/124167].
+    ///
+    /// Не допускает повышать `CAPACITY` выше возможностей реализации:
+    /// ```compile_fail
+    /// # use ku::sync::Mpmc;
+    /// let _ = Mpmc::<u32, 1 << (u32::BITS + 1)>::new();
+    /// ```
+    ///
+    /// Максиальное возможное значение для `CAPACITY`:
+    /// ```no_run
+    /// # use ku::sync::Mpmc;
+    /// let _ = Mpmc::<u32, { 1 << u32::BITS }>::new();
+    /// ```
+    const ASSERT_CAPACITY_IS_SUPPORTED: () = {
+        assert!(CAPACITY <= 1 << Entry::PAYLOAD_BIT_COUNT);
+    };
 }
 
 /// См. [The Rustonomicon, "Send and Sync"](https://doc.rust-lang.org/nomicon/send-and-sync.html).

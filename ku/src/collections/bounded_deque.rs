@@ -31,10 +31,7 @@ pub struct BoundedDeque<T, const CAPACITY: usize> {
 impl<T, const CAPACITY: usize> BoundedDeque<T, CAPACITY> {
     /// Создаёт ограниченную двухстороннюю очередь на циклическом буфере.
     pub fn new() -> Self {
-        assert!(
-            CAPACITY > 0 && CAPACITY & (CAPACITY - 1) == 0,
-            "capacity should be a power of two",
-        );
+        let () = Self::ASSERT_CAPACITY_IS_POWER_OF_TWO;
 
         Self {
             buf: [const { MaybeUninit::uninit() }; CAPACITY],
@@ -155,6 +152,35 @@ impl<T, const CAPACITY: usize> BoundedDeque<T, CAPACITY> {
     #[inline(always)] fn increment(index: usize) -> usize { if core::hint::likely(index != CAPACITY - 1) { index + 1 } else { 0 } } // TODO: remove before flight.
 
     // TODO: your code here.
+
+    /// Ассоциированная константа, проверяющая, что ёмкость очереди является степенью двойки.
+    /// Используется вместо inline `const { ... }`,
+    /// т.к. выражения в константном контексте работают некорректно с `generic_const_exprs`.
+    /// См.: [https://github.com/rust-lang/rust/issues/124167].
+    ///
+    /// Не допускает указание не поддерживаемого значения `CAPACITY`:
+    ///   - Не поддерживается `CAPACITY == 0`:
+    ///     ```compile_fail
+    ///     # use ku::collections::BoundedDeque;
+    ///     let _ = BoundedDeque::<usize, 0>::new();
+    ///     ```
+    ///   - Не поддерживается `CAPACITY`, не являющаяся степенью двойки:
+    ///     ```compile_fail
+    ///     # use ku::collections::BoundedDeque;
+    ///     let _ = BoundedDeque::<usize, 3>::new();
+    ///     ```
+    ///
+    /// Допускает только указание `CAPACITY`, являющейся степенью двойки:
+    /// ```rust
+    /// # use ku::collections::BoundedDeque;
+    /// let _ = BoundedDeque::<usize, 4>::new();
+    /// ```
+    pub(crate) const ASSERT_CAPACITY_IS_POWER_OF_TWO: () = {
+        assert!(
+            CAPACITY.is_power_of_two(),
+            "capacity should be a power of two",
+        );
+    };
 }
 
 impl<T, const CAPACITY: usize> Default for BoundedDeque<T, CAPACITY> {
