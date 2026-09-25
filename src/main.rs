@@ -11,6 +11,12 @@ use std::{
 };
 
 use anyhow::Result;
+use ovmf_prebuilt::{
+    Arch,
+    FileType,
+    Prebuilt,
+    Source,
+};
 use structopt::StructOpt;
 
 #[cfg(not(feature = "tests"))]
@@ -48,12 +54,21 @@ fn main() -> Result<()> {
         );
     }
 
+    let ovmf = Prebuilt::fetch(Source::LATEST, "target/ovmf").expect("failed to update prebuilt");
+
     let mut cmd = Command::new("qemu-system-x86_64");
     cmd.arg("-cpu").arg("max,+x2apic");
     cmd.arg("-m").arg("size=256M");
     cmd.arg("-smp").arg("cpus=4");
     cmd.arg("-device").arg("isa-debug-exit,iobase=0xF4,iosize=0x04");
-    cmd.arg("-bios").arg(ovmf_prebuilt::ovmf_pure_efi());
+    cmd.arg("-drive").arg(format!(
+        "if=pflash,format=raw,readonly=on,file={}",
+        ovmf.get_file(Arch::X64, FileType::Code).display(),
+    ));
+    cmd.arg("-drive").arg(format!(
+        "if=pflash,format=raw,file={}",
+        ovmf.get_file(Arch::X64, FileType::Vars).display(),
+    ));
     cmd.arg("-drive").arg(format!("file={uefi_path},index=0,media=disk,format=raw"));
     cmd.arg("-drive").arg("file=fs.img,index=1,media=disk,format=raw");
 
