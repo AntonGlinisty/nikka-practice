@@ -143,6 +143,20 @@ pub fn error() -> Duration {
     Duration::nanoseconds(ERROR.load(Ordering::Relaxed))
 }
 
+/// Запоминает адрес регистра века RTC.
+///
+/// Вызывается в тот момент, когда становятся доступны ACPI таблицы.
+pub(crate) fn set_century_register(address: u8) {
+    if address == 0 {
+        info!("RTC century register is not supported");
+    } else if REGISTER_D < address && address < DISABLE_NMI {
+        CENTURY_REGISTER.store(address, Ordering::Relaxed);
+        info!(address, "RTC century register");
+    } else {
+        error!(address, "invalid RTC century register address");
+    }
+}
+
 // ANCHOR: enable_next_interrupt
 /// Говорит микросхеме RTC, что процессор обработал
 /// [прерывание](https://en.wikipedia.org/wiki/Interrupt)
@@ -412,6 +426,17 @@ static ERROR: AtomicI64 = AtomicI64::new(0);
 
 /// Копия текущих настроек микросхемы --- [`RegisterB`].
 static SETTINGS: AtomicU8 = AtomicU8::new(0);
+
+/// Адрес регистра века RTC.
+///
+/// Этот регистр не входит в стандарт RTC,
+/// однако многие производители ближе к 2000 году стали его добавлять.
+///
+/// Адрес задается полем `CENTURY` таблицы FADT
+/// [спецификации ACPI (раздел 5.2.9)](https://uefi.org/sites/default/files/resources/ACPI_Spec_6_5_Aug29.pdf).
+///
+/// Значение `0` означает, что регистр либо не поддерживается, либо его адрес еще неизвестен.
+static CENTURY_REGISTER: AtomicU8 = AtomicU8::new(0);
 
 /// Запрет
 /// [немаскируемых прерываний](https://en.wikipedia.org/wiki/Non-maskable_interrupt).
