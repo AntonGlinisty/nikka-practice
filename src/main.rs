@@ -19,7 +19,6 @@ use ovmf_prebuilt::{
 };
 use structopt::StructOpt;
 
-#[cfg(not(feature = "tests"))]
 use anyhow::bail;
 
 #[derive(StructOpt)]
@@ -89,11 +88,15 @@ fn main() -> Result<()> {
 
     println!("Running: {cmd:?}");
 
-    let mut child = cmd.spawn().unwrap();
-    child.wait().unwrap();
+    let mut child = cmd.spawn()?;
+    let child_exit_status = child.wait()?;
 
     if !args.test.is_empty() {
         fs::remove_file(test_config_image).unwrap_or(());
+    }
+
+    if child_exit_status.code() != Some(TEST_SUCCESS_EXIT_CODE) {
+        bail!("Test failed");
     }
 
     Ok(())
@@ -113,3 +116,5 @@ fn make_test_config_image(
 
     fs::write(path, config_sector.as_bytes())
 }
+
+const TEST_SUCCESS_EXIT_CODE: i32 = 3;
