@@ -1,8 +1,3 @@
-#![allow(dead_code)]
-#![allow(unused_features)]
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-
 #![deny(warnings)]
 
 use std::{
@@ -141,12 +136,17 @@ async fn main() -> Result<()> {
     println!("Nikka kernel binary: {KERNEL}");
     println!("Running: {cmd:?}");
 
-    let mut gdb_command = Command::new("gdb");
-    gdb_command.arg("--command=gdbinit").arg(format!("--symbols={KERNEL}"));
-    if let Some(exe) = &args.exe {
-        gdb_command.arg(format!("--symbols={exe}"));
-    }
-    let _gdb = gdb_command.kill_on_drop(true).spawn()?;
+    let _gdb = if args.gdb {
+        let mut gdb_command = Command::new("gdb");
+        gdb_command.arg("--command=gdbinit").arg(format!("--symbols={KERNEL}"));
+        if let Some(exe) = &args.exe {
+            gdb_command.arg(format!("--symbols={exe}"));
+        }
+
+        Some(gdb_command.kill_on_drop(true).spawn())
+    } else {
+        None
+    };
 
     let exe = args.exe.unwrap_or(KERNEL.into());
 
