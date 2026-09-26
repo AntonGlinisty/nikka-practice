@@ -5,9 +5,6 @@ QEMU_CURSES = $(QEMU_OPTIONS) -display curses -serial file:serial.out
 
 PLANTUML=$(shell ls /usr/share/java/plantuml/plantuml.jar /usr/share/plantuml/plantuml.jar 2>/dev/null | head --lines 1 || true)
 
-QUIT_MESSAGE = "To quit QEMU type Ctrl-A then X. For QEMU console type Ctrl-A then C.\n"
-WAIT_MESSAGE = "Will wait for GDB to attach. Run 'make gdb' in a separate console after qemu starts.\n"
-
 BUILD_MODE = debug
 
 ifeq ($(BUILD_MODE),debug)
@@ -35,14 +32,7 @@ run: install
 		cargo run $(BUILD_MODE_FLAG) -- $(QEMU_GTK); \
 	)
 
-run-gdb: install
-	@echo $(WAIT_MESSAGE)
-	@echo
-	@( \
-		cd kernel; \
-		rm --force serial.out; \
-		cargo run $(BUILD_MODE_FLAG) -- $(QEMU_GTK) -gdb tcp::1234 -S; \
-	)
+run-gdb: gdb
 
 nox: install
 	@echo $(QUIT_MESSAGE)
@@ -53,15 +43,7 @@ nox: install
 		cargo run $(BUILD_MODE_FLAG) -- $(QEMU_NOX); \
 	)
 
-nox-gdb: install
-	@echo $(QUIT_MESSAGE)
-	@echo $(WAIT_MESSAGE)
-	@echo
-	@( \
-		cd kernel; \
-		rm --force serial.out; \
-		cargo run $(BUILD_MODE_FLAG) -- $(QEMU_NOX) -gdb tcp::1234 -S; \
-	)
+nox-gdb: gdb
 
 curses: install
 	@( \
@@ -74,7 +56,8 @@ kill:
 	@kill $$(ps -u $$USER -o pid,comm | awk '$$2 == "qemu-system-x86" { print $$1; }')
 
 gdb:
-	gdb -command=gdbinit
+	@echo 'Use `cargo t --gdb ...` or `cargo run -- --gdb ...`'
+	@false
 
 FORCE:
 
@@ -132,14 +115,7 @@ test: install
 		cd - >/dev/null; \
 	)
 
-test-gdb: install
-	@( \
-		for crate in kernel; do \
-			cd $$crate; \
-			RUST_BACKTRACE=1 cargo test -- -gdb tcp::1234 -S; \
-			cd - >/dev/null; \
-		done; \
-	)
+test-gdb: gdb
 
 lab: $(RUST_PATH)/mdbook lab/src/*.dot lab/src/*.md lab/src/*.puml FORCE
 	@( \

@@ -34,6 +34,15 @@ use anyhow::bail;
 
 #[derive(StructOpt)]
 struct Args {
+    /// Binary with debugging information for backtrace symbolization
+    /// (default to the kernel binary)
+    #[structopt(long)]
+    exe: Option<String>,
+
+    /// Attach gdb to qemu
+    #[structopt(long)]
+    gdb: bool,
+
     /// Start RTC at specific time
     #[structopt(long = "rtc-base")]
     rtc_base: Option<String>,
@@ -93,8 +102,6 @@ async fn main() -> Result<()> {
 
     let ovmf = Prebuilt::fetch(Source::LATEST, "target/ovmf").expect("failed to update prebuilt");
 
-    println!("Nikka kernel binary: {KERNEL}");
-
     let mut cmd = Command::new("qemu-system-x86_64");
     cmd.arg("-cpu").arg("max,+x2apic");
     cmd.arg("-m").arg("size=256M");
@@ -126,22 +133,36 @@ async fn main() -> Result<()> {
         cmd.arg("-rtc").arg(format!("base={rtc_base}"));
     }
 
-    println!("Kernel binary: {KERNEL}");
+    if args.gdb {
+        cmd.stdin(Stdio::null());
+        cmd.arg("-gdb").arg("tcp::1234").arg("-S");
+    }
+
+    println!("Nikka kernel binary: {KERNEL}");
     println!("Running: {cmd:?}");
 
-    let mut child = cmd.stdout(Stdio::piped()).kill_on_drop(true).spawn()?;
+    let mut gdb_command = Command::new("gdb");
+    gdb_command.arg("--command=gdbinit").arg(format!("--symbols={KERNEL}"));
+    if let Some(exe) = &args.exe {
+        gdb_command.arg(format!("--symbols={exe}"));
+    }
+    let _gdb = gdb_command.kill_on_drop(true).spawn()?;
 
-    let stdout = child.stdout.take().expect("stdout should be captured");
+    let exe = args.exe.unwrap_or(KERNEL.into());
+
+    let mut qemu = cmd.stdout(Stdio::piped()).kill_on_drop(true).spawn()?;
+
+    let stdout = qemu.stdout.take().expect("stdout should be captured");
 
     let mut lines = BufReader::new(stdout).lines();
     let mut state = State::default();
 
     while let Some(line) = lines.next_line().await? {
-        print!("{line}");
+        print!("{}", str::from_utf8(&strip_ansi_escapes::strip(&line))?);
         if state == State::Backtrace && line.starts_with("  0") {
             println!(
                 " {}",
-                symbolize_backtrace(line.trim(), false).await?.replace('\n', " "),
+                symbolize_backtrace(line.trim(), &exe, false).await?.replace('\n', " "),
             );
         } else {
             println!();
@@ -149,19 +170,23 @@ async fn main() -> Result<()> {
         if state == State::Normal &&
             let Some(backtrace) = substring(&line, "backtrace: [", "]")
         {
-            println!("{}", symbolize_backtrace(backtrace, true).await?);
+            println!("{}", symbolize_backtrace(backtrace, &exe, true).await?);
         }
         state.step(&line);
     }
 
-    let child_exit_status = child.wait().await?;
+    let qemu_exit_status = qemu.wait().await?;
 
     if !args.test.is_empty() {
         fs::remove_file(test_config_image).unwrap_or(());
     }
 
-    if child_exit_status.code() != Some(TEST_SUCCESS_EXIT_CODE) {
-        bail!("Test failed");
+    if qemu_exit_status.code() != Some(TEST_SUCCESS_EXIT_CODE) {
+        if args.test.is_empty() {
+            bail!("Emulation failed");
+        } else {
+            bail!("Test failed");
+        }
     }
 
     Ok(())
@@ -200,12 +225,13 @@ fn substring<'a>(
 
 async fn symbolize_backtrace(
     backtrace: &str,
+    exe: &str,
     print_address: bool,
 ) -> Result<String> {
     static SYMBOLIZER_NOT_INSTALLED: AtomicBool = AtomicBool::new(false);
 
     let mut cmd = Command::new(SYMBOLIZER);
-    cmd.arg(format!("--exe={KERNEL}"));
+    cmd.arg(format!("--exe={exe}"));
     cmd.arg("--demangle");
     cmd.arg("--output-style").arg("GNU");
     cmd.arg("--pretty-print");
@@ -214,7 +240,7 @@ async fn symbolize_backtrace(
         cmd.arg("--print-address");
     }
 
-    let backtrace = backtrace.replace('v', "x").replace('_', "");
+    let backtrace = backtrace.replace('v', "x").replace(['_', ','], "");
     cmd.args(backtrace.split(' ').collect::<Vec<_>>());
 
     let symbolized_backtrace = match cmd.stdout(Stdio::piped()).spawn() {
@@ -222,19 +248,19 @@ async fn symbolize_backtrace(
             let output = symbolizer.wait_with_output().await?;
             str::from_utf8(&output.stdout)?.trim().into()
         },
-        Err(error) => {
+        Err(error) =>
             if !SYMBOLIZER_NOT_INSTALLED.load(Ordering::Relaxed) {
-                println!("failed to run {SYMBOLIZER}, maybe it is not installed: {error}");
                 SYMBOLIZER_NOT_INSTALLED.store(true, Ordering::Relaxed);
-            }
-            String::new()
-        },
+                format!("failed to run {SYMBOLIZER}, maybe it is not installed: {error}")
+            } else {
+                String::new()
+            },
     };
 
     Ok(symbolized_backtrace)
 }
 
-static KERNEL: &'static str = include_str!(concat!(env!("OUT_DIR"), "/kernel.path"));
+static KERNEL: &str = include_str!(concat!(env!("OUT_DIR"), "/kernel.path"));
 
 const SYMBOLIZER: &str = "llvm-symbolizer";
 const TEST_SUCCESS_EXIT_CODE: i32 = 3;
