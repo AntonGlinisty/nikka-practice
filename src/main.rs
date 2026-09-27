@@ -7,7 +7,11 @@
 
 use std::{
     fs,
-    process::Command,
+    process::Stdio,
+    sync::atomic::{
+        AtomicBool,
+        Ordering,
+    },
 };
 
 use anyhow::Result;
@@ -18,6 +22,13 @@ use ovmf_prebuilt::{
     Source,
 };
 use structopt::StructOpt;
+use tokio::{
+    io::{
+        AsyncBufReadExt as _,
+        BufReader,
+    },
+    process::Command,
+};
 
 use anyhow::bail;
 
@@ -39,7 +50,34 @@ struct Args {
     test: Vec<String>,
 }
 
-fn main() -> Result<()> {
+#[derive(Clone, Copy, Default, Eq, PartialEq)]
+enum State {
+    Backtrace,
+
+    #[default]
+    Normal,
+}
+
+impl State {
+    fn step(
+        &mut self,
+        line: &str,
+    ) {
+        match self {
+            State::Backtrace =>
+                if !line.starts_with("  0") {
+                    *self = State::Normal;
+                },
+            State::Normal =>
+                if line == "Backtrace:" {
+                    *self = State::Backtrace;
+                },
+        }
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
     let args = Args::from_args();
 
     let test_config_image = "test-config.img";
@@ -54,6 +92,8 @@ fn main() -> Result<()> {
     }
 
     let ovmf = Prebuilt::fetch(Source::LATEST, "target/ovmf").expect("failed to update prebuilt");
+
+    println!("Nikka kernel binary: {KERNEL}");
 
     let mut cmd = Command::new("qemu-system-x86_64");
     cmd.arg("-cpu").arg("max,+x2apic");
@@ -86,10 +126,35 @@ fn main() -> Result<()> {
         cmd.arg("-rtc").arg(format!("base={rtc_base}"));
     }
 
+    println!("Kernel binary: {KERNEL}");
     println!("Running: {cmd:?}");
 
-    let mut child = cmd.spawn()?;
-    let child_exit_status = child.wait()?;
+    let mut child = cmd.stdout(Stdio::piped()).kill_on_drop(true).spawn()?;
+
+    let stdout = child.stdout.take().expect("stdout should be captured");
+
+    let mut lines = BufReader::new(stdout).lines();
+    let mut state = State::default();
+
+    while let Some(line) = lines.next_line().await? {
+        print!("{line}");
+        if state == State::Backtrace && line.starts_with("  0") {
+            println!(
+                " {}",
+                symbolize_backtrace(line.trim(), false).await?.replace('\n', " "),
+            );
+        } else {
+            println!();
+        };
+        if state == State::Normal &&
+            let Some(backtrace) = substring(&line, "backtrace: [", "]")
+        {
+            println!("{}", symbolize_backtrace(backtrace, true).await?);
+        }
+        state.step(&line);
+    }
+
+    let child_exit_status = child.wait().await?;
 
     if !args.test.is_empty() {
         fs::remove_file(test_config_image).unwrap_or(());
@@ -117,4 +182,59 @@ fn make_test_config_image(
     fs::write(path, config_sector.as_bytes())
 }
 
+fn substring<'a>(
+    value: &'a str,
+    start: &str,
+    end: &str,
+) -> Option<&'a str> {
+    let start = start.len() + value.find(start)?;
+
+    let end = if end.is_empty() {
+        value.len()
+    } else {
+        start + value[start ..].find(end)?
+    };
+
+    Some(&value[start .. end])
+}
+
+async fn symbolize_backtrace(
+    backtrace: &str,
+    print_address: bool,
+) -> Result<String> {
+    static SYMBOLIZER_NOT_INSTALLED: AtomicBool = AtomicBool::new(false);
+
+    let mut cmd = Command::new(SYMBOLIZER);
+    cmd.arg(format!("--exe={KERNEL}"));
+    cmd.arg("--demangle");
+    cmd.arg("--output-style").arg("GNU");
+    cmd.arg("--pretty-print");
+    cmd.arg("--relativenames");
+    if print_address {
+        cmd.arg("--print-address");
+    }
+
+    let backtrace = backtrace.replace('v', "x").replace('_', "");
+    cmd.args(backtrace.split(' ').collect::<Vec<_>>());
+
+    let symbolized_backtrace = match cmd.stdout(Stdio::piped()).spawn() {
+        Ok(symbolizer) => {
+            let output = symbolizer.wait_with_output().await?;
+            str::from_utf8(&output.stdout)?.trim().into()
+        },
+        Err(error) => {
+            if !SYMBOLIZER_NOT_INSTALLED.load(Ordering::Relaxed) {
+                println!("failed to run {SYMBOLIZER}, maybe it is not installed: {error}");
+                SYMBOLIZER_NOT_INSTALLED.store(true, Ordering::Relaxed);
+            }
+            String::new()
+        },
+    };
+
+    Ok(symbolized_backtrace)
+}
+
+static KERNEL: &'static str = include_str!(concat!(env!("OUT_DIR"), "/kernel.path"));
+
+const SYMBOLIZER: &str = "llvm-symbolizer";
 const TEST_SUCCESS_EXIT_CODE: i32 = 3;
