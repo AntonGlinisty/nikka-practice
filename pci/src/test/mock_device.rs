@@ -106,7 +106,7 @@ impl MockDevice {
         let device = self.device();
 
         match device.kind() {
-            &Kind::Normal { bars } => validate_bars(bars, self.config_space.bars),
+            &Kind::Normal { bars } => validate_bars(bars, self.config_space.bars()),
             _ => panic!("unexpected device type {}", device.kind()),
         }
     }
@@ -125,7 +125,7 @@ impl MockDevice {
         );
 
         match *device.kind() {
-            Kind::Normal { bars } => validate_bars(bars, self.config_space.bars),
+            Kind::Normal { bars } => validate_bars(bars, self.config_space.bars()),
             Kind::PciPciBridge {
                 bars,
                 primary,
@@ -166,11 +166,11 @@ impl MockDevice {
 }
 
 impl Bar {
-    fn info(bar: &Option<Self>) -> u32 {
+    fn info(bar: &MockBar) -> u32 {
         match *bar {
-            None => 0x0,
+            MockBar::High(_) => 0x0,
 
-            Some(Bar::Memory {
+            MockBar::Low(Bar::Memory {
                 prefetchable,
                 width,
                 ..
@@ -189,29 +189,33 @@ impl Bar {
                 prefetchable_mask | address_width_mask
             },
 
-            Some(Bar::Port { .. }) => 0x1,
+            MockBar::Low(Bar::Port { .. }) => 0x1,
+
+            MockBar::None => 0x0,
         }
     }
 
-    fn mask(bar: &Option<Self>) -> u32 {
+    fn mask(bar: &MockBar) -> u32 {
         return match *bar {
-            None => 0x0,
-            Some(Bar::Memory { block, .. }) => 0xF | block_mask(block),
-            Some(Bar::Port { block, .. }) => 0x1 | block_mask(block),
+            MockBar::High(Bar::Memory { block, .. }) => (block_mask(block) >> u32::BITS) as u32,
+            MockBar::High(Bar::Port { .. }) => panic!("x86-64 has 16-bit I/O space"),
+            MockBar::Low(Bar::Memory { block, .. }) => 0xF | block_mask(block) as u32,
+            MockBar::Low(Bar::Port { block, .. }) => 0x1 | block_mask(block) as u32,
+            MockBar::None => !0x0,
         };
 
-        fn block_mask<T: Memory>(block: Block<T>) -> u32 {
+        fn block_mask<T: Memory>(block: Block<T>) -> usize {
             if block.is_empty() {
-                0
+                panic!("empty blocks are not allowed in BARs")
             } else {
-                (block.size() - 1) as u32
+                block.size() - 1
             }
         }
     }
 }
 
 struct MockConfigSpace {
-    bars: [Option<Bar>; 6],
+    bars: [MockBar; 6],
     data: [u8; Self::COUNT],
 }
 
@@ -220,7 +224,37 @@ impl MockConfigSpace {
         data: [u8; Self::COUNT],
         bars: [Option<Bar>; 6],
     ) -> Self {
-        Self { bars, data }
+        let mut mock_bars = [MockBar::None; 6];
+        let mut i = 0;
+        while i < bars.len() {
+            if let Some(bar) = bars[i] {
+                mock_bars[i] = MockBar::Low(bar);
+                if let Bar::Memory { width, .. } = bar &&
+                    width == Width::Memory64
+                {
+                    i += 1;
+                    assert_eq!(bars[i], None);
+                    mock_bars[i] = MockBar::High(bar);
+                }
+            }
+            i += 1;
+        }
+
+        Self {
+            bars: mock_bars,
+            data,
+        }
+    }
+
+    fn bars(&self) -> [Option<Bar>; 6] {
+        let mut bars = [None; 6];
+        for (bar, mock_bar) in bars.iter_mut().zip(self.bars) {
+            if let MockBar::Low(mock_bar) = mock_bar {
+                *bar = Some(mock_bar);
+            }
+        }
+
+        bars
     }
 
     const COUNT: usize = 256;
@@ -232,12 +266,11 @@ impl ConfigSpace for MockConfigSpace {
         _routing_id: RoutingId,
         offset: usize,
     ) -> u32 {
-        let mut result = 0;
-        for i in (offset .. offset + mem::size_of::<u32>()).rev() {
-            result = (result << u8::BITS) | u32::from(self.data[i]);
-        }
-
-        result
+        u32::from_le_bytes(
+            self.data[offset .. offset + mem::size_of::<u32>()]
+                .try_into()
+                .expect("slice len mismatch"),
+        )
     }
 
     unsafe fn write(
@@ -257,10 +290,7 @@ impl ConfigSpace for MockConfigSpace {
             data = (Bar::info(bar) & Bar::mask(bar)) | (data & !Bar::mask(bar));
         }
 
-        for i in offset .. offset + mem::size_of::<u32>() {
-            self.data[i] = data as u8;
-            data >>= u8::BITS;
-        }
+        self.data[offset .. offset + mem::size_of::<u32>()].copy_from_slice(&data.to_le_bytes());
     }
 }
 
@@ -288,4 +318,11 @@ fn validate_bars<const N: usize>(
 
     assert!(bars[i ..].iter().all(Option::is_none));
     assert!(expected_bars[j ..].iter().all(Option::is_none));
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum MockBar {
+    High(Bar),
+    Low(Bar),
+    None,
 }
