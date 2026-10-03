@@ -397,11 +397,11 @@ static LOG_COLLECTOR: LogCollector = LogCollector::new(Format::Timeless, Level::
 
 ### Запуск тестов
 
-Тесты можно запустить командой `cargo test --test 1-hw-3-high-resolution-date` в директории `kernel` репозитория.
+Тесты можно запустить командой `cargo test --test 1-hw-3-high-resolution-date` в директории `nikka` репозитория.
 
 После выполнения задачи должен проходить тест `high_resolution_date()`
 в файле
-[`kernel/tests/time.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/tests/time.rs):
+[`kernel/src/tests/lab_1_hw_3_high_resolution_date.rs`](https://gitlab.com/sergey-v-galtsev/nikka-public/-/blob/master/kernel/src/tests/lab_1_hw_3_high_resolution_date.rs):
 
 ```console
 /.../nikka$ (cd kernel; cargo test --test 1-hw-3-high-resolution-date)
