@@ -32,7 +32,7 @@ use super::{
     process_helpers,
 };
 
-const COW_FORK_ELF: &[u8] = page_aligned!("../../../target/kernel/user/cow-fork");
+const COW_FORK_ELF: &[u8] = page_aligned!("../../../target/kernel/user/cow-fork.stripped");
 
 pub(super) fn cow_fork() {
     let _trap_guard = process_helpers::forbid_traps_except(&[Trap::PageFault]);

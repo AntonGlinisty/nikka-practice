@@ -1,5 +1,5 @@
 [alias]
-t = "run --profile ci --features tests --"
+t = "run --features tests --"
 
 [build]
 rustflags = [

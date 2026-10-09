@@ -17,9 +17,9 @@ use super::{
     process_helpers,
 };
 
-const EXIT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/exit");
-const PAGE_FAULT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/page-fault");
-const SCHED_YIELD_ELF: &[u8] = page_aligned!("../../../target/kernel/user/sched-yield");
+const EXIT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/exit.stripped");
+const PAGE_FAULT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/page-fault.stripped");
+const SCHED_YIELD_ELF: &[u8] = page_aligned!("../../../target/kernel/user/sched-yield.stripped");
 
 pub(super) fn syscall_sched_yield() {
     let _guard = mm_helpers::forbid_frame_leaks();

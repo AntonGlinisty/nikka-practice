@@ -40,8 +40,8 @@ use super::{
     process_helpers,
 };
 
-const EAGER_FORK_ELF: &[u8] = page_aligned!("../../../target/kernel/user/eager-fork");
-const EXIT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/exit");
+const EAGER_FORK_ELF: &[u8] = page_aligned!("../../../target/kernel/user/eager-fork.stripped");
+const EXIT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/exit.stripped");
 
 pub(super) fn exofork_syscall() {
     let _trap_guard = process_helpers::forbid_traps_except(&[Trap::PageFault]);

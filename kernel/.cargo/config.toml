@@ -7,9 +7,10 @@ rustflags = [
     "--codegen",
     "debuginfo=full",
 ]
+target = "x86_64-unknown-none"
 
 [target.'cfg(target_os = "none")']
-runner = "./scripts/run_kernel.sh"
+runner = ["bash", "-c", "echo 'Run the kernel from the upper directory.'"]
 
 [unstable]
 build-std = ["alloc", "compiler_builtins", "core"]

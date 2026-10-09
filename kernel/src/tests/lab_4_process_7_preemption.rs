@@ -14,8 +14,9 @@ use super::{
     process_helpers,
 };
 
-const CHECK_CONTEXT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/check-context");
-const LOOP_ELF: &[u8] = page_aligned!("../../../target/kernel/user/loop");
+const CHECK_CONTEXT_ELF: &[u8] =
+    page_aligned!("../../../target/kernel/user/check-context.stripped");
+const LOOP_ELF: &[u8] = page_aligned!("../../../target/kernel/user/loop.stripped");
 
 pub(super) fn preemption() {
     let _trap_guard = process_helpers::forbid_traps();

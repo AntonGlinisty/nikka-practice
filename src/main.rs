@@ -99,7 +99,7 @@ async fn main() -> Result<()> {
 
     let mut cmd = Command::new("qemu-system-x86_64");
     cmd.arg("-cpu").arg("max,+x2apic");
-    cmd.arg("-m").arg("size=256M");
+    cmd.arg("-m").arg("size=128M");
     cmd.arg("-smp").arg("cpus=4");
     cmd.arg("-device").arg("isa-debug-exit,iobase=0xF4,iosize=0x04");
     cmd.arg("-drive").arg(format!(

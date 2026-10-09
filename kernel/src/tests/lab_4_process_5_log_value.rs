@@ -31,7 +31,7 @@ use crate::{
 
 use super::process_helpers;
 
-const LOOP_ELF: &[u8] = page_aligned!("../../../target/kernel/user/loop");
+const LOOP_ELF: &[u8] = page_aligned!("../../../target/kernel/user/loop.stripped");
 
 pub(super) fn log_value_implementation() {
     let process = Spinlock::new(process_helpers::make(LOOP_ELF));

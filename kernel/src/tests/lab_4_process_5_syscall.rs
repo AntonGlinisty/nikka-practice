@@ -11,8 +11,8 @@ use crate::{
 
 use super::process_helpers;
 
-const EXIT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/exit");
-const LOG_VALUE_ELF: &[u8] = page_aligned!("../../../target/kernel/user/log-value");
+const EXIT_ELF: &[u8] = page_aligned!("../../../target/kernel/user/exit.stripped");
+const LOG_VALUE_ELF: &[u8] = page_aligned!("../../../target/kernel/user/log-value.stripped");
 
 pub(super) fn syscall_exit() {
     let _trap_guard = process_helpers::forbid_traps();
