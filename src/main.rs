@@ -233,15 +233,26 @@ async fn symbolize_backtrace(
     let mut cmd = Command::new(SYMBOLIZER);
     cmd.arg(format!("--exe={exe}"));
     cmd.arg("--demangle");
-    cmd.arg("--output-style").arg("GNU");
+    cmd.arg("--functions");
+    cmd.arg("--inlines");
     cmd.arg("--pretty-print");
-    cmd.arg("--relativenames");
     if print_address {
-        cmd.arg("--print-address");
+        cmd.arg("--addresses");
     }
 
     let backtrace = backtrace.replace('v', "x").replace(['_', ','], "");
-    cmd.args(backtrace.split(' ').collect::<Vec<_>>());
+    for (frame_number, return_address) in backtrace.split(' ').enumerate() {
+        if frame_number > 0 {
+            let return_address = usize::from_str_radix(
+                return_address.strip_prefix("0x").expect("no '0x' prefix"),
+                16,
+            )?;
+            let call_address = format!("0x{:x}", return_address - 1);
+            cmd.arg(&call_address);
+        } else {
+            cmd.arg(return_address);
+        }
+    }
 
     let symbolized_backtrace = match cmd.stdout(Stdio::piped()).spawn() {
         Ok(symbolizer) => {
@@ -262,5 +273,5 @@ async fn symbolize_backtrace(
 
 static KERNEL: &str = include_str!(concat!(env!("OUT_DIR"), "/kernel.path"));
 
-const SYMBOLIZER: &str = "llvm-symbolizer";
+const SYMBOLIZER: &str = "addr2line";
 const TEST_SUCCESS_EXIT_CODE: i32 = 3;
