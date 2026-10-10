@@ -12,6 +12,7 @@
 #![doc(test(attr(feature(generic_const_exprs))))]
 #![feature(adt_const_params)]
 #![feature(allocator_api)]
+#![feature(const_range)]
 #![feature(core_intrinsics)]
 #![feature(generic_const_exprs)]
 #![feature(likely_unlikely)]

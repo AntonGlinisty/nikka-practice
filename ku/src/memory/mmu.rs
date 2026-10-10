@@ -1,5 +1,6 @@
 use core::{
     arch::asm,
+    cmp,
     fmt,
     mem,
     result,
@@ -58,6 +59,12 @@ use crate::error::Error;
 pub struct PageTableEntry(usize);
 
 impl PageTableEntry {
+    /// Создаёт запись [`PageTableEntry`] заданного уровня `level`
+    /// в дереве отображения страниц.
+    pub fn new(level: u32) -> Self {
+        Self(PageTableFlags::new(level).bits())
+    }
+
     /// Флаги доступа к странице, которую описывает эта запись.
     pub fn flags(&self) -> PageTableFlags {
         let flags = self.0 & !Self::ADDRESS_MASK;
@@ -89,10 +96,12 @@ impl PageTableEntry {
     /// - [`Error::NoPage`] --- эта запись не используется,
     ///   то есть, сброшен бит [`PageTableFlags::PRESENT`].
     ///
-    /// # Safety
+    /// # Panics
     ///
-    /// Нельзя использовать эту функцию, если эта запись описывает большую страницу.
-    pub unsafe fn frame(&self) -> Result<Frame> {
+    /// Паникует в отладочном режиме, если:
+    /// - Эта запись описывает большую страницу.
+    pub fn frame(&self) -> Result<Frame> {
+        debug_assert!(!self.is_huge());
         if self.is_present() {
             Ok(Frame::new(self.phys()).unwrap())
         } else {
@@ -142,11 +151,12 @@ impl PageTableEntry {
     /// - Физический адрес, на который указывает эта запись не выровнен так,
     ///   как должен был бы быть для большой страницы на уровне `level`.
     ///
-    /// # Safety
+    /// # Panics
     ///
-    /// Эту функцию можно использовать, только если эта запись описывает большую страницу.
-    pub unsafe fn huge_frame<const SIZE: usize>(&self) -> Result<ElasticFrame<SIZE>> {
-        assert!(self.flags().is_huge(), "{}", Self::HUGE_PAGE_ERROR_MESSAGE);
+    /// Паникует в отладочном режиме, если:
+    /// - Уровень этой записи не соответствует большой странице запрошенного размера.
+    pub fn huge_frame<const SIZE: usize>(&self) -> Result<ElasticFrame<SIZE>> {
+        debug_assert_eq!(self.level(), ElasticFrame::<SIZE>::level());
 
         if self.is_present() {
             Ok(ElasticFrame::new(self.phys()).expect("bad huge frame address in PageTableEntry"))
@@ -161,24 +171,44 @@ impl PageTableEntry {
     ///
     /// # Panics
     ///
-    /// Паникует, если:
-    /// - Значение `level` не соответствует уровню,
-    ///   на котором можно располагать большую страницу.
-    /// - Физический адрес `frame` не выровнен так,
-    ///   как должен был бы быть для большой страницы на уровне `level`.
+    /// Паникует в отладочном режиме, если:
+    /// - В [`PageTableEntry`] установлено значение `level` и оно не соответствует уровню,
+    ///   на котором можно располагать большую страницу `frame`.
     pub fn set_huge_frame<const SIZE: usize>(
         &mut self,
         frame: ElasticFrame<SIZE>,
         flags: PageTableFlags,
     ) {
+        let frame_level = ElasticFrame::<SIZE>::level();
+        if self.level() == 0 {
+            self.set_level(frame_level);
+        } else {
+            debug_assert_eq!(self.level(), frame_level);
+        }
+
         self.set_phys(
             frame.address(),
             flags | PageTableFlags::HUGE | PageTableFlags::PRESENT,
         );
     }
 
+    /// Возвращает уровень записи [`PageTableEntry`] в дереве отображения страниц,
+    /// ограниченный [`PTE_LEVEL_CAP`].
+    pub fn level(&self) -> u32 {
+        self.flags().level()
+    }
+
+    /// Устанавливает заданный `level` уровень записи [`PageTableEntry`] в
+    /// дереве отображения страниц.
+    pub fn set_level(
+        &mut self,
+        level: u32,
+    ) {
+        self.0 = (self.0 & !PageTableFlags::LEVEL.bits()) | PageTableFlags::new(level).bits();
+    }
+
     /// Адрес физического фрейма, на который указывает эта запись.
-    fn phys(&self) -> Phys {
+    pub fn phys(&self) -> Phys {
         Phys::new(self.0 & Self::ADDRESS_MASK).unwrap()
     }
 
@@ -186,16 +216,36 @@ impl PageTableEntry {
     ///
     /// При необходимости переносит флаг [`PageTableFlags::PAGE_ATTRIBUTE_TABLE`]
     /// во флаг [`PageTableFlags::HUGE`].
+    ///
+    /// # Panics
+    ///
+    /// Паникует в отладочном режиме, если:
+    /// - В [`PageTableEntry`] установлено значение `level == 0` и
+    ///   во `flags` выставлен [`PageTableFlags::HUGE`].
+    /// - Адрес `phys` не выровнен на соответствующую значениям
+    ///   `level` и [`PageTableFlags::HUGE`] величину.
     fn set_phys(
         &mut self,
         phys: Phys,
         mut flags: PageTableFlags,
     ) {
-        if !flags.is_huge() && flags.is_pat() {
-            flags ^= PageTableFlags::HUGE | PageTableFlags::PAGE_ATTRIBUTE_TABLE;
-        }
+        let level = PageTableFlags::from_bits_truncate(self.0) & PageTableFlags::LEVEL;
 
-        self.0 = phys.into_usize() | (flags ^ PageTableFlags::EXECUTABLE).bits();
+        let alignment_level = if level.level() == PAGE_TABLE_LEAF_LEVEL {
+            debug_assert!(!flags.is_huge());
+            if flags.is_pat() {
+                flags ^= PageTableFlags::HUGE | PageTableFlags::PAGE_ATTRIBUTE_TABLE;
+            }
+            level.level()
+        } else if flags.is_huge() {
+            level.level()
+        } else {
+            0
+        };
+        debug_assert!(phys.into_usize().is_multiple_of(Page::size_on_level(alignment_level)));
+
+        self.0 = phys.into_usize() |
+            ((flags & !PageTableFlags::LEVEL | level) ^ PageTableFlags::EXECUTABLE).bits();
     }
 
     /// Возвращает `true`, если выставлен соответствующий флаг доступа.
@@ -212,13 +262,15 @@ impl PageTableEntry {
     }
 
     /// Возвращает `true`, если эта запись описывает большую страницу.
-    /// Аргумент `level` указывает, на каком уровне таблицы отображения страниц
-    /// расположена эта запись.
-    pub fn is_huge(
-        &self,
-        level: u32,
-    ) -> bool {
-        level != PAGE_TABLE_LEAF_LEVEL && self.flags().is_huge()
+    pub fn is_huge(&self) -> bool {
+        self.level() != PAGE_TABLE_LEAF_LEVEL && self.flags().is_huge()
+    }
+
+    /// Возвращает `true`, если эта запись листьевая.
+    /// То есть, либо расположена на уровне [`PAGE_TABLE_LEAF_LEVEL`],
+    /// либо описывает большую страницу.
+    pub fn is_leaf(&self) -> bool {
+        self.level() == PAGE_TABLE_LEAF_LEVEL || self.flags().is_huge()
     }
 
     /// Очищает запись.
@@ -361,6 +413,15 @@ bitflags! {
         /// для пометки страниц, которые должны быть скопированы в случае записи в них.
         const COPY_ON_WRITE = Self::AVAILABLE_0.bits();
 
+        /// Два бита из [`PageTableFlags::AVAILABLE`] используются
+        /// для хранения уровня `PageTableEntry` в дереве отображения:
+        /// - `PAGE_TABLE_LEAF_LEVEL .. PTE_LEVEL_CAP` --- соответствующий уровень.
+        /// - `PTE_LEVEL_CAP` --- любой уровень от `PTE_LEVEL_CAP` до `PAGE_TABLE_ROOT_LEVEL`.
+        ///
+        /// Уровень позволяет понять положение флагов `HUGE` и `PAGE_ATTRIBUTE_TABLE` в
+        /// `PageTableEntry`. А также размер страницы, за которую отвечает `PageTableEntry`.
+        const LEVEL = Self::AVAILABLE_1.bits() | Self::AVAILABLE_2.bits();
+
         /// [Расширенное управление кэшированием](https://en.wikipedia.org/wiki/Page_attribute_table).
         /// Совместно с битами
         /// [`PageTableFlags::WRITE_THROUGH`] и [`PageTableFlags::UNCACHEABLE_MINUS`]
@@ -425,6 +486,35 @@ bitflags! {
 }
 
 impl PageTableFlags {
+    /// Создаёт флаги для записи [`PageTableEntry`] заданного уровня `level`
+    /// в дереве отображения страниц.
+    pub fn new(mut level: u32) -> Self {
+        level = cmp::min(level, PTE_LEVEL_CAP);
+        (if level & 1 == 0 {
+            Self::empty()
+        } else {
+            Self::AVAILABLE_1
+        }) | (if level & 2 == 0 {
+            Self::empty()
+        } else {
+            Self::AVAILABLE_2
+        })
+    }
+
+    /// Возвращает уровень записи [`PageTableEntry`] в дереве отображения страниц,
+    /// ограниченный [`PTE_LEVEL_CAP`].
+    pub fn level(&self) -> u32 {
+        (if self.contains(Self::AVAILABLE_1) {
+            1
+        } else {
+            0
+        }) | (if self.contains(Self::AVAILABLE_2) {
+            2
+        } else {
+            0
+        })
+    }
+
     /// Возвращает `true`, если выставлен соответствующий флаг доступа.
     #[duplicate_item(
         flag_getter flag;
@@ -506,7 +596,7 @@ impl fmt::Debug for PageTableFlags {
     ) -> fmt::Result {
         write!(
             formatter,
-            "{:#03X}",
+            "{:#018X}",
             (*self ^ PageTableFlags::EXECUTABLE).bits(),
         )
     }
@@ -518,7 +608,7 @@ impl fmt::Display for PageTableFlags {
         formatter: &mut fmt::Formatter,
     ) -> fmt::Result {
         /// Сокращения для флагов отображения страниц.
-        static FLAGS: [(PageTableFlags, char); 11] = [
+        static FLAGS: [(PageTableFlags, char); 9] = [
             (PageTableFlags::PRESENT, 'P'),
             (PageTableFlags::EXECUTABLE, 'X'),
             (PageTableFlags::WRITABLE, 'W'),
@@ -527,12 +617,15 @@ impl fmt::Display for PageTableFlags {
             (PageTableFlags::DIRTY, 'D'),
             (PageTableFlags::HUGE, 'H'),
             (PageTableFlags::GLOBAL, 'G'),
-            (PageTableFlags::AVAILABLE_0, '0'),
-            (PageTableFlags::AVAILABLE_1, '1'),
-            (PageTableFlags::AVAILABLE_2, '2'),
+            (PageTableFlags::COPY_ON_WRITE, 'w'),
         ];
 
-        write!(formatter, "{} ", PAGE_ATTRIBUTE_TABLE[self.pat_entry()])?;
+        write!(
+            formatter,
+            "{} {} ",
+            PAGE_ATTRIBUTE_TABLE[self.pat_entry()],
+            self.level(),
+        )?;
 
         for (flag, flag_symbol) in FLAGS.iter().rev() {
             write!(
@@ -546,7 +639,7 @@ impl fmt::Display for PageTableFlags {
             )?;
         }
 
-        write!(formatter, "({self:?})")
+        write!(formatter, " ({self:?})")
     }
 }
 
@@ -711,6 +804,12 @@ pub const PAGE_TABLE_ROOT_LEVEL: u32 = 3;
 
 /// Количество уровней в дереве отображения.
 pub const PAGE_TABLE_LEVEL_COUNT: usize = PAGE_TABLE_ROOT_LEVEL as usize + 1;
+
+/// Максимальное значение уровня [`PageTableEntry`],
+/// которое можно сохранить в [`PageTableFlags::LEVEL`].
+/// Если в [`PageTableFlags::LEVEL`] хранится это значение,
+/// значит уровень [`PageTableEntry`] >= [`PTE_LEVEL_CAP`].
+pub const PTE_LEVEL_CAP: u32 = 3;
 
 const_assert_eq!(
     mem::size_of::<PageTable>(),

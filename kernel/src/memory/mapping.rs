@@ -15,7 +15,11 @@ use crate::{
         Error::NoPage,
         Result,
     },
-    log::debug,
+    log::{
+        debug,
+        info,
+    },
+    time,
 };
 
 use super::{
@@ -122,7 +126,7 @@ impl Mapping {
     /// Поэтому копия может быть модифицирована независимо от оригинала.
     pub(super) fn duplicate(&self) -> Result<Self> {
         let mut result = Self::new(Frame::default(), self.phys2virt);
-        result.page_table_root = result.allocate_node()?.take();
+        result.page_table_root = result.allocate_node(PAGE_TABLE_ROOT_LEVEL)?.take();
 
         let page_table_root = result.page_table_root;
         self.duplicate_subtree(
@@ -218,6 +222,44 @@ impl Mapping {
         mmu::page_table_root()
     }
 
+    /// Исправляет уровни всех [`PageTableEntry`] в дереве отображения на фактические.
+    pub(super) fn save_node_levels(&mut self) {
+        let timer = time::timer();
+        let pte_count = self.save_subtree_levels(self.page_table_root, PAGE_TABLE_ROOT_LEVEL);
+        info!(pte_count, duration = %timer.elapsed(), "saved node levels into PTEs themselves");
+    }
+
+    /// Шаг рекурсии при спуске по дереву отображения страниц.
+    /// Выполняет основную работу по исправлению уровней [`PageTableEntry`],
+    /// см. [`Mapping::save_node_levels()`].
+    ///
+    /// Исправляет уровни всех [`PageTableEntry`] во `frame` на `level`.
+    /// Возвращает количество исправленных записей в поддереве `frame`.
+    fn save_subtree_levels(
+        &mut self,
+        frame: Frame,
+        level: u32,
+    ) -> usize {
+        let mut pte_count = 0;
+        let page_table_root = self.page_table_root;
+
+        for index in 0 .. PAGE_TABLE_ENTRY_COUNT {
+            let pte = unsafe { &mut self.page_table_mut(frame)[index] };
+            pte.set_level(level);
+            pte_count += 1;
+
+            let is_recursive = level == PAGE_TABLE_ROOT_LEVEL && pte.frame() == Ok(page_table_root);
+            if !is_recursive &&
+                !pte.is_leaf() &&
+                let Ok(frame) = pte.frame()
+            {
+                pte_count += self.save_subtree_levels(frame, level - 1);
+            }
+        }
+
+        pte_count
+    }
+
     /// Возвращает ссылку на узел таблицы страниц,
     /// записанный в данном физическом фрейме.
     ///
@@ -233,7 +275,7 @@ impl Mapping {
         page_table_getter reference(x) return_type;
         [page_table_ref] [&x] [PageTable];
         [page_table_mut] [&mut x] [PageTable];
-        [page_table_uninit_mut] [&mut x] [MaybeUninit<PageTable>];
+        [page_table_uninit_mut] [&mut x] [[MaybeUninit<PageTableEntry>; PAGE_TABLE_ENTRY_COUNT]];
     )]
     pub(super) unsafe fn page_table_getter(
         self: reference([Self]),
@@ -276,9 +318,13 @@ impl Mapping {
     /// Создаёт новый узел --- [`PageTable`] --- дерева отображения страниц,
     /// но не провязывает его в дерево.
     ///
-    /// Очищает записи [`PageTableEntry`] в новом узле с помощью [`MaybeUninit::zeroed()`].
+    /// Инициализирует записи [`PageTableEntry`] в новом узле с помощью
+    /// [`MaybeUninit::new()`] элементами [`PageTableEntry`] заданного уровня `level`.
     /// Возвращает фрейм нового узла.
-    pub(super) fn allocate_node(&mut self) -> Result<FrameGuard> {
+    pub(super) fn allocate_node(
+        &mut self,
+        level: u32,
+    ) -> Result<FrameGuard> {
         // TODO: your code here.
         unimplemented!();
     }
@@ -312,7 +358,7 @@ impl Translate for Mapping {
         let root_frame = self.page_table_root();
         let page_table_root = unsafe { self.page_table_mut(root_frame) };
         for pte in page_table_root.iter_mut() {
-            if unsafe { pte.frame() } == Ok(root_frame) {
+            if pte.frame() == Ok(root_frame) {
                 debug!(?pte, "remove recursive mapping");
                 pte.clear();
             }

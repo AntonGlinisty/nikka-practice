@@ -18,6 +18,7 @@ pub use ku::memory::mmu::{
     PAGE_TABLE_LEAF_LEVEL,
     PAGE_TABLE_LEVEL_COUNT,
     PAGE_TABLE_ROOT_LEVEL,
+    PTE_LEVEL_CAP,
     PageTable,
     PageTableEntry,
     PageTableFlags,
@@ -51,7 +52,7 @@ pub(super) fn init_page_attribute_table() {
     for (entry, memory_type) in (0 ..).into_iter().zip(PAGE_ATTRIBUTE_TABLE.iter()) {
         new_pat |= u64::from(u8::from(*memory_type)) << (entry * u8::BITS);
         let flags = PageTableFlags::from_pat_entry(size::from(entry));
-        info!(?memory_type, %flags, "    PA{entry}");
+        info!(%flags, ?memory_type, "    PA{entry}");
     }
 
     assert_eq!(

@@ -70,23 +70,23 @@ pub(super) fn basic() {
             };
 
             if root_entries_end < PAGE_TABLE_ENTRY_COUNT {
-                assert_eq!(root[root_entries_end], PageTableEntry::default());
+                assert_eq!(
+                    root[root_entries_end],
+                    PageTableEntry::new(PAGE_TABLE_ROOT_LEVEL),
+                );
             }
 
             let mut entry = 0;
             for root_entry in &root[root_entries_start .. root_entries_end] {
                 assert!(root_entry.flags().contains(KERNEL_RW));
 
-                let frame = unsafe { root_entry.frame().unwrap() };
+                let frame = root_entry.frame().unwrap();
                 let virt = phys2virt.map(frame.address()).unwrap();
                 let node = unsafe { virt.try_into_ref::<PageTable>().unwrap() };
                 for pte in node {
                     if entry < entry_count {
                         assert!(pte.flags().contains(KERNEL_RW));
-                        let l2_frame = unsafe {
-                            assert!(pte.is_huge(PAGE_TABLE_ROOT_LEVEL - 1));
-                            pte.huge_frame::<L2_SIZE>().unwrap()
-                        };
+                        let l2_frame = pte.huge_frame::<L2_SIZE>().unwrap();
                         assert_eq!(l2_frame.address().into_usize(), entry * L2_SIZE);
                     } else {
                         assert_eq!(*pte, PageTableEntry::default());

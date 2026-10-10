@@ -27,6 +27,7 @@ use super::{
     },
     mmu::{
         PAGE_OFFSET_BITS,
+        PAGE_TABLE_ENTRY_COUNT,
         PAGE_TABLE_INDEX_BITS,
     },
     size::{
@@ -210,6 +211,19 @@ impl<T: Tag, const SIZE: usize> Frage<T, SIZE> {
 
         assert!(count <= (isize::MAX as usize) / Self::SIZE);
         unsafe { Layout::from_size_align_unchecked(count * Self::SIZE, Self::SIZE) }
+    }
+
+    /// Возвращает уровень дерева страничного отображения, листья на котором отвечают за
+    /// отображения между виртуальными страницами и физическими фреймами текущего размера.
+    pub const fn level() -> u32 {
+        Self::L0_COUNT.ilog2() / PAGE_TABLE_ENTRY_COUNT.ilog2()
+    }
+
+    /// Возвращает размер физического фрейма или виртуальной страницы
+    /// на заданном уровне `level` дерева отображения страниц.
+    pub const fn size_on_level(level: u32) -> usize {
+        assert!((0 .. 3).contains(&level));
+        1 << (PAGE_OFFSET_BITS + level * PAGE_TABLE_INDEX_BITS)
     }
 
     /// Возвращает адрес в текущем фрейме или странице со смещением,
@@ -424,7 +438,10 @@ impl<const SIZE: usize> Step for ElasticPage<SIZE> {
         Self::from_index(advanced).ok()
     }
 
-    fn forward_overflowing(_start: Self, _count: usize) -> (Self, bool) {
+    fn forward_overflowing(
+        _start: Self,
+        _count: usize,
+    ) -> (Self, bool) {
         panic!("ElasticPage does not support forward_overflowing() intentionally");
     }
 
@@ -443,7 +460,10 @@ impl<const SIZE: usize> Step for ElasticPage<SIZE> {
         Some(Self::from_index(advanced).expect("wrong advancement formula"))
     }
 
-    fn backward_overflowing(_start: Self, _count: usize) -> (Self, bool) {
+    fn backward_overflowing(
+        _start: Self,
+        _count: usize,
+    ) -> (Self, bool) {
         panic!("ElasticPage does not support backward_overflowing() intentionally");
     }
 }

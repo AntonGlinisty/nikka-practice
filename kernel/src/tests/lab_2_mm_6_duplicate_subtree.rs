@@ -1,3 +1,5 @@
+use core::cmp;
+
 use ku::{
     memory::GiB,
     sync::Spinlock,
@@ -41,8 +43,7 @@ pub(super) fn basic() {
     let variable =
         unsafe { BASE_ADDRESS_SPACE.lock().map_slice_zeroed::<usize>(1, KERNEL_RW).unwrap() };
     let virt = Virt::from_ref(&variable[0]);
-    let frame =
-        unsafe { path(&mut BASE_ADDRESS_SPACE.lock(), virt).pte().unwrap().frame().unwrap() };
+    let frame = path(&mut BASE_ADDRESS_SPACE.lock(), virt).pte().unwrap().frame().unwrap();
 
     let reference_count = FRAME_ALLOCATOR.lock().reference_count(frame).unwrap();
     debug!(%virt, %frame, %reference_count, "one address space");
@@ -212,8 +213,7 @@ pub(super) fn all_frames_are_freed_on_drop() {
         unsafe {
             map_page(&mut address_space, page, flags).unwrap();
         }
-        let frame =
-            unsafe { path(&mut address_space, page.address()).pte().unwrap().frame().unwrap() };
+        let frame = path(&mut address_space, page.address()).pte().unwrap().frame().unwrap();
         debug!(%page, %frame, ?flags);
     }
 }

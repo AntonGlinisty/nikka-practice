@@ -92,7 +92,7 @@ fn check(
 
     info!(
         %entry_point,
-        frame = ?unsafe { pte.frame().expect(mapping_error) },
+        frame = ?pte.frame().expect(mapping_error),
         flags = ?pte.flags(),
         "user process page table entry",
     );

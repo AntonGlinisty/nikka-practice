@@ -45,7 +45,7 @@ pub(super) fn kernel_stacks() {
         for stack_page in stack.enclosing() {
             let stack_pte =
                 path(&mut address_space, stack_page.address()).pte().expect(stack_mapping_error);
-            let stack_frame = unsafe { stack_pte.frame().expect(stack_mapping_error) };
+            let stack_frame = stack_pte.frame().expect(stack_mapping_error);
             let stack_flags = stack_pte.flags();
 
             if stack_page.address() == stack.start_address() {
@@ -70,7 +70,7 @@ pub(super) fn kernel_stacks() {
         for stack_guard_page in stack_guard.enclosing() {
             let stack_guard_frame = path(&mut address_space, stack_guard_page.address())
                 .pte()
-                .and_then(|pte| unsafe { pte.frame() });
+                .and_then(|pte| pte.frame());
 
             info!(cpu, ?stack_guard_frame);
             assert_eq!(

@@ -1,4 +1,5 @@
 use core::{
+    cmp,
     fmt,
     ptr::NonNull,
 };
@@ -23,6 +24,7 @@ use super::{
     Mapping,
     Virt,
     frage::{
+        L0_SIZE,
         L1_SIZE,
         L2_SIZE,
         Page,
@@ -34,6 +36,7 @@ use super::{
         PAGE_TABLE_LEAF_LEVEL,
         PAGE_TABLE_LEVEL_COUNT,
         PAGE_TABLE_ROOT_LEVEL,
+        PTE_LEVEL_CAP,
         PageTableEntry,
         PageTableFlags,
     },
@@ -106,16 +109,10 @@ impl<'a> Path<'a> {
         let (level, pte) = self.deepest_pte();
 
         let flags = pte.flags();
-        let frame = unsafe {
-            if pte.is_huge(level) {
-                pte.huge_frame().expect(Self::INVALID_PATH)
-            } else {
-                pte.frame().unwrap_or_default()
-            }
-        };
+        let l0_frame_index = pte.phys().into_usize() / L0_SIZE;
 
         let pages = self.pages(level);
-        let frames = Block::from_index(frame.index(), frame.index() + pages.count())
+        let frames = Block::from_index(l0_frame_index, l0_frame_index + pages.count())
             .expect(Self::INVALID_PATH);
 
         MappedBlock::new(flags, frames, pages)
@@ -166,7 +163,8 @@ impl<'a> Path<'a> {
         self.virt
     }
 
-    /// Возвращает листьевую [`PageTableEntry`], которая отвечает за отображение адреса [`Path::virt`].
+    #[allow(rustdoc::private_intra_doc_links)]
+    /// Возвращает листьевую [`PageTableEntry`], которая отвечает за отображение адреса [`Path::virt()`].
     ///
     /// # Errors
     ///
@@ -207,7 +205,7 @@ impl<'a> Path<'a> {
 
         if level == PAGE_TABLE_LEAF_LEVEL {
             Ok(pte)
-        } else if pte.is_huge(level) {
+        } else if pte.is_huge() {
             Err(Unimplemented)
         } else {
             Err(NoPage)
@@ -312,7 +310,7 @@ impl<'a> Path<'a> {
                 .as_ref()
         };
 
-        unsafe { root_pte.frame() == Ok(root_frame) }
+        root_pte.frame() == Ok(root_frame)
     }
 
     /// Проверяет инварианты [`Path`].
@@ -336,9 +334,18 @@ impl<'a> Path<'a> {
                 .all(|pte| unsafe { pte.expect(Self::INVALID_PATH).as_ref().is_present() }),
         );
 
+        if !self.is_recursive_entry() {
+            assert!(
+                (level ..)
+                    .zip(self.nodes[size::from(level) ..].iter())
+                    .all(|(level, pte)| cmp::min(level, PTE_LEVEL_CAP) ==
+                        unsafe { pte.expect(Self::INVALID_PATH).as_ref().level() })
+            );
+        }
+
         if level > PAGE_TABLE_LEAF_LEVEL {
             assert!(self.nodes[.. size::from(level)].iter().all(Option::is_none));
-            assert_eq!(pte.is_present(), pte.is_huge(level));
+            assert_eq!(pte.is_present(), pte.is_huge());
         }
     }
 
@@ -363,14 +370,14 @@ impl<'a> fmt::Display for Path<'a> {
 
             let is_present = "failed to get frame for a present page";
 
-            if pte.is_huge(level) {
+            if pte.is_huge() {
                 let (phys, huge_frame_size) = match level {
                     1 => {
-                        let huge_frame = unsafe { pte.huge_frame::<L1_SIZE>().expect(is_present) };
+                        let huge_frame = pte.huge_frame::<L1_SIZE>().expect(is_present);
                         (huge_frame.offset(self.virt), huge_frame.size())
                     },
                     2 => {
-                        let huge_frame = unsafe { pte.huge_frame::<L2_SIZE>().expect(is_present) };
+                        let huge_frame = pte.huge_frame::<L2_SIZE>().expect(is_present);
                         (huge_frame.offset(self.virt), huge_frame.size())
                     },
                     _ => panic!("unexpected page table level for a huge page - {}", level),
@@ -383,10 +390,7 @@ impl<'a> fmt::Display for Path<'a> {
                 );
             };
 
-            frame = unsafe {
-                assert!(!pte.is_huge(level));
-                pte.frame().expect(is_present)
-            };
+            frame = pte.frame().expect(is_present);
 
             if level == PAGE_TABLE_LEAF_LEVEL {
                 let phys = frame.offset(self.virt);

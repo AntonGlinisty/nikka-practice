@@ -28,6 +28,7 @@ use crate::{
         trace,
     },
     process::Pid,
+    time,
 };
 
 use super::{
@@ -93,10 +94,13 @@ impl AddressSpace {
         phys2virt: Phys2Virt,
         subsystems: Subsystems,
     ) -> Self {
+        let timer = time::timer();
+
         let mut mapping = Mapping::new(page_table_root, phys2virt);
         if subsystems.contains(Subsystems::VIRT_MEMORY) {
             mapping.remove_recursive_mappings();
         }
+        mapping.save_node_levels();
 
         let user_page_allocator = if subsystems.contains(Subsystems::VIRT_MEMORY) {
             PageAllocator::new(
@@ -114,7 +118,7 @@ impl AddressSpace {
             pid: None,
         };
 
-        info!(%address_space, "init");
+        info!(%address_space, duration = %timer.elapsed(), "init");
 
         address_space
     }
@@ -651,6 +655,9 @@ impl AddressSpace {
     /// которые разрешены на запись, то есть имеют флаг [`PageTableFlags::WRITABLE`].
     pub(super) fn mark_writable_pages_as_non_executable(&mut self) {
         if let Ok(mapping) = self.mapping() {
+            let mut modified_ptes = 0;
+            let timer = time::timer();
+
             for mut path in mapping.iter_mut().filter(|path| path.block().is_present()) {
                 let message = "page is mapped";
                 let (level, pte) = path.deepest_pte_mut();
@@ -660,9 +667,12 @@ impl AddressSpace {
                 if is_leaf && flags.is_present() && flags.is_executable() && flags.is_writable() {
                     let page = Page::containing(path.virt());
                     path.set_flags(flags & !PageTableFlags::EXECUTABLE).expect(message);
+                    modified_ptes += 1;
                     trace!(%page, %flags, level, "removed executable flag from writable page");
                 }
             }
+
+            info!(modified_ptes, duration = %timer.elapsed(), "mark writable pages as non executable");
         }
     }
 

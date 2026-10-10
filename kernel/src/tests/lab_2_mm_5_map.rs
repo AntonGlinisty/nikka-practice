@@ -80,7 +80,7 @@ pub(super) fn map_readable() {
 
     let page = Page::containing(mm_helpers::unique_kernel_virt());
     unsafe { map_page(&mut address_space, page, KERNEL_R).unwrap() };
-    let frame = unsafe { path(&mut address_space, page.address()).pte().unwrap().frame().unwrap() };
+    let frame = path(&mut address_space, page.address()).pte().unwrap().frame().unwrap();
     debug!(%page, %frame);
 
     unsafe {
@@ -117,7 +117,7 @@ fn check_map_writable(
     }
 
     unsafe { map_page(&mut address_space, page, KERNEL_RW).unwrap() };
-    let frame = unsafe { path(&mut address_space, page.address()).pte().unwrap().frame().unwrap() };
+    let frame = path(&mut address_space, page.address()).pte().unwrap().frame().unwrap();
     debug!(%page, %frame);
 
     unsafe {
@@ -145,13 +145,13 @@ pub(super) fn map_twice() {
     let mut address_space = BASE_ADDRESS_SPACE.lock();
 
     unsafe { map_page(&mut address_space, page, KERNEL_R).unwrap() };
-    let old_frame = unsafe { path(&mut address_space, page.address()).pte().unwrap().frame() };
+    let old_frame = path(&mut address_space, page.address()).pte().unwrap().frame();
 
     let flags = path(&mut address_space, virt).flags().unwrap();
     assert_eq!(flags, KERNEL_R);
 
     unsafe { map_page(&mut address_space, page, KERNEL_RW).unwrap() };
-    let new_frame = unsafe { path(&mut address_space, page.address()).pte().unwrap().frame() };
+    let new_frame = path(&mut address_space, page.address()).pte().unwrap().frame();
 
     let flags = path(&mut address_space, virt).flags().unwrap();
     assert_eq!(flags, KERNEL_RW);

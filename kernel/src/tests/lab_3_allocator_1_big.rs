@@ -278,10 +278,8 @@ pub(super) fn copy_mapping_frame_references() {
         for page in block {
             let translate_result = path(address_space, page.address()).pte();
             if let Ok(pte) = translate_result {
-                let reference_count = FRAME_ALLOCATOR
-                    .lock()
-                    .reference_count(unsafe { pte.frame().unwrap() })
-                    .unwrap();
+                let reference_count =
+                    FRAME_ALLOCATOR.lock().reference_count(pte.frame().unwrap()).unwrap();
                 debug!(%page, ?pte, reference_count);
                 assert_eq!(reference_count, expected_reference_count);
             } else {
@@ -497,8 +495,7 @@ fn check_frames<T>(
     debug!(%block, ?frames);
 
     for pte in &frames {
-        let reference_count =
-            FRAME_ALLOCATOR.lock().reference_count(unsafe { pte.frame().unwrap() }).unwrap();
+        let reference_count = FRAME_ALLOCATOR.lock().reference_count(pte.frame().unwrap()).unwrap();
         assert_eq!(
             reference_count, 1,
             "after a reallocation the frames should not be shared",
