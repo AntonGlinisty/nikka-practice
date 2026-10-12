@@ -89,13 +89,15 @@ pub(super) fn basic() {
                         let l2_frame = pte.huge_frame::<L2_SIZE>().unwrap();
                         assert_eq!(l2_frame.address().into_usize(), entry * L2_SIZE);
                     } else {
-                        assert_eq!(*pte, PageTableEntry::default());
+                        assert_eq!(*pte, PageTableEntry::new(PAGE_TABLE_ROOT_LEVEL - 1));
                     }
                     entry += 1;
                 }
             }
 
-            root[root_entries_start .. root_entries_end].fill(PageTableEntry::default());
+            root[root_entries_start .. root_entries_end]
+                .fill(PageTableEntry::new(PAGE_TABLE_ROOT_LEVEL));
+
             unsafe {
                 mmu::set_page_table_root(mmu::page_table_root());
             }

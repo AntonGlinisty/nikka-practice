@@ -181,8 +181,7 @@ impl Phys2Virt {
     }
 
     /// Выделяет фрейм для дочернего узла номер `root_entry` корневого узла таблицы страниц,
-    /// инициализирует его пустыми записями ---- [`PageTableEntry::default()`] --- и
-    /// записывает его в соответствующую [`PageTableEntry`].
+    /// инициализирует его и записывает его в соответствующую [`PageTableEntry`].
     ///
     /// Использует рекурсивную запись номер `recursive_mapping`.
     ///
@@ -209,7 +208,7 @@ impl Phys2Virt {
                 Self::node(root_entry, recursive_mapping)
                     .try_into_mut_slice::<MaybeUninit<PageTableEntry>>()?
             };
-            node.write_filled(PageTableEntry::default());
+            node.write_filled(PageTableEntry::new(PAGE_TABLE_ROOT_LEVEL - 1));
 
             Ok(())
         } else {

@@ -54,7 +54,7 @@ use crate::error::Error;
 /// Запись таблицы страниц.
 ///
 /// Аналогична [`x86_64::structures::paging::page_table::PageTableEntry`].
-#[derive(Clone, Copy, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 #[repr(transparent)]
 pub struct PageTableEntry(usize);
 
@@ -68,12 +68,16 @@ impl PageTableEntry {
     /// Флаги доступа к странице, которую описывает эта запись.
     pub fn flags(&self) -> PageTableFlags {
         let flags = self.0 & !Self::ADDRESS_MASK;
-        let flags = PageTableFlags::from_bits(flags).unwrap_or_else(|| {
+        let mut flags = PageTableFlags::from_bits(flags).unwrap_or_else(|| {
             panic!(
                 "incorrect PageTableFlags {flags:#X} for PTE at {}",
                 Virt::from_ref(self),
             )
         });
+
+        if flags.level() == PAGE_TABLE_LEAF_LEVEL && flags.is_huge() {
+            flags ^= PageTableFlags::HUGE | PageTableFlags::PAGE_ATTRIBUTE_TABLE;
+        }
 
         flags ^ PageTableFlags::EXECUTABLE
     }

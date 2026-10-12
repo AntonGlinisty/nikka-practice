@@ -3,6 +3,7 @@ use core::alloc::Layout;
 use ku::memory::{
     mmu::{
         PAGE_TABLE_ENTRY_COUNT,
+        PAGE_TABLE_ROOT_LEVEL,
         PageTableEntry,
         PageTableFlags,
     },
@@ -47,7 +48,8 @@ pub(super) fn some_used_entries() {
     let tests: [&[usize]; 6] = [&[], &[0], &[2], &[31], &[31, 254], &[0, 2, 31, 254]];
 
     for used_entries in tests.iter() {
-        let mut page_table_root = [PageTableEntry::default(); PAGE_TABLE_ENTRY_COUNT];
+        let mut page_table_root =
+            [PageTableEntry::new(PAGE_TABLE_ROOT_LEVEL); PAGE_TABLE_ENTRY_COUNT];
         for used_entry in used_entries.iter() {
             for half in 0 ..= 1 {
                 page_table_root[used_entry + half * PAGE_TABLE_ENTRY_COUNT / 2]

@@ -29,6 +29,7 @@ use crate::{
         Virt,
         mmu::{
             PAGE_TABLE_ENTRY_COUNT,
+            PAGE_TABLE_LEAF_LEVEL,
             PageTableEntry,
             PageTableFlags,
         },
@@ -196,7 +197,7 @@ pub(super) fn garbage_after_unmap() {
     }
     let pte = virt_path.pte().unwrap();
 
-    let expected_pte = PageTableEntry::default();
+    let expected_pte = PageTableEntry::new(PAGE_TABLE_LEAF_LEVEL);
 
     debug!(?pte, ?expected_pte);
     assert_eq!(*pte, expected_pte);
