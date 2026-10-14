@@ -102,7 +102,7 @@ impl AddressSpace {
         }
         mapping.save_node_levels();
 
-        let user_page_allocator = if subsystems.contains(Subsystems::VIRT_MEMORY) {
+        let user_page_allocator = if subsystems.contains(Subsystems::PAGE_ALLOCATOR) {
             PageAllocator::new(
                 unsafe { mapping.page_table_ref(mapping.page_table_root()) },
                 range::user_root_level_entries(),

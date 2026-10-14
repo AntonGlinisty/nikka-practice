@@ -359,27 +359,27 @@ const TESTS: [Test<'_>; 108] = [
     Test::new(&lab_2_mm_3_block::block_virt as &dyn Testable, NONE),
     Test::new(
         &lab_2_mm_3_page_allocator::sanity_check as &dyn Testable,
-        PHYS_VIRT,
+        PHYS_PAGE_ALLOCATOR,
     ),
     Test::new(
         &lab_2_mm_3_page_allocator::some_used_entries as &dyn Testable,
-        PHYS_VIRT,
+        PHYS_PAGE_ALLOCATOR,
     ),
     Test::new(
         &lab_2_mm_3_page_allocator::allocate_block as &dyn Testable,
-        PHYS_VIRT,
+        PHYS_PAGE_ALLOCATOR,
     ),
     Test::new(
         &lab_2_mm_3_page_allocator::allocate_page as &dyn Testable,
-        PHYS_VIRT,
+        PHYS_PAGE_ALLOCATOR,
     ),
     Test::new(
         &lab_2_mm_3_page_allocator::allocate_two_pages as &dyn Testable,
-        PHYS_VIRT,
+        PHYS_PAGE_ALLOCATOR,
     ),
     Test::new(
         &lab_2_mm_3_page_allocator::alignment as &dyn Testable,
-        PHYS_VIRT,
+        PHYS_PAGE_ALLOCATOR,
     ),
     Test::new(
         &lab_2_mm_4_translate::check_path as &dyn Testable,
@@ -676,5 +676,7 @@ const MEMORY_SMP_PROCESS: Subsystems = Subsystems::from_bits_truncate(
 );
 const NONE: Subsystems = Subsystems::empty();
 const PHYS: Subsystems = Subsystems::PHYS_MEMORY;
+const PHYS_PAGE_ALLOCATOR: Subsystems =
+    Subsystems::from_bits_truncate(Subsystems::PHYS_MEMORY.bits() | Subsystems::PAGE_ALLOCATOR.bits());
 const PHYS_VIRT: Subsystems =
     Subsystems::from_bits_truncate(Subsystems::PHYS_MEMORY.bits() | Subsystems::VIRT_MEMORY.bits());

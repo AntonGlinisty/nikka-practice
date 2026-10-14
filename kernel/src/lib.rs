@@ -121,15 +121,21 @@ bitflags! {
         /// Память: подсистема физической памяти.
         const PHYS_MEMORY = 1 << 0;
 
+        /// Память: аллокатор блоков виртуальных страниц.
+        const PAGE_ALLOCATOR = 1 << 1;
+
+        /// Память: страничное отображение.
+        const MAPPING = 1 << 2;
+
         /// Память: подсистема виртуальной памяти.
-        const VIRT_MEMORY = 1 << 1;
+        const VIRT_MEMORY = Self::PAGE_ALLOCATOR.bits() | Self::MAPPING.bits();
 
         /// Память: основной аллокатор физической памяти.
-        const MAIN_FRAME_ALLOCATOR = 1 << 2;
+        const FRAME_ALLOCATOR_RESIZE = 1 << 3;
 
         /// Все части подсистемы памяти.
         const MEMORY =
-            Self::PHYS_MEMORY.bits() | Self::VIRT_MEMORY.bits() | Self::MAIN_FRAME_ALLOCATOR.bits();
+            Self::PHYS_MEMORY.bits() | Self::VIRT_MEMORY.bits() | Self::FRAME_ALLOCATOR_RESIZE.bits();
 
         /// Процессы: системные вызовы.
         const SYSCALL = 1 << 4;
@@ -186,7 +192,7 @@ fn init_subsystems(
         Err(NoPage)
     };
 
-    if subsystems.intersects(Subsystems::VIRT_MEMORY) {
+    if subsystems.contains(Subsystems::VIRT_MEMORY) {
         memory::fix_address_space();
     }
 

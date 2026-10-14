@@ -122,8 +122,8 @@ impl PageTableEntry {
     ///
     /// # Panics
     ///
-    /// Паникует в отладочном режиме, если `flags` описывают большую страницу,
-    /// то есть в них установлен бит [`PageTableFlags::HUGE`].
+    /// Паникует в отладочном режиме, если:
+    /// - `flags` описывают большую страницу, то есть в них установлен бит [`PageTableFlags::HUGE`].
     pub fn set_frame(
         &mut self,
         frame: Frame,
@@ -144,16 +144,6 @@ impl PageTableEntry {
     ///
     /// - [`Error::NoPage`] --- эта запись не используется,
     ///   то есть, сброшен бит [`PageTableFlags::PRESENT`].
-    ///
-    /// # Panics
-    ///
-    /// Паникует, если:
-    /// - Эта запись описывает не большую, а обычную страницу,
-    ///   то есть в ней сброшен бит [`PageTableFlags::HUGE`].
-    /// - Значение `level` не соответствует уровню,
-    ///   на котором можно располагать большую страницу.
-    /// - Физический адрес, на который указывает эта запись не выровнен так,
-    ///   как должен был бы быть для большой страницы на уровне `level`.
     ///
     /// # Panics
     ///
@@ -538,7 +528,7 @@ impl PageTableFlags {
     /// [расширенного управления кэшированием](https://en.wikipedia.org/wiki/Page_attribute_table).
     pub fn pat_entry(&self) -> usize {
         // TODO: your code here.
-        unimplemented!();
+        size::from(u8::from(MemoryType::Unimplemented)) // TODO: remove before flight.
     }
 
     /// Возвращает флаги для записи в таблице [`PAGE_ATTRIBUTE_TABLE`]
@@ -550,7 +540,7 @@ impl PageTableFlags {
     /// Паникует, если `entry` имеет недопустимый номер.
     pub fn from_pat_entry(entry: usize) -> Self {
         // TODO: your code here.
-        unimplemented!();
+        Self::default() // TODO: remove before flight.
     }
 
     // TODO: your code here.
@@ -766,6 +756,11 @@ pub enum MemoryType {
     /// > Can be overridden by an MTRR with the WC type.
     #[display("Uc")]
     UncacheableMinus = 7,
+
+    /// [Page attribute table (PAT)](https://en.wikipedia.org/wiki/Page_attribute_table)
+    /// не реализована в коде.
+    #[display("")]
+    Unimplemented = 8,
 }
 
 /// [Page attribute table (PAT)](https://en.wikipedia.org/wiki/Page_attribute_table),
@@ -776,7 +771,7 @@ pub enum MemoryType {
 ///
 /// [AMD64 Architecture Programmer's Manual Volume 2: System Programming](https://github.com/tpn/pdfs/blob/master/AMD%20-%20AMD64%20Programmer's%20Manual%20-%20Volume%202%20-%20System%20Programming%20-%20Rev%203.30%20-%20Sept%202018%20(24593).pdf),
 /// [Table 7-9. PAT-Register PA-Field Indexing](https://github.com/tpn/pdfs/blob/master/AMD%20-%20AMD64%20Programmer's%20Manual%20-%20Volume%202%20-%20System%20Programming%20-%20Rev%203.30%20-%20Sept%202018%20(24593).pdf#G13.1049568).
-pub const PAGE_ATTRIBUTE_TABLE: [MemoryType; 8] = [
+pub const PAGE_ATTRIBUTE_TABLE: [MemoryType; 9] = [
     MemoryType::WriteBack,
     MemoryType::WriteThrough,
     MemoryType::UncacheableMinus,
@@ -785,6 +780,7 @@ pub const PAGE_ATTRIBUTE_TABLE: [MemoryType; 8] = [
     MemoryType::WriteProtected,
     MemoryType::UncacheableMinus,
     MemoryType::Uncacheable,
+    MemoryType::Unimplemented,
 ];
 
 /// Количество бит в смещении внутри виртуальной страницы или физического фрейма.

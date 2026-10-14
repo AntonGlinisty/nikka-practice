@@ -43,27 +43,7 @@ use ku::{
 /// [page attribute table (PAT)](https://en.wikipedia.org/wiki/Page_attribute_table)
 /// процессора в соответствии с [`PAGE_ATTRIBUTE_TABLE`].
 pub(super) fn init_page_attribute_table() {
-    let mut pat = Msr::new(IA32_PAT);
-    let old_pat = unsafe { pat.read() };
-
-    let mut new_pat = 0;
-
-    info!("page attribute table:");
-    for (entry, memory_type) in (0 ..).into_iter().zip(PAGE_ATTRIBUTE_TABLE.iter()) {
-        new_pat |= u64::from(u8::from(*memory_type)) << (entry * u8::BITS);
-        let flags = PageTableFlags::from_pat_entry(size::from(entry));
-        info!(%flags, ?memory_type, "    PA{entry}");
-    }
-
-    assert_eq!(
-        old_pat & u64::from(u32::MAX),
-        new_pat & u64::from(u32::MAX),
-        "it is better to leave the first half of the page attribute table at the default settings",
-    );
-
-    unsafe {
-        pat.write(new_pat);
-    }
+    // TODO: your code here.
 }
 
 /// Сбрасывает кэш страничного преобразования процессора
