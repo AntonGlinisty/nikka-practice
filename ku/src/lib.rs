@@ -13,6 +13,7 @@
 #![feature(adt_const_params)]
 #![feature(allocator_api)]
 #![feature(const_range)]
+#![feature(const_trait_impl)]
 #![feature(core_intrinsics)]
 #![feature(generic_const_exprs)]
 #![feature(likely_unlikely)]
