@@ -405,7 +405,7 @@ install:
 	@(which bootimage > /dev/null || (cargo install --version 0.10.3 bootimage))
 	@(which rustfilt > /dev/null || (cargo install rustfilt))
 	@(which cargo-expand > /dev/null || (cargo install cargo-expand))
-	@(which cargo-spellcheck  > /dev/null || (cargo install cargo-spellcheck))
+	@(which cargo-spellcheck  > /dev/null || (cargo install --locked --version 0.15.7 cargo-spellcheck))
 	@(which critcmp > /dev/null || (cargo install critcmp))
 	@(which typos > /dev/null || (cargo install typos-cli))
 	@(which taplo > /dev/null || (cargo install taplo-cli))

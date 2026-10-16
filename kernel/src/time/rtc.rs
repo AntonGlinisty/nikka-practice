@@ -297,8 +297,34 @@ impl Date {
             return None;
         }
 
-        // TODO: your code here.
-        Some(Self::read_inconsistent()) // TODO: remove before flight.
+        let mut old_date: Date = Date::default();
+        let mut new_date: Date = Date::default();
+
+        let mut iteration = 0;
+        const MAX_ITERATIONS: i32 = 100;
+
+        while iteration == 0 || old_date != new_date {
+            if iteration == MAX_ITERATIONS {
+                return None
+            }
+            iteration += 1;
+
+            while RegisterA::from_bits_truncate(rtc_read(REGISTER_A))
+                .contains(RegisterA::UPDATE_IN_PROGRESS)
+            {
+                hint::spin_loop();
+            }
+            old_date = Self::read_inconsistent();
+
+            while RegisterA::from_bits_truncate(rtc_read(REGISTER_A))
+                .contains(RegisterA::UPDATE_IN_PROGRESS)
+            {
+                hint::spin_loop();
+            }
+            new_date = Self::read_inconsistent();
+        }
+
+        return Some(new_date)
     }
 
     /// Считывает из микросхемы RTC показания даты и времени и возвращает их в виде [`Date`].
@@ -307,8 +333,29 @@ impl Date {
     /// если во время его работы произошёл тик RTC и микросхема конкурентно
     /// обновляла содержимое соответствующих полей в своей памяти.
     fn read_inconsistent() -> Self {
-        // TODO: your code here.
-        Self::default() // TODO: remove before flight.
+        let mut date: Date = Date::default();
+        let address = DISABLE_NMI | REGISTER_B;
+
+        const UNDEFINED_FLAG_FOUND: &str = "undefined flag found in RTC register B";
+        let settings = RegisterB::from_bits(rtc_read(address)).expect(UNDEFINED_FLAG_FOUND);
+
+        date.second = parse_value(rtc_read(0x00), settings);
+        date.minute = parse_value(rtc_read(0x02), settings);
+        date.hour = parse_hour(rtc_read(0x04), settings);
+        date.day = parse_value(rtc_read(0x07), settings);
+        date.month = parse_value(rtc_read(0x08), settings);
+        
+        let year: u16 = u16::from(parse_value(rtc_read(0x09), settings));
+
+        let century_address = CENTURY_REGISTER.load(Ordering::Relaxed);
+        let century = if century_address != 0 {
+            u16::from(parse_value(rtc_read(century_address), settings))
+        } else {
+            if year >= 90 { 19 } else { 20 }
+        };
+        date.year = century * 100 + year;
+
+        return date;
     }
 }
 
@@ -400,8 +447,10 @@ fn parse_value(
     x: u8,
     format: RegisterB,
 ) -> u8 {
-    // TODO: your code here.
-    x // TODO: remove before flight.
+    if !format.contains(RegisterB::USE_BINARY_FORMAT) {
+        return (x / 16) * 10 + (x & 0xf)
+    }
+    return x
 }
 
 /// Переводит `hour` из формата RTC `format` в двоичный 24-ти часовой формат.
@@ -417,8 +466,29 @@ fn parse_hour(
     hour: u8,
     format: RegisterB,
 ) -> u8 {
-    // TODO: your code here.
-    hour // TODO: remove before flight.
+    let is_24_hour_format = format.contains(RegisterB::USE_24_HOUR_FORMAT);
+
+    const MERIDIEM_FLAG: u8 = 1 << 7;
+    let is_pm = (hour & MERIDIEM_FLAG) != 0;
+
+    let hour = hour & !MERIDIEM_FLAG;
+    let res: u8;
+
+    if format.contains(RegisterB::USE_BINARY_FORMAT) {
+        res = hour
+    } else {
+        res = (hour / 16) * 10 + (hour & 0xf) 
+    }
+
+    if !is_24_hour_format {
+        if is_pm && res != 12 {
+            return res + 12
+        }
+        if !is_pm && res == 12 {
+            return 0
+        }
+    }
+    return res
 }
 
 /// Значение ошибки предсказания времени для последнего прерывания RTC в наносекундах.
