@@ -70,8 +70,30 @@ impl<const TICKS_PER_SECOND: i64> CorrelationInterval<TICKS_PER_SECOND> {
         &self,
         tsc: Tsc,
     ) -> DateTime<Utc> {
-        // TODO: your code here.
-        DateTime::from_timestamp(self.prev.count() / TICKS_PER_SECOND, 0).expect(UNEXPECTED_TIMESTAMP) // TODO: remove before flight.
+        assert!(TICKS_PER_SECOND > 0);
+        assert!(PARTS_PER_SECOND > 0);
+        assert!(PARTS_PER_SECOND <= NSECS_PER_SEC);
+
+        const BAD_CAST_MESSAGE: &str = "Bad cast";
+
+        let tsc_diff: i64 = tsc.get() - self.prev.tsc();
+        let offset_nsecs: i128 = (i128::from(tsc_diff) * i128::from(self.elapsed_count()) * i128::from(NSECS_PER_SEC)) /
+            (i128::from(self.elapsed_tsc()) * i128::from(TICKS_PER_SECOND));
+
+        let count_secs: i64 = self.prev.count() / TICKS_PER_SECOND;
+        let count_nsecs: i128 = i128::from(self.prev.count() % TICKS_PER_SECOND) * i128::from(NSECS_PER_SEC) / i128::from(TICKS_PER_SECOND);
+
+        let mut result_nsecs: i128 = count_nsecs + offset_nsecs;
+        let result_secs: i64 = count_secs + i64::try_from(result_nsecs.div_euclid(i128::from(NSECS_PER_SEC)))
+            .expect(BAD_CAST_MESSAGE);
+
+        result_nsecs = result_nsecs.rem_euclid(i128::from(NSECS_PER_SEC));
+
+        let accuracy: i128 = i128::from(NSECS_PER_SEC / PARTS_PER_SECOND);
+        result_nsecs /= accuracy;
+        result_nsecs *= accuracy;
+
+        DateTime::from_timestamp(result_secs, u32::try_from(result_nsecs).expect(BAD_CAST_MESSAGE)).expect(UNEXPECTED_TIMESTAMP)
     }
 
     /// Возвращает частоту процессора с точки зрения часов,

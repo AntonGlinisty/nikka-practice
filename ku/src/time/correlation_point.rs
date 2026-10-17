@@ -6,6 +6,7 @@ use core::{
         AtomicI64,
         AtomicU64,
         Ordering,
+        fence
     },
 };
 
@@ -125,9 +126,18 @@ impl AtomicCorrelationPoint {
         &self,
         tsc: i64,
     ) {
-        // TODO: your code here.
-        self.count.fetch_add(1, Ordering::Relaxed); // TODO: remove before flight.
-        self.tsc.store(tsc, Ordering::Relaxed); // TODO: remove before flight.
+        let mut current = self.sequence.load(Ordering::Relaxed);
+        while Self::is_locked(current) || self.sequence.compare_exchange_weak(current, current + 1, Ordering::AcqRel, Ordering::Relaxed).is_err() {
+            hint::spin_loop();
+            current = self.sequence.load(Ordering::Relaxed);
+        }
+
+        fence(Ordering::Release);
+
+        self.count.fetch_add(1, Ordering::Relaxed);
+        self.tsc.store(tsc, Ordering::Relaxed);
+
+        self.sequence.fetch_add(1, Ordering::Release);
     }
 
     /// Атомарно записывает заданное `correlation_point` значение.
@@ -135,22 +145,47 @@ impl AtomicCorrelationPoint {
         &self,
         correlation_point: CorrelationPoint,
     ) {
-        // TODO: your code here.
-        self.count.store(correlation_point.count(), Ordering::Relaxed); // TODO: remove before flight.
-        self.tsc.store(correlation_point.tsc(), Ordering::Relaxed); // TODO: remove before flight.
+        let mut current = self.sequence.load(Ordering::Relaxed);
+        while Self::is_locked(current) || self.sequence.compare_exchange_weak(current, current + 1, Ordering::AcqRel, Ordering::Relaxed).is_err() {
+            hint::spin_loop();
+            current = self.sequence.load(Ordering::Relaxed);
+        }
+
+        fence(Ordering::Release);
+
+        self.count.store(correlation_point.count(), Ordering::Relaxed);
+        self.tsc.store(correlation_point.tsc(), Ordering::Relaxed);
+
+        self.sequence.fetch_add(1, Ordering::Release);
     }
 
     /// Атомарно читает значение [`CorrelationPoint`] из структуры [`AtomicCorrelationPoint`].
     pub fn load(&self) -> CorrelationPoint {
-        // TODO: your code here.
-        CorrelationPoint { count: self.count.load(Ordering::Relaxed), tsc: self.tsc.load(Ordering::Relaxed) } // TODO: remove before flight.
+        loop {
+            if let Some(point) = self.try_load() {
+                return point;
+            }
+
+            hint::spin_loop();
+        }
     }
 
     /// Читает значение [`CorrelationPoint`] из структуры [`AtomicCorrelationPoint`].
     /// Возвращает [`Some`], если удалось прочитать согласованное значение.
     fn try_load(&self) -> Option<CorrelationPoint> {
-        // TODO: your code here.
-        Some(CorrelationPoint { count: self.count.load(Ordering::Relaxed), tsc: self.tsc.load(Ordering::Relaxed) }) // TODO: remove before flight.
+        let before = self.sequence.load(Ordering::Acquire);
+        if Self::is_locked(before) {
+            return None;
+        }
+
+        let result = CorrelationPoint { count: self.count.load(Ordering::Relaxed), tsc: self.tsc.load(Ordering::Relaxed) };
+
+        fence(Ordering::Acquire);
+
+        if before == self.sequence.load(Ordering::Relaxed) {
+            return Some(result)
+        }
+        return None
     }
 
     /// Возвращает `true`, если значение `sequence` означает,
