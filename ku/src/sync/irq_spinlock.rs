@@ -85,7 +85,7 @@ impl<T, const PANIC_STRATEGY: PanicStrategy> DerefMut for IrqSpinlock<T, PANIC_S
 /// - Автоматически возвращает флаг разрешения прерываний
 ///   в исходное состояние в реализации типажа [`Drop`].
 struct IrqGuard {
-    // TODO: your code here.
+    interrupts_enabled: bool
 }
 
 impl IrqGuard {
@@ -94,8 +94,11 @@ impl IrqGuard {
     /// - Запоминает состояние флага разрешения прерываний в момент создания.
     /// - После чего запрещает прерывания.
     fn new() -> Self {
-        // TODO: your code here.
-        Self {} // TODO: remove before flight.
+        let guard = IrqGuard {
+            interrupts_enabled: interrupts::are_enabled(),
+        };
+        interrupts::disable();
+        guard
     }
 }
 
@@ -104,7 +107,9 @@ impl Drop for IrqGuard {
     /// Возвращает флаг разрешения прерываний в исходное состояние,
     /// в котором он находился до создания этого [`IrqGuard`].
     fn drop(&mut self) {
-        // TODO: your code here.
+        if self.interrupts_enabled {
+            interrupts::enable();
+        }
     }
 }
 
