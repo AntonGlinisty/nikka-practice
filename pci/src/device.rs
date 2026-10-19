@@ -130,11 +130,26 @@ impl Device {
         let id = DeviceId::new(config_space, routing_id)?;
         let class = Class::new(config_space, routing_id);
 
-        // TODO: your code here.
-        let subvendor = None; // TODO: remove before flight.
-        let subdevice = None; // TODO: remove before flight.
-        let is_multi_function = false; // TODO: remove before flight.
-        let kind = Self::read_normal(config_space, routing_id); // TODO: remove before flight.
+        let (mut subdevice, mut subvendor) = (None, None);
+
+        let mut header = unsafe { config_space.read(routing_id, CACHE_LINE_SIZE_ADDRESS) };
+        header >>= 16;
+
+        let is_multi_function = header & 0x0080 == 0x0080;
+        let kind = match header & 0x7F {
+            0 => Self::read_normal(config_space, routing_id),
+            1 => Self::read_bridge(config_space, routing_id),
+            2 => Kind::CardBusBridge,
+            _ => Kind::Unknown,
+        };
+
+        if header & 0x7F == 0 {
+            let subsystem_vendor_device_id = unsafe { config_space.read(routing_id, SUBSYSTEM_VENDOR_ID_ADDRESS) };
+            (subdevice, subvendor) = match vendor_device(subsystem_vendor_device_id) {
+                Some((device, vendor)) => (Some(device), Some(vendor)),
+                None => (None, None),
+            };
+        }
 
         Some(Self {
             class,
@@ -168,8 +183,112 @@ impl Device {
         config_space: &mut impl ConfigSpace,
         routing_id: RoutingId,
     ) -> Kind {
-        // TODO: your code here.
-        unimplemented!();
+        const BAD_CAST_MESSAGE: &str = "BAD CAST";
+
+        let bars = Self::read_bars(config_space, routing_id);
+
+        let bus_address = unsafe { config_space.read(routing_id, PRIMARY_BUS_NUMBER_ADDRESS) };
+        let primary = u8::try_from(bus_address & 0xFF).expect(BAD_CAST_MESSAGE);
+        let secondary = u8::try_from((bus_address >> 8) & 0xFF).expect(BAD_CAST_MESSAGE);
+        let subordinate = u8::try_from((bus_address >> 16) & 0xFF).expect(BAD_CAST_MESSAGE);
+
+        let io_base_address = unsafe { config_space.read(routing_id, IO_BASE_ADDRESS) };
+        let mut io_base = (io_base_address & 0xF0) << 8;
+        let mut io_limit = io_base_address & 0xF000;
+
+        let io_base_type = io_base_address & 0xF;
+        let io_limit_type = (io_base_address >> 8) & 0xF;
+
+        let io_behind_bridge: Block<Port<u8>>;
+        if io_base_type != io_limit_type {
+            io_behind_bridge = Block::zero();
+        } else if io_base_type == 0 || io_base_type == 1 {
+            if io_base_type == 1 {
+                let io_upper_address = unsafe { config_space.read(routing_id, IO_BASE_UPPER_ADDRESS) };
+                io_base = ((io_upper_address & 0xFFFF) << 16) + io_base;
+                io_limit = (io_upper_address & 0xFFFF0000) + io_limit;
+            }
+
+            io_limit |= 0xFFF;
+
+            io_behind_bridge = if io_base > io_limit {
+                Block::zero()
+            } else {
+                match Block::from_index(
+                    usize::try_from(io_base).expect(BAD_CAST_MESSAGE),
+                    usize::try_from(io_limit).expect(BAD_CAST_MESSAGE) + 1,
+                ) {
+                    Ok(block) => block,
+                    Err(_) => Block::zero(),
+                }
+            }
+        } else {
+            io_behind_bridge = Block::zero();
+        }
+
+        let memory_base_address = unsafe { config_space.read(routing_id, MEMORY_BASE_ADDRESS) };
+        let memory_base = (memory_base_address & 0xFFF0) << 16;
+        let mut memory_limit = memory_base_address & 0xFFF0_0000;
+
+        memory_limit |= 0xF_FFFF;
+
+        let memory_behind_bridge: Block<Phys> = if memory_base > memory_limit {
+            Block::zero()
+        } else {
+            match Block::from_index(
+                usize::try_from(memory_base).expect(BAD_CAST_MESSAGE),
+                usize::try_from(memory_limit).expect(BAD_CAST_MESSAGE) + 1,
+            ) {
+                Ok(block) => block,
+                Err(_) => Block::zero(),
+            }
+        };
+
+        let pref_memory_base_address = unsafe { config_space.read(routing_id, PREFETCHABLE_MEMORY_BASE_ADDRESS) };
+        let mut pref_memory_base: u64 = u64::from((pref_memory_base_address & 0xFFF0) << 16);
+        let mut pref_memory_limit: u64 = u64::from(pref_memory_base_address & 0xFFF0_0000);
+
+        let pref_memory_base_type = pref_memory_base_address & 0xF;
+        let pref_memory_limit_type = (pref_memory_base_address >> 16) & 0xF;
+
+        let prefetchable_memory_behind_bridge: Block<Phys>;
+        if pref_memory_base_type != pref_memory_limit_type {
+            prefetchable_memory_behind_bridge = Block::zero();
+        } else if pref_memory_base_type == 0 || pref_memory_base_type == 1 {
+            if pref_memory_base_type == 1 {
+                let pref_memory_base_upper_address = unsafe { config_space.read(routing_id, PREFETCHABLE_MEMORY_BASE_UPPER_ADDRESS) };
+                pref_memory_base = (u64::from(pref_memory_base_upper_address) << 32) + pref_memory_base;
+
+                let pref_memory_limit_upper_address = unsafe { config_space.read(routing_id, PREFETCHABLE_MEMORY_LIMIT_UPPER_ADDRESS) };
+                pref_memory_limit = (u64::from(pref_memory_limit_upper_address) << 32) + pref_memory_limit;
+            }
+
+            pref_memory_limit |= 0xF_FFFF;
+
+            prefetchable_memory_behind_bridge = if pref_memory_base > pref_memory_limit {
+                Block::zero()
+            } else {
+                match Block::from_index(
+                    usize::try_from(pref_memory_base).expect(BAD_CAST_MESSAGE),
+                    usize::try_from(pref_memory_limit).expect(BAD_CAST_MESSAGE) + 1,
+                ) {
+                    Ok(block) => block,
+                    Err(_) => Block::zero(),
+                }
+            }
+        } else {
+            prefetchable_memory_behind_bridge = Block::zero();
+        }
+
+        Kind::PciPciBridge {
+            bars,
+            primary,
+            secondary,
+            subordinate,
+            io_behind_bridge,
+            memory_behind_bridge,
+            prefetchable_memory_behind_bridge
+        }
     }
 
     /// Читает `N` регистров адресов памяти и
