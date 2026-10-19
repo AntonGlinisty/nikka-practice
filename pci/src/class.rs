@@ -34,7 +34,35 @@ impl Class {
         config_space: &mut impl ConfigSpace,
         routing_id: RoutingId,
     ) -> Self {
-        // TODO: your code here.
-        Self::default() // TODO: remove before flight.
+        let mut class_id = unsafe { config_space.read(routing_id, REVISION_ADDRESS) };
+        const BAD_CAST_MESSAGE: &str = "Bad cast";
+
+        class_id >>= 8;
+        let interface = u8::try_from(class_id & 0xFF).expect(BAD_CAST_MESSAGE);
+
+        class_id >>= 8;
+        let subclass = u8::try_from(class_id & 0xFF).expect(BAD_CAST_MESSAGE);
+
+        class_id >>= 8;
+        let class = u8::try_from(class_id & 0xFF).expect(BAD_CAST_MESSAGE);
+        let class_name = pci_ids::Class::from_id(class).map(|info|info.name());
+
+        let subclass_obj = Subclass::from_cid_sid(class, subclass);
+        let subclass_name = subclass_obj.map(|info| info.name());
+
+        let interface_name = if let Some(found_subclass) = subclass_obj {
+            found_subclass
+                .prog_ifs()
+                .find(|info| info.id() == interface)
+                .map(|info| info.name())
+        } else {
+            None
+        };
+
+        Class {
+            class: Id::new(class, class_name),
+            subclass: Id::new(subclass, subclass_name),
+            interface: Id::new(interface, interface_name),
+        }
     }
 }
