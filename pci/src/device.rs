@@ -181,8 +181,21 @@ impl Device {
         config_space: &mut impl ConfigSpace,
         routing_id: RoutingId,
     ) -> [Option<Bar>; N] {
-        // TODO: your code here.
-        [None; _] // TODO: remove before flight.
+        let mut offset = BARS_START_ADDRESS;
+        let end_offset = BARS_START_ADDRESS + N * mem::size_of::<u32>();
+        let mut bars: [Option<Bar>; N] = [None; N];
+
+        let mut iter = 0;
+
+        while offset < end_offset {
+            let bar = Bar::new(config_space, routing_id, offset);
+            bars[iter] = bar;
+
+            offset += Bar::size(&bar);
+            iter += 1;
+        }
+
+        bars
     }
 }
 
