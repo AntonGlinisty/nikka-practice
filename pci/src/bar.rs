@@ -65,8 +65,28 @@ impl Bar {
         routing_id: RoutingId,
         offset: usize,
     ) -> Option<Self> {
-        // TODO: your code here.
-        None // TODO: remove before flight.
+        let (address, size) = Self::address_size(config_space, routing_id, offset);
+        if size == 0 {
+            return None
+        }
+
+        let original_address = u64::from(unsafe { config_space.read(routing_id, offset) });
+
+        let is_memory = original_address & 0x1 == 0;
+        if is_memory {
+            let block: Block<Phys> = Block::from_index(address, address.checked_add(size)?).ok()?;
+
+            let prefetchable = original_address & 0x8 == 8;
+            let width = if original_address & 0x6 == 0 {
+                Width::Memory32
+            } else {
+                Width::Memory64
+            };
+            return Some(Bar::Memory { block: block, prefetchable, width })
+        } else {
+            let block: Block<Port<u8>> = Block::from_index(address, address.checked_add(size)?).ok()?;
+            return Some(Bar::Port { block });
+        }
     }
 
     /// Возвращает количество байт, которые занимает регистр в пространстве конфигурации.
@@ -89,8 +109,85 @@ impl Bar {
         routing_id: RoutingId,
         offset: usize,
     ) -> (usize, usize) {
-        // TODO: your code here.
-        unimplemented!();
+        let original_address = u64::from(unsafe { config_space.read(routing_id, offset) });
+
+        let is_memory = original_address & 0x1 == 0;
+        let is_32_bit = !is_memory || original_address & 0x6 == 0;
+
+        let mut result_address = original_address;
+        let result_address_mask = if is_memory {
+            0xFFFF_FFFF_FFFF_FFF0
+        } else {
+            0xFFFF_FFFF_FFFF_FFFC
+        };
+
+        let command_register = unsafe { config_space.read(routing_id, COMMAND_ADDRESS) };
+        let new_command_register = command_register & 0xFFFF_FFFC;
+        if is_memory {
+            let is_32_bit = original_address & 0x6 == 0;
+            let is_64_bit = original_address & 0x6 == 4;
+
+            if is_64_bit {
+                let original_next_address = unsafe { config_space.read(routing_id, offset + 4) };
+                result_address = (u64::from(original_next_address) << 32) + original_address;
+            } else if !is_32_bit {
+                return (0, 0)
+            }
+        }
+
+        if command_register != new_command_register {
+            unsafe { config_space.write(routing_id, COMMAND_ADDRESS, new_command_register); }
+        }
+        let result_size = Self::get_size(config_space, routing_id, offset, result_address, is_memory, is_32_bit);
+        if command_register != new_command_register {
+            unsafe { config_space.write(routing_id, COMMAND_ADDRESS, command_register); }
+        }
+
+        result_address &= result_address_mask;
+
+        const BAD_CAST_MESSAGE: &str = "BAD CAST";
+        (usize::try_from(result_address).expect(BAD_CAST_MESSAGE), result_size)
+    }
+
+    fn get_size(
+        config_space: &mut impl ConfigSpace,
+        routing_id: RoutingId,
+        offset: usize,
+        original_address: u64,
+        is_memory: bool,
+        is_32_bit: bool,
+    ) -> usize {
+        const SIZE_REQUEST_VALUE: u32 = 0xFFFF_FFFF;
+        const BAD_CAST_MESSAGE: &str = "BAD_CAST";
+
+        let result: u64;
+        if is_32_bit {
+            unsafe { config_space.write(routing_id, offset, SIZE_REQUEST_VALUE) };
+            let size_response = unsafe { config_space.read(routing_id, offset) };
+
+            unsafe { config_space.write(routing_id, offset, u32::try_from(original_address).expect(BAD_CAST_MESSAGE)) };
+
+            let size_without_flags = if is_memory {
+                size_response & 0xFFFF_FFF0
+            } else {
+                size_response & 0xFFFF_FFFC
+            };
+            result = u64::from((!size_without_flags).wrapping_add(1));
+        } else {
+            unsafe { config_space.write(routing_id, offset, SIZE_REQUEST_VALUE) };
+            unsafe { config_space.write(routing_id, offset + 4, SIZE_REQUEST_VALUE) };
+
+            let size_lower_response = unsafe { config_space.read(routing_id, offset) };
+            let size_higher_response = unsafe { config_space.read(routing_id, offset + 4) };
+
+            unsafe { config_space.write(routing_id, offset, u32::try_from(original_address & 0xFFFF_FFFF).expect(BAD_CAST_MESSAGE)) };
+            unsafe { config_space.write(routing_id, offset + 4, u32::try_from(original_address >> 32).expect(BAD_CAST_MESSAGE)) };
+
+            let size_without_flags = ((u64::from(size_higher_response) << 32) + u64::from(size_lower_response)) & 0xFFFF_FFFF_FFFF_FFF0;
+            result = (!size_without_flags).wrapping_add(1);
+        }
+
+        return usize::try_from(result).expect(BAD_CAST_MESSAGE)
     }
 }
 
