@@ -34,8 +34,19 @@ impl DeviceId {
         config_space: &mut impl ConfigSpace,
         routing_id: RoutingId,
     ) -> Option<Self> {
-        // TODO: your code here.
-        Some(Self::default()) // TODO: remove before flight.
+        let vendor_device_id = unsafe { config_space.read(routing_id, VENDOR_ID_ADDRESS) };
+        let (device, vendor) = vendor_device(vendor_device_id)?;
+
+        const BAD_CAST_MESSAGE: &str = "Bad cast";
+
+        let revision_id = unsafe { config_space.read(routing_id, REVISION_ADDRESS) };
+        let revision = u8::try_from(revision_id & 0xFF).expect(BAD_CAST_MESSAGE);
+
+        Some(DeviceId {
+            device,
+            vendor,
+            revision,
+        })
     }
 }
 
@@ -44,8 +55,18 @@ impl DeviceId {
 /// Также подходит для декодирования пары из
 /// идентификатора подустройства и идентификатора производителя подустройства.
 pub(super) fn vendor_device(data: u32) -> Option<(Id<u16>, Id<u16>)> {
-    // TODO: your code here.
-    None // TODO: remove before flight.
+    const BAD_CAST_MESSAGE: &str = "Bad cast";
+
+    let vendor = u16::try_from(data & 0xFFFF).expect(BAD_CAST_MESSAGE);
+    if vendor == NO_DEVICE {
+        return None;
+    }
+    let vendor_name = Vendor::from_id(vendor).map(|info| info.name());
+
+    let device = u16::try_from(data >> 16).expect(BAD_CAST_MESSAGE);
+    let device_name = Device::from_vid_pid(vendor, device).map(|info| info.name());
+
+    Some((Id::new(device, device_name), Id::new(vendor, vendor_name)))
 }
 
 /// Смещение номера ревизии устройства в пространстве конфигурации PCI--устройства.
