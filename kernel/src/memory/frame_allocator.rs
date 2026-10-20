@@ -154,8 +154,27 @@ impl FrameAllocator {
     /// Если свободных физических фреймов не осталось,
     /// возвращает ошибку [`Error::NoFrame`].
     pub fn allocate(&mut self) -> Result<FrameGuard> {
-        // TODO: your code here.
-        unimplemented!();
+        if self.free_count == 0 {
+            return Err(Error::NoFrame);
+        }
+
+        let free_frame_index = self.free_frame.ok_or(Error::NoFrame)?;
+        let new_frame = Frame::from_index(free_frame_index)?;
+
+        let next_free_frame_index = match self.frame_info[free_frame_index] {
+            FrameInfo::Free { next_free } => {
+                next_free
+            },
+            _ => {
+                panic!("free list points to a non-free frame")
+            }
+        };
+
+        self.frame_info[free_frame_index] = FrameInfo::Used { reference_count: 1 };
+        self.free_count -= 1;
+        self.free_frame = next_free_frame_index;
+
+        Ok(FrameGuard::new(new_frame))
     }
 
     /// Уменьшает на единицу счётчик использований заданного физического фрейма `frame`.
@@ -168,8 +187,23 @@ impl FrameAllocator {
         &mut self,
         frame: Frame,
     ) {
-        // TODO: your code here.
-        unimplemented!();
+        match self.frame_info_mut(frame) {
+            FrameInfo::Used { reference_count } => {
+                if *reference_count == 1 {
+                    self.frame_info[frame.index()] = FrameInfo::Free { next_free: self.free_frame };
+                    self.free_count += 1;
+                    self.free_frame = Some(frame.index());
+                } else if *reference_count == 0 {
+                    panic!("FrameInfo::Used reference_count == 0")
+                } else {
+                    *reference_count -= 1;
+                }
+            },
+            FrameInfo::Free { .. } => {
+                panic!("trying deallocate free frame")
+            },
+            _ => {}
+        }
     }
 
     /// Увеличивает на единицу счётчик использований заданного физического фрейма `frame`.
@@ -182,8 +216,17 @@ impl FrameAllocator {
         &mut self,
         frame: Frame,
     ) -> FrameGuard {
-        // TODO: your code here.
-        unimplemented!();
+        match self.frame_info_mut(frame) {
+            FrameInfo::Used { reference_count } => {
+                *reference_count += 1;
+            },
+            FrameInfo::Free { .. } => {
+                panic!("trying to take reference to the free frame");
+            },
+            _ => {}
+        }
+
+        FrameGuard::new(frame)
     }
 
     /// Возвращает количество ссылок на `frame`.
@@ -216,8 +259,26 @@ impl FrameAllocator {
         memory_regions: &MemoryRegions,
         frames: Range<usize>,
     ) {
-        // TODO: your code here.
-        unimplemented!();
+        if frames.is_empty() {
+            return;
+        }
+
+        for region in memory_regions.iter() {
+            if region.kind != MemoryRegionKind::Usable {
+                continue;
+            }
+
+            let start = core::cmp::max(frames.start,
+                ku::memory::size::from(region.start).div_ceil(Frame::SIZE));
+            let end = core::cmp::min(frames.end,
+                ku::memory::size::from(region.end) / Frame::SIZE);
+
+            for frame in start..end {
+                self.frame_info[frame] = FrameInfo::Free { next_free: self.free_frame };
+                self.free_count += 1;
+                self.free_frame = Some(frame);
+            }
+        }
     }
 
     /// Переносит уже имеющиеся в [`FrameAllocator`] метаданные
