@@ -417,8 +417,14 @@ impl<T: Memory> Block<T> {
         &mut self,
         count: usize,
     ) -> Option<Self> {
-        // TODO: your code here.
-        unimplemented!();
+        if self.count() < count {
+            return None
+        }
+
+        let result = Self::from_index(self.end() - count, self.end()).ok()?;
+        self.end -= count;
+
+        return Some(result);
     }
 }
 
