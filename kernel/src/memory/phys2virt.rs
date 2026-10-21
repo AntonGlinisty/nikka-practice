@@ -128,13 +128,25 @@ impl Phys2Virt {
             return Err(PermissionDenied);
         }
 
-        // TODO: your code here.
-        let root = unsafe { Self::node(recursive_mapping, recursive_mapping).try_into_mut_slice::<PageTableEntry>()? }; // TODO: remove before flight.
-        let root_entry = Self::find_empty_root_entries(1, recursive_mapping)?; // TODO: remove before flight.
-        Self::allocate_root_entry(root_entry, recursive_mapping)?; // TODO: remove before flight.
-        let node = unsafe { Self::node(root_entry, recursive_mapping).try_into_mut_slice::<PageTableEntry>()? }; // TODO: remove before flight.
-        node[0].set_huge_frame(L2Frame::default(), KERNEL_RW); // TODO: remove before flight.
-        Self::new_impl(physical_memory, Page::higher_half(), NonZeroUsize::new(1)) // TODO: remove before flight.
+        let l0_count = physical_memory.count();
+        let l1_count = (l0_count + PAGE_TABLE_ENTRY_COUNT - 1) / PAGE_TABLE_ENTRY_COUNT;
+        let l2_count = (l1_count + PAGE_TABLE_ENTRY_COUNT - 1) / PAGE_TABLE_ENTRY_COUNT;
+        let l3_count = (l2_count + PAGE_TABLE_ENTRY_COUNT - 1) / PAGE_TABLE_ENTRY_COUNT;
+
+        let start_root_entry = Self::find_empty_root_entries(l3_count, recursive_mapping)?;
+
+        Self::fill_entries(start_root_entry, l3_count, l2_count, recursive_mapping)?;
+
+        Self::new_impl(
+            physical_memory,
+            Page::containing(
+                Virt::from_page_table_indexes(
+                    [0, 0, 0, start_root_entry],
+                    0,
+                )
+            ),
+            NonZeroUsize::new(l3_count),
+        )
     }
 
     /// Находит во второй половине корневого узла страниц. То есть, в верхней
@@ -152,10 +164,36 @@ impl Phys2Virt {
         root_entry_count: usize,
         recursive_mapping: usize,
     ) -> Result<usize> {
-        let lower_half_entries = PAGE_TABLE_ENTRY_COUNT / 2;
+        if root_entry_count == 0 || root_entry_count >= PAGE_TABLE_ENTRY_COUNT {
+            return Err(NoPage)
+        }
 
-        // TODO: your code here.
-        Ok(lower_half_entries) // TODO: remove before flight.
+        let lower_half_entries = PAGE_TABLE_ENTRY_COUNT / 2;
+        
+        let root = unsafe {
+            Self::node(recursive_mapping, recursive_mapping).try_into_ref::<PageTable>()?
+        };
+
+        let mut current_entry = lower_half_entries;
+        while current_entry <= PAGE_TABLE_ENTRY_COUNT - root_entry_count {
+            let mut iteration = 0;
+
+            while iteration < root_entry_count {
+                let pte = root[current_entry + iteration];
+                if pte.is_present() {
+                    break;
+                }
+                iteration += 1;
+            }
+
+            if iteration == root_entry_count {
+                return Ok(current_entry)
+            }
+
+            current_entry += iteration + 1;
+        }
+
+        return Err(NoPage)
     }
 
     /// Инициализирует записи 1 GiB страниц для отображения [`Phys2Virt`].
@@ -176,8 +214,34 @@ impl Phys2Virt {
         entry_count: usize,
         recursive_mapping: usize,
     ) -> Result<()> {
-        // TODO: your code here.
-        unimplemented!();
+        for root_entry in start_root_entry..(start_root_entry + root_entry_count) {
+            Phys2Virt::allocate_root_entry(root_entry, recursive_mapping)?;
+        }
+
+        let mut initialized = 0;
+        while initialized < entry_count {
+            let current_root_entry = start_root_entry + initialized / PAGE_TABLE_ENTRY_COUNT;
+            let current_node = unsafe {
+                Self::node(current_root_entry, recursive_mapping)
+                    .try_into_mut_slice::<PageTableEntry>()?
+            };
+
+            for pte in current_node.iter_mut() {
+                if initialized == entry_count {
+                    break;
+                }
+
+                let mut new_pte = PageTableEntry::new(PAGE_TABLE_ROOT_LEVEL - 1);
+                let huge_frame = L2Frame::from_index(initialized)?;
+
+                new_pte.set_huge_frame(huge_frame, KERNEL_RW);
+                *pte = new_pte;
+
+                initialized += 1;
+            }
+        }
+
+        Ok(())
     }
 
     /// Выделяет фрейм для дочернего узла номер `root_entry` корневого узла таблицы страниц,
