@@ -30,6 +30,11 @@ use super::{
     stack::Stack,
 };
 
+use ku::memory::{
+    mmu::PAGE_TABLE_ENTRY_COUNT,
+    Virt,
+};
+
 // Used in docs.
 #[allow(unused)]
 use crate::error::Error;
@@ -132,8 +137,27 @@ impl PageAllocator {
         &mut self,
         layout: Layout,
     ) -> Result<Block<Page>> {
-        // TODO: your code here.
-        unimplemented!();
+        let pages_to_allocate: usize = Page::count_up(layout.size());
+        let start_page_addr = self.block
+            .end()
+            .checked_sub(pages_to_allocate)
+            .ok_or(NoPage)?
+            .checked_mul(Page::SIZE)
+            .ok_or(NoPage)?;
+
+        let alignment_pages = (start_page_addr % layout.align()) / Page::SIZE;
+
+        let result = self.block
+            .tail(alignment_pages + pages_to_allocate)
+            .ok_or(NoPage)
+            .map(|mut block| {
+                if alignment_pages != 0 {
+                    block.tail(alignment_pages);
+                }
+                block
+            });
+
+        result
     }
 
     /// Обратный метод к [`PageAllocator::allocate()`].
@@ -189,8 +213,34 @@ impl PageAllocator {
         page_table_root: &PageTable,
         allowed_elements: Range<usize>,
     ) -> Option<Block<Page>> {
-        // TODO: your code here.
-        unimplemented!();
+        let mut current_len = 0;
+        let mut best_start = 0;
+        let mut best_len = 0;
+
+        for index in allowed_elements {
+            if page_table_root[index].is_present() {
+                current_len = 0;
+                continue;
+            }
+
+            current_len += 1;
+
+            if current_len > best_len {
+                best_start = index - current_len + 1;
+                best_len = current_len;
+            }
+        }
+
+        if best_len == 0 {
+            return None
+        }
+
+        let start = Page::containing(
+            Virt::from_page_table_indexes([0, 0, 0, best_start], 0)
+        ).index();
+        let end = start + best_len * PAGES_PER_ROOT_LEVEL_ENTRY;
+
+        Block::<Page>::from_index(start, end).ok()
     }
 }
 
