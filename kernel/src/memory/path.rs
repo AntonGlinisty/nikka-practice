@@ -36,9 +36,11 @@ use super::{
         PAGE_TABLE_LEAF_LEVEL,
         PAGE_TABLE_LEVEL_COUNT,
         PAGE_TABLE_ROOT_LEVEL,
+        PAGE_TABLE_INDEX_BITS,
         PTE_LEVEL_CAP,
         PageTableEntry,
         PageTableFlags,
+        flush,
     },
     size::{
         self,
@@ -235,8 +237,45 @@ impl<'a> Path<'a> {
         frame: FrameGuard,
         flags: PageTableFlags,
     ) -> Result<()> {
-        // TODO: your code here.
+        for level in (0..PAGE_TABLE_LEVEL_COUNT).rev() {
+            if let Some(mut ptr) = self.nodes[level] {
+                let entry = unsafe { ptr.as_mut() };
 
+                if entry.is_huge() {
+                    return Err(Unimplemented)
+                }
+
+                if level > 0 && entry.is_present() {
+                    entry.set_flags(entry.flags() | (flags & FULL_ACCESS));
+                }
+            } else {
+                let new_frame = self.mapping.allocate_node(u32::try_from(level).unwrap())?;
+                let new_frame_slice = unsafe {
+                    self.mapping.page_table_mut(*new_frame)
+                };
+
+                let mut prev_ptr: NonNull<PageTableEntry> = self.nodes[level + 1].expect("missing page table entry");
+                let entry = unsafe { prev_ptr.as_mut() };
+
+                entry.set_frame(new_frame.take(), flags & FULL_ACCESS);
+
+                let index = self.virt.page_table_index(u32::try_from(level).unwrap());
+
+                let curr_ptr: &mut PageTableEntry = &mut new_frame_slice[index];
+                self.nodes[level] = NonNull::new(curr_ptr);
+            }
+        }
+
+        let pte = unsafe {
+            self.nodes[0]
+                .expect("missing page table entry")
+                .as_mut()
+        };
+
+        let old_frame = unsafe { frame.replace(pte, flags) };
+        unsafe { flush(Page::containing(self.virt)); };
+        drop(old_frame);
+        
         self.validate();
 
         Ok(())
@@ -257,7 +296,12 @@ impl<'a> Path<'a> {
     /// не будут нарушены.
     /// В частности, не осталось ссылок, которые ведут в удаляемую страницу.
     pub unsafe fn unmap(&mut self) -> Result<()> {
-        // TODO: your code here.
+        let pte = self.pte_mut()?;
+
+        let guard = unsafe { FrameGuard::load(pte)? };
+        unsafe { flush(Page::containing(self.virt)) };
+
+        drop(guard);
 
         self.validate();
 
