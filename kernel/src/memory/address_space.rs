@@ -302,8 +302,12 @@ impl AddressSpace {
         frame: FrameGuard,
         flags: PageTableFlags,
     ) -> Result<()> {
-        // TODO: your code here.
-        unimplemented!();
+        if range::user_pages().contains(page) != flags.is_user() {
+            return Err(PermissionDenied) 
+        }
+
+        let path = &mut self.mapping()?.path(page.address());
+        unsafe { path.map(frame, flags) }
     }
 
     /// Выделяет физический фрейм и отображает на него заданную виртуальную страницу `page`
@@ -320,8 +324,8 @@ impl AddressSpace {
         page: Page,
         flags: PageTableFlags,
     ) -> Result<()> {
-        // TODO: your code here.
-        unimplemented!();
+        let frame = FrameGuard::allocate()?;
+        unsafe { self.map_page_to_frame(page, frame, flags) }
     }
 
     /// Удаляет отображение заданной виртуальной страницы `page`.
@@ -340,8 +344,8 @@ impl AddressSpace {
         &mut self,
         page: Page,
     ) -> Result<()> {
-        // TODO: your code here.
-        Ok(()) // TODO: remove before flight.
+        let path = &mut self.mapping()?.path(page.address());
+        unsafe { path.unmap() }
     }
 
     /// Выделяет нужное количество физических фреймов
