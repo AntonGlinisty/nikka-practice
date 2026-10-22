@@ -39,6 +39,7 @@ use super::{
         PAGE_TABLE_LEAF_LEVEL,
         PAGE_TABLE_LEVEL_COUNT,
         PAGE_TABLE_ROOT_LEVEL,
+        PAGE_TABLE_INDEX_BITS,
         PageTable,
         PageTableEntry,
     },
@@ -326,8 +327,17 @@ impl Mapping {
         &mut self,
         level: u32,
     ) -> Result<FrameGuard> {
-        // TODO: your code here.
-        unimplemented!();
+        let frame = FRAME_ALLOCATOR.lock().allocate()?;
+
+        let entries = unsafe {
+            self.page_table_uninit_mut(*frame)
+        };
+
+        for entry in entries.iter_mut() {
+            entry.write(PageTableEntry::new(level));
+        }
+
+        Ok(frame)
     }
 }
 
@@ -346,8 +356,37 @@ impl Translate for Mapping {
         &mut self,
         virt: Virt,
     ) -> Path<'_> {
-        // TODO: your code here.
-        unimplemented!();
+        let mut current_frame = self.page_table_root;
+        let mut nodes = [None; PAGE_TABLE_LEVEL_COUNT];
+ 
+        for level in (0..PAGE_TABLE_LEVEL_COUNT).rev() {
+            let index = virt.page_table_index(u32::try_from(level).unwrap());
+
+            let current_virt = self.phys2virt
+                .map(current_frame.address())
+                .expect("page table frame is outside Phys2Virt");
+            let current_frame_slice = unsafe {
+                current_virt
+                    .try_into_mut_slice::<PageTableEntry>(PAGE_TABLE_ENTRY_COUNT)
+                    .expect("invalid page table address")
+            };
+
+            let current_pte: &mut PageTableEntry = &mut current_frame_slice[index];
+
+            if !current_pte.is_present() || current_pte.is_huge() {
+                nodes[level] = NonNull::new(current_pte);
+                break;
+            }
+
+            nodes[level] = NonNull::new(current_pte);
+            if level > 0 {
+                current_frame = current_pte
+                    .frame()
+                    .expect("present non-huge entry must reference a table frame");
+            }
+        }
+
+        Path::new(self, nodes, virt)
     }
 
     fn make_recursive_mapping(&mut self) -> Result<usize> {
