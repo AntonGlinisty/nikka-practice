@@ -33,8 +33,12 @@ use super::{
     FrameGuard,
     KERNEL_RW,
     Phys,
+    Virt,
     Size,
-    frage::Frame,
+    frage::{
+        Frame,
+        Page,
+    },
 };
 
 // Used in docs.
@@ -93,7 +97,29 @@ pub(super) fn resize(
     physical_memory: Block<Frame>,
     memory_regions: &MemoryRegions,
 ) {
-    // TODO: your code here.
+    let frame_info = BASE_ADDRESS_SPACE
+        .lock()
+        .map_slice(
+            physical_memory.count(),
+            KERNEL_RW,
+            FrameInfo::default,
+        )
+        .expect("failed to allocate frame metadata");
+
+    let old_memory = FRAME_ALLOCATOR.lock().resize(frame_info, memory_regions);
+
+    let addresses = old_memory.as_ptr_range();
+    let start = Page::new(Virt::from_ptr(addresses.start)).expect("invalid metadata block");
+    let end = Page::new(Virt::from_ptr(addresses.end)).expect("invalid metadata block");
+
+    let pages = Block::new(start, end).expect("invalid metadata block");
+
+    unsafe {
+        BASE_ADDRESS_SPACE
+            .lock()
+            .unmap_block(pages)
+            .expect("failed to unmap metadata");
+    }
 }
 
 /// Основной аллокатор физических фреймов.
@@ -297,8 +323,35 @@ impl FrameAllocator {
              invariants",
         );
 
-        // TODO: your code here.
-        unimplemented!();
+        for index in 0..self.frame_info.len() {
+            frame_info[index] = self.frame_info[index];
+        }
+
+        let last_index = self.frame_info.len();
+
+        for memory_region in memory_regions.iter() {
+            if memory_region.kind != MemoryRegionKind::Usable {
+                continue;
+            }
+
+            let start = core::cmp::max(
+                last_index,
+                ku::memory::size::from(memory_region.start).div_ceil(Frame::SIZE)
+            );
+
+            let end = core::cmp::min(
+                frame_info.len(),
+                ku::memory::size::from(memory_region.end) / Frame::SIZE
+            );
+
+            for index in start..end {
+                frame_info[index] = FrameInfo::Free { next_free: self.free_frame };
+                self.free_frame = Some(index);
+                self.free_count += 1;
+            }
+        }
+
+        core::mem::replace(&mut self.frame_info, frame_info)
     }
 
     /// Возвращает ссылку на [`FrameInfo`], соответствующую физическому фрейму `frame`.
