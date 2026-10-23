@@ -192,8 +192,50 @@ impl Mapping {
         src_frame: Frame,
         level: u32,
     ) -> Result<()> {
-        // TODO: your code here.
-        unimplemented!();
+        let src_page_table = unsafe { self.page_table_ref(src_frame) };
+
+        if level == PAGE_TABLE_LEAF_LEVEL {
+            let dst_page_table = unsafe { dst.page_table_mut(dst_frame) };
+            for index in 0..PAGE_TABLE_ENTRY_COUNT {
+                if !src_page_table[index].is_user() && src_page_table[index].is_present() {
+                    let guard = FrameGuard::reference(src_page_table[index].frame()?);
+                    dst_page_table[index].set_frame(guard.take(), src_page_table[index].flags()); 
+                } else {
+                    dst_page_table[index] = PageTableEntry::new(level);
+                }
+            }
+            return Ok(())       
+        }
+
+        for index in 0..PAGE_TABLE_ENTRY_COUNT {
+            if level == PAGE_TABLE_ROOT_LEVEL && index == self.recursive_mapping {
+                continue;
+            }
+
+            let current_src_pte = src_page_table[index];
+
+            if !current_src_pte.is_present() {
+                continue;
+            } else if current_src_pte.is_huge() {
+                let dst_page_table = unsafe { dst.page_table_mut(dst_frame) };
+                dst_page_table[index] = current_src_pte;
+            } else {
+                let new_dst_frame = dst.allocate_node(level - 1)?;
+                let new_src_frame = current_src_pte.frame()?;
+
+                let frame = new_dst_frame.take();
+
+                let mut new_pte = PageTableEntry::new(level);
+                new_pte.set_frame(frame, current_src_pte.flags());
+
+                let dst_page_table = unsafe { dst.page_table_mut(dst_frame) };
+                dst_page_table[index] = new_pte;
+                
+                self.duplicate_subtree(dst, frame, new_src_frame, level - 1)?;
+            }
+        }
+
+        Ok(())
     }
 
     /// Шаг рекурсии при спуске по дереву отображения страниц.
@@ -214,8 +256,44 @@ impl Mapping {
         level: u32,
         drop_used: bool,
     ) -> bool {
-        // TODO: your code here.
-        false // TODO: remove before flight.
+        let mut completely_removed = true;
+
+        for index in 0..PAGE_TABLE_ENTRY_COUNT {
+            let page_table = unsafe { self.page_table_mut(node) };
+            let current_pte = page_table[index];
+
+            if current_pte.is_huge() {
+                completely_removed = false;
+                continue;
+            }
+
+            let current_frame = match current_pte.frame() {
+                Ok(frame) => frame,
+                Err(_) => {
+                    continue;
+                },
+            };
+
+            if level == PAGE_TABLE_LEAF_LEVEL {
+                if !drop_used {
+                    completely_removed = false;
+                } else {
+                    FRAME_ALLOCATOR.lock().deallocate(current_frame);
+                }
+            } else if !self.drop_subtree(current_frame, level - 1, drop_used) {
+                completely_removed = false;
+            } else {
+                let page_table = unsafe { self.page_table_mut(node) };
+                let current_pte = &mut page_table[index];
+                current_pte.clear();
+            }
+        }
+
+        if completely_removed || drop_used {
+            FRAME_ALLOCATOR.lock().deallocate(node);
+        }
+
+        completely_removed || drop_used
     }
 
     /// Возвращает физический фрейм корневого узла текущего отображения
