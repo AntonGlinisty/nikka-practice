@@ -5,7 +5,10 @@ use ku::{
         BigAllocator,
         BigAllocatorPair,
     },
-    error::Result,
+    error::{
+        Error::InvalidArgument,
+        Result,
+    },
     memory::{
         Block,
         Page,
@@ -13,7 +16,7 @@ use ku::{
     },
 };
 
-use crate::memory::AddressSpace;
+use crate::memory::{AddressSpace, FrameGuard, Translate};
 
 use super::BigPair;
 
@@ -99,7 +102,27 @@ unsafe impl BigAllocator for Big<'_> {
         new_block: Block<Page>,
         flags: Option<PageTableFlags>,
     ) -> Result<()> {
-        // TODO: your code here.
-        unimplemented!();
+        if old_block.count() != new_block.count() ||
+            old_block != new_block && !old_block.intersection(new_block).is_empty() ||
+            old_block == new_block && flags.is_none() {
+            return Err(InvalidArgument)
+        }
+
+        for (old_page, new_page) in old_block.into_iter().zip(new_block) {
+            let old_path = self.address_space.path(old_page.address());
+            let old_pte = old_path.pte()?;
+
+            let old_frame = old_pte.frame()?;
+            let old_frame_guard = FrameGuard::reference(old_frame);
+
+            let old_flags = old_pte.flags();
+            let new_flags = flags.unwrap_or(old_flags);
+
+            unsafe {
+                self.address_space.map_page_to_frame(new_page, old_frame_guard, new_flags)?;
+            }
+        }
+
+        Ok(())
     }
 }
