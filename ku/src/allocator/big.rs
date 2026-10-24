@@ -5,8 +5,7 @@ use core::{
 };
 
 use crate::{
-    error::Result,
-    memory::{
+    Error::{InvalidAlignment, InvalidArgument, Overflow}, error::Result, memory::{
         Block,
         Page,
         Virt,
@@ -202,8 +201,64 @@ pub unsafe trait BigAllocator {
         new_layout: Layout,
         flags: PageTableFlags,
     ) -> Result<Block<Page>> {
-        // TODO: your code here.
-        unimplemented!();
+        if new_layout.size() < old_block.size() {
+            panic!("trying to grow into a smaller size");
+        }
+
+        let new_block = self.reserve(new_layout)?;
+        if old_block.is_empty() {
+            unsafe {
+                if let Err(err) = self.map(new_block, flags) {
+                    let _ = self.unreserve(new_block);
+                    return Err(err)
+                }
+            }
+        } else {
+            let left_sub_block = match Block::<Page>::from_index(
+                new_block.start(),
+                new_block.start() + old_block.count(),
+            ) {
+                Ok(block) => block,
+                Err(err) => {
+                    let _ = unsafe { self.unreserve(new_block) };
+                    return Err(err)
+                }
+            };
+
+            let right_sub_block = match Block::<Page>::from_index(
+                new_block.start() + old_block.count(),
+                new_block.end(),
+            ) {
+                Ok(block) => block,
+                Err(err) => {
+                    let _ = unsafe { self.unreserve(new_block) };
+                    return Err(err)
+                }
+            };
+
+            unsafe {
+                if let Err(err) = self.copy_mapping(old_block, left_sub_block, Some(flags)) {
+                    let _ = self.unmap(left_sub_block);
+                    let _ = self.unreserve(new_block);
+                    return Err(err)
+                };
+            }
+
+            unsafe {
+                if let Err(err) = self.map(right_sub_block, flags) {
+                    let _ = self.unmap(left_sub_block);
+                    let _ = self.unreserve(new_block);
+                    return Err(err)
+                }
+            }
+
+            unsafe {
+                self.unmap(old_block).expect("failed to unmap old block");
+                self.unreserve(old_block).expect("failed to unreserve old_block")
+            }
+        }
+
+        Ok(new_block)
     }
 
     /// Аналогично [`Allocator::shrink()`]
@@ -244,8 +299,55 @@ pub unsafe trait BigAllocator {
         old_block: Block<Page>,
         new_layout: Layout,
     ) -> Result<Block<Page>> {
-        // TODO: your code here.
-        unimplemented!();
+        if new_layout.size() == 0 {
+            if !old_block.is_empty() {
+                unsafe {
+                    self.unmap(old_block).expect("failed to unmap old_block");
+                    self.unreserve(old_block).expect("failed to unreserve old_block");
+                }
+            }
+            return Ok(Block::zero())
+        }
+
+        if old_block.size() < new_layout.size() {
+            panic!("trying to shrink into a bigger size")
+        }
+
+        let left_sub_block = Block::<Page>::from_index(
+            old_block.start(),
+            old_block.start() + new_layout.size().div_ceil(Page::SIZE),
+        )?;
+
+        if old_block.address(0)?.into_usize() % new_layout.align() == 0 {
+            let right_sub_block = Block::<Page>::from_index(
+                old_block.start() + (new_layout.size() + Page::SIZE - 1) / Page::SIZE,
+                old_block.end(),
+            )?;
+
+            if !right_sub_block.is_empty() {
+                unsafe {
+                    self.unmap(right_sub_block).expect("failed to unmap right_sub_block");
+                    self.unreserve(right_sub_block).expect("failed to unreserve right_sub_block");
+                }
+            }
+
+            Ok(left_sub_block)
+        } else {
+            let new_block = self.reserve(new_layout)?;
+
+            unsafe {
+                if let Err(err) = self.copy_mapping(left_sub_block, new_block, None) {
+                    let _ = self.unmap(new_block);
+                    let _ = self.unreserve(new_block);
+                    return Err(err)
+                };
+
+                self.unmap(old_block).expect("failed to unmap old_block");
+                self.unreserve(old_block).expect("failed to unreserve old_block");
+            }
+
+            Ok(new_block)
+        }
     }
 }
 
@@ -255,8 +357,32 @@ unsafe impl<T: BigAllocator> DryAllocator for T {
         layout: Layout,
         initialize: Initialize,
     ) -> Result<NonNull<[u8]>> {
-        // TODO: your code here.
-        unimplemented!();
+        let block = self.reserve(layout)?;
+        unsafe {
+            if let Err(err) = self.map(block, self.flags()) {
+                let _ = self.unreserve(block);
+                return Err(err)
+            }
+        }
+
+        unsafe {
+            if let Err(err) = initialize_block(block, initialize) {
+                let _ = self.unmap(block);
+                let _ = self.unreserve(block);
+                return Err(err)
+            }
+        };
+
+        unsafe {
+            match block.try_into_non_null_slice() {
+                Ok(slice) => Ok(slice),
+                Err(err) => {
+                    let _ = self.unmap(block);
+                    let _ = self.unreserve(block);
+                    return Err(err)
+                }
+            }
+        }
     }
 
     unsafe fn dry_deallocate(
@@ -264,8 +390,13 @@ unsafe impl<T: BigAllocator> DryAllocator for T {
         ptr: NonNull<u8>,
         layout: Layout,
     ) {
-        // TODO: your code here.
-        unimplemented!();
+        let block = try_into_block(ptr, layout)
+            .expect("error while casting ptr to block");
+        
+        unsafe {
+            self.unmap(block).expect("failed to unmap block");
+            self.unreserve(block).expect("failed to unreserve block");
+        }
     }
 
     unsafe fn dry_grow(
@@ -275,8 +406,48 @@ unsafe impl<T: BigAllocator> DryAllocator for T {
         new_layout: Layout,
         initialize: Initialize,
     ) -> Result<NonNull<[u8]>> {
-        // TODO: your code here.
-        unimplemented!();
+        if new_layout.size() < old_layout.size() {
+            return Err(InvalidArgument)
+        }
+
+        let old_block = try_into_block(ptr, old_layout)?;
+        if ptr.addr().get() % new_layout.align() == 0 {
+            let pages_count = new_layout.size().div_ceil(Page::SIZE);
+
+            if old_block.count() == pages_count {
+                unsafe {
+                    initialize_block_part(
+                        old_block,
+                        old_layout.size(),
+                        old_block.size(),
+                        initialize
+                    )?;
+                    return old_block.try_into_non_null_slice()
+                }
+            }
+        }
+
+        let grow_layout = Layout::from_size_align(
+            new_layout.size().max(old_block.size()),
+            new_layout.align(),
+        ).map_err(|_| InvalidArgument)?;
+
+        let new_block = unsafe {
+            self.grow(old_block, grow_layout, self.flags())?
+        };
+
+        unsafe {
+            initialize_block_part(
+                new_block,
+                old_layout.size(),
+                new_block.size(),
+                initialize
+            ).expect("failed to initialize block")
+        };
+
+        unsafe {
+            Ok(new_block.try_into_non_null_slice().expect("failed to cut block into slice"))
+        }
     }
 
     unsafe fn dry_shrink(
@@ -285,8 +456,37 @@ unsafe impl<T: BigAllocator> DryAllocator for T {
         old_layout: Layout,
         new_layout: Layout,
     ) -> Result<NonNull<[u8]>> {
-        // TODO: your code here.
-        unimplemented!();
+        if new_layout.size() > old_layout.size() {
+            return Err(InvalidArgument)
+        }
+
+        let old_block = try_into_block(ptr, old_layout)?;
+
+        if new_layout.size() == 0 {
+            let empty = NonNull::slice_from_raw_parts(new_layout.dangling_ptr(), 0);
+
+            unsafe {
+                self.shrink(old_block, new_layout)?;
+            }
+
+            return Ok(empty)
+        }
+
+        if ptr.addr().get() % new_layout.align() == 0 {
+            let pages_count = new_layout.size().div_ceil(Page::SIZE);
+
+            if old_block.count() == pages_count {
+                return unsafe { old_block.try_into_non_null_slice() }
+            }
+        }
+        
+        let new_block = unsafe {
+            self.shrink(old_block, new_layout)?
+        };
+
+        unsafe {
+            Ok(new_block.try_into_non_null_slice().expect("failed to cut block into slice"))
+        }
     }
 }
 
@@ -312,8 +512,18 @@ fn try_into_block(
     ptr: NonNull<u8>,
     layout: Layout,
 ) -> Result<Block<Page>> {
-    // TODO: your code here.
-    unimplemented!();
+    if ptr.addr().get() % Page::SIZE != 0 {
+        return Err(InvalidAlignment)
+    }
+
+    let start_index = ptr.addr().get() / Page::SIZE;
+    let pages_count = layout.size().div_ceil(Page::SIZE);
+
+    let block = Block::<Page>::from_index(
+        start_index,
+        start_index.checked_add(pages_count).ok_or(Overflow)?,
+    )?;
+    Ok(block)
 }
 
 /// Инициализирует `block` так, как предписывает `initialize`.
@@ -328,6 +538,32 @@ unsafe fn initialize_block(
     block: Block<Page>,
     initialize: Initialize,
 ) -> Result<()> {
-    // TODO: your code here.
-    unimplemented!();
+    if initialize == Initialize::Zero {
+        let slice = unsafe { block.try_into_mut_slice::<MaybeUninit<u8>>()? };
+        for item in slice.iter_mut() {
+            *item = MaybeUninit::zeroed();
+        }
+    }
+
+    Ok(())
+}
+
+unsafe fn initialize_block_part(
+    block: Block<Page>,
+    start: usize,
+    end: usize,
+    initialize: Initialize,
+) -> Result<()> {
+    if start > end || end > block.size() {
+        return Err(InvalidArgument)
+    }
+
+    if initialize == Initialize::Zero {
+        let slice = unsafe { block.try_into_mut_slice::<MaybeUninit<u8>>()? };
+        for index in start..end {
+            slice[index] = MaybeUninit::zeroed();
+        }
+    }
+
+    Ok(())
 }
