@@ -140,8 +140,38 @@ impl<'a> Bitmap<'a> {
     /// срезе [`Bitmap::bitmap`] и запоминает в [`Bitmap::cursor`] позицию,
     /// из которой выделен свободный элемент.
     pub fn allocate(&mut self) -> Option<usize> {
-        // TODO: your code here.
-        unimplemented!();
+        if self.free == 0 {
+            return None
+        }
+
+        let mut offset = 0;
+        let cells_count = self.bitmap.len();
+
+        while offset < cells_count {
+            let curr_cell_index = self.cursor + offset;
+            let index = usize::try_from((!self.bitmap[curr_cell_index % cells_count]).trailing_zeros())
+                .expect("BAD CAST");
+
+            if index < Self::BITS_PER_ENTRY {
+                if curr_cell_index != cells_count - 1 || 
+                    index < Self::BITS_PER_ENTRY + self.len - cells_count * Self::BITS_PER_ENTRY {
+                    let number = (curr_cell_index % cells_count) * Self::BITS_PER_ENTRY + index;
+
+                    self.bitmap[curr_cell_index % cells_count] |= 1 << index;
+                    self.free -= 1;
+
+                    if offset != 0 {
+                        self.cursor = curr_cell_index % cells_count;
+                    }
+
+                    return Some(number);
+                }
+            }
+
+            offset += 1;
+        }
+
+        None
     }
 
     /// Аналогична [`Bitmap::allocate()`], но выделяет за один раз несколько элементов.
