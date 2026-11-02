@@ -1,21 +1,21 @@
+use core::alloc::Layout;
+
 use derive_more::{
     Deref,
     DerefMut,
 };
 
 use crate::{
-    allocator::{
+    Error::InvalidArgument, allocator::{
         BigAllocator,
         BigAllocatorGuard,
-    },
-    error::{
+    }, error::{
         Error::{
             InvalidAlignment,
             PermissionDenied,
         },
         Result,
-    },
-    memory::{
+    }, memory::{
         Block,
         Page,
         size,
@@ -81,8 +81,25 @@ impl DynamicBitmap {
         guard_zone_page_count: usize,
         allocator: &impl BigAllocatorGuard,
     ) -> Result<()> {
-        // TODO: your code here.
-        unimplemented!();
+        if capacity == 0 {
+            panic!("Trying to reserve pages for 0 capacity bitmap");
+        }
+
+        if !self.pages.is_empty() {
+            panic!("Current pages are not empty");
+        }
+
+        let guard_pages_count = guard_zone_page_count * Page::SIZE;
+        let bitmap_pages_count = Self::page_count(capacity) * Page::SIZE;
+
+        let layout = Layout::from_size_align(2 * guard_pages_count + bitmap_pages_count, Page::SIZE)?;
+        let result_pages = allocator.get().reserve(layout)?;
+
+        self.bitmap = Bitmap::zero();
+        self.guard_zone_page_count = guard_zone_page_count;
+        self.pages = result_pages;
+
+        Ok(())
     }
 
     /// С помощью `allocator` отображает в память
@@ -105,8 +122,38 @@ impl DynamicBitmap {
         new_len: usize,
         allocator: &impl BigAllocatorGuard,
     ) -> Result<usize> {
-        // TODO: your code here.
-        unimplemented!();
+        if new_len <= self.bitmap.len() {
+            panic!("Trying to map pages for new_len <= current_len bitmap");
+        }
+
+        let old_len = self.bitmap.len();
+        let pages = self.pages();
+
+        if Self::page_count(new_len) != Self::page_count(old_len) {
+            let mut alloc = allocator.get();
+
+            let new_pages = pages
+                .slice(Self::page_count(old_len)..Self::page_count(new_len))
+                .unwrap();
+
+            unsafe {
+                alloc.map(new_pages, alloc.flags())?;
+
+                new_pages
+                    .start_address()
+                    .into_mut_ptr_u8()
+                    .write_bytes(0, new_pages.size());
+            };
+        }
+
+        let new_free = self.bitmap.free() + (new_len - old_len);
+
+        let mapped_pages = pages.slice(0..Self::page_count(new_len)).unwrap();
+        let data: &mut [u64] = unsafe { mapped_pages.try_into_mut_slice::<u64>()? };
+
+        self.bitmap = Bitmap::new(data, new_len, Some(new_free));
+
+        Ok(Self::page_count(new_len) - Self::page_count(old_len))
     }
 
     /// С помощью `allocator`:
@@ -129,8 +176,18 @@ impl DynamicBitmap {
     ) -> Result<usize> {
         assert_eq!(self.free(), self.len());
 
-        // TODO: your code here.
-        unimplemented!();
+        let mut alloc = allocator.get();
+
+        let mapped_pages_count = Self::page_count(self.bitmap.len());
+        let pages_to_unmap = self.pages().slice(0..mapped_pages_count).unwrap();
+        
+        unsafe { alloc.unmap(pages_to_unmap)? };
+        self.bitmap = Bitmap::zero();
+
+        unsafe { alloc.unreserve(self.pages)? };
+
+        *self = DynamicBitmap::new();
+        Ok(mapped_pages_count)
     }
 
     /// Возвращает количество страниц, которые занимает битовая карта [`DynamicBitmap::bitmap`]
