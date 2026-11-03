@@ -1,14 +1,11 @@
 use core::{
-    fmt,
-    num::NonZeroUsize,
+    alloc::Layout, fmt, num::NonZeroUsize, ops::Range,
 };
 
 use static_assertions::const_assert;
 
 use crate::{
-    error::Result,
-    log::trace,
-    memory::{
+    allocator::test_scaffolding::SLAB_SIZE, error::Result, log::trace, memory::{
         Block,
         Page,
         Virt,
@@ -91,8 +88,17 @@ impl Quarry {
         &mut self,
         allocation_index: usize,
     ) -> Virt {
-        // TODO: your code here.
-        unimplemented!();
+        let (slab_index, block_index) = self.allocation_coordinates(allocation_index);
+        if slab_index >= self.slabs.len() {
+            panic!("Trying to allocate out of quarry capacity");
+        }
+
+        let slab_block = self.slab(slab_index);
+        if slab_block == Block::default() {
+            panic!("Trying to allocate at default slab");
+        }
+
+        slab_block.address(block_index * self.size()).unwrap()
     }
 
     /// Обратная операция к [`Quarry::allocation()`].
@@ -107,8 +113,29 @@ impl Quarry {
         &mut self,
         address: Virt,
     ) -> Option<usize> {
-        // TODO: your code here.
-        unimplemented!();
+        for index in 0..self.slabs.len() {
+            let slab_block = self.slab(index);
+            if slab_block == Block::default() {
+                return None
+            }
+
+            let block_offset = match slab_block.offset(address) {
+                Ok(offset) => offset,
+                Err(_) => continue,
+            };
+
+            if block_offset % self.size() != 0 {
+                panic!("Address is not alligned to block start");
+            }
+
+            if Self::SLAB_SIZE - block_offset < self.size() {
+                return None
+            }
+
+            return Some(block_offset / self.size() + index * self.slab_allocation_count.get());
+        }
+
+        None
     }
 
     /// Возвращает максимальное количество выделяемых блоков памяти,
@@ -156,8 +183,80 @@ impl Quarry {
 
         self.reserve(old_allocation_count, *new_allocation_count, fallback)?;
 
-        // TODO: your code here.
-        unimplemented!();
+        let mut result = 0;
+        let mut alloc = fallback.get();
+
+        let (new_slab_index, new_block_index) = self.allocation_coordinates(*new_allocation_count - 1);
+        let (old_slab_index, old_block_index) = if old_allocation_count == 0 { (0, 0) } else {
+            self.allocation_coordinates(old_allocation_count - 1)
+        };
+
+        let page_start = if old_allocation_count == 0 { 0 } else {
+            ((old_block_index + 1) * self.size()).div_ceil(Page::SIZE)
+        };
+        let page_end = ((new_block_index + 1) * self.size()).div_ceil(Page::SIZE);
+
+        let page_range = |index| -> Range<usize> {
+            let start = if index == old_slab_index {
+                page_start
+            } else {
+                0
+            };
+
+            let end = if index == new_slab_index {
+                page_end
+            } else {
+                Self::SLAB_PAGE_COUNT
+            };
+
+            start..end
+        };
+
+        for slab_index in old_slab_index..=new_slab_index {
+            let range = page_range(slab_index);
+            if range.is_empty() {
+                continue;
+            }
+            let page_count = range.len();
+
+            if let Err(err) = unsafe {
+                alloc.map(
+                    self.slab(slab_index).slice(range).unwrap(),
+                    alloc.flags()
+                )
+            } {
+                for index in old_slab_index..slab_index {
+                    let range = page_range(index);
+                    if range.is_empty() {
+                        continue;
+                    }
+
+                    unsafe {
+                        alloc
+                            .unmap(self.slab(index).slice(range).unwrap())
+                            .expect("failed to roll back slab mapping")
+                    };
+                }
+
+                let old_slab_count = old_allocation_count.div_ceil(self.slab_allocation_count.get());
+                for index in old_slab_count..=new_slab_index {
+                    unsafe {
+                        alloc.unreserve(self.slab(index))
+                            .expect("failed to roll back slab reservation");
+                    }
+                    self.slabs[index] = Page::default();
+                }
+
+                return Err(err)
+            };
+
+            result += page_count;
+        }
+
+        *new_allocation_count = new_slab_index * self.slab_allocation_count.get()
+            + (page_end * Page::SIZE / self.size()).min(self.slab_allocation_count.get());
+
+        Ok(result)
     }
 
     /// Освобождает как всю использованную [`Quarry`] физическую память,
@@ -180,8 +279,54 @@ impl Quarry {
         allocation_count: usize,
         fallback: &impl BigAllocatorGuard,
     ) -> Result<usize> {
-        // TODO: your code here.
-        unimplemented!();
+        assert!(allocation_count <= self.capacity());
+
+        let slab_count = allocation_count.div_ceil(self.slab_allocation_count.get());
+
+        for index in 0..Self::SLAB_COUNT {
+            if index < slab_count &&
+                self.slab(index) == Block::default() {
+                    panic!("Slabs allocated less than needed");
+                }
+
+            if index >= slab_count &&
+                self.slab(index) != Block::default() {
+                    panic!("Slabs allocated more than needed");
+                }
+        }
+
+        let mut result = 0;
+        let mut alloc = fallback.get();
+
+        let block_index = if allocation_count == 0 {
+            0
+        } else {
+            (allocation_count - 1) % self.slab_allocation_count.get()
+        };
+        let page_end = ((block_index + 1) * self.size()).div_ceil(Page::SIZE); 
+
+        for index in (0..slab_count).rev() {
+            let left_bound = 0;
+            let right_bound = if index == slab_count - 1 {
+                page_end
+            } else {
+                Self::SLAB_PAGE_COUNT
+            };
+
+            unsafe {
+                alloc
+                    .unmap(self.slab(index).slice(left_bound..right_bound).unwrap())
+                    .expect("failed to unmap Quarry slab");
+                alloc
+                    .unreserve(self.slab(index))
+                    .expect("failed to unreserve Quarry slab");
+            }
+
+            self.slabs[index] = Page::default();
+            result += right_bound - left_bound;
+        }
+
+        Ok(result)
     }
 
     /// Возвращает пару из номера большого блока в [`Quarry::slabs`] и
@@ -192,8 +337,10 @@ impl Quarry {
         &self,
         allocation_index: usize,
     ) -> (usize, usize) {
-        // TODO: your code here.
-        unimplemented!();
+        let slab_index = allocation_index / self.slab_allocation_count;
+        let block_index = allocation_index % self.slab_allocation_count;
+
+        (slab_index, block_index)
     }
 
     /// Резервирует адресное пространство под необходимое количество блоков [`Quarry::slabs`],
@@ -210,7 +357,7 @@ impl Quarry {
     ///   - Обнаруживает, что уже зарезервировано меньше или больше блоков, чем требуется для
     ///     `old_allocation_count` выделяемых блоков памяти.
     ///   - `new_allocation_count` больше или равен [`Quarry::capacity()`].
-    ///   - `old_allocation_count` превышает `new_allocation_count`.
+    ///   - `new_allocation_count` не превышает `old_allocation_count`.
     fn reserve(
         &mut self,
         old_allocation_count: usize,
@@ -219,8 +366,45 @@ impl Quarry {
     ) -> Result<()> {
         assert!(old_allocation_count < new_allocation_count);
 
-        // TODO: your code here.
-        unimplemented!();
+        if new_allocation_count > self.capacity() {
+            panic!("Trying to reserve more blocks than capacity");
+        }
+
+        let old_slab_count = old_allocation_count.div_ceil(self.slab_allocation_count.get());
+
+        for slab_index in 0..Self::SLAB_COUNT {
+            if slab_index < old_slab_count &&
+                self.slab(slab_index) == Block::default() {
+                    panic!("Slabs allocated less than needed");
+                }
+
+            if slab_index >= old_slab_count &&
+                self.slab(slab_index) != Block::default() {
+                    panic!("Slabs allocated more than needed");
+                }
+        }
+
+        let new_slab_count = new_allocation_count.div_ceil(self.slab_allocation_count.get());
+
+        for slab_index in old_slab_count..new_slab_count {
+            let layout = Layout::from_size_align(Self::SLAB_SIZE, Page::SIZE)?;
+            let new_block = match fallback.get().reserve(layout) {
+                Ok(block) => block,
+                Err(err) => {
+                    for index in old_slab_count..slab_index {
+                        unsafe {
+                            fallback.get().unreserve(self.slab(index))
+                                .expect("failed to roll back slab reservation");
+                        }
+                        self.slabs[index] = Page::default();
+                    }
+                    return Err(err)
+                }
+            };
+            self.slabs[slab_index] = new_block.start_element();
+        }
+
+        Ok(())
     }
 
     /// Возвращает блок номер `slab_index` или [`Block::default()`],
