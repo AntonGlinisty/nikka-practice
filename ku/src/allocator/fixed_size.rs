@@ -86,8 +86,16 @@ impl FixedSizeAllocator {
     ) -> *mut u8 {
         self.validate_layout(layout);
 
-        // TODO: your code here.
-        unimplemented!();
+        if let Some(block_index) = self.bitmap.allocate() {
+            let ptr = self.quarry().allocation(block_index).into_mut_ptr_u8();
+
+            let size = self.quarry().size();
+            self.info_mut().allocation(layout.size(), size, 0);
+
+            return ptr
+        } else {
+            return core::ptr::null_mut()
+        }
     }
 
     /// Освобождает выделенные ранее методом [`FixedSizeAllocator::allocate()`]
@@ -114,8 +122,10 @@ impl FixedSizeAllocator {
         assert!(!ptr.is_null());
         self.validate_layout(layout);
 
-        // TODO: your code here.
-        unimplemented!();
+        unsafe { self.deallocate_impl(ptr); }
+
+        let size = self.quarry().size();
+        self.info_mut().deallocation(layout.size(), size, 0);
     }
 
     /// Заполняет `clip` до тех пор, пока либо в нём не будет `len` элементов,
@@ -125,8 +135,18 @@ impl FixedSizeAllocator {
         clip: &mut Clip,
         len: usize,
     ) {
-        // TODO: your code here.
-        unimplemented!();
+        assert!(len <= clip.capacity());
+
+        *self.info_mut() += core::mem::take(clip.info_mut());
+
+        while clip.len() < len {
+            let Some(index) = self.bitmap.allocate() else {
+                return
+            };
+
+            let ptr = self.quarry().allocation(index).into_mut_ptr_u8();
+            clip.push(ptr).expect("Failed to push ptr to clip");
+        }
     }
 
     /// Освобождает `clip`, пока в нём не останется не более `len` блоков.
@@ -135,8 +155,15 @@ impl FixedSizeAllocator {
         clip: &mut Clip,
         len: usize,
     ) {
-        // TODO: your code here.
-        unimplemented!();
+        assert!(len <= clip.capacity());
+
+        *self.info_mut() += core::mem::take(clip.info_mut());
+
+        while clip.len() > len {
+            let ptr = clip.pop().unwrap();
+
+            unsafe { self.deallocate_impl(ptr); }
+        }
     }
 
     /// Выделяет из `fallback` некоторое количество новых блоков размера `size`.
@@ -158,8 +185,39 @@ impl FixedSizeAllocator {
     ) -> Result<usize> {
         assert!(size.is_multiple_of(MIN_SIZE));
 
-        // TODO: your code here.
-        unimplemented!();
+        let old_count = self.bitmap.len();
+        let mut new_count = old_count + 1;
+
+        if self.quarry.is_none() {
+            let mut quarry = Quarry::new(size);
+
+            self.bitmap.reserve(quarry.capacity(), FixedSizeAllocator::BITMAP_GUARD_ZONE_PAGE_COUNT, fallback)?;
+
+            self.quarry = Some(quarry);
+        } else {
+            if size != self.quarry().size() {
+                panic!("The size is different from the previous one.");
+            }
+        }
+
+        if new_count > self.quarry().capacity() {
+            return Err(NoPage)
+        }
+
+        let quarry_frames = self.quarry().map(old_count, &mut new_count, fallback)?;
+        let bitmap_frames = match self.bitmap.map(new_count, fallback) {
+            Ok(frames) => frames,
+            Err(err) => {
+                self.quarry()
+                    .unmap_part(old_count, new_count, fallback)
+                    .expect("failed to roll back Quarry expansion");
+                return Err(err)
+            },
+        };
+
+        self.info_mut().pages_allocation(quarry_frames + bitmap_frames);
+
+        Ok(quarry_frames + bitmap_frames)
     }
 
     /// Освобождает как всю использованную [`FixedSizeAllocator`] физическую память,
@@ -184,8 +242,20 @@ impl FixedSizeAllocator {
         assert_eq!(self.info.allocated().balance(), 0);
         assert_eq!(self.info.requested().balance(), 0);
 
-        // TODO: your code here.
-        unimplemented!();
+        if self.quarry.is_none() {
+            return Ok(0)
+        }
+
+        let allocation_count = self.bitmap.len();
+        
+        let bitmap_frames = self.bitmap.unmap(fallback).expect("Failed to unmap bitmap");
+        let quarry_frames = self.quarry().unmap(allocation_count, fallback).expect("Failed to unmap quarry");
+
+        self.quarry = None;
+
+        self.info_mut().pages_deallocation(quarry_frames + bitmap_frames);
+
+        Ok(quarry_frames + bitmap_frames)
     }
 
     /// Освобождает выделенные ранее методом [`FixedSizeAllocator::allocate()`]
@@ -208,8 +278,15 @@ impl FixedSizeAllocator {
     ) {
         debug_assert!(!ptr.is_null());
 
-        // TODO: your code here.
-        unimplemented!();
+        let address = Virt::from_mut_ptr(ptr);
+        if let Some(number) = self.quarry().allocation_index(address) {
+            if self.bitmap.is_free(number) {
+                panic!("Block is already free");
+            }
+            self.bitmap.set_free(number);
+        } else {
+            panic!("The address does not belong to quarry");
+        }
     }
 
     /// Возвращает хранилище блоков памяти фиксированного размера.
