@@ -329,6 +329,73 @@ impl Quarry {
         Ok(result)
     }
 
+    pub(super) fn unmap_part(
+        &mut self,
+        old_allocation_count: usize,
+        new_allocation_count: usize,
+        fallback: &impl BigAllocatorGuard,
+    ) -> Result<usize> {
+        assert!(old_allocation_count <= new_allocation_count);
+        assert!(new_allocation_count <= self.capacity());
+
+        if old_allocation_count == new_allocation_count {
+            return Ok(0)
+        }
+
+        let old_slab_count = old_allocation_count.div_ceil(self.slab_allocation_count.get());
+        
+        let (first_slab, first_page) = if old_allocation_count == 0 {
+            (0, 0)
+        } else {
+            let (slab, block) =
+                self.allocation_coordinates(old_allocation_count - 1);
+
+            (slab, ((block + 1) * self.size()).div_ceil(Page::SIZE))
+        };
+
+        let (last_slab, last_block) =
+            self.allocation_coordinates(new_allocation_count - 1);
+        let last_page =
+            ((last_block + 1) * self.size()).div_ceil(Page::SIZE);
+
+        let mut result = 0;
+        let mut alloc = fallback.get();
+
+        for slab_index in (first_slab..=last_slab).rev() {
+            let start = if slab_index == first_slab {
+                first_page
+            } else {
+                0
+            };
+            let end = if slab_index == last_slab {
+                last_page
+            } else {
+                Self::SLAB_PAGE_COUNT
+            };
+
+            if start < end {
+                unsafe {
+                    alloc
+                        .unmap(self.slab(slab_index).slice(start..end).unwrap())
+                        .expect("failed to unmap Quarry slab");
+                }
+
+                result += end - start;
+            }
+
+            if slab_index >= old_slab_count {
+                unsafe {
+                    alloc
+                        .unreserve(self.slab(slab_index))
+                        .expect("failed to unreserve Quarry slab");
+                }
+                self.slabs[slab_index] = Page::default();
+            }
+        }
+
+        Ok(result)
+    }
+
     /// Возвращает пару из номера большого блока в [`Quarry::slabs`] и
     /// номера с нуля выделяемого блока памяти внутри этого большого блока,
     /// которая соответствует глобальному в [`Quarry`] номеру `allocation_index`.
