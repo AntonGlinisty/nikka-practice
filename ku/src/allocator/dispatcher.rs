@@ -3,21 +3,13 @@ use core::{
         Allocator,
         GlobalAlloc,
         Layout,
-    },
-    cmp,
-    fmt,
-    hint,
-    intrinsics,
-    ptr::{
-        self,
-        NonNull,
+    }, cmp, fmt, hint, intrinsics, ptr::{
+        self, NonNull, null_mut,
     },
 };
 
 use crate::{
-    error::Result,
-    memory::Page,
-    sync::Spinlock,
+    allocator::Initialize::Garbage, error::Result, memory::Page, sync::Spinlock,
 };
 
 use super::{
@@ -87,8 +79,16 @@ impl<Q: Cache, T: Allocator + BigAllocatorGuard> Dispatcher<Q, T> {
         detailed_info.total = self.info();
         detailed_info.fallback = self.fallback_info.load();
 
-        for (info, allocator) in detailed_info.fixed_size.iter_mut().zip(&self.fixed_size) {
-            *info = *allocator.lock().info();
+        for (index, info) in detailed_info.fixed_size.iter_mut().enumerate() {
+            if Q::CACHE_AVAILABLE {
+                self.cache.with_borrow_mut(index, |clip| {
+                    let mut allocator = self.fixed_size[index].lock();
+                    *allocator.info_mut() += core::mem::take(clip.info_mut());
+                    *info = *allocator.info();
+                });
+            } else {
+                *info = *self.fixed_size[index].lock().info();
+            }
         }
     }
 
@@ -108,7 +108,18 @@ impl<Q: Cache, T: Allocator + BigAllocatorGuard> Dispatcher<Q, T> {
         assert_eq!(fallback_info.allocated().balance(), 0);
         assert_eq!(fallback_info.requested().balance(), 0);
 
-        // TODO: your code here.
+        for index in 0..FIXED_SIZE_COUNT {
+            if Q::CACHE_AVAILABLE {
+                self.cache.with_borrow_mut(index, |clip| {
+                    let mut allocator = self.fixed_size[index].lock();
+                    allocator.unfill_clip(clip, 0);
+                })
+            }
+
+            let mut allocator = self.fixed_size[index].lock();
+            let pages_count = allocator.unmap(&self.fallback).expect("Failed to unmap fixed size allocator");
+            self.info.pages_deallocation(pages_count);
+        }
 
         assert_eq!(self.info().pages().balance(), 0);
     }
@@ -121,8 +132,23 @@ impl<Q: Cache, T: Allocator + BigAllocatorGuard> Dispatcher<Q, T> {
         &self,
         layout: Layout,
     ) -> Option<usize> {
-        // TODO: your code here.
-        None // TODO: remove before flight.
+        let alignment = if layout.align() > MIN_SIZE {
+            layout.align()
+        } else {
+            MIN_SIZE
+        };
+
+        let max_size = FIXED_SIZE_COUNT * MIN_SIZE;
+        if layout.size() == 0 || layout.size() > max_size || alignment > max_size {
+            return None;
+        }
+
+        let size = layout.size().div_ceil(alignment) * alignment;
+        if  size > max_size || size % Page::SIZE == 0 {
+            return None
+        }
+
+        return Some(size / MIN_SIZE - 1)
     }
 
     /// Возвращает размер блоков памяти, за которые отвечает аллокатор
@@ -159,8 +185,46 @@ impl<Q: Cache, T: Allocator + BigAllocatorGuard> Dispatcher<Q, T> {
         index: usize,
         layout: Layout,
     ) -> *mut u8 {
-        // TODO: your code here.
-        unimplemented!();
+        if Q::CACHE_AVAILABLE {
+            return self.cache.with_borrow_mut(index, |clip| {
+                if clip.is_empty() {
+                    clip.bind(&self.fixed_size[index]);
+
+                    let mut allocator = self.fixed_size[index].lock();
+                    if allocator.is_empty() {
+                        match allocator.stock_up(get_size(index), &self.fallback) {
+                            Ok(pages) => self.info.pages_allocation(pages),
+                            Err(_) => return ptr::null_mut(),
+                        }
+                    }
+
+                    allocator.fill_clip(clip, clip.capacity() / 2);
+                }
+
+                let ptr = clip.pop().expect("clip should contain blocks");
+
+                clip.info_mut().allocation(layout.size(), get_size(index), 0);
+                self.info.allocation(layout.size(), get_size(index), 0);
+
+                ptr
+            });
+        }
+
+        let mut allocator = self.fixed_size[index].lock();
+        if allocator.is_empty() {
+            match allocator.stock_up(get_size(index), &self.fallback) {
+                Ok(pages) => self.info.pages_allocation(pages),
+                Err(_) => return ptr::null_mut(),
+            }
+        }
+
+        let ptr = allocator.allocate(layout);
+        
+        if !ptr.is_null() {
+            self.info.allocation(layout.size(), get_size(index), 0);
+        }
+
+        ptr
     }
 
     /// Освобождает блок памяти с помощью аллокатора
@@ -177,8 +241,28 @@ impl<Q: Cache, T: Allocator + BigAllocatorGuard> Dispatcher<Q, T> {
         ptr: *mut u8,
         layout: Layout,
     ) {
-        // TODO: your code here.
-        unimplemented!();
+        if Q::CACHE_AVAILABLE {
+            return self.cache.with_borrow_mut(index, |clip| {
+                if !clip.is_bound() {
+                    clip.bind(&self.fixed_size[index]);
+                }
+
+                if clip.len() == clip.capacity() {
+                    let mut allocator = self.fixed_size[index].lock();
+                    allocator.unfill_clip(clip, clip.capacity() / 2);
+                }
+
+                clip.push(ptr).expect("clip should have space");
+
+                clip.info_mut().deallocation(layout.size(), get_size(index), 0);
+                self.info.deallocation(layout.size(), get_size(index), 0);
+            })
+        }
+
+        let mut allocator = self.fixed_size[index].lock();
+        unsafe { allocator.deallocate(ptr, layout) }
+
+        self.info.deallocation(layout.size(), get_size(index), 0);
     }
 
     /// Проверяет, что `layout` поддерживается.
@@ -225,7 +309,10 @@ unsafe impl<Q: Cache, T: Allocator + BigAllocatorGuard> GlobalAlloc for Dispatch
     ) -> *mut u8 {
         Self::validate_layout(layout);
 
-        // TODO: your code here.
+        let fixed_size_index = self.get_fixed_size_index(layout);
+        if fixed_size_index.is_some() {
+            return self.fixed_size_allocate(fixed_size_index.unwrap(), layout) 
+        }
 
         self.fallback_allocate(layout, Initialize::Garbage)
     }
@@ -237,7 +324,12 @@ unsafe impl<Q: Cache, T: Allocator + BigAllocatorGuard> GlobalAlloc for Dispatch
     ) {
         Self::validate_layout(layout);
 
-        // TODO: your code here.
+        let fixed_size_index = self.get_fixed_size_index(layout);
+        if fixed_size_index.is_some() {
+            unsafe {
+                return self.fixed_size_deallocate(fixed_size_index.unwrap(), ptr, layout)
+            }
+        }
 
         let ptr = NonNull::new(ptr).expect("should not get null ptr in dealloc()");
 
@@ -254,7 +346,15 @@ unsafe impl<Q: Cache, T: Allocator + BigAllocatorGuard> GlobalAlloc for Dispatch
     ) -> *mut u8 {
         Self::validate_layout(layout);
 
-        // TODO: your code here.
+        let fixed_size_index = self.get_fixed_size_index(layout);
+        if fixed_size_index.is_some() {
+            let ptr = self.fixed_size_allocate(fixed_size_index.unwrap(), layout);
+            if ptr != null_mut() {
+                unsafe { ptr.write_bytes(0, layout.size()) };
+            }
+            
+            return ptr
+        }
 
         self.fallback_allocate(layout, Initialize::Zero)
     }
@@ -270,7 +370,38 @@ unsafe impl<Q: Cache, T: Allocator + BigAllocatorGuard> GlobalAlloc for Dispatch
 
         Self::validate_layout(new_layout);
 
-        // TODO: your code here.
+        let old_index = self.get_fixed_size_index(old_layout);
+        let new_index = self.get_fixed_size_index(new_layout);
+        if old_index.is_some() || new_index.is_some() {
+            if old_index == new_index {
+                let index = old_index.unwrap();
+                let class_size = get_size(index);
+
+                let mut allocator = self.fixed_size[index].lock();
+                let info = allocator.info_mut();
+
+                self.info.deallocation(old_layout.size(), class_size, 0);
+                self.info.allocation(new_size, class_size, 0);
+                info.deallocation(old_layout.size(), class_size, 0);
+                info.allocation(new_size, class_size, 0);
+
+                return old_ptr
+            }
+
+            let new_ptr;
+            unsafe {
+                new_ptr = self.alloc(new_layout);
+                if new_ptr.is_null() {
+                    return new_ptr;
+                }
+
+                core::ptr::copy_nonoverlapping(old_ptr, new_ptr, core::cmp::min(old_layout.size(), new_layout.size()));
+
+                self.dealloc(old_ptr, old_layout)
+            }
+
+            return new_ptr
+        }
 
         let old_ptr = NonNull::new(old_ptr).expect("should not get null ptr in realloc()");
 
