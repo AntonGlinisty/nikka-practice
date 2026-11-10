@@ -120,8 +120,28 @@ impl BigAllocatorPair for BigPair<'_> {
         dst_block: Block<Page>,
         flags: Option<PageTableFlags>,
     ) -> Result<()> {
-        // TODO: your code here.
-        unimplemented!();
+        if src_block.count() != dst_block.count() ||
+            self.is_same() && src_block != dst_block && !src_block.intersection(dst_block).is_empty() ||
+            self.is_same() && src_block == dst_block && flags.is_none() {
+            return Err(InvalidArgument)
+        }
+
+        for (old_page, new_page) in src_block.into_iter().zip(dst_block) {
+            let old_path = self.src_address_space().path(old_page.address());
+            let old_pte = old_path.pte()?;
+
+            let old_frame = old_pte.frame()?;
+            let old_frame_guard = FrameGuard::reference(old_frame);
+
+            let old_flags = old_pte.flags();
+            let new_flags = flags.unwrap_or(old_flags);
+
+            unsafe {
+                self.dst_address_space().map_page_to_frame(new_page, old_frame_guard, new_flags)?;
+            }
+        }
+
+        Ok(())
     }
 }
 
