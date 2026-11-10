@@ -83,8 +83,16 @@ pub(super) fn init(
 
 /// Выделяет память для структур [`Cpu`] и для содержащихся в них стеках.
 fn init_cpu_vec(cpu_count: usize) -> Result<Vec<Cpu>> {
-    // TODO: your code here.
-    unimplemented!();
+    let stacks_count = cpu_count * Cpu::STACKS_PER_CPU;
+    let stacks = Stack::new_slice(&mut BASE_ADDRESS_SPACE.lock(), KERNEL_RW, stacks_count)?;
+
+    let mut cpu_vec = Vec::<Cpu>::with_capacity(cpu_count);
+    for index in 0..cpu_count {
+        let cpu_id = CpuId::new(u32::try_from(index).expect("Wrong cast"));
+        cpu_vec.push(Cpu::new(cpu_id, &stacks[(index * Cpu::STACKS_PER_CPU)..((index + 1) * Cpu::STACKS_PER_CPU)]));
+    }
+
+    Ok(cpu_vec)
 }
 
 /// Смещение внутри [`Cpu`], по которому нужно сохранять `rsp` ядра,
@@ -264,15 +272,22 @@ impl Cpu {
     /// [`GS`](https://wiki.osdev.org/CPU_Registers_x86-64#FS.base.2C_GS.base)
     /// текущего CPU.
     pub(super) fn set_gs(&mut self) {
-        // TODO: your code here.
-        unimplemented!();
+        let addr = Virt::from_ref(self);
+        self.this = addr;
+
+        GsBase::write(addr.into());
     }
 
     /// Инициализация [Task State Segment](https://en.wikipedia.org/wiki/Task_state_segment)
     /// и регистра [`TR`](https://wiki.osdev.org/CPU_Registers_x86-64#TR) текущего CPU.
     pub(super) fn set_tss(&self) {
-        // TODO: your code here.
-        unimplemented!();
+        let cpu = self.id();
+
+        GDT.lock().set_tss(cpu, &self.tss);
+
+        unsafe {
+            tables::load_tss(Gdt::tss(cpu));
+        }
     }
 
     /// Сигнализирует запускающему процессору Bootstrap Processor,
@@ -324,8 +339,24 @@ impl Cpu {
         let message = "the GS register is not initialized properly yet";
         assert_ne!(Virt::from(GsBase::read()), Virt::default(), "{message}");
 
-        // TODO: your code here.
-        unimplemented!();
+        let this: usize;
+        unsafe {
+            asm!(
+                "
+                mov {}, gs:{this_offset}
+                ",
+                out(reg) this,
+                this_offset = const offset_of!(Cpu, this),
+            );
+        }
+
+        let addr = Virt::new(this).expect("Wrong virtual address to Cpu");
+        
+        let ptr = addr
+            .try_into_mut_ptr::<Cpu>()
+            .expect("invalid Cpu alignment");
+
+        unsafe { &mut *ptr }
     }
 
     /// Каждому CPU нужно два стека:
