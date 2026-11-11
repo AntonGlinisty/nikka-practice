@@ -38,14 +38,16 @@ use super::{
     Path,
     Phys,
     Phys2Virt,
-    Translate,
     Virt,
     block::Block,
     frage::{
         Frame,
         Page,
     },
-    mapping::Mapping,
+    mapping::{
+        Mapping,
+        Translate,
+    },
     mmu::{
         self,
         PAGE_TABLE_LEAF_LEVEL,
@@ -650,7 +652,23 @@ impl AddressSpace {
         block: &Block<Virt>,
         flags: PageTableFlags,
     ) -> Result<()> {
-        // TODO: your code here.
+        let pages_block = block.enclosing();
+        if !kernel::memory::is_user_block(pages_block) {
+            return Err(PermissionDenied)
+        }
+
+        let mapping = self.mapping()?;
+        for page in pages_block {
+            let path = mapping.path(page.address());
+
+            let path_flags = path.flags()?;
+            if !path_flags.is_present() {
+                return Err(NoPage)
+            }
+            if !path_flags.contains(flags) {
+                return Err(PermissionDenied)
+            }
+        }
 
         Ok(())
     }
