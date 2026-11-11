@@ -1,5 +1,5 @@
 use core::{
-    cmp::{
+    alloc::Layout, cmp::{
         self,
         Ordering,
     },
@@ -73,8 +73,19 @@ pub unsafe fn load<T: BigAllocatorPair>(
     allocator: &mut T,
     file: &[u8],
 ) -> Result<Virt> {
-    // TODO: your code here.
-    unimplemented!();
+    let mut loader = Loader::new(allocator, file);
+    let header = ElfFile::new(file).map_err(Elf)?;
+
+    for program_header in header.program_iter() {
+        if program_header.get_type().map_err(Elf)? == Type::Load {
+            let file_range = FileRange::try_from(program_header)?;
+            loader.load_program_header(file_range)?;
+        }
+    }
+
+    loader.finish()?;
+
+    Virt::new_u64(header.header.pt2.entry_point())
 }
 
 /// Состояние загрузчика ELF--файлов.
@@ -129,8 +140,30 @@ impl<'a, T: BigAllocatorPair> Loader<'a, T> {
         &mut self,
         next: FileRange,
     ) -> Result<()> {
-        // TODO: your code here.
-        unimplemented!();
+        if let Some(curr) = &self.curr {
+            validate_order(curr, &next.virt_range)?;
+        }
+        self.extend_mapping(&next)?;
+
+        let next_range = self.copy_to_memory(next)?;
+
+        if let Some(curr) = self.curr {
+            let (curr_minus_next, boundary, update_next) = combine(curr, next_range)?;
+
+            if curr_minus_next.is_some() {
+                self.finalize_mapping(curr_minus_next.unwrap())?;
+            }
+
+            if boundary.is_some() {
+                self.finalize_mapping(boundary.unwrap())?;
+            }
+
+            self.curr = Some(update_next);
+        } else {
+            self.curr = Some(next_range);
+        }
+
+        Ok(())
     }
 
     /// Завершает загрузку ELF--файла в адресное пространство процесса.
@@ -140,8 +173,14 @@ impl<'a, T: BigAllocatorPair> Loader<'a, T> {
     /// С помощью метода [`Loader::finalize_mapping()`] переносит оставшиеся страницы из
     /// текущего адресного пространства в целевое для оставшегося диапазона [`Loader::curr`].
     fn finish(&mut self) -> Result<()> {
-        // TODO: your code here.
-        unimplemented!();
+        if let Some(curr) = self.curr {
+            let page_range = PageRange::from(curr);
+            self.finalize_mapping(page_range)?;
+
+            self.curr = None;
+        }
+
+        Ok(())
     }
 
     /// Копирует из ELF--файла [`Loader::file`] в текущее адресное пространство
@@ -153,8 +192,24 @@ impl<'a, T: BigAllocatorPair> Loader<'a, T> {
         &mut self,
         range: FileRange,
     ) -> Result<VirtRange> {
-        // TODO: your code here.
-        unimplemented!();
+        let pages_count = range.virt_range.memory.enclosing().count();
+
+        let start = (
+            (self.src_block.end_address()? - pages_count * Page::SIZE)? +
+            range.virt_range.memory.start_address().into_usize() % Page::SIZE)?;
+        let end = (start + range.file_range.len())?;
+
+        let block = Block::<Virt>::new(start, end)?;
+
+        let slice_to_fill;
+        unsafe {
+            slice_to_fill = block.try_into_mut_slice::<u8>()?;
+        }
+
+        let source = self.file.get(range.file_range.clone()).ok_or(Overflow)?;
+        slice_to_fill.copy_from_slice(source);
+
+        Ok(range.virt_range)
     }
 
     /// Расширяет отображение целевого адресного пространства,
@@ -181,8 +236,45 @@ impl<'a, T: BigAllocatorPair> Loader<'a, T> {
         &mut self,
         next: &FileRange,
     ) -> Result<()> {
-        // TODO: your code here.
-        unimplemented!();
+        let block_to_allocate;
+        let requested = next.virt_range.memory.enclosing();
+
+        if self.curr.is_some() {
+            let already_allocated = self.curr.unwrap().memory.enclosing();
+
+            block_to_allocate = Block::<Page>::from_index(
+                core::cmp::max(requested.start(), already_allocated.end()),
+                requested.end(),
+            )?;
+        } else {
+            block_to_allocate = requested;
+        }
+
+        let flags: PageTableFlags = self.allocator.src().flags() | PageTableFlags::WRITABLE;
+
+        unsafe {
+            self.src_block = self.allocator.src().grow(
+                self.src_block,
+                Layout::from_size_align(
+                    self.src_block.size().checked_add(block_to_allocate.size()).ok_or(Overflow)?,
+                    Page::SIZE
+                )?,
+                flags
+            )?;
+        }
+
+        let block_to_write = Block::<Page>::from_index(
+            self.src_block.end() - block_to_allocate.count(),
+            self.src_block.end()
+        )?;
+
+        unsafe {
+            block_to_write.try_into_mut_slice()?.fill(0);
+        }
+
+        self.allocator.dst().reserve_fixed(block_to_allocate)?;
+
+        Ok(())
     }
 
     /// Переносит заполненные физические фреймы для целевого диапазона
@@ -197,15 +289,46 @@ impl<'a, T: BigAllocatorPair> Loader<'a, T> {
         &mut self,
         page_range: PageRange,
     ) -> Result<()> {
-        // TODO: your code here.
-        unimplemented!();
+        let page_count = page_range.memory.count();
+        if page_count > self.src_block.count() {
+            return Err(InvalidArgument)
+        }
+
+        let start = self.src_block.start_address();
+        let end = (self.src_block.start_address() + page_count * Page::SIZE)?;
+
+        let block = Block::<Page>::new(
+            Page::containing(start),
+            Page::containing(end)
+        )?;
+
+        let flags = self.allocator.dst().flags() | page_range.flags;
+
+        unsafe {
+            self.allocator.copy_mapping(block, page_range.memory, Some(flags))?;
+            self.allocator.src().unmap(block)?;
+            self.allocator.src().unreserve(block)?;
+        }
+
+        self.src_block = Block::<Page>::from_index(
+            block.end(),
+            self.src_block.end(),
+        )?;
+
+        Ok(())
     }
 }
 
 impl<'a, T: BigAllocatorPair> Drop for Loader<'a, T> {
     fn drop(&mut self) {
-        // TODO: your code here.
-        unimplemented!();
+        if self.src_block.is_empty() {
+            return
+        }
+
+        unsafe {
+            self.allocator.src().unmap(self.src_block).expect("Failed to unmap src_block in drop");
+            self.allocator.src().unreserve(self.src_block).expect("Failed to unreserve src_block in drop");
+        }
     }
 }
 
@@ -284,8 +407,28 @@ impl TryFrom<ProgramHeader<'_>> for FileRange {
     ///     [записать и выполнить произвольный код](https://en.wikipedia.org/wiki/Arbitrary_code_execution)
     ///     внутри создаваемого процесса.
     fn try_from(program_header: ProgramHeader) -> Result<Self> {
-        // TODO: your code here.
-        unimplemented!();
+        if program_header.mem_size() < program_header.file_size() {
+            return Err(Overflow)
+        }
+
+        let file_offset = usize::try_from(program_header.offset()).map_err(|_| Overflow)?;
+        let file_size = usize::try_from(program_header.file_size()).map_err(|_| Overflow)?;
+
+        let file_range = file_offset..file_offset.checked_add(file_size).ok_or(Overflow)?;
+        let virt_range = VirtRange {
+            flags: PageTableFlags::try_from(program_header.flags())?,
+            memory: Block::<Virt>::new(
+                Virt::new_u64(program_header.virtual_addr())?,
+                Virt::new_u64(
+                    program_header
+                        .virtual_addr()
+                        .checked_add(program_header.mem_size())
+                        .ok_or(Overflow)?
+                    )?,
+            ).map_err(|_| Overflow)?,
+        };
+        
+        Ok(FileRange { file_range, virt_range })
     }
 }
 
@@ -325,8 +468,67 @@ fn combine(
     curr: VirtRange,
     next: VirtRange,
 ) -> Result<(Option<PageRange>, Option<PageRange>, VirtRange)> {
-    // TODO: your code here.
-    unimplemented!();
+    validate_order(&curr, &next)?;
+
+    let curr_pages = curr.memory.enclosing();
+    let next_pages = next.memory.enclosing();
+
+    let curr_minus_next_block = Block::<Page>::from_index(
+        curr_pages.start(),
+        core::cmp::min(curr_pages.end(), next_pages.start()),
+    )?;
+
+    let curr_minus_next = if curr_minus_next_block.is_empty() {
+        None
+    } else {
+        Some(PageRange { flags: curr.flags, memory: curr_minus_next_block })
+    };
+
+    let boundary_block;
+    let boundary_flags = curr.flags | next.flags;
+
+    let updated_next_block;
+    let mut updated_next_flags = next.flags;
+
+    if curr_pages.end() <= next_pages.start() {
+        boundary_block = None;
+        updated_next_block = next.memory;
+    } else if curr_pages.end() < next_pages.end() {
+        boundary_block = Some(Block::<Page>::from_index(
+            next_pages.start(),
+            curr_pages.end()
+        )?);
+
+        updated_next_block = Block::<Virt>::new(
+            curr_pages.end_address()?,
+            next.memory.end_address()?
+        )?;
+    } else {
+        boundary_block = None;
+
+        updated_next_block = Block::<Virt>::new(
+            core::cmp::max((next_pages.end_address()? - Page::SIZE)?, curr.memory.start_address()),
+            next.memory.end_address()?
+        )?;
+        updated_next_flags = curr.flags | next.flags;
+    }
+
+    let boundary: Option<PageRange>;
+    if let Some(block) = boundary_block {
+        boundary = Some(PageRange {
+            flags: boundary_flags,
+            memory: block,
+        });
+    } else {
+        boundary = None
+    }
+
+    let updated_next = VirtRange {
+        flags: updated_next_flags,
+        memory: updated_next_block,
+    };
+
+    Ok((curr_minus_next, boundary, updated_next))
 }
 
 impl TryFrom<Flags> for PageTableFlags {
