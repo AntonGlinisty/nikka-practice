@@ -151,13 +151,93 @@ impl Registers {
         unsafe {
             asm!(
                 "
-                // TODO: your code here.
+                push rax
+                push rbx
+                push rcx
+                push rdx
+                push rsi
+                push rdi
+                push rbp
+                push r8
+                push r9
+                push r10
+                push r11
+                push r12
+                push r13
+                push r14
+                push r15
+
+                push {0}
+
+                mov GS:[{1}], rsp
+
+                cli
+
+                mov rsp, {0}
+
+                pop rax
+                pop rbx
+                pop rcx
+                pop rdx
+                pop rdi
+                pop rsi
+                pop rbp
+                pop r8
+                pop r9
+                pop r10
+                pop r11
+                pop r12
+                pop r13
+                pop r14
+                pop r15
 
                 iretq
 
             store_user_mode_context:
 
-                // TODO: your code here.
+                mov rsp, GS:[{1}]
+
+                push rax
+                mov rax, [rsp + 8]
+
+                mov [rax + 8], rbx
+                mov [rax + 16], rcx
+                mov [rax + 24], rdx
+                mov [rax + 32], rdi
+                mov [rax + 40], rsi
+                mov [rax + 48], rbp
+                mov [rax + 56], r8
+                mov [rax + 64], r9
+                mov [rax + 72], r10
+                mov [rax + 80], r11
+                mov [rax + 88], r12
+                mov [rax + 96], r13
+                mov [rax + 104], r14
+                mov [rax + 112], r15
+
+                mov rbx, rax
+                pop rax
+                mov [rbx], rax
+
+                sti
+
+                pop rbx
+
+                pop r15
+                pop r14
+                pop r13
+                pop r12
+                pop r11
+                pop r10
+                pop r9
+                pop r8
+                pop rbp
+                pop rdi
+                pop rsi
+                pop rdx
+                pop rcx
+                pop rbx
+                pop rax
 
             switch_to_kernel_mode:
 
@@ -165,6 +245,8 @@ impl Registers {
                 ",
 
                 // TODO: your code here.
+                in(reg) registers,
+                const KERNEL_RSP_OFFSET_IN_CPU,
             );
         }
 
