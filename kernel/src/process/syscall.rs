@@ -16,25 +16,20 @@ use x86_64::registers::model_specific::{
 };
 
 use ku::{
-    log::{
-        self,
-        Level,
-        event,
-    },
-    process::{
+    Error::Unimplemented, log::{
+        self, Level, event, level_try_from_symbol,
+    }, process::{
         ExitCode,
         MiniContext,
         RFlags,
         ResultCode,
         State,
         Syscall,
-    },
-    sync::spinlock::SpinlockGuard,
+    }, sync::spinlock::SpinlockGuard,
 };
 
 use crate::{
-    allocator::MemoryAllocator,
-    error::{
+    allocator::MemoryAllocator, error::{
         Error::{
             InvalidAlignment,
             InvalidArgument,
@@ -43,31 +38,18 @@ use crate::{
             PermissionDenied,
         },
         Result,
-    },
-    gdt::Gdt,
-    log::{
+    }, gdt::Gdt, log::{
         debug,
         error,
         info,
         trace,
         warn,
-    },
-    memory::{
-        self,
-        AddressSpace,
-        Block,
-        FrameGuard,
-        KERNEL_RW,
-        Page,
-        Translate,
-        USER_R,
-        Virt,
-        mmu::{
+    }, memory::{
+        self, AddressSpace, BASE_ADDRESS_SPACE, Block, FrameGuard, KERNEL_RW, Page, Translate, USER_R, Virt, mmu::{
             PageTableEntry,
             PageTableFlags,
-        },
-    },
-    smp::{
+        }, test_scaffolding::check_permission,
+    }, smp::{
         Cpu,
         KERNEL_RSP_OFFSET_IN_CPU,
     },
@@ -98,7 +80,21 @@ pub(crate) fn init() {
     let syscall_virt = Virt::from_ptr(syscall_trampoline as *const ());
     debug!(%syscall_virt);
 
-    // TODO: your code here.
+    unsafe {
+        Efer::update(|flags| {
+            flags.insert(EferFlags::SYSTEM_CALL_EXTENSIONS);
+        });
+        Star::write(
+            Gdt::user_code(),
+            Gdt::user_data(),
+            Gdt::kernel_code(),
+            Gdt::kernel_data()
+        ).expect("Failed to initialize Star");
+        LStar::write(syscall_virt.into());
+        SFMask::update(|flags| {
+            *flags = RFlags::ALL.into();
+        });
+    }
 }
 
 /// Получает управление при выполнении инструкции
@@ -110,12 +106,21 @@ pub(crate) fn init() {
 extern "C" fn syscall_trampoline() -> ! {
     naked_asm!(
         "
-            // TODO: your code here.
+            mov rbx, rsp
+            mov rsp, GS:[{0}]
+
+            sti
+
+            push rbx
+            push rcx
+            push rax
+
+            mov rcx, r10
 
             call {syscall}
         ",
 
-        // TODO: your code here.
+        const KERNEL_RSP_OFFSET_IN_CPU,
         syscall = sym syscall,
     );
 }
@@ -148,8 +153,39 @@ extern "C" fn syscall(
         "enable the interrupts during the system calls",
     );
 
-    // TODO: your code here.
-    unimplemented!();
+    let sc = Syscall::try_from(number);
+
+    let context = MiniContext::new(rip, rsp);
+    if sc.is_err() {
+        sysret(context, Err(InvalidArgument))
+    }
+    let result;
+
+    match sc.unwrap() {
+        Syscall::Exit => {
+            let pid = Cpu::current_process().unwrap_or_else(
+                |err| sysret(context, Err(err))
+            );
+            let process = Table::get(pid).unwrap_or_else(
+                |err| sysret(context, Err(err))
+            );
+            exit(process, arg0);
+        }
+        Syscall::LogValue => {
+            let pid = Cpu::current_process().unwrap_or_else(
+                |err| sysret(context, Err(err))
+            );
+            let process = Table::get(pid).unwrap_or_else(
+                |err| sysret(context, Err(err))
+            );
+            result = log_value(process, arg0, arg1, arg2, arg3);
+        }
+        _ => {
+            result = Err(Unimplemented);
+        }
+    }
+
+    sysret(context, result)
 }
 
 /// С помощью инструкции [sysret](https://www.felixcloutier.com/x86/sysret)
@@ -161,18 +197,38 @@ fn sysret(
     context: MiniContext,
     result: Result<usize>,
 ) -> ! {
-    // TODO: your code here.
+    let result_value = match &result {
+        Ok(value) => *value,
+        Err(_) => 0,
+    };
+    let result_code = ResultCode::from(result);
 
     unsafe {
         asm!(
             "
-            // TODO: your code here.
+            cli
+
+            mov rsp, {0}
+
+            mov rbx, 0
+            mov rdx, 0
+            mov rsi, 0
+            mov rbp, 0
+            mov r8, 0
+            mov r9, 0
+            mov r10, 0
+            mov r12, 0
+            mov r13, 0
+            mov r14, 0
+            mov r15, 0
 
             sysretq
             ",
-
-            // TODO: your code here.
-
+            in(reg) context.rsp().into_usize(),
+            in("rax") usize::from(result_code),
+            in("rdi") result_value,
+            in("r11") 0usize,
+            in("rcx") context.rip().into_usize(),
             options(noreturn),
         );
     }
@@ -187,8 +243,12 @@ fn exit(
     process: SpinlockGuard<Process>,
     code: usize,
 ) -> ! {
-    // TODO: your code here.
-    unimplemented!();
+    let pid = process.pid();
+    info!(%pid, code, "process exited");
+
+    drop(process);
+    Table::free(pid).expect("Failed to free process table slot");
+    Process::sched_yield();
 }
 
 /// Выполняет системный вызов
@@ -196,7 +256,6 @@ fn exit(
 ///
 /// Записывает в журнал строку `message` типа `&str`, заданную началом `start` и длиной `len`,
 /// а также число `value`.
-#[allow(unused_mut)] // TODO: remove before flight.
 fn log_value(
     mut process: SpinlockGuard<Process>,
     level: usize,
@@ -204,8 +263,27 @@ fn log_value(
     len: usize,
     value: usize,
 ) -> Result<usize> {
-    // TODO: your code here.
-    unimplemented!();
+    let end = start.checked_add(len).ok_or(Overflow)?;
+    let block = Block::<Virt>::from_index(start, end)?;
+
+    let data = process.address_space().check_permission::<u8>(
+        block,
+        USER_R
+    )?;
+
+    let str = core::str::from_utf8(data).map_err(|_| InvalidArgument)?;
+
+    let level_u32 = u32::try_from(level).map_err(|_| InvalidArgument)?;
+    let level_char = char::from_u32(level_u32).ok_or(InvalidArgument)?;
+    match level_try_from_symbol(level_char)? {
+        Level::ERROR => error!(str, value),
+        Level::WARN => warn!(str, value),
+        Level::INFO => info!(str, value),
+        Level::DEBUG => debug!(str, value),
+        Level::TRACE => trace!(str, value),
+    };
+
+    Ok(0)
 }
 
 /// Выполняет системный вызов
