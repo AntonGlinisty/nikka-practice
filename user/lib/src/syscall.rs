@@ -231,8 +231,45 @@ pub fn syscall(
     arg3: usize,
     arg4: usize,
 ) -> Result<usize> {
-    // TODO: your code here.
-    unimplemented!();
+    let result_code: usize;
+    let result_value: usize;
+
+    unsafe {
+        asm! (
+            "
+            push rbx
+            push rbp
+
+            syscall
+
+            pop rbp
+            pop rbx
+            ",
+            inlateout("rax") usize::from(number) => result_code,
+            inlateout("rdi") arg0 => result_value,
+            inlateout("rsi") arg1 => _,
+            inlateout("rdx") arg2 => _,
+            inlateout("r10") arg3 => _,
+            inlateout("r8") arg4 => _,
+            lateout("rcx") _,
+            lateout("r9") _,
+            lateout("r11") _,
+            lateout("r12") _,
+            lateout("r13") _,
+            lateout("r14") _,
+            lateout("r15") _,
+        );
+    }
+
+    if result_code == 0 {
+        return Ok(result_value)
+    }
+
+    let error = ResultCode::try_from(result_code).map_err(|_| ku::Error::InvalidArgument)?;
+    let status: Result<()> = error.into();
+
+    status?;
+    Ok(result_value)
 }
 
 /// Получает управление, если в коде пользователя возникло исключение.
