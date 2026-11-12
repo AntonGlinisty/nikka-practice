@@ -3,10 +3,10 @@ use core::fmt;
 
 use lazy_static::lazy_static;
 
-use ku::sync::spinlock::{
+use ku::{process, sync::spinlock::{
     Spinlock,
     SpinlockGuard,
-};
+}};
 
 use crate::{
     error::{
@@ -16,9 +16,7 @@ use crate::{
             NoProcessSlot,
         },
         Result,
-    },
-    log::info,
-    time,
+    }, log::info, smp::Cpu, time,
 };
 
 use super::{
@@ -79,8 +77,16 @@ impl Table {
     /// пустыми слотами [`Slot::Free`] с соответствующими индексам слотов полями [`Pid::Id::slot`].
     /// Эти пустые слоты провязывает в односвязный список с головой в поле [`Table::free`].
     pub(super) fn new(len: usize) -> Self {
-        // TODO: your code here.
-        let table: Vec<_> = alloc::vec![Slot::Free { pid: Pid::new(0), next: None }]; // TODO: remove before flight.
+        if len == 0 {
+            return Self::default();
+        }
+
+        let mut table = alloc::vec::Vec::with_capacity(len);
+
+        for index in 0..(len - 1) {
+            table.push(Slot::Free { pid: Pid::new(index), next: Some(Pid::new(index + 1)) })
+        }
+        table.push(Slot::Free { pid: Pid::new(len - 1), next: None });
 
         Self {
             free: Some(Pid::new(0)),
@@ -91,14 +97,20 @@ impl Table {
 
     /// Выделяет процессу `process` свободный слот таблицы и возвращает соответствующий [`Pid`].
     /// Если свободного слота нет, возвращает ошибку [`Error::NoProcessSlot`].
-    #[allow(unused_mut)] // TODO: remove before flight.
     pub(super) fn allocate(mut process: Process) -> Result<Pid> {
         let mut table = TABLE.lock();
 
         let pid = table.free.ok_or(NoProcessSlot)?;
 
-        // TODO: your code here.
-        assert_eq!(table.process_count, 0); process.set_pid(pid); table.process_count = 1; table.table[pid.slot()] = Slot::Used { process: Spinlock::new(process) }; // TODO: remove before flight.
+        process.set_pid(pid);
+
+        table.free = match &table.table[pid.slot()] {
+            Slot::Free { next, .. } => *next,
+            Slot::Used { .. } => panic!("The process table has broken down"),
+        };
+        
+        table.process_count += 1;
+        table.table[pid.slot()] = Slot::Used { process: Spinlock::new(process) };
 
         Ok(pid)
     }
@@ -107,12 +119,27 @@ impl Table {
     /// При этом:
     ///   - Инкрементирует эпоху в освободившемся слоте.
     ///   - Вставляет слот в голову списка свободных слотов [`Table::free`].
-    #[allow(unused_mut)] // TODO: remove before flight.
     pub fn free(mut pid: Pid) -> Result<()> {
         let mut table = TABLE.lock();
 
-        // TODO: your code here.
-        assert_eq!(pid.slot(), 0); assert_eq!(table.process_count, 1); table.free = Some(Pid::new(0)); table.process_count = 0; table.table[0] = Slot::Free { pid: Pid::new(0), next: None }; // TODO: remove before flight.
+        if pid == Pid::Current {
+            pid = Cpu::current_process()?;
+        }
+        
+        match table.table.get(pid.slot()).ok_or(NoProcess)? {
+            Slot::Free { .. } => return Err(NoProcess),
+            Slot::Used { process } => {
+                if process.lock().pid() != pid {
+                    return Err(NoProcess)
+                }
+            },
+        };
+        
+        pid.next_epoch();
+
+        table.table[pid.slot()] = Slot::Free { pid: pid, next: table.free };
+        table.free = Some(pid);
+        table.process_count -= 1;
 
         Ok(())
     }
@@ -124,8 +151,23 @@ impl Table {
     pub fn get(pid: Pid) -> Result<SpinlockGuard<'static, Process>> {
         let table = TABLE.lock();
 
-        // TODO: your code here.
-        assert_eq!(pid.slot(), 0); assert_eq!(table.process_count, 1); if let Slot::Used { process } = &table.table[0] { Ok(unsafe { forge_static_lifetime(process).lock() }) } else { unreachable!() } // TODO: remove before flight.
+        let new_pid = if pid == Pid::Current {
+            Cpu::current_process()?
+        } else {
+            pid
+        };
+
+        match table.table.get(new_pid.slot()).ok_or(NoProcess)? {
+            Slot::Free { .. } => return Err(NoProcess),
+            Slot::Used { process } => {
+                let lock = unsafe { forge_static_lifetime(process).lock() };
+                if lock.pid() != new_pid {
+                    return Err(NoProcess)
+                }
+
+                Ok(lock)
+            },
+        }
     }
 }
 
