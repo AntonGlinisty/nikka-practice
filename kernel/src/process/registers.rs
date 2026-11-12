@@ -151,21 +151,8 @@ impl Registers {
         unsafe {
             asm!(
                 "
-                push rax
                 push rbx
-                push rcx
-                push rdx
-                push rsi
-                push rdi
                 push rbp
-                push r8
-                push r9
-                push r10
-                push r11
-                push r12
-                push r13
-                push r14
-                push r15
 
                 push {0}
 
@@ -223,21 +210,8 @@ impl Registers {
 
                 pop rbx
 
-                pop r15
-                pop r14
-                pop r13
-                pop r12
-                pop r11
-                pop r10
-                pop r9
-                pop r8
                 pop rbp
-                pop rdi
-                pop rsi
-                pop rdx
-                pop rcx
                 pop rbx
-                pop rax
 
             switch_to_kernel_mode:
 
@@ -247,6 +221,20 @@ impl Registers {
                 // TODO: your code here.
                 in(reg) registers,
                 const KERNEL_RSP_OFFSET_IN_CPU,
+
+                lateout("rax") _,
+                lateout("rcx") _,
+                lateout("rdx") _,
+                lateout("rsi") _,
+                lateout("rdi") _,
+                lateout("r8") _,
+                lateout("r9") _,
+                lateout("r10") _,
+                lateout("r11") _,
+                lateout("r12") _,
+                lateout("r13") _,
+                lateout("r14") _,
+                lateout("r15") _,
             );
         }
 
