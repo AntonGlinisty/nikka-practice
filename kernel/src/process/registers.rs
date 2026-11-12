@@ -215,10 +215,13 @@ impl Registers {
 
             switch_to_kernel_mode:
 
-                // TODO: your code here.
+                mov rsp, GS:[{1}]
+                
+                pop rbp
+                pop rbp
+                pop rbx
                 ",
 
-                // TODO: your code here.
                 in(reg) registers,
                 const KERNEL_RSP_OFFSET_IN_CPU,
 
