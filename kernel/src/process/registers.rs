@@ -206,20 +206,16 @@ impl Registers {
                 pop rax
                 mov [rbx], rax
 
-                sti
-
-                pop rbx
-
-                pop rbp
-                pop rbx
-
             switch_to_kernel_mode:
 
                 mov rsp, GS:[{1}]
                 
-                pop rbp
+                add rsp, 8
+
                 pop rbp
                 pop rbx
+
+                sti
                 ",
 
                 in(reg) registers,
