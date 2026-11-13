@@ -42,9 +42,22 @@ impl Scheduler {
     /// Должен корректно обрабатывать ситуацию, когда `pid` есть в очереди планирования,
     /// но соответствующего процесса уже нет в [`Table`].
     pub fn run_one() -> bool {
-        // TODO: your code here.
+        while let Some(pid) = Scheduler::dequeue() {
+            match Table::get(pid) {
+                Ok(process) => {
+                    let result = Process::enter_user_mode(process);
+                    if result {
+                        Scheduler::enqueue(pid);
+                    }
+                    return true
+                }
+                Err(_) => {
+                    continue;
+                }
+            }
+        }
 
-        false
+        return false
     }
 
     /// В вечном цикле выполняет готовые процессы методом [`Scheduler::run_one()`].
@@ -66,14 +79,12 @@ impl Scheduler {
 
     /// Ставит процесс, заданный идентификатором `pid`, в очередь исполнения.
     pub fn enqueue(pid: Pid) {
-        // TODO: your code here.
-        unimplemented!();
+        SCHEDULER.lock().queue.push_back(pid);
     }
 
     /// Достаёт из очереди первый готовый к исполнению процесс.
     fn dequeue() -> Option<Pid> {
-        // TODO: your code here.
-        unimplemented!();
+        SCHEDULER.lock().queue.pop_front()
     }
 }
 
