@@ -314,9 +314,15 @@ impl Process {
         debug!(%pid, "leaving the user mode");
 
         Cpu::set_current_process(None);
+        if let Some(context) = Cpu::take_user_context() {
+            let mut user_process = Table::get(pid).expect("Failed to find process by pid in table");
+            user_process.registers.set_mode_context(context);
 
-        // TODO: your code here.
-        false // TODO: remove before flight.
+            user_process.state = State::Runnable;
+            return true
+        }
+
+        false
     }
 
     /// Выполняет переключение текущего контекста исполнения `context`
@@ -324,10 +330,12 @@ impl Process {
     /// Текущий контекст пользователя сохраняет в структуре `Cpu` текущего процессора.
     ///
     /// Этот метод вызывается из функции обработки прерывания от таймера `trap::timer()`.
-    #[allow(unused_mut)] // TODO: remove before flight.
     #[inline(always)]
     pub(crate) fn preempt(context: &mut TrapContext) {
-        // TODO: your code here.
+        if context.is_user_mode() {
+            Cpu::set_user_context(context.get());
+            context.set(Cpu::kernel_context());
+        }
     }
 
     /// Вытесняет текущий исполняющийся процесс с процессора по его собственному запросу.
