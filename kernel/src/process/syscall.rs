@@ -179,7 +179,16 @@ extern "C" fn syscall(
                 |err| sysret(context, Err(err))
             );
             result = log_value(process, arg0, arg1, arg2, arg3);
-        }
+        },
+        Syscall::SchedYield => {
+            let pid = Cpu::current_process().unwrap_or_else(
+                |err| sysret(context, Err(err))
+            );
+            let process = Table::get(pid).unwrap_or_else(
+                |err| sysret(context, Err(err))
+            ); 
+            sched_yield(process, context);
+        },
         _ => {
             result = Err(Unimplemented);
         }
@@ -295,13 +304,17 @@ fn log_value(
 /// в контекст из которого была вызвана функция [`Process::enter_user_mode()`].
 /// Текущий контекст исходного процесса --- `context` --- записывает в него,
 /// чтобы в дальнейшем в него можно было вернуться через [`Process::enter_user_mode()`].
-#[allow(unused_mut)] // TODO: remove before flight.
 fn sched_yield(
     mut process: SpinlockGuard<Process>,
     context: MiniContext,
 ) -> ! {
-    // TODO: your code here.
-    unimplemented!();
+    process.set_context(context);
+    process.set_state(State::Runnable);
+
+    Scheduler::enqueue(process.pid());
+    drop(process);
+
+    Process::sched_yield()
 }
 
 /// Выполняет системный вызов
